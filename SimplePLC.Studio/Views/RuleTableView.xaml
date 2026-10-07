@@ -1,0 +1,769 @@
+<UserControl x:Class="SimplePLC.Studio.Views.RuleTableView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters">
+
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverterEx x:Key="BoolToVis" />
+        <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+
+        <!-- Modern ProgressBar Style -->
+        <Style x:Key="MemoryProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="6" />
+            <Setter Property="Background" Value="#DFE3E8" />
+            <Setter Property="Foreground" Value="#006487" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}" CornerRadius="2" />
+                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2" HorizontalAlignment="Left" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Segmented Filter Button Style -->
+        <Style x:Key="FilterPillButton" TargetType="Button">
+            <Setter Property="Background" Value="#F3F4F6" />
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="PillBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PillBorder" Property="Background" Value="#DFE3E8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Modern Flat DataGrid Column Header Styles -->
+        <Style x:Key="ModernColumnHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Background" Value="#ECEFF1" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CenteredColumnHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource ModernColumnHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="2,8" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <!-- Header -->
+            <RowDefinition Height="Auto" />
+            <!-- Toolbar: Filter & Search -->
+            <RowDefinition Height="Auto" />
+            <!-- Content: DataGrid or Empty State -->
+            <RowDefinition Height="*" MinHeight="160" />
+            <!-- Resizing Splitter -->
+            <RowDefinition Height="Auto" />
+            <!-- Bottom Inspector: 32-Byte Disassembly -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Header -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Top Left: Title & Rule Count Badge -->
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding [RuleTableTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                               FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Top Right: Actions -->
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Button Command="{Binding CreateNewRuleCommand}"
+                            Background="#107C41" Foreground="White" BorderBrush="#0B5A2F" BorderThickness="1"
+                            FontWeight="SemiBold" FontSize="11.5" Padding="12,5" Cursor="Hand" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="➕ " FontSize="11" VerticalAlignment="Center" Foreground="White" />
+                                                    <TextBlock Text="{Binding [RuleBtnCreateNew], Source={x:Static services:LocalizationService.Instance}}" 
+                                                               FontSize="11.5" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="BtnBorder" Property="Background" Value="#0B5A2F" />
+                                                    <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#084624" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Command="{Binding EditInLogicGraphCommand}"
+                            Background="#006487" Foreground="White" BorderBrush="#004D68" BorderThickness="1"
+                            FontWeight="SemiBold" FontSize="11.5" Padding="12,5" Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="✏️ " FontSize="11" VerticalAlignment="Center" Foreground="White" />
+                                                    <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" 
+                                                               FontSize="11.5" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="BtnBorder" Property="Background" Value="#004D68" />
+                                                    <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#00374A" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+
+                <!-- Bottom Left: Subtitle Description -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [RuleTableDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                           FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,16,0" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+
+                <!-- Bottom Right: Capacity Quota Bar -->
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,6,0,0">
+                    <ProgressBar Style="{StaticResource MemoryProgressBarStyle}" Value="{Binding TotalRuleCount, Mode=OneWay}" Maximum="100" Width="130" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding MemoryStatusText}" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 1: Toolbar (Status Filters, Export CSV, Search Box) -->
+        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10" Margin="0,0,0,12">
+            <DockPanel>
+                <!-- Left: Status Filters -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- All -->
+                    <Button Command="{Binding SetStatusFilterCommand}" CommandParameter="ALL">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFilterAll}" Value="True">
+                                        <Setter Property="Background" Value="#006487" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#004D68" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock Text="{Binding FilterAllLabel}" />
+                    </Button>
+
+                    <!-- Active -->
+                    <Button Command="{Binding SetStatusFilterCommand}" CommandParameter="ACTIVE">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFilterActive}" Value="True">
+                                        <Setter Property="Background" Value="#107C41" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#0B5A2F" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock Text="{Binding FilterActiveLabel}" />
+                    </Button>
+
+                    <!-- Disabled -->
+                    <Button Command="{Binding SetStatusFilterCommand}" CommandParameter="DISABLED">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFilterDisabled}" Value="True">
+                                        <Setter Property="Background" Value="#64748B" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#475569" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock Text="{Binding FilterDisabledLabel}" />
+                    </Button>
+
+                    <!-- Export CSV Button -->
+                    <Button Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasRules}"
+                            Style="{StaticResource FilterPillButton}" Margin="10,0,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📤" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding [RuleBtnExportCsv], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Upload from PLC Button -->
+                    <Button Command="{Binding UploadFromDeviceCommand}"
+                            Style="{StaticResource FilterPillButton}" Margin="6,0,0,0"
+                            ToolTip="{Binding [RuleBtnUploadFromDeviceTip], Source={x:Static services:LocalizationService.Instance}}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📥" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding [RuleBtnUploadFromDevice], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Deduplicate Button -->
+                    <Button Command="{Binding DeduplicateRulesCommand}" IsEnabled="{Binding HasRules}"
+                            Style="{StaticResource FilterPillButton}" Margin="6,0,0,0"
+                            ToolTip="{Binding [RuleBtnDeduplicateTip], Source={x:Static services:LocalizationService.Instance}}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🧹" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding [RuleBtnDeduplicate], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Right: Search Input Box -->
+                <Border DockPanel.Dock="Right" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8,4" Width="360" HorizontalAlignment="Right">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="🔍" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0" />
+
+                        <!-- Placeholder Text -->
+                        <TextBlock Grid.Column="1" Text="{Binding [RuleSearchPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
+                                   FontSize="11.5" Foreground="#94A3B8" VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SearchFilter}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SearchFilter}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <!-- Input TextBox -->
+                        <TextBox Grid.Column="1" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent" BorderThickness="0" FontSize="11.5" Foreground="#0F172A" VerticalAlignment="Center" />
+
+                        <!-- Clear Button -->
+                        <Button Grid.Column="2" Command="{Binding ClearSearchCommand}"
+                                Content="✕" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="4,0" VerticalAlignment="Center">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SearchFilter}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SearchFilter}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Row 2: Content (DataGrid when HasRules == true, Empty State when HasRules == false) -->
+        <Grid Grid.Row="2">
+            <!-- DataGrid Table -->
+            <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6"
+                    Visibility="{Binding HasRules, Converter={StaticResource BoolToVis}}">
+                <DataGrid ItemsSource="{Binding FilteredRules}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#ECEFF1" HeadersVisibility="Column"
+                          ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}"
+                          EnableRowVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          ScrollViewer.CanContentScroll="True"
+                          Background="White" BorderThickness="0" MinRowHeight="42"
+                          HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                          SelectedItem="{Binding SelectedRule}" SelectionMode="Single">
+
+                    <DataGrid.Columns>
+                        <!-- Enabled Switch -->
+                        <DataGridCheckBoxColumn Header="{Binding [ColRuleEnabled], Source={x:Static services:LocalizationService.Instance}}"
+                                                Width="48" Binding="{Binding Enabled}"
+                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                            <DataGridCheckBoxColumn.ElementStyle>
+                                <Style TargetType="CheckBox">
+                                    <Setter Property="HorizontalAlignment" Value="Center" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGridCheckBoxColumn.ElementStyle>
+                        </DataGridCheckBoxColumn>
+
+                        <!-- ID -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleId], Source={x:Static services:LocalizationService.Instance}}"
+                                                Width="55"
+                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" Foreground="#006487" FontFamily="Consolas"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Trigger -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleTrigger], Source={x:Static services:LocalizationService.Instance}}" Width="160">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#E6F4EA" BorderBrush="#107C41" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TriggerSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#107C41" FontFamily="Consolas" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Guard -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleGuard], Source={x:Static services:LocalizationService.Instance}}" Width="135">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FEF3C7" BorderBrush="#C05621" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding GuardSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#C05621" FontFamily="Consolas" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Action -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleAction], Source={x:Static services:LocalizationService.Instance}}" Width="145">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#DFE3E8" BorderBrush="#006487" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ActionSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#006487" FontFamily="Consolas" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Macro Attribution Badge Column (Disassembly Truth) -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleMacro], Source={x:Static services:LocalizationService.Instance}}" Width="150">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="{Binding MacroBadgeBackground}" BorderBrush="{Binding MacroBadgeBorderBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Visibility="{Binding MacroAttribution, Converter={StaticResource NullToVis}}">
+                                        <TextBlock Text="{Binding MacroAttribution}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding MacroBadgeForeground}" FontFamily="Segoe UI" TextTrimming="CharacterEllipsis" ToolTip="{Binding MacroAttribution}" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Narrative -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleNarrative], Source={x:Static services:LocalizationService.Instance}}" Width="*" MinWidth="320">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Narrative}" TextWrapping="Wrap" LineHeight="17"
+                                               FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11.5"
+                                               VerticalAlignment="Center" Padding="10,4" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Action: Jump to Canvas & Delete -->
+                        <DataGridTemplateColumn Header="{Binding [ColRuleActionNav], Source={x:Static services:LocalizationService.Instance}}"
+                                                Width="155"
+                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <!-- Edit on Canvas -->
+                                        <Button Command="{Binding DataContext.EditInLogicGraphCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Background="#F3F4F6" Foreground="#006487" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                FontSize="10.5" FontWeight="SemiBold" Padding="8,4" Cursor="Hand" Margin="0,0,6,0">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <TextBlock Text="✏️ " FontSize="9.5" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#DFE3E8" />
+                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <!-- Delete Rule -->
+                                        <Button Command="{Binding DataContext.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
+                                                Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                FontSize="11" FontWeight="SemiBold" Padding="7,4" Cursor="Hand">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                    <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#FEE2E2" />
+                                                            <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Empty State Card (Visible when HasRules == false) -->
+            <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="32"
+                    Visibility="{Binding HasRules, Converter={StaticResource InverseBoolToVis}}"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+                    <Border Background="#ECEFF1" Width="72" Height="72" CornerRadius="36" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <TextBlock Text="⚡" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="{Binding [RuleEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
+                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding [RuleEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
+                               FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" LineHeight="19" Margin="0,0,0,24" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="{Binding [RuleEmptyBtnGraph], Source={x:Static services:LocalizationService.Instance}}"
+                                Command="{Binding EditInLogicGraphCommand}"
+                                Style="{StaticResource BtnPrimary}" Margin="0,0,12,0" />
+                        <Button Content="{Binding [RuleEmptyBtnBlueprints], Source={x:Static services:LocalizationService.Instance}}"
+                                Command="{Binding NavigateToBlueprintsCommand}"
+                                Style="{StaticResource BtnSecondary}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Row 3: Resizing Splitter -->
+        <GridSplitter Grid.Row="3" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                      Background="Transparent" ShowsPreview="False" Cursor="SizeNS" Margin="0,4,0,4"
+                      Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}" />
+
+        <!-- Row 4: Logic Flow Details Card (Automation Pipeline: Trigger -> Guard -> Action) -->
+        <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10"
+                Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}">
+            <StackPanel>
+                <!-- Card Header -->
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="📋 " FontSize="13" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding [RuleFlowInspectorTitle], Source={x:Static services:LocalizationService.Instance}}"
+                                   FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        
+                        <!-- Rule ID Pill -->
+                        <Border Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedRule.Id}" FontWeight="Bold" FontSize="11.5" Foreground="#006487" FontFamily="Consolas" />
+                        </Border>
+
+                        <!-- Rule Status Pill -->
+                        <Border CornerRadius="2" Padding="7,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#F3F4F6" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedRule.Enabled}" Value="True">
+                                            <Setter Property="Background" Value="#E6F4EA" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding SelectedRule.StatusText}" FontWeight="SemiBold" FontSize="11">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#64748B" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedRule.Enabled}" Value="True">
+                                                <Setter Property="Foreground" Value="#107C41" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Right Actions: Collapse/Expand Toggle & Edit in Logic Graph Button -->
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <!-- Collapse / Expand Flow Details Toggle -->
+                        <Button Command="{Binding ToggleFlowInspectorCommand}"
+                                Background="#F3F4F6" Foreground="#475569" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                FontWeight="SemiBold" FontSize="11" Padding="10,4" Cursor="Hand" Margin="0,0,8,0"
+                                ToolTip="{Binding [RuleFlowToggleTip], Source={x:Static services:LocalizationService.Instance}}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderBrush}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding FlowInspectorToggleIcon}" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding FlowInspectorToggleText}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#DFE3E8" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
+                        <!-- Edit in Logic Graph Button -->
+                        <Button Command="{Binding EditInLogicGraphCommand}"
+                                Background="#F3F4F6" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                FontWeight="SemiBold" FontSize="11" Padding="10,4" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="✏️ " FontSize="10.5" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#DFE3E8" />
+                                            <Setter Property="BorderBrush" Value="#006487" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- Collapsible Body Content: 3-Step Pipeline Cards & Hex Breakdown -->
+                <StackPanel Visibility="{Binding IsFlowInspectorExpanded, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
+                    <!-- 3-Step Pipeline Cards -->
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Step 1: Trigger -->
+                        <Border Grid.Column="0" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="0,0,6,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="⚡ " FontSize="11" Foreground="#107C41" />
+                                    <TextBlock Text="{Binding [RuleFlowStep1Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#107C41" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SelectedRule.TriggerTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                <Border Background="#E6F4EA" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left" Margin="0,0,0,4">
+                                    <TextBlock Text="{Binding SelectedRule.TriggerEventText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#107C41" />
+                                </Border>
+                                <TextBlock Text="{Binding SelectedRule.TriggerDwellText}" FontSize="10.5" Foreground="#107C41" Margin="0,2,0,0"
+                                           Visibility="{Binding SelectedRule.HasDwell, Converter={StaticResource BoolToVis}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Step 2: Guard -->
+                        <Border Grid.Column="1" CornerRadius="2" Padding="12" Margin="3,0,3,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#F8F9FA" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedRule.HasGuard}" Value="True">
+                                            <Setter Property="Background" Value="#FEF3C7" />
+                                            <Setter Property="BorderBrush" Value="#C05621" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="🛡️ " FontSize="11" Foreground="#C05621" />
+                                    <TextBlock Text="{Binding [RuleFlowStep2Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#C05621" />
+                                </StackPanel>
+                                <Grid>
+                                    <!-- When HasGuard == True -->
+                                    <StackPanel Visibility="{Binding SelectedRule.HasGuard, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding SelectedRule.GuardTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                        <Border Background="#FEF3C7" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding SelectedRule.GuardConditionText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#C05621" />
+                                        </Border>
+                                    </StackPanel>
+                                    <!-- When HasGuard == False -->
+                                    <StackPanel Visibility="{Binding SelectedRule.HasGuard, Converter={StaticResource InverseBoolToVis}}">
+                                        <TextBlock Text="✓ Không có điều kiện phụ" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="0,2,0,2" />
+                                        <TextBlock Text="{Binding [RuleFlowNoGuard], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Step 3: Action -->
+                        <Border Grid.Column="2" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="6,0,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="⚙️ " FontSize="11" Foreground="#006487" />
+                                    <TextBlock Text="{Binding [RuleFlowStep3Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#006487" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SelectedRule.ActionTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                <Border Background="#ECEFF1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding SelectedRule.ActionDetailText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#006487" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Footer: Related Tags & Dev Binary Payload Expander -->
+                    <DockPanel>
+                        <!-- Left: Related Tags Pills -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding [RuleFlowRelatedTags], Source={x:Static services:LocalizationService.Instance}}"
+                                       FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <ItemsControl ItemsSource="{Binding SelectedRule.RelatedTags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="10.5" FontWeight="Medium" Foreground="#475569" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Right: Developer Hex Toggle -->
+                        <Button DockPanel.Dock="Right" Command="{Binding ToggleDevPayloadCommand}"
+                                Style="{StaticResource FilterPillButton}" Margin="0" HorizontalAlignment="Right"
+                                ToolTip="{Binding [RuleFlowDevToggleTip], Source={x:Static services:LocalizationService.Instance}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔧 " FontSize="10.5" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [RuleFlowDevToggle], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </DockPanel>
+
+                    <!-- Collapsible Dev Binary Hex Payload (Hidden by default, for firmware engineers only) -->
+                    <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,10,0,0"
+                            Visibility="{Binding IsDevPayloadVisible, Converter={StaticResource BoolToVis}}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Left">
+                                <TextBlock Text="DEVICE BINARY PAYLOAD (32-BYTE MCU WIRE FORMAT)" FontSize="9" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,3" FontFamily="Consolas" />
+                                <TextBlock Text="{Binding SelectedRule.RawHex}" FontFamily="Consolas" FontSize="10.5" FontWeight="SemiBold" Foreground="#4ADE80" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button DockPanel.Dock="Right" Command="{Binding CopyHexCommand}"
+                                    Background="#1E293B" Foreground="#F8FAFC" BorderBrush="#475569" BorderThickness="1"
+                                    FontWeight="SemiBold" FontSize="10.5" Padding="10,4" Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding [RuleBtnCopyHex], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

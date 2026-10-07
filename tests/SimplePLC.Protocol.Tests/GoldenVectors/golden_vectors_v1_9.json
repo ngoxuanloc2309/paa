@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "spec_version": "1.9.0",
+    "description": "SimplePLC Platform V1.9 Canonical Golden Vectors (9 canonical vectors)",
+    "date": "2026-09-16"
+  },
+  "gv_001_device_descriptor": {
+    "description": "GV-001: FC03 DeviceDescriptor at 0x0000 (10 registers)",
+    "request_hex": "01 03 00 00 00 0A C5 CD",
+    "response_hex": "01 03 14 00 01 00 01 00 01 00 02 00 00 00 01 00 09 00 00 00 01 00 07 8D DB"
+  },
+  "gv_002_device_resource_info": {
+    "description": "GV-002: FC03 DeviceResourceInfo at 0x0020 (10 registers, V1.9 self-describing)",
+    "request_hex": "01 03 00 20 00 0A C4 07",
+    "response_hex": "01 03 14 00 01 00 64 00 7C 00 08 00 08 00 04 00 20 00 20 00 20 00 08 2F 84"
+  },
+  "gv_003_device_health": {
+    "description": "GV-003: FC03 DeviceHealth at 0x0800 (10 registers, scan_time_ms = 10, max = 12)",
+    "request_hex": "01 03 08 00 00 0A C7 AD",
+    "response_hex": "01 03 14 00 00 0E 10 00 01 00 00 00 0F 00 2A 00 00 00 0A 00 00 00 0C 42 38"
+  },
+  "gv_004_single_rule_payload": {
+    "description": "GV-004: Single Rule Record (32 bytes) with Rule Table Payload CRC16",
+    "rule_bytes_hex": "FF FF FF 9C 00 00 13 88 00 00 09 C4 00 00 00 01 00 10 00 08 80 14 01 01 07 00 00 00 00 00 00 00",
+    "payload_crc16_hex": "11E9"
+  },
+  "gv_005_multi_rule_payload": {
+    "description": "GV-005: Two Rule Records (64 bytes) with combined Rule Table Payload CRC16",
+    "rule_count": 2,
+    "total_bytes": 64,
+    "payload_crc16_hex": "A3C7"
+  },
+  "gv_payload_max": {
+    "description": "GV-PAYLOAD-MAX: Full Capacity 100 Rule Records (3200 bytes / 1600 registers) with fixed Payload CRC16",
+    "rule_count": 100,
+    "total_registers": 1600,
+    "total_bytes": 3200,
+    "payload_crc16_hex": "926F"
+  },
+  "gv_006_staging_handshake": {
+    "description": "GV-006: FC16 Staging Handshake Write to 0x9002 (RuleCount=1, ExpectedCrc=0x11E9)",
+    "request_hex": "01 10 90 02 00 02 04 00 01 11 E9 42 6E"
+  },
+  "gv_007_commit_command": {
+    "description": "GV-007: FC06 Commit Command Write 0xA5A5 to 0xA000",
+    "request_hex": "01 06 A0 00 A5 A5 10 E1"
+  },
+  "gv_008_system_command_reboot": {
+    "description": "GV-008: FC06 System Command REBOOT=1 to 0x0A00",
+    "request_hex": "01 06 0A 00 00 01 4B D2"
+  },
+  "gv_009_modbus_exception": {
+    "description": "GV-009: Modbus Exception Frame (SlaveID=1, FC=0x83, Code=0x02 Illegal Address)",
+    "response_hex": "01 83 02 C0 F1"
+  }
+}

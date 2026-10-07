@@ -1,0 +1,80 @@
+<UserControl x:Class="SimplePLC.Studio.Views.BlueprintsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:SimplePLC.Studio.Services">
+    
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="{Binding [BlueprintsTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+            <TextBlock Text="{Binding [BlueprintsDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <!-- Cards List with Smooth Scrolling -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+            <ItemsControl ItemsSource="{Binding Blueprints}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                CornerRadius="2" Width="340" Margin="0,0,20,20" Padding="18">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Top Badge & Icon -->
+                                <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding Icon}" FontSize="24" DockPanel.Dock="Left" Margin="0,0,10,0" />
+                                    <Border Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="Bold" Foreground="{Binding BadgeColor}" />
+                                    </Border>
+                                </DockPanel>
+
+                                <!-- Title & Subtitle -->
+                                <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <!-- Description -->
+                                <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" 
+                                           TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,16" MinHeight="54" />
+
+                                <!-- Tags Used Summary -->
+                                <Border Grid.Row="3" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding [BlueprintsUsedTags], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                                        <TextBlock Text="{Binding TagsSummary}" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="Medium" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Apply Button -->
+                                <Button Grid.Row="4" Content="{Binding [BlueprintsApplyBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                        Command="{Binding DataContext.ApplyBlueprintCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource BtnPrimary}"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="0,9" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

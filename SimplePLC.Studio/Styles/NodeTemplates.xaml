@@ -1,0 +1,906 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:nodify="clr-namespace:Nodify;assembly=Nodify"
+                    xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
+                    xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+                    xmlns:services="clr-namespace:SimplePLC.Studio.Services">
+
+    <converters:NodeLiveBadgeBackgroundConverter x:Key="NodeLiveBadgeBackgroundConverter" />
+    <converters:NodeLiveBadgeBorderConverter x:Key="NodeLiveBadgeBorderConverter" />
+    <converters:NodeLiveBadgeForegroundConverter x:Key="NodeLiveBadgeForegroundConverter" />
+
+    <!-- Industrial Typography Standard Tokens -->
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="IndustrialFontSizePin">9.5</sys:Double>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="IndustrialFontSizeMeta">10.0</sys:Double>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="IndustrialFontSizeBody">11.0</sys:Double>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="IndustrialFontSizeHeader">12.5</sys:Double>
+
+    <!-- ControlTemplate for Industrial Port Pins: Crisp circular dot without background overlay on labels -->
+    <ControlTemplate x:Key="IndustrialPortPinTemplate" TargetType="{x:Type Control}">
+        <Grid Width="11" Height="11" Background="Transparent" VerticalAlignment="Center">
+            <Ellipse x:Name="PinBg"
+                     Fill="#FFFFFF"
+                     Stroke="{TemplateBinding BorderBrush}"
+                     StrokeThickness="2" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <!-- When connected, only the circular dot fills with the port color -->
+            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                <Setter TargetName="PinBg" Property="Fill" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding HasError}" Value="True">
+                <Setter TargetName="PinBg" Property="Stroke" Value="#DC2626" />
+                <Setter TargetName="PinBg" Property="Fill" Value="#FEE2E2" />
+                <Setter TargetName="PinBg" Property="StrokeThickness" Value="2.5" />
+            </DataTrigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="PinBg" Property="StrokeThickness" Value="2.5" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Global NodeInput & NodeOutput Styles: 100% transparent backgrounds, zero dark color blocks -->
+    <Style TargetType="{x:Type nodify:NodeInput}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#006487" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="FontSize" Value="{StaticResource IndustrialFontSizePin}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Padding" Value="2,1" />
+        <Setter Property="Cursor" Value="Cross" />
+        <Setter Property="ConnectorTemplate" Value="{StaticResource IndustrialPortPinTemplate}" />
+    </Style>
+
+    <Style TargetType="{x:Type nodify:NodeOutput}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#107C41" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="FontSize" Value="{StaticResource IndustrialFontSizePin}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Padding" Value="2,1" />
+        <Setter Property="Cursor" Value="Cross" />
+        <Setter Property="ConnectorTemplate" Value="{StaticResource IndustrialPortPinTemplate}" />
+    </Style>
+
+
+    <!-- Master Industrial Node Style: Modern, Sleek, Crisp Card with Side Edge Connectors -->
+    <Style x:Key="IndustrialNodeStyle" TargetType="{x:Type nodify:Node}">
+        <Setter Property="Background" Value="#FFFFFF" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="#D1D5DB" />
+        <Setter Property="Width" Value="180" />
+        <Setter Property="Height" Value="86" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+        <Setter Property="TextOptions.TextHintingMode" Value="Fixed" />
+        <Setter Property="FontFamily" Value="Segoe UI, Inter, Arial" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type nodify:Node}">
+                    <Border x:Name="NodeBorder"
+                            Background="#FFFFFF"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="2"
+                            SnapsToDevicePixels="True"
+                            UseLayoutRounding="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <!-- Row 0: Top Accent Stripe (3px) -->
+                                <RowDefinition Height="3" />
+                                <!-- Row 1: Header (26px Fixed) -->
+                                <RowDefinition Height="26" />
+                                <!-- Row 2: Central Body (57px Fixed) -->
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- 0. Top Accent Stripe -->
+                            <Border x:Name="AccentStripe"
+                                    Grid.Row="0"
+                                    Background="{TemplateBinding HeaderBrush}"
+                                    CornerRadius="2,2,0,0" />
+
+                            <!-- 1. Header with subtle technical gray background and high contrast typography -->
+                            <Border Grid.Row="1"
+                                    Background="#F3F4F6"
+                                    BorderBrush="#E5E7EB"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="8,0">
+                                <Grid>
+                                    <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+
+                                    <!-- In-Place Industrial Diagnostic Glyph Badge (Compact, non-intrusive, tooltipped) -->
+                                    <Border x:Name="DiagErrorBadge" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Background="#DC2626" BorderBrush="#991B1B" BorderThickness="1"
+                                            CornerRadius="7" Width="14" Height="14" Margin="0,0,2,0" Visibility="Collapsed"
+                                            Cursor="Help" ToolTip="{Binding ErrorMessage}">
+                                        <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
+                                    </Border>
+                                    <Border x:Name="DiagWarningBadge" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Background="#D97706" BorderBrush="#92400E" BorderThickness="1"
+                                            CornerRadius="7" Width="14" Height="14" Margin="0,0,2,0" Visibility="Collapsed"
+                                            Cursor="Help" ToolTip="{Binding ErrorMessage}">
+                                        <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- 2. Integrated Body with Left & Right Ports -->
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Inputs on the left edge, vertically centered -->
+                                <ItemsControl x:Name="PART_Input"
+                                              Grid.Column="0"
+                                              ItemsSource="{TemplateBinding Input}"
+                                              ItemTemplate="{TemplateBinding InputConnectorTemplate}"
+                                              VerticalAlignment="Center"
+                                              Margin="-6,0,2,0" />
+
+                                <!-- Body Content in the middle: Centered, clean, high contrast -->
+                                <ContentPresenter Grid.Column="1"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+
+                                <!-- Outputs on the right edge, vertically centered -->
+                                <ItemsControl x:Name="PART_Output"
+                                              Grid.Column="2"
+                                              ItemsSource="{TemplateBinding Output}"
+                                              ItemTemplate="{TemplateBinding OutputConnectorTemplate}"
+                                              VerticalAlignment="Center"
+                                              Margin="2,0,-6,0" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#006487" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsGhost}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#00A389" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="NodeBorder" Property="Opacity" Value="0.85" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="#00A389" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#D97706" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HasError}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#DC2626" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="DiagErrorBadge" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#B91C1C" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#FEE2E2" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="#B91C1C" />
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 1. Input Node Template (Modern, High Contrast, Zero Redundancy) -->
+    <DataTemplate DataType="{x:Type vm:InputNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="#1E3A8A"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="🔌" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="100" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding TagKindText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#1E3A8A" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding TagDescriptionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
+                <Button Command="{Binding DataContext.ToggleInputNodeCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                        CommandParameter="{Binding}"
+                        ToolTip="{Binding [SimForceInputTip], Source={x:Static services:LocalizationService.Instance}}"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="0">
+                    <Border BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#F3F4F6" />
+                                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                        <Setter Property="Background" Value="#E6F4EA" />
+                                        <Setter Property="BorderBrush" Value="#107C41" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#64748B" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                                <Setter Property="Fill" Value="#107C41" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding ValueBadgeText}"
+                                       FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#1E293B" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                                <Setter Property="Foreground" Value="#107C41" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </Button>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 2. Trigger Node Template (Centered & High Contrast) -->
+    <DataTemplate DataType="{x:Type vm:TriggerNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="#006487"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="⚡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="TRG" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding TriggerActionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSimWaitingDwell}" Value="True">
+                                    <Setter Property="Background" Value="#FEF3C7" />
+                                    <Setter Property="BorderBrush" Value="#C05621" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimTriggered}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#1E293B" />
+                                <Setter Property="Text" Value="{Binding TriggerParamText}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSimWaitingDwell}" Value="True">
+                                        <Setter Property="Foreground" Value="#C05621" />
+                                        <Setter Property="Text" Value="{Binding SimDwellRemainingMs, StringFormat='⏳ {0}ms'}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSimTriggered}" Value="True">
+                                        <Setter Property="Foreground" Value="#107C41" />
+                                        <Setter Property="Text" Value="✓ ĐẠT" />
+                                    </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSimEvaluated}" Value="True" />
+                                            <Condition Binding="{Binding IsSimTriggered}" Value="False" />
+                                            <Condition Binding="{Binding IsSimWaitingDwell}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Foreground" Value="#B91C1C" />
+                                        <Setter Property="Text" Value="{Binding SimDiagText}" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 3. Guard Node Template (Centered & High Contrast) -->
+    <DataTemplate DataType="{x:Type vm:GuardNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="#C05621"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="🛡️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="GRD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#C05621" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding ConditionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
+                                    <Setter Property="Background" Value="#FEE2E2" />
+                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimPassed}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#1E293B" />
+                                <Setter Property="Text" Value="{Binding GuardAddressText}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
+                                        <Setter Property="Foreground" Value="#B91C1C" />
+                                        <Setter Property="Text" Value="⛔ BỊ KHÓA" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSimPassed}" Value="True">
+                                        <Setter Property="Foreground" Value="#107C41" />
+                                        <Setter Property="Text" Value="✓ CHO PHÉP" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 4. Action Node Template (Centered & High Contrast) -->
+    <DataTemplate DataType="{x:Type vm:ActionNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="#107C41"
+                     Input="{Binding InputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="⚙️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="ACT" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#107C41" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding ActionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSimFired}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSimFired}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Text" Value="{Binding ActionStatusPillText}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSimFired}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 5. Timer Node Template (Terminal Construct, Crisp Industrial Indigo Card) -->
+    <DataTemplate DataType="{x:Type vm:TimerNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="{StaticResource NodeTimerBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="{Binding ModeGlyph}" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding TimerMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#4C1D95" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding SimulationProgressText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTiming}" Value="True">
+                                    <Setter Property="Foreground" Value="#4C1D95" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <!-- Mini Progress Bar (Industrial Indigo / Green on complete) -->
+                <Grid Width="110" Height="4" Margin="0,2,0,4">
+                    <Border Background="#CBD5E1" CornerRadius="2" />
+                    <ProgressBar Value="{Binding ProgressPercent, Mode=OneWay}"
+                                 Minimum="0" Maximum="100"
+                                 Height="4"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Setter Property="Foreground" Value="#4C1D95" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                        <Setter Property="Foreground" Value="#107C41" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
+                </Grid>
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsTiming}" Value="True">
+                                    <Setter Property="Background" Value="#EDE9FE" />
+                                    <Setter Property="BorderBrush" Value="#4C1D95" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsTiming}" Value="True">
+                                            <Setter Property="Fill" Value="#4C1D95" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="110">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Text" Value="{Binding TimerStatusPillText}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsTiming}" Value="True">
+                                            <Setter Property="Foreground" Value="#4C1D95" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 6. Counter Node Template (Graphical FBD Construct, Deep Teal Industrial Card) -->
+    <DataTemplate DataType="{x:Type vm:CounterNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     HeaderBrush="{StaticResource NodeCounterBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="{Binding ModeGlyph}" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding CounterMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#059669" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding SimulationCountText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Foreground" Value="#059669" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="110">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Text" Value="{Binding CounterStatusPillText}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 7. Scale Node Template (Analog Scaler / Amplifier, Industrial Steel Blue Card) -->
+    <DataTemplate DataType="{x:Type vm:ScaleNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     Width="195"
+                     HeaderBrush="{StaticResource NodeScaleBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="📈" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#E0F2FE" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="SCALE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding SimulationProgressText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Foreground" Value="#0284C7" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                    <Setter Property="Foreground" Value="#0284C7" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <!-- Analog Level Bar Gauge (0..100%) -->
+                <Grid Width="115" Height="4" Margin="0,2,0,4">
+                    <Border Background="#E5E7EB" CornerRadius="2" />
+                    <ProgressBar Value="{Binding LiveProgressPercent, Mode=OneWay}"
+                                 Minimum="0" Maximum="100"
+                                 Height="4"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Setter Property="Foreground" Value="#0284C7" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                        <Setter Property="Foreground" Value="#0284C7" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                        <Setter Property="Foreground" Value="#0284C7" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
+                </Grid>
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#D1D5DB" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Background" Value="#E0F2FE" />
+                                    <Setter Property="BorderBrush" Value="#0284C7" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                    <Setter Property="Background" Value="#E0F2FE" />
+                                    <Setter Property="BorderBrush" Value="#0284C7" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Fill" Value="#0284C7" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Fill" Value="#0284C7" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Text" Value="{Binding ScaleStatusPillText}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#0284C7" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#0284C7" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- Connection Line Template: Straight or Orthogonal PLC Ladder Wire from Pin to Pin -->
+    <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
+        <Grid Background="Transparent">
+            <!-- Vùng hit-test vô hình dày 12px để click chuột mượt mà -->
+            <nodify:StepConnection Source="{Binding Source.Anchor}"
+                                   Target="{Binding Target.Anchor}"
+                                   SourceOffset="0,0"
+                                   TargetOffset="0,0"
+                                   ArrowEnds="None"
+                                   Stroke="Transparent"
+                                   StrokeThickness="12" />
+            
+            <!-- Dây hiển thị thực tế: nét liền phẳng chuẩn công nghiệp, đường thẳng hoặc vuông góc 90 độ -->
+            <nodify:StepConnection Source="{Binding Source.Anchor}"
+                                   Target="{Binding Target.Anchor}"
+                                   SourceOffset="0,0"
+                                   TargetOffset="0,0"
+                                   IsHitTestVisible="False">
+                <nodify:StepConnection.Style>
+                    <Style TargetType="{x:Type nodify:StepConnection}">
+                        <Setter Property="Stroke" Value="#64748B" />
+                        <Setter Property="StrokeThickness" Value="2" />
+                        <Setter Property="ArrowEnds" Value="None" />
+                        <Setter Property="ArrowSize" Value="6,6" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Stroke" Value="#006487" />
+                                <Setter Property="StrokeThickness" Value="2.5" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter Property="Stroke" Value="#107C41" />
+                                <Setter Property="StrokeThickness" Value="2.5" />
+                                <Setter Property="ArrowEnds" Value="End" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </nodify:StepConnection.Style>
+            </nodify:StepConnection>
+        </Grid>
+    </DataTemplate>
+
+</ResourceDictionary>

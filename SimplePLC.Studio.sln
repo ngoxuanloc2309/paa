@@ -1,0 +1,90 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Studio", "SimplePLC.Studio\SimplePLC.Studio.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Studio.Tests", "SimplePLC.Studio.Tests\SimplePLC.Studio.Tests.csproj", "{4502D1E1-F8AC-4E33-846A-2BDECFB2785A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3FEB3645-DD64-443D-BF9E-B945615C9F86}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Protocol", "src\SimplePLC.Protocol\SimplePLC.Protocol.csproj", "{56F6470C-76A3-4803-9903-CA8A6D8BB77B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{84109060-2157-4A1F-85A2-3352A2A620E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Protocol.Tests", "tests\SimplePLC.Protocol.Tests\SimplePLC.Protocol.Tests.csproj", "{46645E1E-50A8-4BB3-BEA2-C45594D4AECE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Domain", "src\SimplePLC.Domain\SimplePLC.Domain.csproj", "{82848AA0-56F1-4614-82E0-CB4BD80AD5FB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Domain.Tests", "tests\SimplePLC.Domain.Tests\SimplePLC.Domain.Tests.csproj", "{907BF73F-D549-4F34-B6F3-372EEDC5ECB2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Infrastructure", "src\SimplePLC.Infrastructure\SimplePLC.Infrastructure.csproj", "{FF7B0724-EE30-4DB6-92DA-D25921577546}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Infrastructure.Tests", "tests\SimplePLC.Infrastructure.Tests\SimplePLC.Infrastructure.Tests.csproj", "{BC868A5C-9D85-4AE5-853A-00AB17DB271B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Application", "src\SimplePLC.Application\SimplePLC.Application.csproj", "{375B51B9-DE10-400D-AD58-0AACC2821A66}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplePLC.Application.Tests", "tests\SimplePLC.Application.Tests\SimplePLC.Application.Tests.csproj", "{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4502D1E1-F8AC-4E33-846A-2BDECFB2785A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4502D1E1-F8AC-4E33-846A-2BDECFB2785A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4502D1E1-F8AC-4E33-846A-2BDECFB2785A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4502D1E1-F8AC-4E33-846A-2BDECFB2785A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56F6470C-76A3-4803-9903-CA8A6D8BB77B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56F6470C-76A3-4803-9903-CA8A6D8BB77B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56F6470C-76A3-4803-9903-CA8A6D8BB77B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56F6470C-76A3-4803-9903-CA8A6D8BB77B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46645E1E-50A8-4BB3-BEA2-C45594D4AECE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46645E1E-50A8-4BB3-BEA2-C45594D4AECE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46645E1E-50A8-4BB3-BEA2-C45594D4AECE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46645E1E-50A8-4BB3-BEA2-C45594D4AECE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82848AA0-56F1-4614-82E0-CB4BD80AD5FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82848AA0-56F1-4614-82E0-CB4BD80AD5FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82848AA0-56F1-4614-82E0-CB4BD80AD5FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82848AA0-56F1-4614-82E0-CB4BD80AD5FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{907BF73F-D549-4F34-B6F3-372EEDC5ECB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{907BF73F-D549-4F34-B6F3-372EEDC5ECB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{907BF73F-D549-4F34-B6F3-372EEDC5ECB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{907BF73F-D549-4F34-B6F3-372EEDC5ECB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF7B0724-EE30-4DB6-92DA-D25921577546}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF7B0724-EE30-4DB6-92DA-D25921577546}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF7B0724-EE30-4DB6-92DA-D25921577546}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF7B0724-EE30-4DB6-92DA-D25921577546}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC868A5C-9D85-4AE5-853A-00AB17DB271B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC868A5C-9D85-4AE5-853A-00AB17DB271B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC868A5C-9D85-4AE5-853A-00AB17DB271B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC868A5C-9D85-4AE5-853A-00AB17DB271B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{375B51B9-DE10-400D-AD58-0AACC2821A66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{375B51B9-DE10-400D-AD58-0AACC2821A66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{375B51B9-DE10-400D-AD58-0AACC2821A66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{375B51B9-DE10-400D-AD58-0AACC2821A66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{56F6470C-76A3-4803-9903-CA8A6D8BB77B} = {3FEB3645-DD64-443D-BF9E-B945615C9F86}
+		{46645E1E-50A8-4BB3-BEA2-C45594D4AECE} = {84109060-2157-4A1F-85A2-3352A2A620E3}
+		{82848AA0-56F1-4614-82E0-CB4BD80AD5FB} = {3FEB3645-DD64-443D-BF9E-B945615C9F86}
+		{907BF73F-D549-4F34-B6F3-372EEDC5ECB2} = {84109060-2157-4A1F-85A2-3352A2A620E3}
+		{FF7B0724-EE30-4DB6-92DA-D25921577546} = {3FEB3645-DD64-443D-BF9E-B945615C9F86}
+		{BC868A5C-9D85-4AE5-853A-00AB17DB271B} = {84109060-2157-4A1F-85A2-3352A2A620E3}
+		{375B51B9-DE10-400D-AD58-0AACC2821A66} = {3FEB3645-DD64-443D-BF9E-B945615C9F86}
+		{7D9E9A0D-A5D7-4FF6-957E-3BCBC5C0F115} = {84109060-2157-4A1F-85A2-3352A2A620E3}
+	EndGlobalSection
+EndGlobal

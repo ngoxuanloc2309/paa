@@ -1,0 +1,317 @@
+<Window x:Class="SimplePLC.Studio.Views.NewProjectDialogView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+        xmlns:viewmodels="clr-namespace:SimplePLC.Studio.ViewModels"
+        Title="{Binding [NewProjectDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
+        Width="980" Height="720"
+        MinWidth="900" MinHeight="650"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        Background="#F1F5F9"
+        Icon="../Assets/app.png"
+        FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.ClearTypeHint="Enabled">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Styles/Colors.xaml" />
+                <ResourceDictionary Source="../Styles/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+        <Grid Margin="20,16">
+            <Grid.RowDefinitions>
+                <!-- 0. Header -->
+                <RowDefinition Height="Auto" />
+                <!-- 1. Body (2 Columns: Forms with Scroll & Preview) -->
+                <RowDefinition Height="*" />
+                <!-- 2. Footer Action Buttons -->
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 0. Header (Clean Industrial Style) -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,14" VerticalAlignment="Center">
+                <TextBlock Text="{Binding [NewProjectDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                           FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                <TextBlock Text="{Binding [NewProjectDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
+                           FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+            </StackPanel>
+
+            <!-- 1. Body Content (Left: Config Forms with Scroll, Right: Hardware Preview) -->
+            <Grid Grid.Row="1" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <!-- Left: Config inputs (Flexible, generous width ~550px) -->
+                    <ColumnDefinition Width="*" />
+                    <!-- Right: Hardware preview card (360px) -->
+                    <ColumnDefinition Width="360" />
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT COLUMN: Forms in ScrollViewer to guarantee full visibility without horizontal crowding -->
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0" Margin="0,0,12,0">
+                    <StackPanel>
+                        <!-- SECTION 1: PROJECT INFORMATION -->
+                        <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="{Binding [NewProjectSectionInfo], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10" />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Row 0: Project Name -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [NewProjectName], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,4" />
+                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}" 
+                                             Height="26" Padding="6,2" FontSize="12" FontWeight="SemiBold" BorderBrush="#CBD5E1" Margin="0,4" VerticalContentAlignment="Center" />
+
+                                    <!-- Row 1: Save Location -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [NewProjectLocation], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,4" />
+                                    <Grid Grid.Row="1" Grid.Column="1" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{Binding ProjectLocation, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Height="26" Padding="6,2" FontSize="11.5" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                        <Button Grid.Column="1" Content="{Binding [NewProjectBrowse], Source={x:Static services:LocalizationService.Instance}}" 
+                                                Command="{Binding BrowseLocationCommand}" 
+                                                Margin="6,0,0,0" Padding="14,0" Height="26" Background="#F1F5F9" BorderBrush="#CBD5E1" />
+                                    </Grid>
+
+                                    <!-- Row 2: Author -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [NewProjectAuthor], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,4" />
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Author, UpdateSourceTrigger=PropertyChanged}" 
+                                             Height="26" Padding="6,2" FontSize="11.5" BorderBrush="#CBD5E1" Margin="0,4" VerticalContentAlignment="Center" />
+
+                                    <!-- Row 3: Description -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding [NewProjectDescription], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" 
+                                             Height="42" Padding="6,3" FontSize="11.5" BorderBrush="#CBD5E1" Margin="0,4" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SECTION 2: TARGET HARDWARE -->
+                        <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14">
+                            <StackPanel>
+                                <TextBlock Text="{Binding [NewProjectSectionHw], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10" />
+
+                                <!-- Preset Selection -->
+                                <TextBlock Text="{Binding [NewProjectPresetMode], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
+                                <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" 
+                                          DisplayMemberPath="DisplayName" Height="28" FontSize="11.5" BorderBrush="#CBD5E1" Margin="0,0,0,10" VerticalContentAlignment="Center">
+                                </ComboBox>
+
+                                <!-- Detect from Connected MCU Button -->
+                                <Button Command="{Binding DetectFromConnectedDeviceCommand}" 
+                                        Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" Padding="12,5" Height="28" Margin="0,0,0,10" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="⟳" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding [NewProjectDetectConnected], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Custom Hardware Toggle -->
+                                <CheckBox IsChecked="{Binding IsCustomMode}" Margin="0,2,0,10" VerticalContentAlignment="Center">
+                                    <TextBlock Text="{Binding [NewProjectCustomHw], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                </CheckBox>
+
+                                <!-- Custom Inputs Grid (Responsive Star-Sizing, Fits perfectly inside container) -->
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,8"
+                                        Visibility="{Binding IsCustomMode, Converter={StaticResource BoolToVis}}">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MinWidth="110" />
+                                            <ColumnDefinition Width="54" />
+                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="*" MinWidth="110" />
+                                            <ColumnDefinition Width="54" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Row 0: DI | DO -->
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [NewProjectCustomDi], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CustomDi, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding [NewProjectCustomDo], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding CustomDo, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <!-- Row 1: AI | VFLAG -->
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [NewProjectCustomAi], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CustomAi, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding [NewProjectCustomVflag], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding CustomVflag, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <!-- Row 2: VREG | RETAIN -->
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [NewProjectCustomVreg], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CustomVreg, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding [NewProjectCustomRetain], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding CustomRetain, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <!-- Row 3: COUNTER | Max Rules -->
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding [NewProjectCustomCounters], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CustomCounters, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+
+                                        <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding [NewProjectCustomMaxRules], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,6,3" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                        <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding CustomMaxRules, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11.5" HorizontalContentAlignment="Center" VerticalAlignment="Center" Margin="0,3" Padding="0" BorderBrush="#CBD5E1" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Status Feedback Text -->
+                                <TextBlock Text="{Binding StatusMessage}" FontSize="11.5" TextWrapping="Wrap" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#B91C1C" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                                    <Setter Property="Foreground" Value="#107C41" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- RIGHT COLUMN: Hardware Specification Preview Card -->
+                <Border Grid.Column="1" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="18,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <!-- Header & Target Info -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Tabular Channel Matrix -->
+                            <RowDefinition Height="*" />
+                            <!-- Total Tags Footer -->
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Header & Target Info -->
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="{Binding [NewProjectIoSummaryTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="{Binding PreviewDeviceName}" 
+                                       FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+
+                            <DockPanel Margin="0,6,0,0">
+                                <TextBlock Text="{Binding [NewProjectTargetMcu], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" DockPanel.Dock="Left" Margin="0,0,6,0" />
+                                <TextBlock Text="{Binding PreviewMcuTarget}" 
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                            </DockPanel>
+
+                            <Separator Margin="0,12,0,8" Background="#E2E8F0" />
+                        </StackPanel>
+
+                        <!-- Tabular Channel Matrix (Clean 2-Column Grid with generous 170px MinWidth) -->
+                        <Grid Grid.Row="1" VerticalAlignment="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" MinWidth="170" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 0: DI -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [NewProjectCustomDi], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PreviewDiText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 1: DO -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [NewProjectCustomDo], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PreviewDoText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 2: AI -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [NewProjectCustomAi], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PreviewAiText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 3: VFLAG -->
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding [NewProjectCustomVflag], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding PreviewVflagText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 4: VREG -->
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding [NewProjectCustomVreg], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PreviewVregText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 5: RETAIN -->
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding [NewProjectCustomRetain], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding PreviewRetainText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 6: COUNTER -->
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="{Binding [NewProjectCustomCounters], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding PreviewCountersText}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+
+                            <!-- Row 7: Max Rules -->
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="{Binding [NewProjectCustomMaxRules], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5" />
+                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding PreviewMaxRules, StringFormat='{}{0} rules'}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,5,0,5" HorizontalAlignment="Right" />
+                        </Grid>
+
+                        <!-- Total Tag Footer -->
+                        <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="12,9" Margin="0,8,0,0">
+                            <DockPanel>
+                                <TextBlock Text="{Binding [NewProjectTotalTags], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" DockPanel.Dock="Left" />
+                                <TextBlock Text="{Binding PreviewTotalTags, StringFormat='{}{0} / 128 tags'}" 
+                                           FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Right" />
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 2. Footer Action Buttons -->
+            <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+                <DockPanel LastChildFill="False">
+                    <!-- Right Buttons -->
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                        <Button Content="{Binding [NewProjectBtnCancel], Source={x:Static services:LocalizationService.Instance}}" 
+                                Click="CancelButton_Click" IsCancel="True"
+                                Width="95" Height="28" Background="#F1F5F9" BorderBrush="#CBD5E1" Margin="0,0,10,0" />
+                        <Button Content="{Binding [NewProjectBtnCreate], Source={x:Static services:LocalizationService.Instance}}" 
+                                Click="CreateButton_Click" IsDefault="True"
+                                Width="115" Height="28" Background="{StaticResource PrimaryBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

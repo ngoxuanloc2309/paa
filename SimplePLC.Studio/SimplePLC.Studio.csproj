@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyTitle>SynaptiX IDE</AssemblyTitle>
+    <Product>SynaptiX IDE</Product>
+    <Company>SynaptiX</Company>
+    <Description>SynaptiX IDE - Môi Trường Lập Trình &amp; Cấu Hình PLC Công Nghiệp</Description>
+    <Version>2.2.4</Version>
+    <AssemblyVersion>2.2.4.0</AssemblyVersion>
+    <FileVersion>2.2.4.0</FileVersion>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Nodify" Version="6.2.0" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\SimplePLC.Domain\SimplePLC.Domain.csproj" />
+    <ProjectReference Include="..\src\SimplePLC.Protocol\SimplePLC.Protocol.csproj" />
+    <ProjectReference Include="..\src\SimplePLC.Infrastructure\SimplePLC.Infrastructure.csproj" />
+    <ProjectReference Include="..\src\SimplePLC.Application\SimplePLC.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="SimplePLC.Domain.Enums" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <_MarkupBackupDir>$(BaseIntermediateOutputPath)markup_backup\$(Configuration)\</_MarkupBackupDir>
+  </PropertyGroup>
+
+  <Target Name="PreservePass1GeneratedFiles" AfterTargets="MarkupCompilePass1">
+    <ItemGroup>
+      <_Pass1Files Include="$(IntermediateOutputPath)**\*.baml" />
+      <_Pass1Files Include="$(IntermediateOutputPath)**\*.g.cs" />
+      <_Pass1Files Include="$(IntermediateOutputPath)*_MarkupCompile.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_Pass1Files)"
+          DestinationFiles="@(_Pass1Files->'$(_MarkupBackupDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="false"
+          Condition="'@(_Pass1Files)' != ''" />
+  </Target>
+
+  <Target Name="RestorePass1GeneratedFiles"
+          AfterTargets="GenerateTemporaryTargetAssembly"
+          BeforeTargets="MarkupCompilePass2;FileClassification;MainResourcesGeneration;CoreCompile">
+    <ItemGroup>
+      <_RestoredPass1Files Include="$(_MarkupBackupDir)**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RestoredPass1Files)"
+          DestinationFiles="@(_RestoredPass1Files->'$(IntermediateOutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="false"
+          Condition="'@(_RestoredPass1Files)' != ''" />
+  </Target>
+
+</Project>

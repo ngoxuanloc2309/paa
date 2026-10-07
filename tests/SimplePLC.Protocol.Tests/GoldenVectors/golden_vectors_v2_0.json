@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "spec_version": "2.0.0",
+    "description": "SimplePLC Platform V2.0 Authoritative Golden Vectors (10 canonical vectors)",
+    "date": "2026-09-30"
+  },
+  "gv_001_device_descriptor": {
+    "description": "GV-001: FC03 DeviceDescriptor at 0x0000 (10 registers, ProtocolVersion=2, RuleFormatVersion=7)",
+    "request_hex": "01 03 00 00 00 0A C5 CD",
+    "response_hex": "01 03 14 00 01 00 01 00 01 00 00 00 00 00 02 00 00 00 00 00 02 00 07 F7 69"
+  },
+  "gv_002_device_resource_info": {
+    "description": "GV-002: FC03 DeviceResourceInfo at 0x0020 (10 registers, WireProfile=2, MaxRules=100, Tags=124)",
+    "request_hex": "01 03 00 20 00 0A C4 07",
+    "response_hex": "01 03 14 00 02 00 64 00 7C 00 08 00 08 00 04 00 20 00 20 00 20 00 08 6B C0"
+  },
+  "gv_003_device_health": {
+    "description": "GV-003: FC03 DeviceHealth at 0x0800 (10 registers, scan_time_ms=10ms, max=12ms)",
+    "request_hex": "01 03 08 00 00 0A C7 AD",
+    "response_hex": "01 03 14 00 00 0E 10 00 01 00 00 00 0F 00 2A 00 00 00 0A 00 00 00 0C 42 38"
+  },
+  "gv_004_rtc_clock": {
+    "description": "GV-004: FC03 Real-Time Clock at 0x0810 (4 registers, epoch_utc_s=1774915200, tz=\u002B420, flags=3)",
+    "request_hex": "01 03 08 10 00 04 47 AC",
+    "response_hex": "01 03 08 69 CB 0E 80 01 A4 00 03 29 B7"
+  },
+  "gv_005_diagnostic_block": {
+    "description": "GV-005: FC03 Diagnostic Block at 0x0A20 (5 registers, CMD=2, STATE=2, FLAGS=2, LEASE=3000ms)",
+    "request_hex": "01 03 0A 20 00 05 87 DB",
+    "response_hex": "01 03 0A 00 02 00 02 00 02 0B B8 00 00 E5 D7"
+  },
+  "gv_006_fb_timer": {
+    "description": "GV-006: FC03 FB Timer 0 at 0x0B00 (8 registers, TON, PT=5000ms, ET=2500ms, IN=1, RUNNING=1)",
+    "request_hex": "01 03 0B 00 00 08 46 28",
+    "response_hex": "01 03 10 00 09 00 01 00 00 13 88 00 00 09 C4 00 00 00 00 29 0A"
+  },
+  "gv_007_fb_counter": {
+    "description": "GV-007: FC03 FB Counter 0 at 0x0B40 (8 registers, CTU, PV=10, CV=4, RetainTag=84, CU=1)",
+    "request_hex": "01 03 0B 40 00 08 47 FC",
+    "response_hex": "01 03 10 00 01 00 01 00 00 00 0A 00 00 00 04 00 54 00 00 E9 68"
+  },
+  "gv_008_time_window_rule": {
+    "description": "GV-008: Single Time Window Rule Record (32 bytes, 07:00..17:00 -\u003E 700..1700)",
+    "rule_bytes_hex": "00 00 02 BC 00 00 06 A4 00 00 00 00 00 00 00 01 00 00 00 08 7F FF 01 03 07 00 00 00 00 00 00 00",
+    "payload_crc16_hex": "AB68"
+  },
+  "gv_009_diag_heartbeat_cmd": {
+    "description": "GV-009: FC06 Diagnostic Heartbeat Write (0x0A20 = 2)",
+    "request_hex": "01 06 0A 20 00 02 0A 19"
+  },
+  "gv_010_commit_command": {
+    "description": "GV-010: FC06 Commit Command Write 0xA5A5 to 0xA000",
+    "request_hex": "01 06 A0 00 A5 A5 10 E1"
+  }
+}

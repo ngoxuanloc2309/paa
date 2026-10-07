@@ -1,0 +1,546 @@
+<UserControl x:Class="SimplePLC.Studio.Views.AiChatView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+             xmlns:models="clr-namespace:SimplePLC.Studio.Models"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="380"
+             FontFamily="Segoe UI, Segoe UI Emoji, Segoe UI Symbol"
+             Background="#F8FAFC">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 0. Header (Light Gray & White) -->
+            <RowDefinition Height="Auto" />
+            <!-- 1. Settings Drawer (Collapsible) -->
+            <RowDefinition Height="Auto" />
+            <!-- 2. Onboarding Banner (if not configured) -->
+            <RowDefinition Height="Auto" />
+            <!-- 3. Chat Messages List -->
+            <RowDefinition Height="*" />
+            <!-- 4. Quick Prompts Strip -->
+            <RowDefinition Height="Auto" />
+            <!-- 5. Input Area -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 0. CHATBOX HEADER (Light Gray #F8FAFC & Crisp Border #D1D5DB) -->
+        <Border Grid.Row="0" Background="#F8FAFC" Padding="12,8" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <!-- Action buttons right -->
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <!-- Settings Button -->
+                    <Button Command="{Binding ToggleSettingsCommand}"
+                            Background="Transparent" BorderThickness="0" Width="26" Height="26" Margin="0,0,3,0"
+                            ToolTip="Cài đặt API Key &amp; Mô hình Gemini" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
+                                    <TextBlock Text="⚙️" FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#E2E8F0" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Clear Chat Button -->
+                    <Button Command="{Binding ClearChatCommand}"
+                            Background="Transparent" BorderThickness="0" Width="26" Height="26" Margin="0,0,3,0"
+                            ToolTip="Xóa lịch sử chat và làm mới" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
+                                    <TextBlock Text="🧹" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#E2E8F0" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Close Panel Button -->
+                    <Button Command="{Binding ClosePanelCommand}"
+                            Background="Transparent" BorderThickness="0" Width="24" Height="24"
+                            ToolTip="Thu gọn AI Chatbox" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
+                                    <TextBlock Text="✕" FontSize="12" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#FEE2E2" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+
+                <!-- Title & Badge -->
+                <StackPanel Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="💬" FontSize="12.5" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="SynaptiX AI Chatbox" FontWeight="Bold" FontSize="12.5" Foreground="#0F172A" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
+                        <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,6,0">
+                            <TextBlock Text="{Binding SelectedModel}" FontSize="9.5" FontWeight="SemiBold" Foreground="#334155" />
+                        </Border>
+                        <TextBlock Text="Sẵn sàng" FontSize="9.5" Foreground="#64748B" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 1. SETTINGS DRAWER (Pure White) -->
+        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="14,12"
+                Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="Cấu hình Google Gemini AI" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+
+                <TextBlock Text="Gemini API Key:" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <TextBox Text="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="11.5" Padding="6,4" Height="28" Margin="0,0,0,6"
+                         BorderBrush="{StaticResource BorderLightBrush}" Background="#F8FAFC" />
+
+                <Button Command="{Binding OpenGoogleAiStudioCommand}"
+                        Background="Transparent" BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,10" Cursor="Hand">
+                    <TextBlock Text="👉 Nhấp vào đây để lấy API Key miễn phí từ Google AI Studio"
+                               FontSize="10.5" Foreground="{StaticResource PrimaryBrush}" TextDecorations="Underline" />
+                </Button>
+
+                <TextBlock Text="Mô hình (Model):" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding AvailableModels}"
+                          SelectedItem="{Binding SelectedModel}"
+                          Height="28" FontSize="11.5" Margin="0,0,0,4" />
+                <TextBlock Text="* Flash: Miễn phí 100% (cực nhanh). Pro: Cho tài khoản có Billing." FontSize="10" Foreground="#64748B" Margin="0,0,0,10" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding ToggleSettingsCommand}"
+                            Content="Hủy" Width="60" Height="26" Margin="0,0,6,0"
+                            Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" FontSize="11" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="2">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button Command="{Binding SaveSettingsCommand}"
+                            Content="Lưu cấu hình" Width="90" Height="26"
+                            Background="{StaticResource PrimaryBrush}" Foreground="#FFFFFF" BorderThickness="0" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="2">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+
+                <TextBlock Text="{Binding SettingsStatusMessage}" FontSize="11" Foreground="{StaticResource SuccessBrush}"
+                           Margin="0,6,0,0" HorizontalAlignment="Right"
+                           Visibility="{Binding SettingsStatusMessage, Converter={StaticResource NullToVis}}" />
+            </StackPanel>
+        </Border>
+
+        <!-- 2. ONBOARDING BANNER (If not configured) -->
+        <Border Grid.Row="2" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="0,0,0,1" Padding="12,10"
+                Visibility="{Binding IsConfigured, Converter={StaticResource InverseBoolToVis}}">
+            <StackPanel Orientation="Vertical">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="🔑" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Chưa kết nối Gemini API Key" FontWeight="Bold" FontSize="11.5" Foreground="#92400E" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="Google cấp miễn phí 1.500 lượt hỏi/ngày. Hãy dán Key để bắt đầu sử dụng."
+                           FontSize="11" Foreground="#78350F" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <Button Command="{Binding ToggleSettingsCommand}"
+                        Background="#D97706" Foreground="#FFFFFF" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Left" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <TextBlock Text="⚙️ Nhập API Key ngay" />
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- 3. CHAT MESSAGES SCROLLVIEWER (Soft Light Gray Background #F1F5F9) -->
+        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="3" Background="#F1F5F9" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,8">
+            <ItemsControl ItemsSource="{Binding Messages}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:ChatMessageModel}">
+                        <Grid Margin="0,3,0,7">
+                            <!-- USER MESSAGE (Crisp White Card with Slate Border) -->
+                            <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
+                                    CornerRadius="2" Padding="10,8"
+                                    HorizontalAlignment="Right" MaxWidth="700" Margin="30,0,0,0"
+                                    Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="{Binding Content}" FontSize="12" Foreground="#0F172A" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding FormattedTime}" FontSize="9.5" Foreground="#94A3B8" HorizontalAlignment="Right" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ASSISTANT MESSAGE CARD (Pure White Industrial Card - Stretches with Panel Width) -->
+                            <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    CornerRadius="2" Padding="12,10"
+                                    HorizontalAlignment="Stretch"
+                                    Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Vertical">
+                                    <!-- Assistant Header -->
+                                    <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                                        <Border DockPanel.Dock="Left" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="⚡" FontSize="10" Margin="0,0,3,0" Foreground="{StaticResource PrimaryBrush}" />
+                                                <TextBlock Text="SynaptiX AI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding FormattedTime}" FontSize="9.5" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                    </DockPanel>
+
+                                    <!-- Content Text (Clean Display without raw json) -->
+                                    <TextBlock Text="{Binding DisplayContent}" FontSize="11.5" Foreground="#1E293B" TextWrapping="Wrap" LineHeight="17" />
+
+                                    <!-- Loading Indicator -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Đang xử lý..." FontSize="10.5" FontStyle="Italic" Foreground="{StaticResource PrimaryBrush}" />
+                                    </StackPanel>
+
+                                    <!-- Action Strip (Apply Rules & Copy) -->
+                                    <Border BorderBrush="#F1F5F9" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,5,0,0"
+                                            Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVis}}">
+                                        <DockPanel LastChildFill="False">
+                                            <!-- AI Rule Apply Action Button (when not applied) -->
+                                            <Button DockPanel.Dock="Left"
+                                                    Command="{Binding DataContext.ApplyRulesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                    Padding="8,3" Cursor="Hand"
+                                                    ToolTip="Tự động khởi tạo và nạp các Rule này vào Bảng Rule của dự án">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding HasExtractedRules}" Value="True" />
+                                                                    <Condition Binding="{Binding IsApplied}" Value="False" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="Bdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bdr" Property="Background" Value="#E2E8F0" />
+                                                                <Setter TargetName="Bdr" Property="BorderBrush" Value="#94A3B8" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ApplyButtonText}" FontSize="11" FontWeight="SemiBold" Foreground="#0F172A" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <!-- Success Applied Badge -->
+                                            <Border DockPanel.Dock="Left" Background="#E6F4EA" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="2" Padding="7,3">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding HasExtractedRules}" Value="True" />
+                                                                    <Condition Binding="{Binding IsApplied}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="✓ Đã nạp vào Bảng Rule" FontSize="10.5" FontWeight="SemiBold" Foreground="#0E6B37" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Copy Button -->
+                                            <Button DockPanel.Dock="Right"
+                                                    Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding DisplayContent}"
+                                                    Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                    Padding="6,2" Cursor="Hand"
+                                                    ToolTip="Sao chép nội dung gợi ý vào Clipboard">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📋 " FontSize="10" />
+                                                    <TextBlock Text="Copy gợi ý" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </DockPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- 4. QUICK PROMPTS CHIPS (Light Gray Strip) -->
+        <Border Grid.Row="4" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="6,5">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal">
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch Start/Stop bật tắt bơm DO0 với nút nhấn DI0 (Start) và DI1 (Stop)"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="⚡ Start / Stop" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch đếm sản lượng từ cảm biến DI2 lưu an toàn vào biến Flash Retain VREG_RETAIN0"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="📊 Đếm sản lượng" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Hướng dẫn dùng khối SCALE quy đổi cảm biến áp suất analog AI0 (0..10000 mV) sang 0..16 bar lưu vào VREG0"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="📐 Scale Áp suất (0-16 bar)" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Hướng dẫn dùng khối SCALE calib cảm biến nhiệt độ 4-20mA (2000..10000 mV) sang -20..100°C lưu vào VREG1"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="🌡️ Scale Nhiệt độ (4-20mA)" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch bảo vệ quá nhiệt: ngắt tải DO0 khi cảm biến analog AI0 vượt quá ngưỡng an toàn"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="🌡️ Quá nhiệt Analog" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch trễ bật TON: nhấn giữ nút chạy DI0 liên tục 5s mới bật bơm bôi trơn DO0"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="⏱️ Trễ bật TON" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch trễ ngắt TOF: khi máy DI1 ngắt thì quạt làm mát DO1 duy trì chạy thêm 10s rồi tự tắt"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="⏳ Trễ ngắt TOF" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch phát xung TP: cảm biến DI3 thấy phôi thì van khí DO3 mở đúng 1.5s rồi tự đóng"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="⚡ Xung TP (1.5s)" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch đếm tiến CTU: cảm biến DI2 đếm đủ 10 sản phẩm thì bật đèn báo thùng đầy DO2, nút DI3 để reset về 0"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="🔢 Đếm tiến CTU" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Mạch đếm lùi CTD: máy dập DI1 đếm lùi khay từ 5 về 0, khi hết phôi thì còi DO5 kêu, nút DI0 nạp lại 5"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="📉 Đếm lùi CTD" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                    <Button Command="{Binding UseQuickPromptCommand}"
+                            CommandParameter="Rà soát và kiểm tra các Rule hiện tại trong dự án xem có xung đột ngõ ra hoặc thiếu an toàn không"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="🔍 Kiểm tra lỗi sơ đồ" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- 5. INPUT BAR (Pure White with Soft Gray Input Box) -->
+        <Border Grid.Row="5" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="8,7">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Multiline Input Box -->
+                <TextBox x:Name="PromptTextBox" Grid.Column="0"
+                         Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                         PreviewKeyDown="PromptTextBox_PreviewKeyDown"
+                         AcceptsReturn="True" MaxHeight="90" MinHeight="32"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         FontSize="12" Padding="6,5" VerticalContentAlignment="Center"
+                         BorderBrush="{StaticResource BorderLightBrush}" Background="#F8FAFC">
+                    <TextBox.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="CornerRadius" Value="2" />
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+
+                <!-- Send / Cancel Button -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Bottom">
+                    <!-- Cancel button when busy -->
+                    <Button Command="{Binding CancelCurrentRequestCommand}"
+                            Background="{StaticResource DangerBrush}" Foreground="#FFFFFF" BorderThickness="0"
+                            Width="34" Height="32" Cursor="Hand" ToolTip="Hủy yêu cầu"
+                            Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="2">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="⏹" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+
+                    <!-- Send button when idle (Industrial Slate Gray) -->
+                    <Button Command="{Binding SendMessageCommand}"
+                            Width="40" Height="32" Cursor="Hand" ToolTip="Gửi tin nhắn (Enter)"
+                            Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bdr" Background="#475569" CornerRadius="2">
+                                    <TextBlock x:Name="Txt" Text="➤" FontSize="13" Foreground="#FFFFFF"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#334155" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#1E293B" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="Bdr" Property="Background" Value="#E2E8F0" />
+                                        <Setter TargetName="Txt" Property="Foreground" Value="#94A3B8" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

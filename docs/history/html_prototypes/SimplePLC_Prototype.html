@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimplePLC — Config App Prototype</title>
+<style>
+:root{
+  --bg:#0f1217; --panel:#161b23; --panel2:#1c222c; --border:#2a3240;
+  --txt:#e8edf4; --dim:#8b96a8; --acc:#4da3ff; --acc2:#37c871; --warn:#ffb020; --err:#ff5c5c;
+  --mono:'Consolas','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;height:100vh;overflow:hidden}
+/* ---------- layout ---------- */
+#app{display:flex;flex-direction:column;height:100vh}
+#top{display:flex;align-items:center;gap:12px;padding:8px 14px;background:#0b0e13;border-bottom:1px solid var(--border)}
+#top .logo{font-weight:700;color:var(--acc);font-size:15px;letter-spacing:.5px}
+#top .conn{font-size:12px;color:var(--dim)}
+#top .ctr{margin-left:auto;font-size:12px;color:var(--dim)}
+#top .rnd{font-size:11px;color:var(--warn);border:1px solid var(--warn);padding:2px 8px;border-radius:10px}
+#top .rnd.warn{color:var(--warn)}
+#side{display:flex;flex:1;min-height:0}
+#nav{width:200px;background:#0b0e13;border-right:1px solid var(--border);padding:10px 0;flex-shrink:0}
+#nav .n{padding:10px 16px;cursor:pointer;color:var(--dim);font-size:13.5px;border-left:3px solid transparent}
+#nav .n:hover{background:#141922}
+#nav .n.on{color:#fff;background:#1a2230;border-left-color:var(--acc)}
+#nav .n .k{color:#5a6b85;margin-right:8px;font-size:11px}
+#main{flex:1;overflow:auto;padding:18px 22px}
+/* ---------- generic widgets ---------- */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.card h3{font-size:14px;color:#cfd8e6;margin-bottom:10px;font-weight:600}
+.btn{background:#223046;border:1px solid #33507a;color:#dbe6f5;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:13px}
+.btn:hover{background:#2a3d59}
+.btn.acc{background:var(--acc);border-color:var(--acc);color:#04263f;font-weight:600}
+.btn.acc:hover{background:#6db6ff}
+.btn.danger{background:#3a1f24;border-color:#6b3038;color:#ff9c9c}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.mini{padding:3px 9px;font-size:11.5px;border-radius:4px}
+select,input[type=text],input[type=number]{background:#11161f;border:1px solid var(--border);color:var(--txt);padding:6px 9px;border-radius:5px;font-size:13px;font-family:inherit}
+select:focus,input:focus{outline:1px solid var(--acc)}
+label{color:var(--dim);font-size:12px;display:block;margin-bottom:3px}
+.frow{margin-bottom:10px}
+.frow .inline{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--dim)}
+.warn-txt{font-size:12px;color:var(--warn)}
+.err-txt{font-size:12px;color:var(--err)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--dim);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+td{padding:7px 8px;border-bottom:1px solid #202836}
+tr:hover td{background:#151c27}
+/* ---------- tag list ---------- */
+.tagchip{display:inline-block;background:#1d2735;border:1px solid #2e3c52;border-radius:4px;padding:1px 7px;font-size:11.5px;color:#a9c2e8;font-family:var(--mono)}
+/* ---------- rule list ---------- */
+.rules td{vertical-align:middle}
+.rules .id{color:var(--acc);font-family:var(--mono);font-size:12.5px}
+.rules .narr{font-weight:500}
+.rules .sub{color:var(--dim);font-size:11.5px}
+.sw{position:relative;width:34px;height:18px;background:#313b4e;border-radius:9px;cursor:pointer;transition:.15s}
+.sw.on{background:var(--acc2)}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on::after{left:18px}
+.up{color:var(--acc2)}.down{color:var(--warn)}
+/* ---------- editor ---------- */
+.editor{max-width:760px}
+.editor h2{margin-bottom:12px}
+.editor .tsel{display:grid}
+.editor .tsel label{
+border:1px solid var(--border);background:var(--panel2);color:var(--dim);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;}
+.editor .tsel label:hover{border-color:#3f5b8a}
+.editor .tsel label.on{background:var(--acc);color:#04263f;border-color:var(--acc);font-weight:600}
+.editor .top-actions{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.editor .pagebar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.editor .pg{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:3px 11px;font-size:12px;cursor:pointer;color:var(--dim)}
+.editor .pg.on{background:var(--acc);color:#04263f;border-color:var(--acc);font-weight:600}
+/* ---------- blueprint ---------- */
+.bp-cards{display:flex;gap:14px;flex-wrap:wrap}
+.bp-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;width:230px;cursor:pointer;transition:.15s}
+.bp-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.bp-card h4{font-size:14px;margin-bottom:6px}
+.bp-card p{font-size:12px;color:var(--dim);min-height:36px}
+.bp-card .bp-tags{margin-top:8px}
+.bp-form{max-width:720px}
+.bp-form h2{margin-bottom:4px}
+/* ---------- io / monitor ---------- */
+.iotile{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;min-width:74px}
+.iotile .val{font-size:30px;color:var(--dim);display:flex;justify-content:center}
+.iotile .nm{font-size:11.5px;color:var(--dim);margin-top:3px;word-break:break-word}
+.iotile .chip{font-family:var(--mono);font-size:10px;color:#5d7aa8}
+.iotile.tg{cursor:pointer}
+.iotile.tg:hover{border-color:var(--acc)}
+.iotile.on .val{color:var(--acc2)}
+.iotile.nz .val{color:var(--warn)}
+.airow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.airow input[type=range]{flex:1;accent-color:var(--acc)}
+.tile-grid{display:flex;gap:10px;flex-wrap:wrap}
+/* ---------- deploy ---------- */
+.steps .st{display:flex;gap:10px;margin-bottom:8px;font-size:13.5px;color:var(--dim)}
+.steps .st .dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--dim);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px}
+.steps .st.done{color:var(--txt)}
+.steps .st.done .dot{background:var(--acc2);border-color:var(--acc2);color:#04281a}
+.steps .st.cur .dot{border-color:var(--acc);color:var(--acc)}
+.steps .st.cur{color:#fff}
+.bar{height:10px;background:#202836;border-radius:5px;overflow:hidden;margin:10px 0}
+.bar .fill{height:100%;background:var(--acc);width:0%;transition:width .2s}
+.log{background:#0a0d12;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--mono);font-size:12px;max-height:180px;overflow:auto;white-space:pre-wrap}
+/* ---------- monitor ---------- */
+.mon-grid{display:flex;gap:10px;flex-wrap:wrap}
+.mchip{padding:6px 10px;border-radius:6px;background:var(--panel2);border:1px solid var(--border);font-family:var(--mono);font-size:12px}
+.mchip b{color:var(--acc)}
+/* ---------- nonstop ---------- */
+.ns{display:flex;gap:14px;align-items:center}
+.ns .box{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.ns .group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ns .v{font-family:var(--mono);color:var(--acc2);font-size:14px;font-weight:700}
+.ns .chip{display:inline-flex;padding:4px 10px;background:#15202e;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;user-select:none}
+.ns .chip:hover{border-color:var(--acc)}
+.ns .chip.hot{background:var(--acc);color:#04263f;border-color:var(--acc)}
+/* ---------- tag catalog ---------- */
+.cat{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cat .c5{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer}
+.cat .c5:hover{border-color:var(--acc)}
+.cat .c5.on{background:#223a5c;border-color:var(--acc)}
+/* ---------- diagnostics ---------- */
+.diag-block{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;font-size:12.5px}
+.diag-block b{color:var(--acc)}
+.diag-block .lbl{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span class="logo">⬢ SimplePLC</span>
+    <span class="conn" id="conn-label">Chưa kết nối</span>
+    <span class="ctr" id="ctrl-label"></span>
+    <span class="rnd" id="rnd-label"></span>
+  </div>
+  <div id="side">
+    <div id="nav"></div>
+    <div id="main"></div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ================================================================
+   SIMPLEPLC PROTOTYPE — single-file offline simulation
+   1. TAGS — fixed catalog per spec 3.2
+   2. RULES — 28-byte struct semantics (JS object mirror)
+   3. DEVICE — Modbus slave image (registers 0x9000..0xA001)
+   4. ENGINE — rule_scan() at 10ms with FIXED dwell semantics
+   5. UI — Connect / Tags / Rules / Editor / Blueprints / Deploy / Monitor / Sim / Catalog/Nonstop
+   ================================================================ */
+// ---------------- 1. TAG CATALOG ----------------
+const K = {NONE:0,DI:1,DO:2,AI:3,VFLAG:4,VREG:5,MB_COIL:6,MB_HOLDING:7,VREG_RETAIN:8};
+const maxTags=128;
+const tags=[];
+function T(kind,name,ch,group) { tags.push({kind,name,ch,group}); }
+// index 0
+T(K.NONE,'— không tham chiếu —',0,'');
+for(let i=0;i<8;i++) T(K.DI,`DI${i}`,i+1,'DI');
+for(let i=0;i<8;i++) T(K.DO,`DO${i}`,i+1,'DO');
+for(let i=0;i<4;i++) T(K.AI,`AI${i}`,i+1,'AI');
+for(let i=0;i<16;i++) T(K.VFLAG,`VFLAG${i}`,i+1,'VFLAG');
+for(let i=0;i<16;i++) T(K.VREG,`VREG${i}`,i+1,'VREG');
+for(let i=0;i<16;i++) T(K.VREG_RETAIN,`VREG_R${i}`,i+1,'VREG_R');
+// display names (user edits in Tags screen — demo naming theo các ví dụ trong spec)
+const names=new Array(maxTags).fill('—');
+names[1]='Máy đang chạy'; names[2]='Nút gọi cấp liệu';
+names[3]='Cảm biến dây chuyền 1'; names[4]='Cảm biến dây chuyền 2';
+names[9]='Đèn đỏ'; names[10]='Đèn vàng'; names[11]='Đèn xanh';
+names[17]='Áp suất dầu'; names[18]='Nhiệt độ bể'; names[19]='Tần số cấp liệu'; names[20]='Dòng pha A';
+names[21]='Trong ca (in_shift)';
+names[37]='Timer1 (T1)'; names[38]='Timer2';
+names[53]='Counter1 (sản phẩm)'; names[54]='Counter2'; names[55]='Tổng sản lượng';
+names[105]='VFLAG cảnh báo cục bộ';
+
+function tagName(i){ const t=tags[i]; if(!t) return `?${i}`; const n=names[i]; return n && n!=='—' ? `${n} (${t.name})` : t.name; }
+function tagShort(i){ const t=tags[i]; return t? t.name : `?${i}`; }
+// ---------------- 2. RULE MODEL ----------------
+const TG={ON_CHANGE:0,ON_RISE:1,ON_FALL:2,TIME_WINDOW:3,INTERVAL:4};
+const OP={NONE:0,EQ:1,NEQ:2,GT:3,LT:4,GTE:5,LTE:6,BETWEEN:7};
+const ACT={SET_TAG:0,TOGGLE_TAG:1,INC_COUNTER:2,WRITE_REMOTE:3,LOG_EVENT:4,SEND_ALARM:5,ADD_TAG:6,SCALE_TAG:7};
+function R(o){ return Object.assign({enabled:1,trigger_type:0,trigger_tag:0,compare_op:0,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:0,action_tag:0,action_param:0}, o); }
+/* ============ 3. DEVICE ============ */
+const device={
+  running:false, boot_ms:0, last_commit_ms:0, rule_version:1,
+  retainFlash:{}, pvdArmed:false, pvdFiredAt:null, fakeOff:false,
+  modbus:{regs:{}},
+  staged:{count:0, crc:0, data:null},
+};
+device.rules=[]; // active Rule[] (loaded)
+// ---------- rules that the engine runs (active table) ----------
+device.rules=[];
+device.pendingRules=null; // rules in staging (deploy draft)
+// ---------------- 4. VALUE STORE + SIM CLOCK ----------------
+const SCAN_MS=10;
+let g_system_tick_ms=0;          // ms hệ thống (mỗi tick = 1 vòng quét)
+let simClock=419;                // đồng hồ mô phỏng HHMM: 419 = 06:59
+let simClockSpeed=1;             // ×1 hoặc ×10 (speed càng lớn, thời gian càng nhanh)
+const g_tag_value=new Int32Array(maxTags);
+function tag_read(idx){ return idx<maxTags ? g_tag_value[idx] : 0; }
+function tag_write(idx,v){ if(idx<maxTags) g_tag_value[idx]=v; }
+const g_rule_runtime=[]; // {prev,since,armed,lastFire,lastWin}
+function rt(i){ let r=g_rule_runtime[i]; if(!r){ r={prev:0,since:0,armed:false,lastFire:0,lastWin:-1,prevMin:-1}; g_rule_runtime[i]=r; } return r; }
+function loadRuntime(){ g_rule_runtime.length=0; for(let i=0;i<Math.max(device.rules.length,1);i++) rt(i); }
+const eventLog=[];
+const diLevels=new Int32Array(9);   // DI1..8 mức vật lý (0/1)
+const aiLevels={1:75,2:60,3:50,4:80}; // AI0..3 (0..100)
+function nowStr(){ const hh=String(Math.floor(simClock/60)).padStart(2,'0'), mm=String(simClock%60).padStart(2,'0'); return `${hh}:${mm}`; }
+function pushEvent(txt){ eventLog.unshift({t:nowStr(),txt}); if(eventLog.length>200) eventLog.pop(); }
+// --- scan cycle: input_scan -> rule_scan -> output_scan ---
+function input_scan(){
+  for(let i=1;i<=8;i++) g_tag_value[i]= (diLevels[i]===1?1:0);
+  for(let i=17;i<=20;i++){ const t=tags[i]; g_tag_value[i]=Math.round(aiLevels[t.ch])||0; }
+}
+function output_scan(){ for(let i=9;i<=16;i++){} /* DO nằm sẵn trong g_tag_value; UI render đọc trực tiếp */ }
+function check_edge(tt,prev,cur){
+  if(tt===TG.ON_CHANGE) return prev!==cur;
+  if(tt===TG.ON_RISE)   return prev===0&&cur!==0;
+  if(tt===TG.ON_FALL)   return prev!==0&&cur===0;
+  return false;
+}
+function compare_ok(op,cur,lo,hi){
+  switch(op){
+    case OP.EQ: return cur===lo;
+    case OP.NEQ: return cur!==lo;
+    case OP.GT: return cur>lo;
+    case OP.LT: return cur<lo;
+    case OP.GTE: return cur>=lo;
+    case OP.LTE: return cur<=lo;
+    case OP.BETWEEN: return cur>=lo&&cur<=hi;
+    default: return true;
+  }
+}
+/* rule_scan() — traces the spec 6.5 but with FIXED dwell semantics.
+   In the pseudocode, edge-triggered rules with for_ms>0 never fire
+   (edge is true once; next scan 'continue' skips dwell). Fix: arm on
+   trigger, then dwell counts on the LEVEL still holding. */
+function rule_scan(){
+  const now=g_system_tick_ms;
+  for(let i=0;i<device.rules.length;i++){
+    const r=device.rules[i]; if(!r.enabled) continue;
+    const st=rt(i); const cur=tag_read(r.trigger_tag);
+    const isRise=r.trigger_type===TG.ON_RISE, isFall=r.trigger_type===TG.ON_FALL;
+
+    if(r.trigger_type===TG.INTERVAL){
+      // đến hạn mỗi for_ms — ghi mốc ngay (kể cả khi guard/compare chặn)
+      if(now - st.lastFire >= r.for_ms){
+        st.lastFire=now;
+        if(guardCompareOk(r,cur) && r.for_ms>=0===false){ /* unreachable */ }
+        if(guardCompareOk(r,cur)) execute_action(r);
+      }
+      st.prev=cur; continue;
+    }
+    if(r.trigger_type===TG.TIME_WINDOW){
+      if(timeWindowEdge(r,st)){ if(guardCompareOk(r,cur)) execute_action(r); }
+      st.prev=cur; continue;
+    }
+    if(isRise||isFall){
+      // CẠNH + DWELL trên mức: cạnh bắt đầu đếm, mức còn giữ thì đếm tiếp,
+      // đủ for_ms → fire. Hết giữ → hủy đếm. (Đây là bản sửa lỗi pseudocode spec 6.5)
+      const edge = check_edge(r.trigger_type, st.prev, cur);
+      const levelOk = isRise ? (cur!==0) : (cur===0);
+      st.prev=cur;
+      if(!levelOk){ st.since=0; continue; }
+      if(st.since===0){ if(!edge) continue; st.since=now; }
+      if(now - st.since < r.for_ms) continue;
+      st.since=0;
+      if(guardCompareOk(r,cur)) execute_action(r);
+      continue;
+    }
+    // ON_CHANGE: edge → so sánh → trong trường hợp for_ms>0 sẽ đếm level của "đã đổi" (đơn giản: nổ ngay)
+    const edge=check_edge(TG.ON_CHANGE, st.prev, cur);
+    st.prev=cur;
+    if(!edge) continue;
+    if(r.for_ms>0){
+      if(now-st.since<r.for_ms){ if(st.since===0) st.since=now; continue; }
+      st.since=0;
+    }
+    if(guardCompareOk(r,cur)) execute_action(r);
+  }
+}
+function guardCompareOk(r,cur){
+  if(r.compare_op!==OP.NONE && !compare_ok(r.compare_op, cur, r.threshold_lo, r.threshold_hi)) return false;
+  const gi=r.guard_tag&0x7FFF, neg=(r.guard_tag>>15)&1;
+  if(gi!==0){ const gv=tag_read(gi); const open = neg ? (gv===0) : (gv!==0); if(!open) return false; }
+  return true;
+}
+function timeWindowEdge(r, rt){
+  // TIME_WINDOW = "báo thức" tại đúng mốc threshold_lo HHMM (mỗi ngày 1 lần).
+  // R0a: lo=700 → nổ 1 lần lúc 07:00; R0b: lo=1600 → nổ 1 lần lúc 16:00.
+  const hhmm = Math.floor(simClock);
+  const target = r.threshold_lo;
+  const dayKey = Math.floor(g_system_tick_ms/8640000);
+  if(hhmm===target){
+    if(rt.lastWin!==dayKey){ rt.lastWin=dayKey; return true; }
+  } else {
+    rt.lastWin=-1;
+  }
+  return false;
+}
+function execute_action(r){
+  const tgt=r.action_tag, cur=tag_read(tgt);
+  switch(r.action_type){
+    case ACT.SET_TAG: tag_write(tgt, r.action_param); break;
+    case ACT.TOGGLE_TAG: tag_write(tgt, cur?0:1); break;
+    case ACT.INC_COUNTER: tag_write(tgt, cur + r.action_param); break;
+    case ACT.ADD_TAG: tag_write(tgt, cur + tag_read(r.trigger_tag)); break;
+    case ACT.SCALE_TAG: tag_write(tgt, Math.trunc(tag_read(r.trigger_tag) * r.action_param / 1000) + r.threshold_hi); break;
+  case ACT.WRITE_REMOTE: break;
+    case ACT.LOG_EVENT: pushEvent(`LOG: ${tagName(tgt)} = ${r.action_param}`); break;
+    case ACT.SEND_ALARM: device.alarmCode=r.action_param; pushEvent(`ALARM ${r.action_param}: ${tagName(tgt)}`); break;
+  }
+  pushEvent(`→ ${actName(r.action_type)}: ${tagName(tgt)} ${actDesc(r)}`);
+}
+function actName(a){ return ['SET','TOGGLE','INC','WRITE','LOG','ALARM','ADD','SCALE'][a]||a; }
+function actDesc(r){
+  switch(r.action_type){
+    case ACT.SET_TAG: return `= ${r.action_param}`;
+    case ACT.TOGGLE_TAG: return `(đảo)`;
+    case ACT.INC_COUNTER: return `+= ${r.action_param}`;
+    case ACT.ADD_TAG: return `+= ${tagShort(r.trigger_tag)}`;
+    case ACT.SCALE_TAG: return `= ${tagShort(r.trigger_tag)}×${r.action_param}/1000 ${r.threshold_hi>=0?'+':''}${r.threshold_hi}`;
+    case ACT.SEND_ALARM: return `ALARM ${r.action_param}`;
+    case ACT.LOG_EVENT: return `log`;
+    default: return '';
+  }
+}
+/* ============ 4c. Đồng hồ mô phỏng ============
+   - simClock: HHMM (419 = 06:59, khởi điểm để thấy Andon bật đèn khi vào ca 07:00)
+   - Mỗi 600 tick (6 giây thật) = +1 phút mô phỏng; speed ×10 → 0.6 giây/phút.
+   - Các rule demo dùng for_ms theo "ms mô phỏng": R1 Andon 5 phút = 300000 ms mô phỏng
+     = 30000 tick = 300 giây thật — quá lâu để xem. Vì vậy ở bản demo,
+     R1 dùng for_ms = 15000 (giả lập "5 phút" — 15 giây thật) và ghi chú rõ trong UI.
+   - Để tốc độ vánn: thời gian mô phỏng chạy nhanh hơn thật 50× (speed=1). */
+function advanceClock(){
+  // speed=1: 600 tick (6 giây thật) = +1 phút mô phỏng; speed=10: 60 tick = 1 phút
+  const tickPerMin = simClockSpeed===1 ? 600 : 60;
+  const minsFromStart = Math.floor(g_system_tick_ms / (tickPerMin*10));
+  simClock = (419 + minsFromStart) % 1440;
+}
+function ts(sec){ return sec*1000; } // giây → ms (chung cho for_ms/Interval)
+function simMinToMs(min){ return min*60000; } // dùng cho TIME_WINDOW? — không, TIME_WINDOW dùng HHMM trực tiếp
+
+/* ============ 4c. BOOT + DEFAULT RULES ============ */
+function defaultRules(){
+  return [
+    // --- ANDON — mục 4.4 ---
+    R({id:'R0a',enabled:1,trigger_type:TG.TIME_WINDOW,trigger_tag:0,compare_op:OP.NONE,threshold_lo:700,threshold_hi:1600,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:21,action_param:1}),
+    R({id:'R0b',enabled:1,trigger_type:TG.TIME_WINDOW,trigger_tag:0,compare_op:OP.NONE,threshold_lo:700,threshold_hi:1600,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:21,action_param:0}),
+    R({id:'R1',enabled:1,trigger_type:TG.ON_FALL,trigger_tag:1,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:15000,guard_tag:21,action_type:ACT.SET_TAG,action_tag:9,action_param:1}), // 5 phút mô phỏng
+    R({id:'R2',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:2,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:9,action_param:1}),
+    R({id:'R3',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:1,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:9,action_param:0}),
+    // --- CẤP LIỆU — mục 4.5 ---
+    R({id:'R4',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:2,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:1,action_type:ACT.TOGGLE_TAG,action_tag:10,action_param:0}),
+    R({id:'R5',enabled:1,trigger_type:TG.INTERVAL,trigger_tag:0,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:1000,guard_tag:10,action_type:ACT.INC_COUNTER,action_tag:37,action_param:1}), // mỗi 1 giây thật
+    R({id:'R6',enabled:1,trigger_type:TG.ON_CHANGE,trigger_tag:37,compare_op:OP.GT,threshold_lo:10,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:11,action_param:1}),
+    R({id:'R7',enabled:1,trigger_type:TG.ON_FALL,trigger_tag:10,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:37,action_param:0}),
+    R({id:'R8',enabled:1,trigger_type:TG.ON_FALL,trigger_tag:10,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:11,action_param:0}),
+    // --- ĐẾM SẢN LƯỢNG — mục 4.6 ---
+    R({id:'R9',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:3,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:53,action_param:1}),
+    R({id:'R10',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:3,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:55,action_param:1}),
+    R({id:'R11',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:4,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:54,action_param:1}),
+    R({id:'R12',enabled:1,trigger_type:TG.ON_RISE,trigger_tag:4,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:55,action_param:1}),
+  ];
+}
+function bootDevice() {
+  device.rules=defaultRules();
+  device.rule_version=2;
+  loadRuntime();
+  // nạp retain counters (mô phỏng retain_store_restore)
+  g_tag_value[53]=128; g_tag_value[54]=13; g_tag_value[55]=141;
+  g_tag_value[21]=1; // trong ca
+  pushEvent(`Boot: nạp ${device.rules.length} rule từ Flash, retain restore: Counter1=${g_tag_value[53]}, Total=${g_tag_value[55]}`);
+}
+/* ============ 5. UI SHELL ============ */
+const NAV=[
+  {id:'connect', t:'Kết nối'},
+  {id:'tags',    t:'Tag I/O'},
+  {id:'rules',   t:'Danh sách Rule'},
+  {id:'editor',  t:'Tạo / Sửa Rule'},
+  {id:'bp',      t:'Blueprint'},
+  {id:'deploy',  t:'Nạp xuống'},
+  {id:'sim',     t:'Giám sát (Sim)'},
+  {id:'monitor', t:'Theo dõi Realtime'},
+];
+let curNav='connect';
+const mainEl=()=>document.getElementById('main');
+const navEl=()=>document.getElementById('nav');
+const connEl=()=>document.getElementById('conn-label');
+const ctrlEl=()=>document.getElementById('ctrl-label');
+const rndEl=()=>document.getElementById('rnd-label');
+
+function setTopConn(){
+  connEl().textContent = device.running
+    ? `● ${device.name||'SimplePLC'} — COM5 @19200 · Slave 1 · Firmware v1.3 · Rule v${device.rule_version}`
+    : `○ Chưa kết nối (thiết bị giả chưa chạy)`;
+  ctrlEl().textContent = `đồng hồ ${nowStr()} · tốc độ ×${simClockSpeed} · T+${(g_system_tick_ms/1000).toFixed(0)}s`;
+  rndEl().textContent = 'PROTOTYPE';
+}
+function buildNav(){
+  navEl().innerHTML = NAV.map(n=>`<div class="n ${curNav===n.id?'on':''}" data-nav="${n.id}"><span class="k">${String(NAV.indexOf(n)+1).padStart(2,'0')}</span>${n.t}</div>`).join('');
+  navEl().querySelectorAll('.n').forEach(el=>el.onclick=()=>{ curNav=el.dataset.nav; show(); });
+}
+
+// ---------------- render helpers ----------------
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function tagOpt(sel,tagsOnly){ return `
+  <select data-f="trigger_tag_filter" onchange="onFilterChange(this)">
+    <option value="">Nhóm tag…</option>
+    ${['DI','DO','AI','VFLAG','VREG','VREG_R'].map(g=>`<option ${sel===g?'selected':''} value="${g}">${g}</option>`).join('')}
+  </select>`; }
+function aiInput(t,i){ return `<div class="airow"><label>${esc(tagName(i))}</label>
+  <input type="range" min="0" max="100" value="${aiLevels[t.ch]}" oninput="setAI(${t.ch},this.value)">
+  <span class="hint" id="ai-val-${t.ch}">${aiLevels[t.ch]}</span></div>`; }
+
+// ---------------- SCREENS ----------------
+function show(){
+  setTopConn(); buildNav();
+  const f={connect:scrConnect,tags:scrTags,rules:scrRules,editor:scrEditor,bp:scrBP,deploy:scrDeploy,sim:scrSim,monitor:scrMonitor}[curNav];
+  mainEl().innerHTML=f();
+  if(curNav==='monitor'||curNav==='sim') startLive();
+}
+function refresh(){ show(); }
+
+// ================= MÀN HÌNH 1: KẾT NỐI =================
+let connected=false;
+function scrConnect(){
+  return `
+  <div class="card" style="max-width:640px">
+    <h3>Kết nối tới thiết bị</h3>
+    <div class="frow"><label>Cổng kết nối</label><select id="port"><option>COM5 — USB Serial</option><option>COM3 — RS485</option></select></div>
+    <div class="frow"><label>Tốc độ baud</label><select id="baud"><option>19200</option><option>9600</option><option>115200</option></select></div>
+    <div class="frow"><label>Địa chỉ Modbus</label><select id="slave"><option>Slave ID: 1</option><option>Slave ID: 2</option></select></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn acc" onclick="doConnect()">Kết nối</button>
+      <button class="btn" onclick="doBoot()">Thiết bị giả (simulator)</button>
+    </div>
+    <p class="hint" style="margin-top:10px">Mẹo: bấm <b>Thiết bị giả</b> để mô phỏng toàn bộ flow — kết nối, xem I/O, sửa rule, nạp, chạy engine 10ms.</p>
+  </div>`;
+}
+function doConnect(){ connected=true; device.running=true; if(!device.rules.length) bootDevice(); refresh(); }
+function doBoot(){ device.running=true; bootDevice(); refresh(); }
+
+// ================= MÀN HÌNH 2: TAG I/O =================
+function scrTags(){
+  let out=`<div class="card"><h3>Danh sách Tag I/O (đọc/xuất trực tiếp trên thiết bị)</h3>
+  <p class="hint">Thiết bị tự khai báo 8 DI · 8 DO · 4 AI · 16 VFLAG · 16 VREG · 16 VREG_RETAIN. Tên gợi nhớ xuất hiện ở đây và trong mọi dropdown — bạn không cần nhớ chỉ số.</p>
+  <div class="tile-grid" style="margin-top:12px">`;
+  function tile(i,extra){
+    const t=tags[i]; const val=g_tag_value[i];
+    return `<div class="iotile ${extra||''} ${val?'on':''}">
+      <div class="val">${t.kind===K.AI?val:(t.kind===K.VREG||t.kind===K.VREG_RETAIN?Math.abs(val):(val?'●':'○'))}</div>
+      <div class="chip">${t.name}</div>
+      <div class="nm">${esc(names[i]==='—'?t.name:names[i])}</div></div>`;
+  }
+  out+=`<h4 style="width:100%;color:var(--dim);font-weight:600">DI (ngõ vào số)</h4>`;
+  for(let i=1;i<=8;i++) out+=tile(i,'tg');
+  out+=`<h4 style="width:100%;color:var(--dim);font-weight:600;margin-top:8px">DO (ngõ ra số)</h4>`;
+  for(let i=9;i<=16;i++) out+=tile(i);
+  out+=`<h4 style="width:100%;color:var(--dim);font-weight:600;margin-top:8px">AI (ngõ vào analog) — kéo slider để đổi giá trị</h4>`;
+  for(let i=17;i<=20;i++) out+=`<div style="width:180px">${aiInput(tags[i],i)}</div>`;
+  out+=`<h4 style="width:100%;color:var(--dim);font-weight:600;margin-top:8px">VFLAG / VREG / VREG_RETAIN (nội bộ)</h4>`;
+  for(let i=21;i<=68;i++) if(i!==37&&i!==38) continue; // không hiện hết — có bộ lọc bên dưới
+  out+=`</div></div>`;
+  out+=`<div class="card"><h3>Đổi tên gợi nhớ (lưu trong file project của app)</h3>
+  <p class="hint">Firmware không có chỗ lưu tên — tên nằm trong project file (.splc) của app.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+    <div><label>Chọn tag</label><select id="nm-sel">${['']}</select></div>
+  </div></div>`;
+  return out;
+}
+// ================= MÀN HÌNH 3: DANH SÁCH RULE =================
+function ruleNarr(r){
+  const t=tagName(r.trigger_tag), a=tagName(r.action_tag);
+  let trig;
+  switch(r.trigger_type){
+    case TG.ON_RISE: trig=`${t} lên (0→1)`; break;
+    case TG.ON_FALL: trig=`${t} xuống (1→0)`; break;
+    case TG.ON_CHANGE: trig=`${t} đổi giá trị`; break;
+    case TG.INTERVAL: trig=`mỗi ${Math.round(r.for_ms/1000)} giây`; break;
+    case TG.TIME_WINDOW: trig=`lúc ${String(Math.floor(r.threshold_lo/100)).padStart(2,'0')}:${String(r.threshold_lo%100).padStart(2,'0')}`; break;
+    default: trig='?';
+  }
+  let cmp='';
+  if(r.compare_op===OP.GT) cmp=` (${t} > ${r.threshold_lo})`;
+  else if(r.compare_op===OP.GTE) cmp=` (${t} ≥ ${r.threshold_lo})`;
+  else if(r.compare_op===OP.LT) cmp=` (${t} < ${r.threshold_lo})`;
+  else if(r.compare_op===OP.LTE) cmp=` (${t} ≤ ${r.threshold_lo})`;
+  else if(r.compare_op===OP.EQ) cmp=` (${t} = ${r.threshold_lo})`;
+  else if(r.compare_op===OP.NEQ) cmp=` (${t} ≠ ${r.threshold_lo})`;
+  else if(r.compare_op===OP.BETWEEN) cmp=` (${r.threshold_lo} ≤ ${t} ≤ ${r.threshold_hi})`;
+  let g='';
+  if((r.guard_tag&0x7FFF)!==0){ const gi=r.guard_tag&0x7FFF; const neg=r.guard_tag>>15&1; g=` <span class="hint">nếu ${tagName(gi)} ${neg?'=0':'≠0'}</span>`; }
+  let act;
+  switch(r.action_type){
+    case ACT.SET_TAG: act=`đặt ${a} = ${r.action_param}`; break;
+    case ACT.TOGGLE_TAG: act=`đảo ${a}`; break;
+    case ACT.INC_COUNTER: act=`${a} += ${r.action_param}`; break;
+    case ACT.ADD_TAG: act=`${a} += ${t}`; break;
+    case ACT.SCALE_TAG: act=`${a} = ${t} × ${r.action_param}/1000 ${r.threshold_hi>=0?'+':''}${r.threshold_hi}`; break;
+    case ACT.SEND_ALARM: act=`gửi cảnh báo #${r.action_param}`; break;
+    case ACT.LOG_EVENT: act=`ghi log ${a}`; break;
+    default: act='?';
+  }
+  return {trig,cmp,g,act,when:`Khi ${trig}${cmp}${g} &nbsp;<span class="up">→</span> ${act}`};
+}
+function scrRules(){
+  let out=`<div class="card"><h3>Danh sách Rule (${device.rules.length} / 100)</h3>`;
+  out+=`<div style="margin-bottom:10px"><button class="btn acc mini" onclick="newRule()">＋ Tạo rule mới</button>
+  <button class="btn mini" onclick="show()">↻ Làm mới</button></div>`;
+  out+=`<table class="rules"><tr><th>#</th><th>Khi nào</th><th>Thì làm gì</th><th>Bật</th><th></th></tr>`;
+  device.rules.forEach((r,i)=>{
+    const n=ruleNarr(r);
+    out+=`<tr><td class="id">${r.id||('R'+i)}</td>
+    <td class="narr">${n.when}</td>
+    <td class="sub">${esc(ruleStructLine(r))}</td>
+    <td><div class="sw ${r.enabled?'on':''}" onclick="toggleRule(${i})"></div></td>
+    <td><button class="btn mini" onclick="editRule(${i})">✎ Sửa</button>
+    <button class="btn mini" onclick="dupRule(${i})" title="Nhân bản">⎘</button>
+    <button class="btn mini danger" onclick="delRule(${i})">✕</button></td></tr>`;
+  });
+  out+=`</table></div>`;
+  out+=`<div class="card"><h3>Đóng gói & nạp</h3>
+  <p class="hint">${device.rules.length} rule × 14 register/rule = ${device.rules.length*14} register → ${Math.ceil(device.rules.length*14/123)} khung FC16. Nạp qua tab <b>Nạp xuống</b>.</p>
+  <p class="warn-txt" style="margin-top:6px">ℹ️ Bản demo: chuỗi 5 phút của R1 rút ngắn còn 15 giây. Quy tắc "1 action/rule", "guard tối đa 1", "≤100 rule" áp đúng — validator chặn trước khi nạp.</p></div>`;
+  return out;
+}
+function ruleStructLine(r){
+  return `(28B) tt=${r.trigger_type} trg=${r.trigger_tag} comp=${r.compare_op} lo=${r.threshold_lo} hi=${r.threshold_hi} for=${r.for_ms} guard=${r.guard_tag} act=${r.action_type} tag=${r.action_tag} par=${r.action_param}`;
+}
+function toggleRule(i){ device.rules[i].enabled^=1; show(); }
+function editRule(i){ editorIdx=i; draft=null; curNav='editor'; show(); }
+function dupRule(i){ const d=JSON.parse(JSON.stringify(device.rules[i])); d.id=null; d.enabled=1; device.rules.splice(i+1,0,d); show(); }
+function delRule(i){ device.rules.splice(i,1); show(); }
+function newRule(){ editorIdx=-1; draft=null; curNav='editor'; show(); }
+
+// ================= MÀN HÌNH 4: EDITOR =================
+let editorIdx=-1, draft=null;
+function scrEditor(){
+  if(!draft){ draft = editorIdx>=0 ? Object.assign(R(null), JSON.parse(JSON.stringify(device.rules[editorIdx]))) : R({id:null}); }
+  const d=draft; const isNew = editorIdx<0;
+  const opt=(v,label,sel)=>`<option value="${v}" ${sel===v?'selected':''}>${label}</option>`;
+  function tagSel(sel,name,allowNone){ let s=`<select data-f="${name}" onchange="">`;
+    if(allowNone) s+=`<option value="0">— không —</option>`;
+    for(let i=0;i<maxTags;i++){ if(!tags[i]) continue; if(tags[i].kind===K.NONE&&!allowNone) continue; s+=`<option value="${i}" ${sel===i?'selected':''}>${tags[i].name}</option>`; }
+    return s+`</select>`; }
+  const trigList=[['Sườn lên (ON_RISE)',TG.ON_RISE],['Sườn xuống (ON_FALL)',TG.ON_FALL],['Đổi giá trị (ON_CHANGE)',TG.ON_CHANGE],['Theo giờ (TIME_WINDOW)',TG.TIME_WINDOW],['Định kỳ (INTERVAL)',TG.INTERVAL]];
+  const actList=[['Đặt giá trị (SET)',ACT.SET_TAG],['Đảo trạng thái (TOGGLE)',ACT.TOGGLE_TAG],['Cộng dồn (INC)',ACT.INC_COUNTER],['Cộng giá trị sống (ADD)',ACT.ADD_TAG],['Quy đổi (SCALE)',ACT.SCALE_TAG],['Cảnh báo (ALARM)',ACT.SEND_ALARM],['Ghi log (LOG)',ACT.LOG_EVENT]];
+  const opList=[['Không so sánh',OP.NONE],['= (EQ)',OP.EQ],['≠ (NEQ)',OP.NEQ],['> (GT)',OP.GT],['< (LT)',OP.LT],['≥ (GTE)',OP.GTE],['≤ (LTE)',OP.LTE],['Trong khoảng (BETWEEN)',OP.BETWEEN]];
+  return `<div class="editor"><h2>${isNew?'Tạo rule mới':'Sửa rule '+(d.id||('R'+editorIdx))}</h2>
+  <div class="card" style="display:flex;gap:14px;flex-wrap:wrap">
+    <div><label>Trigger (khi nào)</label><select data-f="trigger_type" onchange="onF('trigger_type',this.value)">
+      ${trigList.map(x=>opt(x[1],x[0],d.trigger_type)).join('')}</select></div>
+    <div><label>Trigger tag</label>${tagSel(d.trigger_tag,'trigger_tag', d.trigger_type===TG.TIME_WINDOW||d.trigger_type===TG.INTERVAL)}</div>
+    <div><label>So sánh</label><select data-f="compare_op" onchange="onF('compare_op',this.value)">
+      ${opList.map(x=>opt(x[1],x[0],d.compare_op)).join('')}</select></div>
+    <div><label>Ngưỡng dưới</label><input type="number" data-f="threshold_lo" value="${d.threshold_lo}" oninput="onF('threshold_lo',this.value)"></div>
+    <div><label>Ngưỡng trên / giờ kết</label><input type="number" data-f="threshold_hi" value="${d.threshold_hi}" oninput="onF('threshold_hi',this.value)"></div>
+    <div><label>Giữ liên tục (ms)</label><input type="number" data-f="for_ms" value="${d.for_ms}" oninput="onF('for_ms',this.value)"></div>
+  </div>
+  <div class="card"><h3>Guard (tuỳ chọn — cổng phụ)</h3>
+    <div style="display:flex;gap:10px;align-items:end">
+      <div><label>Chỉ chạy nếu</label>${tagSel(d.guard_tag&0x7FFF,'guard_tag',true)}</div>
+      <div><label>Bằng</label><select onchange="onGuardOp(this.value)">
+        <option value="1" ${(d.guard_tag>>15&1)?'':'selected'}>≠ 0 (đang bật)</option>
+        <option value="0" ${(d.guard_tag>>15&1)?'selected':''}>= 0 (đang tắt)</option></select></div>
+      <button class="btn mini" onclick="onF('guard_tag',0)">Xoá guard</button>
+    </div></div>
+  <div class="card"><h3>Action (thì làm gì)</h3>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div><label>Hành động</label><select data-f="action_type" onchange="onF('action_type',this.value)">
+        ${actList.map(x=>opt(x[1],x[0],d.action_type)).join('')}</select></div>
+      <div><label>Tag đích</label>${tagSel(d.action_tag,'action_tag',false)}</div>
+      <div><label>Giá trị / bước</label><input type="number" data-f="action_param" value="${d.action_param}" oninput="onF('action_param',this.value)"></div>
+    </div></div>
+  <div class="card"><h3>Xem trước</h3><p style="font-size:15px">💬 “${esc(previewSentence(d))}”</p>
+    <p class="err-txt" id="ed-err"></p></div>
+  <div style="display:flex;gap:10px">
+    <button class="btn acc" onclick="saveRule()">💾 Lưu</button>
+    <button class="btn" onclick="cancelEdit()">Huỷ</button></div>
+  </div>`;
+}
+function onF(f,v){ if(!draft) draft=R({}); const num=['threshold_lo','threshold_hi','for_ms','action_param'].includes(f); draft[f]= num? (parseInt(v)||0) : (parseInt(v)||0); }
+function onGuardOp(v){ if(!draft)return; draft.guard_tag=(draft.guard_tag&0x7FFF)|((v==='0'?1:0)<<15); }
+function previewSentence(d){
+  const t=tagName(d.trigger_tag), a=tagName(d.action_tag);
+  let trig;
+  switch(d.trigger_type){
+    case TG.ON_RISE: trig=`khi ${t} chuyển 0→1`; break;
+    case TG.ON_FALL: trig=`khi ${t} chuyển 1→0`; break;
+    case TG.ON_CHANGE: trig=`khi ${t} đổi giá trị`; break;
+    case TG.INTERVAL: trig=`mỗi ${Math.round(d.for_ms/1000)} giây`; break;
+    case TG.TIME_WINDOW: trig=`lúc ${String(Math.floor(d.threshold_lo/100)).padStart(2,'0')}:${String(d.threshold_lo%100).padStart(2,'0')}`; break;
+    default: trig='?';
+  }
+  let cmp='';
+  if(d.compare_op===OP.GT)cmp=`(giá trị ${t} > ${d.threshold_lo})`;
+  else if(d.compare_op===OP.GTE)cmp=`(${t} ≥ ${d.threshold_lo})`;
+  else if(d.compare_op===OP.LT)cmp=`(${t} < ${d.threshold_lo})`;
+  else if(d.compare_op===OP.LTE)cmp=`(${t} ≤ ${d.threshold_lo})`;
+  else if(d.compare_op===OP.EQ)cmp=`(${t} = ${d.threshold_lo})`;
+  else if(d.compare_op===OP.NEQ)cmp=`(${t} ≠ ${d.threshold_lo})`;
+  else if(d.compare_op===OP.BETWEEN)cmp=`(${d.threshold_lo} ≤ ${t} ≤ ${d.threshold_hi})`;
+  let g='';
+  if((d.guard_tag&0x7FFF)!==0){ const gi=d.guard_tag&0x7FFF; const neg=d.guard_tag>>15&1; g=` nếu ${tagName(gi)} ${neg?'đang TẮT':'đang BẬT'}`; }
+  let act;
+  switch(d.action_type){
+    case ACT.SET_TAG: act=`đặt ${a} = ${d.action_param}`; break;
+    case ACT.TOGGLE_TAG: act=`đảo trạng thái ${a}`; break;
+    case ACT.INC_COUNTER: act=`${a} tăng ${d.action_param}`; break;
+    case ACT.ADD_TAG: act=`cộng ${t} vào ${a}`; break;
+    case ACT.SCALE_TAG: act=`${a} = ${t}×${d.action_param}/1000 ${d.threshold_hi>=0?'+':''}${d.threshold_hi}`; break;
+    case ACT.SEND_ALARM: act=`gửi cảnh báo #${d.action_param}`; break;
+    case ACT.LOG_EVENT: act=`ghi log ${a}`; break;
+    default: act='?';
+  }
+  return (trig + (cmp?' '+cmp:'') + g + ` thì ` + act);
+}
+function saveRule(){
+  let ec='';
+  if(draft.action_type===ACT.SCALE_TAG && (draft.compare_op===OP.BETWEEN||draft.trigger_type===TG.TIME_WINDOW)) ec='threshold_hi dùng cho SCALE và BETWEEN/TIME_WINDOW — không dùng cả hai trong 1 rule.';
+  else if(draft.action_type===ACT.TOGGLE_TAG&&draft.action_param!==0) ec='Toggle bỏ qua action_param.';
+  else if(!draft.trigger_tag && draft.trigger_type!==TG.INTERVAL && draft.trigger_type!==TG.TIME_WINDOW) ec='Cần chọn trigger tag.';
+  if(ec){ const el=document.getElementById('ed-err'); if(el) el.textContent='⚠ '+ec; return; }
+  draft.for_ms|=0;
+  if(editorIdx<0 && device.rules.length>=100){ alert('Chạm giới hạn 100 rule.'); return; }
+  if(editorIdx>=0) device.rules[editorIdx]=draft; else device.rules.push(draft);
+  draft=null; editorIdx=-1; curNav='rules'; show();
+}
+function cancelEdit(){ draft=null; editorIdx=-1; curNav='rules'; show(); }
+
+// ================= MÀN HÌNH 5: BLUEPRINT =================
+function scrBP(){
+  const cards=[
+    {id:'andon', t:'Andon: máy dừng', d:'Cảnh báo khi máy dừng quá X phút trong ca sản xuất. Tự sinh R0a/R0b/R1/R2/R3.', tags:'5 rule'},
+    {id:'count', t:'Đếm sản lượng', d:'Đếm sườn xung từ cảm biến, cộng dồn vào 1 bộ đếm tổng (retain).', tags:'4 rule'},
+    {id:'feed',  t:'Gọi cấp liệu', d:'Đèn vàng khi bấm nút, leo thang đèn đỏ nếu chờ quá lâu.', tags:'5 rule'},
+  ];
+  return `<div class="bp-form"><h2>Blueprint — mẫu dựng sẵn</h2>
+  <p class="hint" style="margin-bottom:12px">Chọn mẫu, điền vài field — app tự sinh cả cụm rule (mỗi rule 1 trigger / 1 guard / 1 action đúng chuẩn).</p>
+  <div class="bp-cards">${cards.map(c=>`
+    <div class="bp-card" onclick="applyBP('${c.id}')">
+      <h4>${c.t}</h4><p>${c.d}</p>
+      <div class="bp-tags"><span class="tagchip">${c.tags}</span></div>
+    </div>`).join('')}</div>
+  </div>`;
+}
+function applyBP(id){
+  if(id==='andon'){
+    device.rules.push(R({id:'R0a',trigger_type:TG.TIME_WINDOW,trigger_tag:0,compare_op:OP.NONE,threshold_lo:700,threshold_hi:1600,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:21,action_param:1}));
+    device.rules.push(R({id:'R0b',trigger_type:TG.TIME_WINDOW,trigger_tag:0,compare_op:OP.NONE,threshold_lo:700,threshold_hi:1600,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:21,action_param:0}));
+    device.rules.push(R({id:'R1',trigger_type:TG.ON_FALL,trigger_tag:1,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:15000,guard_tag:21,action_type:ACT.SET_TAG,action_tag:9,action_param:1}));
+    device.rules.push(R({id:'R2',trigger_type:TG.ON_RISE,trigger_tag:2,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:9,action_param:1}));
+    device.rules.push(R({id:'R3',trigger_type:TG.ON_RISE,trigger_tag:1,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:9,action_param:0}));
+  } else if(id==='count'){
+    device.rules.push(R({id:'C1',trigger_type:TG.ON_RISE,trigger_tag:3,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:53,action_param:1}));
+    device.rules.push(R({id:'C2',trigger_type:TG.ON_RISE,trigger_tag:3,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:55,action_param:1}));
+    device.rules.push(R({id:'C3',trigger_type:TG.ON_RISE,trigger_tag:4,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:54,action_param:1}));
+    device.rules.push(R({id:'C4',trigger_type:TG.ON_RISE,trigger_tag:4,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.INC_COUNTER,action_tag:55,action_param:1}));
+  } else if(id==='feed'){
+    device.rules.push(R({id:'F1',trigger_type:TG.ON_RISE,trigger_tag:2,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:1,action_type:ACT.TOGGLE_TAG,action_tag:10,action_param:0}));
+    device.rules.push(R({id:'F2',trigger_type:TG.INTERVAL,trigger_tag:0,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:1000,guard_tag:10,action_type:ACT.INC_COUNTER,action_tag:37,action_param:1}));
+    device.rules.push(R({id:'F3',trigger_type:TG.ON_CHANGE,trigger_tag:37,compare_op:OP.GT,threshold_lo:10,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:11,action_param:1}));
+    device.rules.push(R({id:'F4',trigger_type:TG.ON_FALL,trigger_tag:10,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:37,action_param:0}));
+    device.rules.push(R({id:'F5',trigger_type:TG.ON_FALL,trigger_tag:10,compare_op:OP.NONE,threshold_lo:0,threshold_hi:0,for_ms:0,guard_tag:0,action_type:ACT.SET_TAG,action_tag:11,action_param:0}));
+  }
+  pushEvent(`▸ Áp dụng Blueprint: ${id} — thêm ${device.rules.length} rule`);
+  curNav='rules'; show();
+}
+
+// ================= MÀN HÌNH 6: DEPLOY =================
+function scrDeploy(){
+  const n=device.rules.length;
+  const frames=Math.ceil(n*14/123);
+  return `<div class="card" style="max-width:720px"><h3>Nạp cấu hình xuống thiết bị</h3>
+  <p class="hint">${n} rule → ${n*14} register → ${frames} khung FC16. Theo trình tự 5 bước — an toàn: bảng đang chạy chỉ thay ở bước cuối.</p>
+  <div class="steps" id="dp-steps">
+    <div class="st" id="dp1"><span class="dot"></span>Ghi số lượng & CRC mong đợi</div>
+    <div class="st" id="dp2"><span class="dot"></span>Ghi STAGING_BUFFER (${frames} khung)</div>
+    <div class="st" id="dp3"><span class="dot"></span>Kiểm tra CRC</div>
+    <div class="st" id="dp4"><span class="dot"></span>Atomic-commit (0xA5A5)</div>
+    <div class="st" id="dp5"><span class="dot"></span>Xác nhận version</div>
+  </div>
+  <div class="bar"><div class="fill" id="dp-fill"></div></div>
+  <div style="display:flex;gap:10px">
+    <button class="btn acc" id="dp-go" onclick="startDeploy()">▶ Bắt đầu nạp</button>
+    <span class="hint" id="dp-status" style="align-self:center"></span>
+  </div></div>`;
+}
+function startDeploy(){
+  const n=device.rules.length, frames=Math.ceil(n*14/123);
+  const data=serializeRules(device.rules);
+  const crc=crc32(data);
+  // BƯỚC 1: ghi RULE_COUNT_STAGED + EXPECTED_CRC32 (FC16)
+  cfgResetStaging();
+  cfg.stagedCount=n; cfg.stagedCrc=crc; cfg.status=1;
+  // UI: đánh dấu bước 1 done
+  document.getElementById('dp1').className='st done';
+  document.getElementById('dp2').className='st cur';
+  document.getElementById('dp3').className='st';
+  document.getElementById('dp4').className='st';
+  document.getElementById('dp5').className='st';
+  const fill=document.getElementById('dp-fill');
+  const status=document.getElementById('dp-status');
+  status.textContent='Đang ghi STAGING_BUFFER…';
+  let f=1;
+  const step=setInterval(()=>{
+    if(f<=frames){
+      // BƯỚC 2: ghi từng khung FC16 (123 reg) vào STAGING_BUFFER
+      const startReg=(f-1)*123, cnt=Math.min(123, n*14-startReg);
+      for(let k=0;k<cnt;k++) cfg.staging[startReg+k]=(data[startReg*2+k]<<8)|data[startReg*2+k+1];
+      cfg.stagingUsed=Math.max(cfg.stagingUsed,startReg+cnt);
+      fill.style.width=(f/frames*70)+'%';
+      status.textContent=`Khung ${f}/${frames}`;
+      f++;
+    } else {
+      clearInterval(step);
+      // BƯỚC 3: đọc lại CONFIG_STATUS xác nhận đủ (ở đây status=1 có nghĩa đang nhận)
+      document.getElementById('dp2').className='st done';
+      document.getElementById('dp3').className='st cur';
+      setTimeout(()=>{
+        // BƯỚC 4: ghi COMMIT_COMMAND=0xA5A5 → device tự CRC + atomic-swap
+        document.getElementById('dp3').className='st done';
+        document.getElementById('dp4').className='st cur';
+        setTimeout(()=>{
+          devWriteReg(REG.COMMIT,[0xA5A5]);
+          const ok = cfg.status===3;
+          document.getElementById('dp4').className='st done';
+          document.getElementById('dp5').className='st cur';
+          // BƯỚC 5: đọc ACTIVE_RULE_VERSION
+          setTimeout(()=>{
+            document.getElementById('dp5').className='st done';
+            status.textContent = ok ? `✔ Đã áp dụng — v${device.rule_version}. Bảng rule mới chạy từ vòng quét kế tiếp.`
+                                    : `✖ ${cfgStatusName(cfg.status)} (err#${cfg.err}) — bảng đang chạy giữ nguyên.`;
+            fill.style.width='100%';
+          },300);
+        },300);
+      },250);
+    }
+  },220);
+}
+
+// ================= MÀN HÌNH 7: SIM (Giám sát thiết bị) =================
+function scrSim(){
+  return `<div class="card"><h3>Giám sát thiết bị giả (Sim)</h3>
+  <p class="hint">Bấm vào DI để bật/tắt nguồn vật lý; kéo AI để đổi analog. Rule engine chạy mỗi 100ms thật (mô phỏng 10ms). Đèn/virtual/retain cập nhật trực tiếp.</p>
+  <div class="tile-grid" style="margin-top:10px" id="sim-io">${simIoTiles()}</div>
+  <div style="margin-top:12px"><b class="hint">DI0=1 ⇒ máy đang chạy</b>, DI1=bấm nút gọi; <b class="hint">DO0=đèn đỏ, DO1=đèn vàng</b> (xem Tag I/O).</div>
+  <p class="hint" style="margin-top:8px">Tốc độ thời gian: <button class="btn mini ${simClockSpeed===1?'on':' '}" onclick="setSpeed(1)">×1</button>
+  <button class="btn mini ${simClockSpeed===10?'on':' '}" onclick="setSpeed(10)">×10</button></p>
+  </div>
+  <div class="card"><h3>Nhật ký sự kiện (rule nổ, commit…)</h3><div class="log" id="sim-log">${eventLog.slice(0,40).map(e=>`<div>${e.t} · ${esc(e.txt)}</div>`).join('')}</div></div>`;
+}
+function simIoTiles(){ let s='';
+  function nt(i,label){ const on=g_tag_value[i]; return `<div class="iotile ${on?'on':''}" onclick="toggleDI(${i})">
+    <div class="val">${on?'●':'○'}</div><div class="chip">${tags[i].name}</div><div class="nm">${esc(names[i]==='—'?label:names[i])}</div></div>`; }
+  s+=`<div style="width:100%"><b>DI (bấm để đổi)</b></div>`;
+  for(let i=1;i<=8;i++) s+=nt(i,`DI${i-1}`);
+  s+=`<div style="width:100%;margin-top:8px"><b>DO</b></div>`;
+  for(let i=9;i<=16;i++) s+=nt(i,`DO${i-9}`);
+  return s; }
+function toggleDI(i){ diLevels[i]=diLevels[i]?0:1; pushEvent(`DI${i-1} status: ${diLevels[i]}`); renderLive(); }
+function setAI(ch,v){ aiLevels[ch]=+v; const el=document.getElementById('ai-val-'+ch); if(el) el.textContent=v; show(); }
+function setSpeed(v){ simClockSpeed=v; show(); }
+
+// ================= MÀN HÌNH 8: MONITOR (realtime) =================
+function scrMonitor(){
+  let s=`<div class="card"><h3>Theo dõi realtime (mỗi vòng quét)</h3><div class="mon-grid" id="mon-tags">${monTiles()}</div></div>`;
+  s+=`<div class="card"><h3>Rule vừa nổ (10 lần gần nhất)</h3><div id="mon-fires">${fires.map(f=>`<div class="mchip">${f.t} · ${esc(f.txt)}</div>`).join('')||'<span class="hint">— chưa có —</span>'}</div></div>`;
+  return s;
+}
+function monTiles(){ let s=''; for(let i=0;i<12;i++){ const idx=[1,2,3,9,10,21,37,53,54,55,17,18][i]; const on=g_tag_value[idx];
+  s+=`<div class="mchip" style="${on?'border-color:var(--acc2)':''}">${esc(tagShort(idx))}=<b>${on}</b></div>`;} return s; }
+const fires=[];
+function startLive(){ if(document.getElementById('sim-io')) renderLive(); if(document.getElementById('mon-tags')){ document.getElementById('mon-tags').innerHTML=monTiles(); document.getElementById('mon-fires').innerHTML=fires.slice(0,10).map(f=>`<div class="mchip">${f.t} · ${esc(f.txt)}</div>`).join('')||'<span class="hint">— chưa có —</span>'; } }
+function renderLive(){ if(document.getElementById('sim-io')){ document.getElementById('sim-io').innerHTML=simIoTiles(); } if(document.getElementById('sim-log')){ document.getElementById('sim-log').innerHTML=eventLog.slice(0,40).map(e=>`<div>${e.t} · ${esc(e.txt)}</div>`).join(''); } }
+
+function simLoop(){
+  g_system_tick_ms += 10;
+  input_scan();
+  rule_scan();
+  output_scan();
+  advanceClock();
+  // render lightweight nếu đang ở màn hình live
+  if(curNav==='sim'||curNav==='monitor'||curNav==='tags') renderLive();
+}
+setInterval(simLoop, 30); // 30ms thật / 1 tick — đủ nhanh để thấy quy tắc nổ; 10ms chuẩn sẽ quá dữ cho demo
+// khởi động: nạp mặc định + bắt đầu mô phỏng (mở tab đầu tiên)
+bootDevice();
+document.addEventListener('DOMContentLoaded',()=>{ show(); });
+/* ============ 4b. CONFIG UPLOAD (Modbus image, 5.1) ============ */
+const REG={STATUS:0x9000,ERR:0x9001,COUNT_STAGED:0x9002,EXP_CRC:0x9003,STAGING:0x9010,COMMIT:0xA000,VERSION:0xA001};
+const cfg={status:0, err:0, stagedCount:0, stagedCrc:0, staging:new Int16Array(1400).fill(0), stagingUsed:0};
+function cfgStatusName(s){ return ['idle','đang nhận','đang kiểm CRC','sẵn sàng commit','lỗi'][s]; }
+function cfgResetStaging(){ cfg.stagedCount=0; cfg.stagedCrc=0; cfg.staging.fill(0); cfg.stagingUsed=0; cfg.status=0; cfg.err=0; }
+// ---- CRC32 (standard IEEE) ----
+const CRC_TAB=(()=>{ const t=new Int32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)? (0xEDB88320^(c>>>1)) : (c>>>1); t[n]=c; } return t; })();
+function crc32(buf){ let c=0xFFFFFFFF; for(let i=0;i<buf.length;i++) c=CRC_TAB[(c^buf[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+// ---- rule <-> 14 registers big-endian per register ----
+const REGS_PER_RULE=14;
+function ruleToRegs(r){ // big-endian words; i32 = [hi,lo]
+  const w=r.threshold_lo, x=r.threshold_hi, y=r.for_ms, z=r.action_param;
+  const a=new Int16Array(REGS_PER_RULE);
+  const wr=(i,v)=>{ v|=0; a[i]=(v>>16)&0xFFFF; a[i+1]=v&0xFFFF; };
+  wr(0,w); wr(2,x); wr(4,y); wr(6,z);
+  a[8]=r.trigger_tag; a[9]=r.action_tag; a[10]=r.guard_tag;
+  a[11]=((r.enabled&1)<<8)|(r.trigger_type&0xFF);
+  a[12]=((r.compare_op&0xFF)<<8)|(r.action_type&0xFF);
+  a[13]=0;// padding
+  return a;
+}
+function regsToRule(a){
+  const rd=(i)=>(a[i]<<16)|(a[i+1]&0xFFFF);
+  return R({threshold_lo:rd(0), threshold_hi:rd(2), for_ms:((a[4]<<16)|(a[5]&0xFFFF))>>>0,
+    action_param:rd(6), trigger_tag:a[8]&0xFFFF, action_tag:a[9]&0xFFFF, guard_tag:a[10]&0xFFFF,
+    enabled:(a[11]>>8)&1, trigger_type:a[11]&0xFF, compare_op:(a[12]>>8)&0xFF, action_type:a[12]&0xFF});
+}
+function serializeRules(list){ const out=new Uint8Array(list.length*28); let o=0;
+  for(const r of list){ const a=ruleToRegs(r); for(let i=0;i<14;i++){ const w=a[i]; out[o++]= (w>>8)&0xFF; out[o++]= w&0xFF; } }
+  return out; }
+function deserializeRules(buf){ const n=Math.floor(buf.length/28); const out=[]; let o=0;
+  for(let i=0;i<n;i++){ const a=new Int16Array(14); for(let j=0;j<14;j++){ a[j]=(buf[o++]<<8)|buf[o++]; } out.push(regsToRule(a)); }
+  return out; }
+// ---- device writes to the config registers (FC16 simulation) ----
+function devWriteReg(addr,vals){
+  // vals: mảng 16-bit đã truncate (mô phỏng FC16). Kết hợp 2 register khi cần 32-bit.
+  const u16=v=>v&0xFFFF;
+  if(addr===REG.COUNT_STAGED){ cfg.stagedCount=u16(vals[0]); cfg.status=1; return true; }
+  if(addr===REG.EXP_CRC){ cfg.stagedCrc=(((u16(vals[0]||0)<<16)|u16(vals[1]||0))>>>0); return true; }
+  if(addr>=REG.STAGING&&addr<REG.STAGING+cfg.staging.length){ for(let i=0;i<vals.length;i++) cfg.staging[addr-REG.STAGING+i]=u16(vals[i]); cfg.stagingUsed=Math.max(cfg.stagingUsed,addr-REG.STAGING+vals.length); return true; }
+  if(addr===REG.COMMIT&&u16(vals[0])===0xA5A5){ doCommit(); return true; }
+  return false;
+}
+function doCommit(){
+  cfg.status=2;
+  const n=cfg.stagedCount;
+  if(!(n>=1&&n<=100)){ cfg.status=4; cfg.err=1; return; }
+  const exp=n*REGS_PER_RULE;
+  if(cfg.stagingUsed<exp){ cfg.status=4; cfg.err=2; return; }
+  // staging: 14 register 16-bit/rule → gom thành mảng byte big-endian (mỗi reg = 2 byte)
+  const regs=Array.from(cfg.staging).slice(0,exp);
+  const bytes=new Uint8Array(exp*2);
+  for(let k=0;k<exp;k++){ bytes[k*2]=(regs[k]>>8)&0xFF; bytes[k*2+1]=regs[k]&0xFF; }
+  const crc=crc32(bytes);
+  if(crc!==cfg.stagedCrc){ cfg.status=4; cfg.err=3; return; }
+  device.rules=deserializeRules(bytes);
+  device.rule_version++;
+  loadRuntime();
+  cfg.status=3;
+  pushEvent(`✔ COMMIT: ${n} rule áp dụng thành công, version v${device.rule_version}`);
+}
+</script>
+</body>
+</html>

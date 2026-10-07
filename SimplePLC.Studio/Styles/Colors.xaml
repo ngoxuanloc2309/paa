@@ -1,0 +1,100 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- Base Industrial Palette (Reference: Siemens TIA Portal / Rockwell Studio 5000 / Codesys V3.5) -->
+    <Color x:Key="ColorBgWindow">#ECEFF1</Color>
+    <Color x:Key="ColorBgPanel">#FFFFFF</Color>
+    <Color x:Key="ColorBgSubtle">#F4F6F8</Color>
+    <Color x:Key="ColorBgHeader">#1E293B</Color>
+    <Color x:Key="ColorBgToolbar">#DFE3E8</Color>
+    
+    <Color x:Key="ColorBorderLight">#D1D5DB</Color>
+    <Color x:Key="ColorBorderMedium">#9CA3AF</Color>
+    <Color x:Key="ColorBorderDark">#6B7280</Color>
+    
+    <!-- High-Contrast Technical Typography -->
+    <Color x:Key="ColorTextPrimary">#111827</Color>
+    <Color x:Key="ColorTextSecondary">#374151</Color>
+    <Color x:Key="ColorTextMuted">#6B7280</Color>
+
+    <!-- Industrial Authority Accents (IEC 60073 Automation Standards) -->
+    <!-- Primary: Siemens Industrial Petrol / Deep Slate Navy -->
+    <Color x:Key="ColorPrimary">#006487</Color>
+    <Color x:Key="ColorPrimaryHover">#004F6E</Color>
+    <Color x:Key="ColorPrimaryActive">#003B52</Color>
+    
+    <!-- Success / RUN / GOOD: Industrial Forest Green -->
+    <Color x:Key="ColorSuccess">#107C41</Color>
+    <Color x:Key="ColorSuccessHover">#0E6B37</Color>
+    <Color x:Key="ColorSuccessLight">#E6F4EA</Color>
+    
+    <!-- Warning / STALE / FORCE: Industrial Safety Amber -->
+    <Color x:Key="ColorWarning">#C05621</Color>
+    <Color x:Key="ColorWarningHover">#9C4221</Color>
+    <Color x:Key="ColorWarningLight">#FEF3C7</Color>
+    
+    <!-- Danger / FAULT / TRIP: Industrial Safety Red -->
+    <Color x:Key="ColorDanger">#B91C1C</Color>
+    <Color x:Key="ColorDangerHover">#991B1B</Color>
+    <Color x:Key="ColorDangerLight">#FEE2E2</Color>
+
+    <!-- Selection & Highlight Palette (Soft Slate Industrial Gray) -->
+    <Color x:Key="ColorSelectionHighlight">#E2E8F0</Color>        <!-- Soft Slate Gray (Selected & Focused) -->
+    <Color x:Key="ColorSelectionHighlightText">#0F172A</Color>    <!-- Deep Slate Charcoal Text -->
+    <Color x:Key="ColorSelectionInactive">#ECEFF1</Color>         <!-- Very Light Gray (Selected & Inactive) -->
+    <Color x:Key="ColorSelectionHover">#F1F5F9</Color>            <!-- Ultra Subtle Gray (Mouse Over) -->
+
+    <!-- Node Domain Technical Accents (IEC 61131-3 & Automation Standards) -->
+    <Color x:Key="ColorNodeTag">#1E3A8A</Color>       <!-- Deep Slate Navy (I/O Tags) -->
+    <Color x:Key="ColorNodeTrigger">#006487</Color>   <!-- Siemens Petrol (Logic/Triggers) -->
+    <Color x:Key="ColorNodeGuard">#C05621</Color>     <!-- Safety Amber (Guards/Conditions) -->
+    <Color x:Key="ColorNodeAction">#107C41</Color>    <!-- Forest Green (Coils/Actions) -->
+    <Color x:Key="ColorNodeTimer">#4C1D95</Color>     <!-- Industrial Deep Indigo (IEC 61131-3 Timers TON/TOF/TP) -->
+    <Color x:Key="ColorNodeCounter">#0F766E</Color>   <!-- Industrial Deep Teal (Counters CTU/CTD) -->
+    <Color x:Key="ColorNodeScale">#0369A1</Color>     <!-- Industrial Steel Blue (Analog Scaler) -->
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="BgWindowBrush" Color="{StaticResource ColorBgWindow}" />
+    <SolidColorBrush x:Key="BgPanelBrush" Color="{StaticResource ColorBgPanel}" />
+    <SolidColorBrush x:Key="BgSubtleBrush" Color="{StaticResource ColorBgSubtle}" />
+    <SolidColorBrush x:Key="BgHeaderBrush" Color="{StaticResource ColorBgHeader}" />
+    <SolidColorBrush x:Key="BgToolbarBrush" Color="{StaticResource ColorBgToolbar}" />
+    <SolidColorBrush x:Key="BorderLightBrush" Color="{StaticResource ColorBorderLight}" />
+    <SolidColorBrush x:Key="BorderMediumBrush" Color="{StaticResource ColorBorderMedium}" />
+    <SolidColorBrush x:Key="BorderDarkBrush" Color="{StaticResource ColorBorderDark}" />
+
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource ColorTextPrimary}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource ColorTextSecondary}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource ColorTextMuted}" />
+
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource ColorPrimary}" />
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource ColorPrimaryHover}" />
+    <SolidColorBrush x:Key="PrimaryActiveBrush" Color="{StaticResource ColorPrimaryActive}" />
+    
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource ColorSuccess}" />
+    <SolidColorBrush x:Key="SuccessHoverBrush" Color="{StaticResource ColorSuccessHover}" />
+    <SolidColorBrush x:Key="SuccessLightBrush" Color="{StaticResource ColorSuccessLight}" />
+    
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="WarningHoverBrush" Color="{StaticResource ColorWarningHover}" />
+    <SolidColorBrush x:Key="WarningLightBrush" Color="{StaticResource ColorWarningLight}" />
+    
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource ColorDanger}" />
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource ColorDangerHover}" />
+    <SolidColorBrush x:Key="DangerLightBrush" Color="{StaticResource ColorDangerLight}" />
+
+    <SolidColorBrush x:Key="NodeTagBrush" Color="{StaticResource ColorNodeTag}" />
+    <SolidColorBrush x:Key="NodeTriggerBrush" Color="{StaticResource ColorNodeTrigger}" />
+    <SolidColorBrush x:Key="NodeGuardBrush" Color="{StaticResource ColorNodeGuard}" />
+    <SolidColorBrush x:Key="NodeActionBrush" Color="{StaticResource ColorNodeAction}" />
+    <SolidColorBrush x:Key="NodeTimerBrush" Color="{StaticResource ColorNodeTimer}" />
+    <SolidColorBrush x:Key="NodeCounterBrush" Color="{StaticResource ColorNodeCounter}" />
+    <SolidColorBrush x:Key="NodeScaleBrush" Color="{StaticResource ColorNodeScale}" />
+
+    <!-- Selection & Highlight Brushes -->
+    <SolidColorBrush x:Key="SelectionHighlightBrush" Color="{StaticResource ColorSelectionHighlight}" />
+    <SolidColorBrush x:Key="SelectionHighlightTextBrush" Color="{StaticResource ColorSelectionHighlightText}" />
+    <SolidColorBrush x:Key="SelectionInactiveBrush" Color="{StaticResource ColorSelectionInactive}" />
+    <SolidColorBrush x:Key="SelectionHoverBrush" Color="{StaticResource ColorSelectionHover}" />
+
+</ResourceDictionary>

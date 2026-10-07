@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "spec_version": "1.7.0",
+    "description": "SimplePLC Wire Protocol V1.7 Golden Test Vectors for MCU Firmware Conformance",
+    "date": "2026-09-15"
+  },
+  "device_descriptor_vector": {
+    "description": "FC03 response for DeviceDescriptor at 0x0000 (10 registers)",
+    "request_hex": "01 03 00 00 00 0A C5 CD",
+    "response_hex": "01 03 14 00 01 00 01 00 01 00 02 00 00 00 01 00 07 00 00 00 01 00 07 2E 1F"
+  },
+  "device_health_vector": {
+    "description": "FC03 response for DeviceHealth at 0x0800 (10 registers, scan_time_ms = 10, max_scan_time_ms = 12)",
+    "request_hex": "01 03 08 00 00 0A C7 AB",
+    "response_hex": "01 03 14 00 00 0E 10 00 01 00 00 00 0F 00 2A 00 00 00 0A 00 00 00 0C 47 C1"
+  },
+  "single_rule_vector": {
+    "description": "Single Rule Record (32 bytes / 16 registers) with between compare, ms dwell, and negated guard",
+    "rule_bytes_hex": "FF FF FF 9C 00 00 13 88 00 00 09 C4 00 00 00 01 00 10 00 08 80 14 01 01 07 00 00 00 00 00 00 00",
+    "crc16_hex": "9354"
+  },
+  "commit_magic_vector": {
+    "description": "FC06 write 0xA5A5 to 0xA000 (COMMIT_COMMAND)",
+    "request_hex": "01 06 A0 00 A5 A5 F1 56"
+  }
+}

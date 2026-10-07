@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>SimplePLC Flow Studio — Dynamic Multi-Port Canvas</title>
+    <style>
+        :root {
+            --bg: #090d16;
+            --grid: #141c2e;
+            --panel: #111827;
+            --border: #263352;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --blue: #38bdf8;
+            --green: #22c55e;
+            --amber: #f59e0b;
+            --purple: #a855f7;
+            --red: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Header */
+        header {
+            background: #0b1120;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            z-index: 20;
+        }
+        .btn-compile {
+            background: #16a34a;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-compile:hover { background: #15803d; }
+
+        /* Workspace Grid */
+        .workspace { display: grid; grid-template-columns: 260px 1fr 340px; flex: 1; overflow: hidden; position: relative; }
+
+        /* Left Panel: Hardware & Palette */
+        .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+        .sec-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+
+        .pin-pill-box { display: flex; flex-direction: column; gap: 6px; }
+        .pin-pill {
+            background: #0b1120;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+        .pin-pill input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed #475569;
+            color: var(--text);
+            width: 120px;
+            outline: none;
+            font-size: 0.8rem;
+        }
+
+        .palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .node-btn {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 8px 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .node-btn:hover { border-color: var(--blue); }
+
+        /* Canvas Area */
+        .canvas-area {
+            position: relative;
+            background-color: var(--bg);
+            background-image: radial-gradient(var(--grid) 1.5px, transparent 1.5px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+        svg#wireCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Flow Node Card */
+        .f-node {
+            position: absolute;
+            background: #151d30;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 200px;
+            user-select: none;
+            z-index: 2;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            font-size: 0.8rem;
+        }
+        .f-node:hover { border-color: #475569; }
+        .f-node-header {
+            padding: 6px 10px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+        .f-node-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+        .f-node-body select, .f-node-body input {
+            background: #090d16;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            outline: none;
+        }
+
+        /* Dynamic Port Styles */
+        .port-slot {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            font-size: 0.65rem;
+            color: var(--muted);
+            pointer-events: none;
+        }
+        .port-slot.in { left: -6px; }
+        .port-slot.out { right: -6px; flex-direction: row-reverse; }
+
+        .port-dot {
+            width: 12px;
+            height: 12px;
+            background: #64748b;
+            border: 2px solid #090d16;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.15s, background 0.15s;
+        }
+        .port-dot:hover { transform: scale(1.4); background: var(--blue); }
+
+        .port-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0b1120;
+            border-top: 1px solid var(--border);
+            padding: 4px 8px;
+            border-bottom-left-radius: 7px;
+            border-bottom-right-radius: 7px;
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+        .btn-port-mod {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 1px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-port-mod:hover { background: #334155; }
+
+        /* Right Panel */
+        .right-pane { background: var(--panel); border-left: 1px solid var(--border); padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        .code-box {
+            background: #060910;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.72rem;
+            color: #38bdf8;
+            height: 380px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-weight: 700; display: flex; align-items: center; gap: 10px;">
+            <span>⚡ SimplePLC Flow Studio</span>
+            <span style="font-size: 0.75rem; background: #1e293b; padding: 2px 8px; border-radius: 4px; color: var(--blue);">Multi-Port Logic Engine</span>
+        </div>
+        <button class="btn-compile" onclick="compileMultiPortGraph()">⚡ Biên dịch sang Struct 28-Byte MCU</button>
+    </header>
+
+    <div class="workspace">
+        
+        <!-- SIDEBAR TRÁI: KHAI BÁO CHÂN I/O & BẢNG LINH KIỆN -->
+        <aside class="sidebar">
+            <div class="sec-title">1. Chân cắm trên thiết bị</div>
+            <div style="display: flex; gap: 4px;">
+                <button style="padding: 4px 8px; font-size: 0.75rem; background:#1e293b; color:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer;" onclick="addPin('DI')">+ DI</button>
+                <button style="padding: 4px 8px; font-size: 0.75rem; background:#1e293b; color:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer;" onclick="addPin('DO')">+ DO</button>
+                <button style="padding: 4px 8px; font-size: 0.75rem; background:#1e293b; color:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer;" onclick="addPin('AI')">+ AI</button>
+            </div>
+            <div class="pin-pill-box" id="pinBox"></div>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 4px 0;">
+
+            <div class="sec-title">2. Khối chức năng (Nodes)</div>
+            <div class="palette-grid">
+                <div class="node-btn" onclick="spawnNode('INPUT_DI')">🟢 Ngõ vào DI</div>
+                <div class="node-btn" onclick="spawnNode('INPUT_AI')">🟣 Cảm biến AI</div>
+                <div class="node-btn" onclick="spawnNode('GATE_AND')">🔗 Cổng AND (VÀ)</div>
+                <div class="node-btn" onclick="spawnNode('GATE_OR')">🔀 Cổng OR (HOẶC)</div>
+                <div class="node-btn" onclick="spawnNode('OUTPUT_DO')">🔴 Ngõ ra DO</div>
+                <div class="node-btn" onclick="spawnNode('OUTPUT_CNT')">🔢 Đếm Retain</div>
+            </div>
+            <p style="font-size: 0.7rem; color: var(--muted); line-height: 1.3;">
+                * Cổng AND/OR hỗ trợ bấm <b>[+]</b> hoặc <b>[-]</b> bên dưới card để mở rộng số ngõ vào tùy ý (3, 4, 5... cổng vào).
+            </p>
+        </aside>
+
+        <!-- CANVAS KÉO THẢ NỐI DÂY Ở GIỮA -->
+        <main class="canvas-area" id="canvas">
+            <svg id="wireCanvas"></svg>
+        </main>
+
+        <!-- SIDEBAR PHẢI: TRÌNH BIÊN DỊCH VFLAG & STRUCT MCU -->
+        <aside class="right-pane">
+            <div class="sec-title">Biên dịch mảng Struct MCU (28B/Rule)</div>
+            <div class="code-box" id="codeOut">
+// Nhấn "Biên dịch sang Struct 28-Byte MCU"
+// App sẽ tự động phân giải các cổng AND/OR nhiều ngõ vào
+// thành chuỗi các Rule nối tiếp qua cờ ảo VFLAG của STM32...
+            </div>
+            <div style="font-size: 0.72rem; color: var(--muted); line-height: 1.3;">
+                💡 <b>Nguyên lý Multi-Port:</b> Nếu cổng AND có 3 ngõ vào (A, B, C), hệ thống tự dịch thành 2 rule:<br>
+                1. A + B $\rightarrow$ lưu cờ <code>VFLAG0</code>[cite: 1]<br>
+                2. <code>VFLAG0</code> + C $\rightarrow$ kích hoạt <code>DO</code>[cite: 1]
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        // QUẢN LÝ CHÂN PHẦN CỨNG[cite: 1]
+        let pins = [
+            { id: "DI0", tag: 1, type: "DI", name: "Máy đang chạy" },
+            { id: "DI1", tag: 2, type: "DI", name: "Cửa an toàn đóng" },
+            { id: "DI2", tag: 3, type: "DI", name: "Cảm biến có phôi" },
+            { id: "DO0", tag: 9, type: "DO", name: "Động cơ Băng tải" }
+        ];
+
+        // DANH SÁCH NODES VÀ WIRES
+        let nodes = [];
+        let wires = []; // { id, fromNode, fromPort, toNode, toPort }
+
+        let draggingNode = null;
+        let dragOffset = { x: 0, y: 0 };
+        let activeWireStart = null;
+
+        function renderPins() {
+            const box = document.getElementById('pinBox');
+            box.innerHTML = '';
+            pins.forEach((p, idx) => {
+                const pill = document.createElement('div');
+                pill.className = 'pin-pill';
+                pill.innerHTML = `
+                    <b style="color:${p.type==='DI'?'#38bdf8':(p.type==='DO'?'#f59e0b':'#a855f7')}">${p.id}</b>
+                    <input value="${p.name}" onchange="pins[${idx}].name=this.value; renderCanvas();">
+                    <span style="color:#ef4444; cursor:pointer;" onclick="pins.splice(${idx},1); renderPins(); renderCanvas();">×</span>
+                `;
+                box.appendChild(pill);
+            });
+        }
+
+        function addPin(type) {
+            const cur = pins.filter(p => p.type === type);
+            if (cur.length >= 8) { alert("Đã hết số chân vật lý tối đa!"); return; }
+            const baseTag = type==='DI'?1:(type==='DO'?9:17); //[cite: 1]
+            pins.push({ id: `${type}${cur.length}`, tag: baseTag + cur.length, type: type, name: `${type}${cur.length}` });
+            renderPins();
+            renderCanvas();
+        }
+
+        // TẠO NODE MỚI TRÊN CANVAS
+        function spawnNode(type) {
+            const id = 'n_' + Date.now();
+            let inCount = 0;
+            let outCount = 1;
+
+            if (type === 'GATE_AND' || type === 'GATE_OR') {
+                inCount = 3; // Mặc định mở rộng 3 cổng vào để minh họa đa cổng!
+                outCount = 1;
+            } else if (type === 'OUTPUT_DO' || type === 'OUTPUT_CNT') {
+                inCount = 1;
+                outCount = 0;
+            }
+
+            nodes.push({
+                id: id,
+                type: type,
+                x: 60 + Math.random() * 80,
+                y: 60 + Math.random() * 80,
+                inCount: inCount,
+                outCount: outCount,
+                pinTag: (type==='INPUT_DI'||type==='INPUT_AI') ? pins[0]?.tag : (pins.find(p=>p.type==='DO')?.tag || 9)
+            });
+            renderCanvas();
+        }
+
+        // THAY ĐỔI SỐ LƯỢNG CỔNG VÀO ĐỘNG TRÊN NODE
+        function modifyNodePort(nodeId, delta) {
+            const n = nodes.find(x => x.id === nodeId);
+            if (!n) return;
+            const newCount = n.inCount + delta;
+            if (newCount < 2 || newCount > 8) return; // Cho phép từ 2 đến 8 cổng vào
+
+            // Nếu giảm cổng, xóa các dây nối gắn vào cổng bị loại bỏ
+            if (delta < 0) {
+                const removedPortId = `in${n.inCount - 1}`;
+                wires = wires.filter(w => !(w.toNode === nodeId && w.toPort === removedPortId));
+            }
+
+            n.inCount = newCount;
+            renderCanvas();
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            document.querySelectorAll('.f-node').forEach(el => el.remove());
+
+            nodes.forEach(n => {
+                const card = document.createElement('div');
+                card.className = 'f-node';
+                card.id = n.id;
+                card.style.left = n.x + 'px';
+                card.style.top = n.y + 'px';
+
+                let headerBg = '#334155';
+                let title = n.type;
+                let body = '';
+
+                if (n.type === 'INPUT_DI') {
+                    headerBg = '#0284c7';
+                    title = '🟢 Ngõ vào DI';
+                    body = `
+                        <select onchange="updateNodeTag('${n.id}', this.value)">
+                            ${pins.filter(p=>p.type==='DI').map(p=>`<option value="${p.tag}" ${n.pinTag===p.tag?'selected':''}>${p.id} (${p.name})</option>`).join('')}
+                        </select>
+                    `;
+                } else if (n.type === 'INPUT_AI') {
+                    headerBg = '#7c3aed';
+                    title = '🟣 Cảm biến AI';
+                    body = `<select><option>AI0 (Áp suất khí nén)</option></select>`;
+                } else if (n.type === 'GATE_AND') {
+                    headerBg = '#d97706';
+                    title = `🔗 Cổng AND (${n.inCount} cổng vào)`;
+                    body = `<div style="font-size:0.7rem; color:#94a3b8;">Đủ cả ${n.inCount} ngõ vào cùng ON $\\rightarrow$ Output ON</div>`;
+                } else if (n.type === 'GATE_OR') {
+                    headerBg = '#d97706';
+                    title = `🔀 Cổng OR (${n.inCount} cổng vào)`;
+                    body = `<div style="font-size:0.7rem; color:#94a3b8;">Bất kỳ ngõ vào nào ON $\\rightarrow$ Output ON</div>`;
+                } else if (n.type === 'OUTPUT_DO') {
+                    headerBg = '#15803d';
+                    title = '🔴 Điều khiển DO';
+                    body = `
+                        <select onchange="updateNodeTag('${n.id}', this.value)">
+                            ${pins.filter(p=>p.type==='DO').map(p=>`<option value="${p.tag}" ${n.pinTag===p.tag?'selected':''}>${p.id} (${p.name})</option>`).join('')}
+                        </select>
+                    `;
+                } else if (n.type === 'OUTPUT_CNT') {
+                    headerBg = '#059669';
+                    title = '🔢 Đếm Retain';
+                    body = `<div>Tag: <b>VREG_R0</b> (Nhớ Flash)[cite: 1]</div>`;
+                }
+
+                // Render cổng vào động (phân bố đều theo chiều cao card)
+                let portsHtml = '';
+                const cardHeight = Math.max(90, n.inCount * 28 + 40);
+                card.style.minHeight = cardHeight + 'px';
+
+                for (let i = 0; i < n.inCount; i++) {
+                    const topPos = ((i + 1) / (n.inCount + 1)) * 100;
+                    portsHtml += `
+                        <div class="port-slot in" style="top: ${topPos}%;">
+                            <div class="port-dot" data-node="${n.id}" data-port="in${i}"></div>
+                        </div>
+                    `;
+                }
+
+                // Render cổng ra
+                for (let j = 0; j < n.outCount; j++) {
+                    const topPos = ((j + 1) / (n.outCount + 1)) * 100;
+                    portsHtml += `
+                        <div class="port-slot out" style="top: ${topPos}%;">
+                            <div class="port-dot" data-node="${n.id}" data-port="out${j}"></div>
+                        </div>
+                    `;
+                }
+
+                // Nút chỉnh số lượng port cho Gate
+                let portToolsHtml = '';
+                if (n.type === 'GATE_AND' || n.type === 'GATE_OR') {
+                    portToolsHtml = `
+                        <div class="port-tools">
+                            <span>Ngõ vào: ${n.inCount}</span>
+                            <div style="display:flex; gap:4px;">
+                                <button class="btn-port-mod" onclick="modifyNodePort('${n.id}', 1)">+ Cổng</button>
+                                <button class="btn-port-mod" onclick="modifyNodePort('${n.id}', -1)">− Cổng</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="f-node-header" style="background:${headerBg}">
+                        <span>${title}</span>
+                        <span style="cursor:pointer;" onclick="deleteNode('${n.id}')">×</span>
+                    </div>
+                    <div class="f-node-body">${body}</div>
+                    ${portToolsHtml}
+                    ${portsHtml}
+                `;
+
+                // Xử lý kéo card
+                card.querySelector('.f-node-header').onmousedown = (e) => {
+                    draggingNode = n;
+                    dragOffset.x = e.clientX - n.x;
+                    dragOffset.y = e.clientY - n.y;
+                };
+
+                canvas.appendChild(card);
+            });
+
+            bindPortEvents();
+            renderWires();
+        }
+
+        function updateNodeTag(id, val) {
+            const n = nodes.find(x => x.id === id);
+            if (n) n.pinTag = Number(val);
+        }
+
+        function deleteNode(id) {
+            nodes = nodes.filter(n => n.id !== id);
+            wires = wires.filter(w => w.fromNode !== id && w.toNode !== id);
+            renderCanvas();
+        }
+
+        // XỬ LÝ NỐI DÂY (SVG SPLINES)
+        function bindPortEvents() {
+            document.querySelectorAll('.port-slot.out .port-dot').forEach(p => {
+                p.onmousedown = (e) => {
+                    e.stopPropagation();
+                    activeWireStart = {
+                        nodeId: p.getAttribute('data-node'),
+                        port: p.getAttribute('data-port')
+                    };
+                };
+            });
+
+            document.querySelectorAll('.port-slot.in .port-dot').forEach(p => {
+                p.onmouseup = (e) => {
+                    if (activeWireStart) {
+                        const toNode = p.getAttribute('data-node');
+                        const toPort = p.getAttribute('data-port');
+                        if (activeWireStart.nodeId !== toNode) {
+                            wires = wires.filter(w => !(w.toNode === toNode && w.toPort === toPort)); // 1 input chỉ nhận 1 dây
+                            wires.push({
+                                id: 'w_' + Date.now(),
+                                fromNode: activeWireStart.nodeId,
+                                fromPort: activeWireStart.port,
+                                toNode: toNode,
+                                toPort: toPort
+                            });
+                            renderWires();
+                        }
+                    }
+                };
+            });
+        }
+
+        window.onmousemove = (e) => {
+            if (draggingNode) {
+                draggingNode.x = e.clientX - dragOffset.x;
+                draggingNode.y = e.clientY - dragOffset.y;
+                const el = document.getElementById(draggingNode.id);
+                if (el) {
+                    el.style.left = draggingNode.x + 'px';
+                    el.style.top = draggingNode.y + 'px';
+                }
+                renderWires();
+            }
+        };
+
+        window.onmouseup = () => {
+            draggingNode = null;
+            activeWireStart = null;
+        };
+
+        function renderWires() {
+            const svg = document.getElementById('wireCanvas');
+            svg.innerHTML = '';
+            const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+
+            wires.forEach((w, idx) => {
+                const fromEl = document.querySelector(`.f-node#${w.fromNode} .port-slot.out .port-dot[data-port="${w.fromPort}"]`);
+                const toEl = document.querySelector(`.f-node#${w.toNode} .port-slot.in .port-dot[data-port="${w.toPort}"]`);
+                if (fromEl && toEl) {
+                    const r1 = fromEl.getBoundingClientRect();
+                    const r2 = toEl.getBoundingClientRect();
+                    const x1 = r1.left + 6 - canvasRect.left;
+                    const y1 = r1.top + 6 - canvasRect.top;
+                    const x2 = r2.left + 6 - canvasRect.left;
+                    const y2 = r2.top + 6 - canvasRect.top;
+
+                    const dx = Math.max(Math.abs(x2 - x1) * 0.5, 40);
+                    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", pathD);
+                    path.setAttribute("stroke", "#38bdf8");
+                    path.setAttribute("stroke-width", "3");
+                    path.setAttribute("fill", "none");
+                    path.style.cursor = "pointer";
+                    path.onclick = () => { wires.splice(idx, 1); renderWires(); };
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        // THUẬT TOÁN BIÊN DỊCH MULTI-PORT GATE SANG STRUCT 28-BYTE[cite: 1]
+        function compileMultiPortGraph() {
+            const out = document.getElementById('codeOut');
+            let txt = `// THUẬT TOÁN BIÊN DỊCH ĐỒ THỊ ĐA CỔNG (MULTI-PORT) SANG STM32 STRUCT\n`;
+            txt += `// Căn chuẩn: 28 byte/rule[cite: 1] | Bộ nhớ: RAM tĩnh + Flash Retain\n\n`;
+
+            if (wires.length === 0) {
+                out.innerText = "// Đồ thị chưa có dây nối nào giữa các khối!";
+                return;
+            }
+
+            let ruleCount = 0;
+            let currentVflag = 21; // Bắt đầu cấp phát từ VFLAG0 (Tag 21)[cite: 1]
+
+            // Duyệt qua các cổng AND
+            const andNodes = nodes.filter(n => n.type === 'GATE_AND');
+            andNodes.forEach(andNode => {
+                const inWires = wires.filter(w => w.toNode === andNode.id);
+                const outWire = wires.find(w => w.fromNode === andNode.id);
+
+                if (!outWire || inWires.length < 2) return;
+
+                const inputTags = inWires.map(w => {
+                    const src = nodes.find(n => n.id === w.fromNode);
+                    return src?.pinTag || 1;
+                });
+                const destNode = nodes.find(n => n.id === outWire.toNode);
+
+                txt += `/* [PHÂN GIẢI CỔNG AND ${inputTags.length} ĐỐI TƯỢNG VÀO] */\n`;
+
+                if (inputTags.length === 2) {
+                    // Cổng AND 2 chân: Khớp trực tiếp 1 Rule (1 Trigger + 1 Guard)[cite: 1]
+                    txt += `Rule[${ruleCount++}] = { // Size: 28B[cite: 1]\n`;
+                    txt += `   trigger_tag : Tag#${inputTags[0]},\n`;
+                    txt += `   guard_tag   : Tag#${inputTags[1]}, /* Guard trực tiếp */[cite: 1]\n`;
+                    txt += `   action_tag  : Tag#${destNode.pinTag}, action_type: SET_TAG (1)[cite: 1]\n`;
+                    txt += `};\n\n`;
+                } else {
+                    // Cổng AND >= 3 chân: Phân rã thành chuỗi VFLAG (Mắt xích)[cite: 1]
+                    let prevFlag = inputTags[0];
+                    for (let k = 1; k < inputTags.length; k++) {
+                        const isLast = (k === inputTags.length - 1);
+                        const targetTag = isLast ? destNode.pinTag : currentVflag;
+                        const targetKind = isLast ? "Đích DO" : `Cờ tạm VFLAG#${currentVflag}`;
+
+                        txt += `Rule[${ruleCount++}] = { // Mắt xích ${k}: Ghi vào ${targetKind}[cite: 1]\n`;
+                        txt += `   trigger_tag : Tag#${prevFlag},\n`;
+                        txt += `   guard_tag   : Tag#${inputTags[k]}, /* Đối tượng ${k+1} */[cite: 1]\n`;
+                        txt += `   action_tag  : Tag#${targetTag}, action_type: SET_TAG (1)[cite: 1]\n`;
+                        txt += `}; // 28 bytes[cite: 1]\n`;
+
+                        if (!isLast) {
+                            prevFlag = currentVflag;
+                            currentVflag++;
+                        }
+                    }
+                    txt += `\n`;
+                }
+            });
+
+            // Duyệt qua các kết nối trực tiếp không qua Gate
+            const directWires = wires.filter(w => {
+                const src = nodes.find(n => n.id === w.fromNode);
+                const dst = nodes.find(n => n.id === w.toNode);
+                return src && dst && src.type.startsWith('INPUT_') && dst.type.startsWith('OUTPUT_');
+            });
+
+            directWires.forEach(w => {
+                const src = nodes.find(n => n.id === w.fromNode);
+                const dst = nodes.find(n => n.id === w.toNode);
+                txt += `/* [KẾT NỐI TRỰC TIẾP] */\n`;
+                txt += `Rule[${ruleCount++}] = {\n`;
+                txt += `   trigger_tag : Tag#${src.pinTag}, edge: ON_RISE,\n`;
+                txt += `   action_tag  : Tag#${dst.pinTag}, action_type: SET_TAG (1)[cite: 1]\n`;
+                txt += `}; // 28 bytes[cite: 1]\n\n`;
+            });
+
+            txt += `// => Tổng cộng: ${ruleCount} rules phẳng sinh ra (${ruleCount * 28} bytes)[cite: 1]\n`;
+            txt += `// Nạp an toàn qua Modbus RTU Staged Commit (0x9010 Buffer)![cite: 1, 4]`;
+            out.innerText = txt;
+            alert(`Biên dịch thành công ${ruleCount} rules! Các cổng logic đa ngõ vào đã được tự động phân giải thành chuỗi VFLAG.`);
+        }
+
+        // KHỞI TẠO BÀI TOÁN MẪU: CỔNG AND 3 NGÕ VÀO (DI0 + DI1 + DI2 -> DO0)
+        function initDemo() {
+            renderPins();
+
+            const nDi0 = { id: 'n_di0', type: 'INPUT_DI', x: 50, y: 50, inCount: 0, outCount: 1, pinTag: 1 };
+            const nDi1 = { id: 'n_di1', type: 'INPUT_DI', x: 50, y: 170, inCount: 0, outCount: 1, pinTag: 2 };
+            const nDi2 = { id: 'n_di2', type: 'INPUT_DI', x: 50, y: 290, inCount: 0, outCount: 1, pinTag: 3 };
+
+            // Cổng AND có 3 ngõ vào
+            const nAnd = { id: 'n_and', type: 'GATE_AND', x: 300, y: 140, inCount: 3, outCount: 1, pinTag: 0 };
+            const nDo0 = { id: 'n_do0', type: 'OUTPUT_DO', x: 560, y: 170, inCount: 1, outCount: 0, pinTag: 9 };
+
+            nodes.push(nDi0, nDi1, nDi2, nAnd, nDo0);
+
+            // Nối 3 tín hiệu vào 3 cổng của AND
+            wires.push({ id: 'w0', fromNode: 'n_di0', fromPort: 'out0', toNode: 'n_and', toPort: 'in0' });
+            wires.push({ id: 'w1', fromNode: 'n_di1', fromPort: 'out0', toNode: 'n_and', toPort: 'in1' });
+            wires.push({ id: 'w2', fromNode: 'n_di2', fromPort: 'out0', toNode: 'n_and', toPort: 'in2' });
+            wires.push({ id: 'w3', fromNode: 'n_and', fromPort: 'out0', toNode: 'n_do0', toPort: 'in0' });
+
+            renderCanvas();
+        }
+
+        initDemo();
+    </script>
+</body>
+</html>

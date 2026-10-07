@@ -1,0 +1,701 @@
+<Window x:Class="SimplePLC.Studio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
+        xmlns:views="clr-namespace:SimplePLC.Studio.Views"
+        xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+        Title="{Binding WindowTitle}" 
+        Icon="Assets/app.png"
+        Height="820" Width="1340"
+        WindowStartupLocation="CenterScreen"
+        Closing="Window_Closing">
+
+    <Window.InputBindings>
+        <!-- Project & Edit Shortcuts -->
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewProjectCommand}" />
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenProjectCommand}" />
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveProjectCommand}" />
+        <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="{Binding SaveProjectAsCommand}" />
+        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="Y" Modifiers="Ctrl" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="Z" Modifiers="Ctrl+Shift" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="X" Modifiers="Ctrl" Command="{Binding CutCommand}" />
+        <KeyBinding Key="C" Modifiers="Ctrl" Command="{Binding CopyCommand}" />
+        <KeyBinding Key="V" Modifiers="Ctrl" Command="{Binding PasteCommand}" />
+        <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding DuplicateCommand}" />
+        <KeyBinding Key="A" Modifiers="Ctrl" Command="{Binding SelectAllCommand}" />
+        <KeyBinding Key="Delete" Command="{Binding DeleteSelectedNodeCommand}" />
+
+        <!-- Canvas Node Align & Distribute Shortcuts -->
+        <KeyBinding Key="Up" Modifiers="Alt" Command="{Binding AlignTopCommand}" />
+        <KeyBinding Key="Down" Modifiers="Alt" Command="{Binding AlignBottomCommand}" />
+        <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding AlignLeftCommand}" />
+        <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding AlignRightCommand}" />
+        <KeyBinding Key="C" Modifiers="Alt" Command="{Binding AlignCenterCommand}" />
+        <KeyBinding Key="M" Modifiers="Alt" Command="{Binding AlignMiddleCommand}" />
+        <KeyBinding Key="H" Modifiers="Alt+Shift" Command="{Binding DistributeNodesHorizontallyCommand}" />
+        <KeyBinding Key="V" Modifiers="Alt+Shift" Command="{Binding DistributeNodesVerticallyCommand}" />
+        <KeyBinding Key="G" Modifiers="Alt" Command="{Binding SnapAllNodesToGridCommand}" />
+
+        <!-- Workspace Tabs Shortcuts (Ctrl+1 to Ctrl+6) -->
+        <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="0" />
+        <KeyBinding Key="D2" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="1" />
+        <KeyBinding Key="D3" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="2" />
+        <KeyBinding Key="D4" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="3" />
+        <KeyBinding Key="D5" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="4" />
+        <KeyBinding Key="D6" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+        <KeyBinding Key="NumPad1" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="0" />
+        <KeyBinding Key="NumPad2" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="1" />
+        <KeyBinding Key="NumPad3" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="2" />
+        <KeyBinding Key="NumPad4" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="3" />
+        <KeyBinding Key="NumPad5" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="4" />
+        <KeyBinding Key="NumPad6" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+
+        <!-- Function Keys -->
+        <KeyBinding Key="F4" Command="{Binding ToggleConnectCommand}" />
+        <KeyBinding Key="F5" Command="{Binding ToggleSimulationCommand}" />
+        <KeyBinding Key="F5" Modifiers="Ctrl" Command="{Binding DeployToDeviceCommand}" />
+        <KeyBinding Key="F6" Command="{Binding UploadFromDeviceCommand}" />
+        <KeyBinding Key="F7" Command="{Binding CompileRulesCommand}" />
+        <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
+        <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
+    </Window.InputBindings>
+    
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <converters:ComparisonConverter x:Key="CompareConverter" />
+
+        <!-- View Mappings -->
+        <DataTemplate DataType="{x:Type vm:AiChatViewModel}">
+            <views:AiChatView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LogicEditorViewModel}">
+            <views:LogicEditorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TagCatalogViewModel}">
+            <views:TagCatalogView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RuleTableViewModel}">
+            <views:RuleTableView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:BlueprintsViewModel}">
+            <views:BlueprintsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DeployViewModel}">
+            <views:DeployView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SimulatorViewModel}">
+            <views:SimulatorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LiveWatchViewModel}">
+            <views:LiveWatchView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 0. Windows Standard Menu Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- 1. Navigation Tabs & Quick Connect Strip -->
+            <RowDefinition Height="Auto" />
+            <!-- 2. Active View Content -->
+            <RowDefinition Height="*" />
+            <!-- 3. Bottom Status Bar -->
+            <RowDefinition Height="36" />
+        </Grid.RowDefinitions>
+
+        <!-- 0. WINDOWS STANDARD MENU BAR -->
+        <Menu Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="4,2">
+            <!-- 1. TỆP (FILE) -->
+            <MenuItem Header="{Binding Loc[MenuFile]}">
+                <MenuItem Header="{Binding Loc[MenuNewProject]}" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
+                <MenuItem Header="{Binding Loc[ToolOpen]}" Command="{Binding OpenProjectCommand}" InputGestureText="Ctrl+O" />
+                <MenuItem Header="{Binding Loc[MenuSaveProject]}" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
+                <MenuItem Header="{Binding Loc[MenuSaveProjectAs]}" Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuImport]}">
+                    <MenuItem Header="{Binding Loc[MenuImportBinary]}" Command="{Binding ImportBinaryCommand}" />
+                    <MenuItem Header="{Binding Loc[MenuImportTagsCsv]}" Command="{Binding ImportTagsCsvCommand}" />
+                </MenuItem>
+                <MenuItem Header="{Binding Loc[MenuExport]}">
+                    <MenuItem Header="{Binding Loc[MenuExportBinary]}" Command="{Binding ExportBinaryCommand}" />
+                    <MenuItem Header="{Binding Loc[MenuExportTagsCsv]}" Command="{Binding ExportTagsCsvCommand}" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuRecentProjects]}" ItemsSource="{Binding RecentProjects}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding}" />
+                            <Setter Property="Command" Value="{Binding DataContext.OpenRecentProjectCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                            <Setter Property="CommandParameter" Value="{Binding}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuExit]}" Command="{Binding ExitAppCommand}" InputGestureText="Alt+F4" />
+            </MenuItem>
+
+            <!-- 2. CHỈNH SỬA (EDIT) -->
+            <MenuItem Header="{Binding Loc[MenuEdit]}">
+                <MenuItem Header="{Binding Loc[ToolUndo]}" Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z" />
+                <MenuItem Header="{Binding Loc[ToolRedo]}" Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuCut]}" Command="{Binding CutCommand}" InputGestureText="Ctrl+X" />
+                <MenuItem Header="{Binding Loc[MenuCopy]}" Command="{Binding CopyCommand}" InputGestureText="Ctrl+C" />
+                <MenuItem Header="{Binding Loc[MenuPaste]}" Command="{Binding PasteCommand}" InputGestureText="Ctrl+V" />
+                <MenuItem Header="{Binding Loc[MenuDuplicate]}" Command="{Binding DuplicateCommand}" InputGestureText="Ctrl+D" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuDeleteSelected]}" Command="{Binding DeleteSelectedNodeCommand}" InputGestureText="Del" />
+                <MenuItem Header="{Binding Loc[MenuSelectAll]}" Command="{Binding SelectAllCommand}" InputGestureText="Ctrl+A" />
+                <MenuItem Header="{Binding Loc[MenuClearCanvas]}" Command="{Binding LogicEditorVM.NewRuleCanvasCommand}" />
+                <Separator />
+                <!-- Căn chỉnh & Bố cục sơ đồ -->
+                <MenuItem Header="{Binding Loc[MenuLayoutAndAlign]}">
+                    <MenuItem Header="{Binding Loc[MenuAlignTop]}" Command="{Binding AlignTopCommand}" InputGestureText="Alt+Up" Icon="⤒" />
+                    <MenuItem Header="{Binding Loc[MenuAlignMiddle]}" Command="{Binding AlignMiddleCommand}" InputGestureText="Alt+M" Icon="╌" />
+                    <MenuItem Header="{Binding Loc[MenuAlignBottom]}" Command="{Binding AlignBottomCommand}" InputGestureText="Alt+Down" Icon="⤓" />
+                    <Separator />
+                    <MenuItem Header="{Binding Loc[MenuAlignLeft]}" Command="{Binding AlignLeftCommand}" InputGestureText="Alt+Left" Icon="⇤" />
+                    <MenuItem Header="{Binding Loc[MenuAlignCenter]}" Command="{Binding AlignCenterCommand}" InputGestureText="Alt+C" Icon="┆" />
+                    <MenuItem Header="{Binding Loc[MenuAlignRight]}" Command="{Binding AlignRightCommand}" InputGestureText="Alt+Right" Icon="⇥" />
+                    <Separator />
+                    <MenuItem Header="{Binding Loc[MenuDistributeHorizontal]}" Command="{Binding DistributeNodesHorizontallyCommand}" InputGestureText="Alt+Shift+H" Icon="⫸" />
+                    <MenuItem Header="{Binding Loc[MenuDistributeVertical]}" Command="{Binding DistributeNodesVerticallyCommand}" InputGestureText="Alt+Shift+V" Icon="⫶" />
+                    <Separator />
+                    <MenuItem Header="{Binding Loc[MenuSnapToGrid]}" Command="{Binding SnapAllNodesToGridCommand}" InputGestureText="Alt+G" Icon="⌗" />
+                </MenuItem>
+            </MenuItem>
+
+            <!-- 3. HIỂN THỊ (VIEW) -->
+            <MenuItem Header="{Binding Loc[MenuView]}">
+                <MenuItem Header="{Binding Loc[MenuWorkspaces]}">
+                    <MenuItem Header="{Binding Loc[MenuViewLogicGraph]}" Command="{Binding SelectTabCommand}" CommandParameter="0" InputGestureText="Ctrl+1" />
+                    <MenuItem Header="{Binding Loc[MenuViewTagCatalog]}" Command="{Binding SelectTabCommand}" CommandParameter="1" InputGestureText="Ctrl+2" />
+                    <MenuItem Header="{Binding Loc[MenuViewRuleTable]}" Command="{Binding SelectTabCommand}" CommandParameter="2" InputGestureText="Ctrl+3" />
+                    <MenuItem Header="{Binding Loc[MenuViewBlueprints]}" Command="{Binding SelectTabCommand}" CommandParameter="3" InputGestureText="Ctrl+4" />
+                    <MenuItem Header="{Binding Loc[MenuViewDeploy]}" Command="{Binding SelectTabCommand}" CommandParameter="4" InputGestureText="Ctrl+5" />
+                    <MenuItem Header="{Binding Loc[MenuViewLiveWatch]}" Command="{Binding SelectTabCommand}" CommandParameter="5" InputGestureText="Ctrl+6" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuToggleSimulation]}" Command="{Binding ToggleSimulationCommand}" InputGestureText="F5" />
+                <MenuItem Header="{Binding Loc[MenuFullScreen]}" Command="{Binding ToggleFullScreenCommand}" InputGestureText="F11" />
+            </MenuItem>
+
+            <!-- 4. THIẾT BỊ (DEVICE) -->
+            <MenuItem Header="{Binding Loc[MenuPLC]}">
+                <MenuItem Header="{Binding ConnectActionText}" Command="{Binding ToggleConnectCommand}" InputGestureText="F4" />
+                <Separator />
+                <MenuItem Header="{Binding PortMenuHeader}" ItemsSource="{Binding PortOptions}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding Name}" />
+                            <Setter Property="IsCheckable" Value="True" />
+                            <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                            <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+                            <Setter Property="Command" Value="{Binding DataContext.SelectPortCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                            <Setter Property="CommandParameter" Value="{Binding Name}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <MenuItem Header="{Binding Loc[MenuRefreshPorts]}" Command="{Binding RefreshPortsCommand}" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuUploadFromDevice]}" Command="{Binding UploadFromDeviceCommand}" InputGestureText="F6" />
+                <MenuItem Header="{Binding Loc[MenuCommit]}" Command="{Binding DeployToDeviceCommand}" InputGestureText="Ctrl+F5" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}" Icon="⏰" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuRebootDevice]}" Command="{Binding RebootDeviceCommand}" />
+                <MenuItem Header="{Binding Loc[MenuFactoryResetDevice]}" Command="{Binding FactoryResetDeviceCommand}" Foreground="#B91C1C" />
+            </MenuItem>
+
+            <!-- 5. CÔNG CỤ (TOOLS) -->
+            <MenuItem Header="{Binding Loc[MenuTools]}">
+                <MenuItem Header="{Binding Loc[MenuCompile]}" Command="{Binding CompileRulesCommand}" InputGestureText="F7" />
+                <MenuItem Header="{Binding Loc[MenuValidateLogic]}" Command="{Binding ValidateLogicCommand}" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuLanguage]}">
+                    <MenuItem Header="🇻🇳 Tiếng Việt" Command="{Binding ChangeLanguageCommand}" CommandParameter="vi" IsChecked="{Binding Loc.IsVietnamese, Mode=OneWay}" />
+                    <MenuItem Header="🇬🇧 English" Command="{Binding ChangeLanguageCommand}" CommandParameter="en" IsChecked="{Binding Loc.IsEnglish, Mode=OneWay}" />
+                </MenuItem>
+            </MenuItem>
+
+            <!-- 6. TRỢ GIÚP (HELP) -->
+            <MenuItem Header="{Binding Loc[MenuHelp]}">
+                <MenuItem Header="{Binding Loc[MenuDocSpec]}" Command="{Binding OpenDocSpecCommand}" />
+                <MenuItem Header="{Binding Loc[MenuCheckUpdates]}" Command="{Binding CheckUpdatesCommand}" />
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuAbout]}" Command="{Binding AboutAppCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- 1. NAVIGATION TABS BAR & QUICK CONNECT -->
+        <Border Grid.Row="1" Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+            <DockPanel LastChildFill="False">
+                <Border Background="#DFE3E8" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="2" DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="{Binding Loc[TabLogicGraph]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=0}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="0" />
+                        <RadioButton Content="{Binding Loc[TabTagCatalog]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=1}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="1" />
+                        <RadioButton Content="{Binding Loc[TabRuleTable]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=2}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="2" />
+                        <RadioButton Content="{Binding Loc[TabBlueprints]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=3}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="3" />
+                        <RadioButton Content="{Binding Loc[TabDeploy]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=4}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="4" />
+                        <RadioButton Content="{Binding Loc[TabLiveWatch]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=5}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="5" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Quick Connect Controls -->
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Button Command="{Binding RefreshPortsCommand}"
+                            Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            Width="28" Height="28" Margin="0,0,6,0" Cursor="Hand"
+                            ToolTip="{Binding Loc[MenuRefreshPorts]}">
+                        <TextBlock Text="🔄" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <ComboBox ItemsSource="{Binding AvailablePorts}"
+                              SelectedItem="{Binding SelectedPort}"
+                              Width="160" Height="28" Margin="0,0,8,0"
+                              VerticalContentAlignment="Center" FontSize="12"
+                              IsEnabled="{Binding CanSelectPort}" />
+                    <Button Command="{Binding ToggleConnectCommand}"
+                            Height="28" Padding="12,0" Cursor="Hand" FontWeight="SemiBold" FontSize="11.5">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="{Binding ConnectButtonBackground}" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                <Setter Property="BorderBrush" Value="{Binding ConnectButtonBorderBrush}" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Content" Value="{Binding ConnectActionText}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="2"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- SynaptiX AI Chatbox Toggle Button -->
+                    <Button Command="{Binding ToggleAiCopilotCommand}"
+                            Height="28" Padding="8,0" Margin="8,0,0,0" Cursor="Hand"
+                            ToolTip="{Binding Loc[AiCopilotTooltip]}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#FFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="2"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="💬 " FontSize="11" VerticalAlignment="Center" />
+                                                    <TextBlock Text="AI Chatbox" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F1F5F9" />
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding AiChatVM.IsPanelOpen}" Value="True">
+                                        <Setter Property="Background" Value="#E6F4EA" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}" />
+                                        <Setter Property="Foreground" Value="#0E6B37" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 2. MAIN VIEW HOST & AI CHATBOX SIDEBAR -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="AiChatColumn" Width="0" MaxWidth="0" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Main Active View -->
+            <ContentControl Grid.Column="0" Content="{Binding CurrentView}" />
+
+            <!-- Draggable Splitter (Width 5px, SizeWE cursor, visual hover) -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                          Background="#E2E8F0" Cursor="SizeWE"
+                          ResizeDirection="Columns"
+                          DragDelta="GridSplitter_DragDelta"
+                          Visibility="{Binding AiChatVM.IsPanelOpen, Converter={StaticResource BoolToVis}}">
+                <GridSplitter.Template>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="#CBD5E1" BorderThickness="1,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#94A3B8" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
+
+            <!-- SynaptiX AI Chatbox Sidebar Panel -->
+            <views:AiChatView Grid.Column="2" DataContext="{Binding AiChatVM}"
+                              Visibility="{Binding IsPanelOpen, Converter={StaticResource BoolToVis}}" />
+        </Grid>
+
+        <!-- 3. BOTTOM STATUS & INDUSTRIAL WORKSPACE ACTION BAR -->
+        <Border Grid.Row="3" Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="10,0">
+            <DockPanel LastChildFill="False" VerticalAlignment="Center">
+                <!-- 1. LEFT: CONTEXT, STATUS & ACTIONS (VS Code style) -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Global Diagnostics (When NOT on Logic Graph tab) -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="2">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="3">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="4">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="5">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="6">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="🟢" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="{Binding DiagnosticsSummary}" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Logic Graph Authoring Context (When ON Logic Graph tab) -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <!-- Mode Badge: Only shown when editing an existing rule from Rule Table -->
+                        <Border BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                                ToolTip="{Binding LogicEditorVM.EditorModeTitle}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Setter Property="Background" Value="#FEF3C7" />
+                                    <Setter Property="BorderBrush" Value="#C05621" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LogicEditorVM.IsEditingExistingRule}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding LogicEditorVM.EditorModeTitle}" FontWeight="Bold" FontSize="11" Foreground="#C05621" />
+                        </Border>
+
+                        <!-- Syntax Validation Status Message (VS Code compact indicator with ToolTip) -->
+                        <TextBlock Text="{Binding LogicEditorVM.SaveStatusMessage}" FontSize="11" FontWeight="SemiBold"
+                                   MaxWidth="180" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding LogicEditorVM.SaveStatusMessage}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#107C41" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LogicEditorVM.CompileState}" Value="Invalid">
+                                            <Setter Property="Foreground" Value="#B91C1C" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding LogicEditorVM.CompileState}" Value="Stale">
+                                            <Setter Property="Foreground" Value="#C05621" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <!-- Vertical Separator -->
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource BorderLightBrush}" Margin="2,0,8,0" VerticalAlignment="Center" />
+
+                        <!-- Action Buttons (VS Code style compact icon buttons with hover explanation) -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- 1. Bản vẽ mới -->
+                            <Button Command="{Binding LogicEditorVM.NewRuleCanvasCommand}"
+                                    Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    Width="28" Height="24" Margin="0,0,5,0" Cursor="Hand"
+                                    ToolTip="Bản vẽ mới: Làm sạch khung vẽ để tạo Rule mới [Ctrl+N]">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                                            <TextBlock Text="📄" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#ECEFF1" />
+                                                <Setter TargetName="BtnBdr" Property="BorderBrush" Value="#D1D5DB" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#DFE3E8" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- 2. Bảng Rule -->
+                            <Button Command="{Binding LogicEditorVM.ViewRuleTableCommand}"
+                                    Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    Width="28" Height="24" Margin="0,0,5,0" Cursor="Hand"
+                                    ToolTip="Bảng Rule: Chuyển sang danh sách toàn bộ các Rule đã lưu [Ctrl+T]">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                                            <TextBlock Text="📋" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#ECEFF1" />
+                                                <Setter TargetName="BtnBdr" Property="BorderBrush" Value="#D1D5DB" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#DFE3E8" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- 3. PRIMARY ACTION: Lưu vào Bảng Rule (F7 / Ctrl+S) -->
+                            <Button Command="{Binding LogicEditorVM.CompileNowCommand}"
+                                    Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1"
+                                    Width="32" Height="24" Margin="0,0,5,0" Cursor="Hand"
+                                    ToolTip="Lưu vào Bảng Rule: Biên dịch và lưu Rule vào bảng [Ctrl+S / F7]">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                                            <TextBlock Text="⚡" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#0B5A2F" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#084624" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- 3b. Save as New Rule (Visible when editing existing rule) -->
+                            <Button Command="{Binding LogicEditorVM.SaveAsNewRuleCommand}"
+                                    Background="#006487" BorderBrush="#004D68" BorderThickness="1"
+                                    Height="24" Padding="6,0" Margin="0,0,5,0" Cursor="Hand"
+                                    ToolTip="{Binding Loc[SaveAsNewRuleTip]}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding LogicEditorVM.IsEditingExistingRule}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Loc[SaveAsNewRule]}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#004D68" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="BtnBdr" Property="Background" Value="#00374A" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- 4. Quick Run Simulation Button -->
+                            <Button Command="{Binding LogicEditorVM.ToggleSimPlayPauseCommand}"
+                                    Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1"
+                                    Width="28" Height="24" Cursor="Hand"
+                                    ToolTip="Chạy mô phỏng đồ thị logic [F5]">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="SimBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                                                        <TextBlock Text="▶" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="SimBdr" Property="Background" Value="#0B5A2F" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="SimBdr" Property="Background" Value="#084624" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                                    <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- 2. RIGHT: DEVICE TELEMETRY & AUTO-UPDATE BADGE -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <!-- Auto-Update Notification Badge -->
+                    <Button Command="{Binding CheckUpdatesCommand}"
+                            Background="#E6F4EA" BorderBrush="#107C41" BorderThickness="1"
+                            Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center" Cursor="Hand"
+                            ToolTip="Đã có phiên bản mới của SynaptiX IDE! Nhấp để xem và cập nhật.">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🚀 " FontSize="10" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding UpdateAvailableText}" FontSize="10.5" FontWeight="Bold" Foreground="#107C41" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUpdateAvailable}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+
+
+                    <!-- RTC Battery Low Warning Badge -->
+                    <Border Background="#FEF2F2" BorderBrush="#DC2626" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                            ToolTip="{Binding RtcStatusTooltip}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRtcBatteryLow}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⚠" FontSize="10.5" Foreground="#DC2626" Margin="0,0,3,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Loc[RtcBatteryLowBadge]}" FontSize="10.5" FontWeight="Bold" Foreground="#DC2626" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- MCU RTC Clock Badge -->
+                    <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                            ToolTip="{Binding RtcStatusTooltip}" Cursor="Hand">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Border.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding SyncMcuClockCommand}" />
+                        </Border.InputBindings>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⏰" FontSize="10" Margin="0,0,3,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding McuClockDisplayText}" FontSize="10.5" FontWeight="Medium" Foreground="#475569" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,0,0" VerticalAlignment="Center"
+                            ToolTip="{Binding DeviceProductToolTip}" Cursor="Hand">
+                        <Border.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding ShowDeviceInfoCommand}" />
+                        </Border.InputBindings>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📟" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding DeviceProductBadgeText}" FontSize="10.5" FontWeight="Medium" Foreground="#64748B" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
