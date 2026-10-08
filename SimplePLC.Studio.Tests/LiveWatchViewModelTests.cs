@@ -96,6 +96,26 @@ public class LiveWatchViewModelTests
         vm.SetKindFilter("INTERNAL");
         Assert.Equal(104, vm.FilteredTags.Count);
 
+        // Act & Assert VFLAG (32)
+        vm.SetKindFilter("VFLAG");
+        Assert.Equal(32, vm.FilteredTags.Count);
+        Assert.All(vm.FilteredTags, t => Assert.Equal(TagKind.VirtualFlag, t.Kind));
+
+        // Act & Assert VREG (32)
+        vm.SetKindFilter("VREG");
+        Assert.Equal(32, vm.FilteredTags.Count);
+        Assert.All(vm.FilteredTags, t => Assert.Equal(TagKind.VirtualRegister, t.Kind));
+
+        // Act & Assert RETAIN (32)
+        vm.SetKindFilter("RETAIN");
+        Assert.Equal(32, vm.FilteredTags.Count);
+        Assert.All(vm.FilteredTags, t => Assert.Equal(TagKind.VirtualRegisterRetain, t.Kind));
+
+        // Act & Assert COUNTER (8)
+        vm.SetKindFilter("COUNTER");
+        Assert.Equal(8, vm.FilteredTags.Count);
+        Assert.All(vm.FilteredTags, t => Assert.Equal(TagKind.Counter, t.Kind));
+
         // Reset to ALL
         vm.SetKindFilter("ALL");
         Assert.Equal(124, vm.FilteredTags.Count);
@@ -324,6 +344,98 @@ public class LiveWatchViewModelTests
             loc.CurrentLanguage = "en";
             tag.NotifyLanguageChanged();
         }
+    }
+
+    [Fact]
+    public void TogglePin_TogglesIsPinnedAndUpdatesWatchlistCount()
+    {
+        var store = new RuntimeStateStore();
+        store.InitializeProduct(CreateProduct());
+        using var vm = new LiveWatchViewModel(store);
+
+        Assert.Equal(0, vm.WatchlistCount);
+        Assert.Contains("Watchlist", vm.WatchlistButtonText);
+
+        var di0 = vm.AllTags[0];
+        vm.TogglePin(di0);
+
+        Assert.True(di0.IsPinned);
+        Assert.Equal(1, vm.WatchlistCount);
+        Assert.Contains("(1)", vm.WatchlistButtonText);
+
+        vm.TogglePin(di0);
+        Assert.False(di0.IsPinned);
+        Assert.Equal(0, vm.WatchlistCount);
+    }
+
+    [Fact]
+    public void WatchlistFilter_ShowsOnlyPinnedTags()
+    {
+        var store = new RuntimeStateStore();
+        store.InitializeProduct(CreateProduct());
+        using var vm = new LiveWatchViewModel(store);
+
+        var di0 = vm.AllTags[0];
+        var ai0 = vm.AllTags.First(t => t.Index == 16);
+        vm.TogglePin(di0);
+        vm.TogglePin(ai0);
+
+        vm.SetKindFilter("WATCHLIST");
+
+        Assert.Equal(2, vm.FilteredTags.Count);
+        Assert.Contains(di0, vm.FilteredTags);
+        Assert.Contains(ai0, vm.FilteredTags);
+
+        // Unpin one while filter is active
+        vm.TogglePin(di0);
+        Assert.Single(vm.FilteredTags);
+        Assert.Equal(ai0, vm.FilteredTags[0]);
+    }
+
+    [Fact]
+    public void ClearWatchlist_UnpinsAllTagsAndClearsFilter()
+    {
+        var store = new RuntimeStateStore();
+        store.InitializeProduct(CreateProduct());
+        using var vm = new LiveWatchViewModel(store);
+
+        vm.PinTagByIndex(0);
+        vm.PinTagByIndex(8);
+        vm.PinTagByIndex(16);
+
+        Assert.Equal(3, vm.WatchlistCount);
+
+        vm.SetKindFilter("WATCHLIST");
+        Assert.Equal(3, vm.FilteredTags.Count);
+
+        vm.ClearWatchlist();
+
+        Assert.Equal(0, vm.WatchlistCount);
+        Assert.Empty(vm.FilteredTags);
+    }
+
+    [Fact]
+    public void SetWatchlist_And_GetWatchlistIndices_RoundTripCorrectly()
+    {
+        var store = new RuntimeStateStore();
+        store.InitializeProduct(CreateProduct());
+        using var vm = new LiveWatchViewModel(store);
+
+        var targetIndices = new List<int> { 0, 5, 16, 20 };
+        vm.SetWatchlist(targetIndices);
+
+        Assert.Equal(4, vm.WatchlistCount);
+        var exported = vm.GetWatchlistIndices();
+        Assert.Equal(targetIndices.OrderBy(x => x), exported.OrderBy(x => x));
+
+        // When SyncFromSnapshot runs again, previously pinned tags are preserved
+        var snapshot = store.CurrentSnapshot;
+        store.UpdateTags(new List<RuntimeTagValue>
+        {
+            new() { TagIndex = 0, TagName = "DI0", Value = 1 }
+        }, CreateProduct());
+
+        Assert.Equal(4, vm.WatchlistCount);
     }
 }
 

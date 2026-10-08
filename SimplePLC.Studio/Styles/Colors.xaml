@@ -18,10 +18,10 @@
     <Color x:Key="ColorTextMuted">#6B7280</Color>
 
     <!-- Industrial Authority Accents (IEC 60073 Automation Standards) -->
-    <!-- Primary: Siemens Industrial Petrol / Deep Slate Navy -->
-    <Color x:Key="ColorPrimary">#006487</Color>
-    <Color x:Key="ColorPrimaryHover">#004F6E</Color>
-    <Color x:Key="ColorPrimaryActive">#003B52</Color>
+    <!-- Primary: Industrial Slate / Mechanical Charcoal Gray -->
+    <Color x:Key="ColorPrimary">#334155</Color>
+    <Color x:Key="ColorPrimaryHover">#1E293B</Color>
+    <Color x:Key="ColorPrimaryActive">#0F172A</Color>
     
     <!-- Success / RUN / GOOD: Industrial Forest Green -->
     <Color x:Key="ColorSuccess">#107C41</Color>

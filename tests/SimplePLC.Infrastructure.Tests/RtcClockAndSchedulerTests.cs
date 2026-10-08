@@ -70,7 +70,7 @@ public class RtcClockAndSchedulerTests
             ThresholdLo = 700, // 07:00
             ThresholdHi = 0,
             ActionType = SPLC_ActionType.SET_TAG,
-            ActionTag = ModbusRegisterMap.DoBaseIndex, // DO0 (tag 8)
+            ActionTag = ModbusRegisterMap.DefaultLayout.DoBase, // DO0 (tag 8)
             ActionParam = 1,
             GuardTag = ModbusRegisterMap.GuardTagNone
         };
@@ -78,14 +78,14 @@ public class RtcClockAndSchedulerTests
         simulator.Control.SetActiveRule(0, rule);
 
         // DO0 ban đầu phải là 0
-        Assert.Equal(0, simulator.Control.GetTagValue(ModbusRegisterMap.DoBaseIndex));
+        Assert.Equal(0, simulator.Control.GetTagValue(ModbusRegisterMap.DefaultLayout.DoBase));
 
         // Scan 5 giây (chưa tới 7:00)
         for (int i = 0; i < 50; i++)
         {
             simulator.Control.ExecuteScanPass(deltaMs: 100);
         }
-        Assert.Equal(0, simulator.Control.GetTagValue(ModbusRegisterMap.DoBaseIndex));
+        Assert.Equal(0, simulator.Control.GetTagValue(ModbusRegisterMap.DefaultLayout.DoBase));
 
         // Scan thêm 6 giây (vượt qua mốc 7:00:00)
         for (int i = 0; i < 60; i++)
@@ -94,7 +94,7 @@ public class RtcClockAndSchedulerTests
         }
 
         // DO0 phải được kích hoạt bật lên 1!
-        Assert.Equal(1, simulator.Control.GetTagValue(ModbusRegisterMap.DoBaseIndex));
+        Assert.Equal(1, simulator.Control.GetTagValue(ModbusRegisterMap.DefaultLayout.DoBase));
     }
 
     [Fact]
@@ -113,14 +113,14 @@ public class RtcClockAndSchedulerTests
             ThresholdLo = 1800, // 18:00
             ThresholdHi = 600,  // 06:00 sáng hôm sau
             ActionType = SPLC_ActionType.SET_TAG,
-            ActionTag = (ushort)(ModbusRegisterMap.DoBaseIndex + 1), // DO1 (tag 9)
+            ActionTag = (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + 1), // DO1 (tag 9)
             ActionParam = 1,
             GuardTag = ModbusRegisterMap.GuardTagNone
         };
 
         simulator.Control.SetActiveRule(0, rule);
 
-        ushort do1TagIndex = (ushort)(ModbusRegisterMap.DoBaseIndex + 1);
+        ushort do1TagIndex = (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + 1);
 
         // Test 1: Lúc 12:00 trưa (nằm ngoài khung giờ 18:00 -> 06:00) -> DO1 không bật
         var noon = new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(7));

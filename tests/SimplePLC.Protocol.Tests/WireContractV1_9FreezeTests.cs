@@ -2,6 +2,7 @@ using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Protocol.Models;
 using Xunit;
 
 namespace SimplePLC.Protocol.Tests;
@@ -78,16 +79,6 @@ public class WireContractV1_9FreezeTests
     {
         Assert.Equal(1, ModbusRegisterMap.WireProfileV1);
 
-        // Fixed base indices
-        Assert.Equal(0, ModbusRegisterMap.DiBaseIndex);
-        Assert.Equal(8, ModbusRegisterMap.DoBaseIndex);
-        Assert.Equal(16, ModbusRegisterMap.AiBaseIndex);
-        Assert.Equal(20, ModbusRegisterMap.VflagBaseIndex);
-        Assert.Equal(52, ModbusRegisterMap.VregBaseIndex);
-        Assert.Equal(84, ModbusRegisterMap.VregRetainBaseIndex);
-        Assert.Equal(116, ModbusRegisterMap.CounterBaseIndex);
-        Assert.Equal(124, ModbusRegisterMap.ReservedBaseIndex);
-
         // Resource maximum capacity in Wire Profile V1
         Assert.Equal(8, ModbusRegisterMap.MaxDigitalInputs);
         Assert.Equal(8, ModbusRegisterMap.MaxDigitalOutputs);
@@ -96,6 +87,32 @@ public class WireContractV1_9FreezeTests
         Assert.Equal(32, ModbusRegisterMap.MaxVirtualRegisters);
         Assert.Equal(32, ModbusRegisterMap.MaxRetentiveRegisters);
         Assert.Equal(8, ModbusRegisterMap.MaxCounters);
+    }
+
+    [Fact]
+    public void TagLayoutMap_Default_ProducesCorrectDynamicLayout()
+    {
+        var layout = TagLayoutMap.Default;
+        Assert.Equal(0, layout.DiBase);
+        Assert.Equal(8, layout.DoBase);   // 8 DI → DoBase=8
+        Assert.Equal(16, layout.AiBase);  // 8+8=16
+        Assert.Equal(20, layout.VflagBase); // 16+4=20
+        Assert.Equal(52, layout.VregBase);  // 20+32=52
+        Assert.Equal(84, layout.VregRetainBase); // 52+32=84
+        Assert.Equal(116, layout.CounterBase); // 84+32=116
+    }
+
+    [Fact]
+    public void TagLayoutMap_4Di4Do2Ai_ProducesCompactLayout()
+    {
+        var layout = new TagLayoutMap(4, 4, 2, 32, 32, 32, 8);
+        Assert.Equal(0, layout.DiBase);
+        Assert.Equal(4, layout.DoBase);
+        Assert.Equal(8, layout.AiBase);
+        Assert.Equal(10, layout.VflagBase);
+        Assert.Equal(42, layout.VregBase);
+        Assert.Equal(74, layout.VregRetainBase);
+        Assert.Equal(106, layout.CounterBase);
     }
 
     [Fact]

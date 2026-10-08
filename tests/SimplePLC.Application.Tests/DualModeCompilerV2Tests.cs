@@ -15,7 +15,7 @@ public class DualModeCompilerV2Tests
     private readonly RuleCompiler _compiler = new();
 
     [Fact]
-    public void TargetV2_WithTimerAndCounter_CompilesToDedicatedFunctionBlocks_WithZeroMacroRules()
+    public void TargetV2_WithTimerAndCounter_GeneratesMacroRules_AndPopulatesDedicatedFunctionBlocks()
     {
         // Arrange
         var graph = new LogicGraph();
@@ -28,11 +28,10 @@ public class DualModeCompilerV2Tests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Program);
-        // Zero macro rules in RuleTable!
-        Assert.Empty(result.Program.Rules);
-        Assert.Equal(0, result.Program.RuleCount);
+        // V2 generates macro rules (TON 2 rules + CTU with reset 4 rules = 6 rules) for MCU Rule Engine
+        Assert.Equal(6, result.Program.RuleCount);
 
-        // Dedicated FB lists populated
+        // AND populates dedicated FB lists for hardware registers 0x0B00..0x0B7F
         Assert.Single(result.Program.FunctionBlockTimers);
         var timer = result.Program.FunctionBlockTimers[0];
         Assert.Equal(SPLC_TimerMode.TON, timer.Mode);
@@ -102,9 +101,9 @@ public class DualModeCompilerV2Tests
     }
 
     [Fact]
-    public void TargetV2_NonRetentiveCounter_SetsRetainSentinel()
+    public void TargetV2_VolatileCounter_BindsCvTagIndex()
     {
-        // Arrange: Counter with CV on VREG (Tag 52) which is volatile RAM, not VREG_RETAIN (84..115)
+        // Arrange: Counter with CV on VREG (Tag 52) which is volatile RAM, should still bind 52 so MCU knows where CV is stored
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 52, presetValue: 15, qTagIndex: 8));
 
@@ -116,6 +115,64 @@ public class DualModeCompilerV2Tests
         Assert.Single(result.Program!.FunctionBlockCounters);
         var counter = result.Program.FunctionBlockCounters[0];
         Assert.Equal(SPLC_CounterMode.CTD, counter.Mode);
-        Assert.Equal(ModbusRegisterMap.FbCounterRetainNone, counter.RetainTagIndex); // 0xFFFF sentinel
+        Assert.Equal(52, counter.RetainTagIndex); // Successfully bound to VREG tag 52
+    }
+
+    [Fact]
+    public void TargetV2_UnspecifiedCvTag_DefaultsToDedicatedCounterTag()
+    {
+        // Arrange: Counter with unspecified/unmapped CV tag (e.g. 999) -> falls back to COUNTER0 (Tag 116)
+        var graph = new LogicGraph();
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 999, presetValue: 15, qTagIndex: 8));
+
+        // Act
+        var result = _compiler.Compile(graph, _productV2);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Program!.FunctionBlockCounters);
+        var counter = result.Program.FunctionBlockCounters[0];
+        Assert.Equal(SPLC_CounterMode.CTD, counter.Mode);
+        Assert.Equal(116, counter.RetainTagIndex); // Automatically resolved to COUNTER0 tag index
+    }
+
+    [Fact]
+    public void TargetV2_DenseProfile_ResolvesRetainTagIndexFromDeviceResourceInfo()
+    {
+        // Arrange: Board Zigbee-IO with Dense Layout (DI=8, DO=8, AI=4, VFLAG=20, VREG=32 -> VREG_RETAIN 72..103, COUNTER 104..111)
+        var denseResources = new ProductResourceProfile(
+            DigitalInputs: 8,
+            DigitalOutputs: 8,
+            AnalogInputs: 4,
+            VirtualFlags: 20,
+            VirtualRegisters: 32,
+            RetentiveRegisters: 32,
+            Counters: 8);
+
+        var denseTags = new List<TagDefinition>();
+        // Add retain tags 72..103
+        for (ushort i = 0; i < 32; i++)
+        {
+            denseTags.Add(new TagDefinition((ushort)(72 + i), $"VREG_RETAIN{i}", TagKind.VirtualRegisterRetain, TagDataType.Int32, false));
+        }
+        // Add DI, DO, Counter tags
+        denseTags.Add(new TagDefinition(1, "DI1", TagKind.DiscreteInput, TagDataType.Boolean, true));
+        denseTags.Add(new TagDefinition(8, "DO0", TagKind.DiscreteOutput, TagDataType.Boolean, false));
+        denseTags.Add(new TagDefinition(104, "COUNTER0", TagKind.Counter, TagDataType.Int32, false));
+
+        var denseProduct = new ProductDefinition("Zigbee-IO", 1, 1, 100, denseResources, denseTags, wireProfile: 2);
+
+        var graph = new LogicGraph();
+        // Counter with CV on VREG_RETAIN at tag 75
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 75, presetValue: 50, qTagIndex: 8));
+
+        // Act
+        var result = _compiler.Compile(graph, denseProduct);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Program!.FunctionBlockCounters);
+        var counter = result.Program.FunctionBlockCounters[0];
+        Assert.Equal(75, counter.RetainTagIndex); // Successfully resolved to 75 dynamically!
     }
 }

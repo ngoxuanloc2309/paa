@@ -6,6 +6,7 @@ using SimplePLC.Infrastructure.Sessions;
 using SimplePLC.Infrastructure.Simulator;
 using SimplePLC.Infrastructure.Transport;
 using SimplePLC.Infrastructure.Validators;
+using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 using Xunit;
@@ -140,6 +141,36 @@ public class SelfDescribingDeviceConnectionTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WireProfileV2_And_ProtocolV2_ConnectsSuccessfully()
+    {
+        // MCU V2.0: WireProfile = 2, ProtocolVersion = 2, RuleFormatVersion = 7
+        var sim = new McuReferenceSimulator(wireProfile: 2);
+        sim.Control.Faults.OverrideDescriptor = new SimplePLC.Protocol.Dto.DeviceDescriptorDto
+        {
+            DeviceClass = SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            HwVersionMajor = 1,
+            HwVersionMinor = 0,
+            HwVersionPatch = 0,
+            FwVersionMajor = 2,
+            FwVersionMinor = 0,
+            FwVersionPatch = 0,
+            ProtocolVersion = 2,
+            RuleFormatVersion = 7
+        };
+
+        var factory = new SimulatorTestConnectionFactory(sim);
+
+        var result = await factory.ConnectAsync(new SimulatorEndpoint());
+
+        Assert.True(result.IsSuccess, $"Failed with: {result.FailureReason} - {result.Compatibility.Reason}");
+        Assert.NotNull(result.Session);
+        Assert.Equal(2, result.Session!.Product.WireProfile);
+        Assert.True(result.Session.Product.SupportsDedicatedFunctionBlocks);
+        Assert.True(result.Session.Product.SupportsDiagnosticControl);
+    }
+
+    [Fact]
     public async Task ConnectAsync_InvalidWireProfile_FailsCompatibility()
     {
         var sim = new McuReferenceSimulator();
@@ -222,25 +253,23 @@ public class SelfDescribingDeviceConnectionTests
         Assert.False(product.HasRuleEngine);
         Assert.False(product.HasRetentiveMemory);
 
-        // Kiểm tra các dải Base Index cố định của Wire Profile V1
-        Assert.Equal("DI0", product.FindTagByIndex(0)?.Name);
-        Assert.Equal("DI3", product.FindTagByIndex(3)?.Name);
-        Assert.Null(product.FindTagByIndex(4)); // DI4 không có
+        // Kiểm tra các dải Base Index động theo TagLayoutMap
+        var layout = ModbusRegisterMap.ComputeLayout(4, 4, 0, 8, 8, 0, 0);
 
-        Assert.Equal("DO0", product.FindTagByIndex(8)?.Name);
-        Assert.Equal("DO3", product.FindTagByIndex(11)?.Name);
-        Assert.Null(product.FindTagByIndex(12)); // DO4 không có
+        Assert.Equal("DI0", product.FindTagByIndex(layout.DiBase)?.Name);
+        Assert.Equal("DI3", product.FindTagByIndex((ushort)(layout.DiBase + 3))?.Name);
 
-        Assert.Equal("VFLAG0", product.FindTagByIndex(20)?.Name);
-        Assert.Equal("VFLAG7", product.FindTagByIndex(27)?.Name);
-        Assert.Null(product.FindTagByIndex(28));
+        Assert.Equal("DO0", product.FindTagByIndex(layout.DoBase)?.Name);
+        Assert.Equal("DO3", product.FindTagByIndex((ushort)(layout.DoBase + 3))?.Name);
 
-        Assert.Equal("VREG0", product.FindTagByIndex(52)?.Name);
-        Assert.Equal("VREG7", product.FindTagByIndex(59)?.Name);
-        Assert.Null(product.FindTagByIndex(60));
+        Assert.Equal("VFLAG0", product.FindTagByIndex(layout.VflagBase)?.Name);
+        Assert.Equal("VFLAG7", product.FindTagByIndex((ushort)(layout.VflagBase + 7))?.Name);
 
-        // Không có Retentive tags
-        Assert.Null(product.FindTagByIndex(84));
+        Assert.Equal("VREG0", product.FindTagByIndex(layout.VregBase)?.Name);
+        Assert.Equal("VREG7", product.FindTagByIndex((ushort)(layout.VregBase + 7))?.Name);
+
+        // Vượt quá dải tổng 24 tag (0..23)
+        Assert.Null(product.FindTagByIndex(24));
     }
 
     /// <summary>
@@ -288,47 +317,44 @@ public class SelfDescribingDeviceConnectionTests
         Assert.True(product.HasRetentiveMemory);  // RetentiveRegisters > 0
         Assert.Equal(54, product.Tags.Count);
 
-        // Xác minh quy hoạch TagIndex cố định (Base TagIndex Mapping) theo Wire Profile V1
+        // Xác minh quy hoạch TagIndex động (Dynamic Tag Index Mapping)
+        var layout17 = ModbusRegisterMap.ComputeLayout(4, 4, 2, 16, 16, 8, 4);
+
         // DI (0..3)
-        Assert.Equal("DI0", product.FindTagByIndex(0)?.Name);
-        Assert.Equal(TagKind.DiscreteInput, product.FindTagByIndex(0)?.Kind);
-        Assert.Equal("DI3", product.FindTagByIndex(3)?.Name);
-        Assert.Null(product.FindTagByIndex(4)); // DI slot trống
+        Assert.Equal("DI0", product.FindTagByIndex(layout17.DiBase)?.Name);
+        Assert.Equal(TagKind.DiscreteInput, product.FindTagByIndex(layout17.DiBase)?.Kind);
+        Assert.Equal("DI3", product.FindTagByIndex((ushort)(layout17.DiBase + 3))?.Name);
 
-        // DO (8..11)
-        Assert.Equal("DO0", product.FindTagByIndex(8)?.Name);
-        Assert.Equal(TagKind.DiscreteOutput, product.FindTagByIndex(8)?.Kind);
-        Assert.Equal("DO3", product.FindTagByIndex(11)?.Name);
-        Assert.Null(product.FindTagByIndex(12));
+        // DO (4..7)
+        Assert.Equal("DO0", product.FindTagByIndex(layout17.DoBase)?.Name);
+        Assert.Equal(TagKind.DiscreteOutput, product.FindTagByIndex(layout17.DoBase)?.Kind);
+        Assert.Equal("DO3", product.FindTagByIndex((ushort)(layout17.DoBase + 3))?.Name);
 
-        // AI (16..17)
-        Assert.Equal("AI0", product.FindTagByIndex(16)?.Name);
-        Assert.Equal(TagKind.AnalogInput, product.FindTagByIndex(16)?.Kind);
-        Assert.Equal("AI1", product.FindTagByIndex(17)?.Name);
-        Assert.Null(product.FindTagByIndex(18));
+        // AI (8..9)
+        Assert.Equal("AI0", product.FindTagByIndex(layout17.AiBase)?.Name);
+        Assert.Equal(TagKind.AnalogInput, product.FindTagByIndex(layout17.AiBase)?.Kind);
+        Assert.Equal("AI1", product.FindTagByIndex((ushort)(layout17.AiBase + 1))?.Name);
 
-        // VFLAG (20..35)
-        Assert.Equal("VFLAG0", product.FindTagByIndex(20)?.Name);
-        Assert.Equal(TagKind.VirtualFlag, product.FindTagByIndex(20)?.Kind);
-        Assert.Equal("VFLAG15", product.FindTagByIndex(35)?.Name);
-        Assert.Null(product.FindTagByIndex(36));
+        // VFLAG (10..25)
+        Assert.Equal("VFLAG0", product.FindTagByIndex(layout17.VflagBase)?.Name);
+        Assert.Equal(TagKind.VirtualFlag, product.FindTagByIndex(layout17.VflagBase)?.Kind);
+        Assert.Equal("VFLAG15", product.FindTagByIndex((ushort)(layout17.VflagBase + 15))?.Name);
 
-        // VREG (52..67)
-        Assert.Equal("VREG0", product.FindTagByIndex(52)?.Name);
-        Assert.Equal(TagKind.VirtualRegister, product.FindTagByIndex(52)?.Kind);
-        Assert.Equal("VREG15", product.FindTagByIndex(67)?.Name);
-        Assert.Null(product.FindTagByIndex(68));
+        // VREG (26..41)
+        Assert.Equal("VREG0", product.FindTagByIndex(layout17.VregBase)?.Name);
+        Assert.Equal(TagKind.VirtualRegister, product.FindTagByIndex(layout17.VregBase)?.Kind);
+        Assert.Equal("VREG15", product.FindTagByIndex((ushort)(layout17.VregBase + 15))?.Name);
 
-        // VREG_RETAIN (84..91)
-        Assert.Equal("VREG_RETAIN0", product.FindTagByIndex(84)?.Name);
-        Assert.Equal(TagKind.VirtualRegisterRetain, product.FindTagByIndex(84)?.Kind);
-        Assert.Equal("VREG_RETAIN7", product.FindTagByIndex(91)?.Name);
-        Assert.Null(product.FindTagByIndex(92));
+        // VREG_RETAIN (42..49)
+        Assert.Equal("VREG_RETAIN0", product.FindTagByIndex(layout17.VregRetainBase)?.Name);
+        Assert.Equal(TagKind.VirtualRegisterRetain, product.FindTagByIndex(layout17.VregRetainBase)?.Kind);
+        Assert.Equal("VREG_RETAIN7", product.FindTagByIndex((ushort)(layout17.VregRetainBase + 7))?.Name);
 
-        // COUNTER (116..119)
-        Assert.Equal("COUNTER0", product.FindTagByIndex(116)?.Name);
-        Assert.Equal(TagKind.Counter, product.FindTagByIndex(116)?.Kind);
-        Assert.Equal("COUNTER3", product.FindTagByIndex(119)?.Name);
-        Assert.Null(product.FindTagByIndex(120));
+        // COUNTER (50..53)
+        Assert.Equal("COUNTER0", product.FindTagByIndex(layout17.CounterBase)?.Name);
+        Assert.Equal(TagKind.Counter, product.FindTagByIndex(layout17.CounterBase)?.Kind);
+        Assert.Equal("COUNTER3", product.FindTagByIndex((ushort)(layout17.CounterBase + 3))?.Name);
+
+        Assert.Null(product.FindTagByIndex(54));
     }
 }

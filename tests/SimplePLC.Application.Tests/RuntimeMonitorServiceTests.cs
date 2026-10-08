@@ -85,4 +85,41 @@ public class RuntimeMonitorServiceTests
         // Assert
         Assert.False(monitor.IsRunning);
     }
+
+    [Fact]
+    public async Task Start_FiresRtcUpdatedEvent_WhenSupported()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        var tagReader = new RuntimeTagReader(fakeClient);
+        var healthReader = new DeviceHealthReader(fakeClient);
+        var rtcClient = new RtcClockClient(fakeClient);
+
+        var productV2 = ProductDefinition.CreateRemoteIo8Di8Do4Ai(wireProfile: 2);
+
+        using var monitor = new RuntimeMonitorService(
+            tagReader,
+            healthReader,
+            rtcClient: rtcClient)
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(20),
+            HealthCheckDivisor = 2,
+            RtcCheckDivisor = 2
+        };
+
+        var rtcTcs = new TaskCompletionSource<SimplePLC.Protocol.Dto.RtcClockDto>();
+        monitor.RtcUpdated += rtc => rtcTcs.TrySetResult(rtc);
+
+        // Act
+        monitor.Start(productV2, slaveId: 1, tagCount: 124);
+
+        // Wait for RTC event to fire
+        var completedTask = await Task.WhenAny(rtcTcs.Task, Task.Delay(2000));
+        Assert.Same(rtcTcs.Task, completedTask);
+        var rtcDto = await rtcTcs.Task;
+        Assert.NotNull(rtcDto);
+
+        await monitor.StopAsync();
+    }
 }

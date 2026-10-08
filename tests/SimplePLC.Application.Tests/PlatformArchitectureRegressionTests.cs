@@ -2,6 +2,7 @@ using SimplePLC.Application.Mapping;
 using SimplePLC.Domain.Builders;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
+using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 using Xunit;
@@ -175,13 +176,23 @@ public class PlatformArchitectureRegressionTests
         Assert.True(product.HasRuleEngine);
         Assert.True(product.HasRetentiveMemory);
 
-        // Base Index Assertions
-        Assert.Equal("DI0", product.FindTagByIndex(0)?.Name);
-        Assert.Equal("DO0", product.FindTagByIndex(8)?.Name);
-        Assert.Equal("AI0", product.FindTagByIndex(16)?.Name);
-        Assert.Equal("VFLAG0", product.FindTagByIndex(20)?.Name);
-        Assert.Equal("VREG0", product.FindTagByIndex(52)?.Name);
-        Assert.Equal("VREG_RETAIN0", product.FindTagByIndex(84)?.Name);
-        Assert.Equal("COUNTER0", product.FindTagByIndex(116)?.Name);
+        // Base Index Assertions (Dynamic Tag Layout)
+        var layout = ModbusRegisterMap.ComputeLayout(
+            resourceInfo.DigitalInputCount,
+            resourceInfo.DigitalOutputCount,
+            resourceInfo.AnalogInputCount,
+            resourceInfo.VirtualFlagCount,
+            resourceInfo.VirtualRegisterCount,
+            resourceInfo.RetentiveRegisterCount,
+            resourceInfo.CounterCount
+        );
+
+        Assert.Equal("DI0", product.FindTagByIndex(layout.DiBase)?.Name);
+        Assert.Equal("DO0", product.FindTagByIndex(layout.DoBase)?.Name);
+        Assert.Equal("AI0", product.FindTagByIndex(layout.AiBase)?.Name);
+        Assert.Equal("VFLAG0", product.FindTagByIndex(layout.VflagBase)?.Name);
+        Assert.Equal("VREG0", product.FindTagByIndex(layout.VregBase)?.Name);
+        Assert.Equal("VREG_RETAIN0", product.FindTagByIndex(layout.VregRetainBase)?.Name);
+        Assert.Equal("COUNTER0", product.FindTagByIndex(layout.CounterBase)?.Name);
     }
 }

@@ -40,6 +40,11 @@ public sealed class ProductDefinition
     /// </summary>
     public bool SupportsDiagnosticControl => WireProfile >= 2;
 
+    /// <summary>
+    /// Năng lực đồng hồ thời gian thực (RTC Clock 0x0810..0x0813) khi thiết bị hỗ trợ Wire Profile V2 trở lên.
+    /// </summary>
+    public bool SupportsRtcClock => WireProfile >= 2;
+
     private readonly Dictionary<ushort, TagDefinition> _tagsByIndex;
     private readonly Dictionary<string, TagDefinition> _tagsByName;
 

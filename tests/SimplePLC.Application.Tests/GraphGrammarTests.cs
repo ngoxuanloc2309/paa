@@ -127,4 +127,13 @@ public class GraphGrammarTests
         var diagnostics = GraphGrammarV1.ValidateStructure(graph);
         Assert.Contains(diagnostics, d => d.Code == GraphGrammarV1.ErrCycleDetected);
     }
+
+    [Fact]
+    public void Trigger_And_Guard_CanConnect_To_Timer_And_Counter()
+    {
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Trigger, LogicNodeKind.Timer));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Guard, LogicNodeKind.Timer));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Trigger, LogicNodeKind.Counter));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Guard, LogicNodeKind.Counter));
+    }
 }

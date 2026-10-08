@@ -106,10 +106,24 @@ public static class GraphGrammarV1
             return true;
         }
 
+        if (sourceKind == LogicNodeKind.Trigger && targetKind == LogicNodeKind.Timer)
+        {
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
+        }
+
+        if (sourceKind == LogicNodeKind.Guard && targetKind == LogicNodeKind.Timer)
+        {
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
+        }
+
         if (targetKind == LogicNodeKind.Timer)
         {
             errorCode = "SPLC-GRAPH-TIMER-IN";
-            errorReason = "Timer macro node can only receive an upstream connection from an Input node.";
+            errorReason = "Timer macro node can only receive an upstream connection from an Input, Trigger, or Guard node.";
             return false;
         }
 
@@ -120,10 +134,24 @@ public static class GraphGrammarV1
             return true;
         }
 
+        if (sourceKind == LogicNodeKind.Trigger && targetKind == LogicNodeKind.Counter)
+        {
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
+        }
+
+        if (sourceKind == LogicNodeKind.Guard && targetKind == LogicNodeKind.Counter)
+        {
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
+        }
+
         if (targetKind == LogicNodeKind.Counter)
         {
             errorCode = "SPLC-GRAPH-COUNTER-IN";
-            errorReason = "Counter macro node can only receive an upstream connection from an Input node.";
+            errorReason = "Counter macro node can only receive an upstream connection from an Input, Trigger, or Guard node.";
             return false;
         }
 

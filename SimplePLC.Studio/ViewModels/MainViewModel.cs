@@ -187,6 +187,7 @@ public partial class MainViewModel : ObservableObject
             () => RuleTableVM?.Rules,
             () => LogicEditorVM);
         AiChatVM.OnApplyRulesRequested = (specs, msg) => ApplyAiRulesToTable(specs, msg);
+        AiChatVM.OnNavigateToTab = (tabIndex) => SelectTab(tabIndex);
 
         _currentView = LogicEditorVM;
 
@@ -203,6 +204,7 @@ public partial class MainViewModel : ObservableObject
         AppServices.Instance.LifecycleManager.StateChanged += OnLifecycleStateChanged;
         AppServices.Instance.SessionManager.SessionChanged += OnSessionChanged;
         AppServices.Instance.MonitorService.TagsUpdated += OnRuntimeTagsUpdated;
+        AppServices.Instance.MonitorService.RtcUpdated += OnRuntimeRtcUpdated;
 
         Loc.LanguageChanged += () =>
         {
@@ -609,6 +611,18 @@ public partial class MainViewModel : ObservableObject
         DiagnosticsSummary = isVi
             ? $"CPU: {health.CpuLoadPercent}% · RAM: {health.RamUsagePercent}% · Chu kỳ: {health.ScanTimeMs} ms"
             : $"CPU: {health.CpuLoadPercent}% · RAM: {health.RamUsagePercent}% · Cycle: {health.ScanTimeMs} ms";
+    }
+
+    private void OnRuntimeRtcUpdated(SimplePLC.Protocol.Dto.RtcClockDto rtc)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(() => UpdateRtcState(rtc));
+        }
+        else
+        {
+            UpdateRtcState(rtc);
+        }
     }
 
     /// <summary>
@@ -1156,6 +1170,23 @@ public partial class MainViewModel : ObservableObject
             LogicEditorVM.SaveAndCompile();
 
             var (nodes, connections) = LogicEditorVM.ExportGraphData();
+            
+            // Nếu Canvas hiện tại đang trống nhưng Bảng Rule có luật, trích xuất đồ thị từ luật đang chọn / đầu tiên
+            if ((nodes == null || nodes.Count == 0) && RuleTableVM.Rules.Count > 0)
+            {
+                var ruleWithGraph = RuleTableVM.SelectedRule?.SourceNodes?.Count > 0 
+                    ? RuleTableVM.SelectedRule 
+                    : RuleTableVM.Rules.FirstOrDefault(r => r.SourceNodes != null && r.SourceNodes.Count > 0);
+
+                if (ruleWithGraph?.SourceNodes != null && ruleWithGraph.SourceNodes.Count > 0)
+                {
+                    nodes = new List<ProjectNodeData>(ruleWithGraph.SourceNodes);
+                    connections = ruleWithGraph.SourceConnections != null 
+                        ? new List<ProjectConnectionData>(ruleWithGraph.SourceConnections) 
+                        : new List<ProjectConnectionData>();
+                }
+            }
+
             var tags = TagCatalogVM.ExportToProjectData();
 
             if (string.IsNullOrWhiteSpace(CurrentProjectMetadata.ProjectName) || CurrentProjectMetadata.ProjectName == "Untitled")
@@ -1168,11 +1199,12 @@ public partial class MainViewModel : ObservableObject
             {
                 Metadata = CurrentProjectMetadata,
                 Tags = tags,
-                Nodes = nodes,
-                Connections = connections,
+                Nodes = nodes ?? new List<ProjectNodeData>(),
+                Connections = connections ?? new List<ProjectConnectionData>(),
                 Rules = RuleTableVM.ExportToProjectData(),
                 CurrentEditingRuleId = LogicEditorVM.EditingRuleId,
-                CurrentDiagramId = LogicEditorVM.CurrentDiagramId
+                CurrentDiagramId = LogicEditorVM.CurrentDiagramId,
+                WatchlistTagIndices = LiveWatchVM.GetWatchlistIndices()
             };
 
             ProjectFileService.SaveProject(filePath, project);
@@ -1282,6 +1314,7 @@ public partial class MainViewModel : ObservableObject
         LogicEditorVM.NewRuleCanvas();
         RuleTableVM.Rules.Clear();
         RuleTableVM.ApplyFilter();
+        LiveWatchVM.ClearWatchlist();
 
         IsProjectDirty = false;
 
@@ -1342,26 +1375,43 @@ public partial class MainViewModel : ObservableObject
             }
 
             TagCatalogVM.LoadFromProjectData(project.Tags);
-            LogicEditorVM.LoadGraphData(project.Nodes, project.Connections);
-            LogicEditorVM.EditingRuleId = project.CurrentEditingRuleId;
-            if (!string.IsNullOrEmpty(project.CurrentDiagramId))
-            {
-                LogicEditorVM.CurrentDiagramId = project.CurrentDiagramId;
-            }
 
+            // 1. Phục hồi toàn bộ Bảng Rule trước
             if (project.Rules != null && project.Rules.Count > 0)
             {
                 RuleTableVM.LoadFromProjectData(project.Rules);
-            }
-            else if (project.Nodes != null && project.Nodes.Count > 0)
-            {
-                LogicEditorVM.CompileNow();
             }
             else
             {
                 RuleTableVM.Rules.Clear();
                 RuleTableVM.ApplyFilter();
             }
+
+            // 2. Phục hồi bản vẽ trên Canvas
+            if (project.Nodes != null && project.Nodes.Count > 0)
+            {
+                LogicEditorVM.LoadGraphData(project.Nodes, project.Connections ?? Enumerable.Empty<ProjectConnectionData>());
+                LogicEditorVM.EditingRuleId = project.CurrentEditingRuleId;
+                if (!string.IsNullOrEmpty(project.CurrentDiagramId))
+                {
+                    LogicEditorVM.CurrentDiagramId = project.CurrentDiagramId;
+                }
+            }
+            else if (RuleTableVM.Rules.Count > 0)
+            {
+                // Fallback: Nếu tệp dự án lưu khi đang ở tab Bảng Rule (canvas trống), tự động nạp Rule đầu tiên lên Canvas
+                var firstRule = RuleTableVM.Rules.FirstOrDefault();
+                if (firstRule != null)
+                {
+                    LogicEditorVM.LoadRuleToCanvas(firstRule);
+                }
+            }
+            else
+            {
+                LogicEditorVM.ClearCanvas();
+            }
+
+            LiveWatchVM.SetWatchlist(project.WatchlistTagIndices);
 
             CurrentProjectPath = filePath;
             string? metaName = project.Metadata?.ProjectName;

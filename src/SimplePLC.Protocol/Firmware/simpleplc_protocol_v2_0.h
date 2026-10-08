@@ -118,10 +118,10 @@ extern "C" {
 #define SPLC_LEN_DIAG_BLOCK               5
 
 /* --- 2.6 Function Block Table Subsystem V2 (0x0B00 - 0x0B7F) --- */
-#define SPLC_ADDR_FB_TIMER_TABLE          0x0B00  /* 64 regs: 8 Timers * 8 regs (FC03, RO) */
+#define SPLC_ADDR_FB_TIMER_TABLE          0x0B00  /* 64 regs: 8 Timers * 8 regs (FC03/FC16, R/W Config) */
 #define SPLC_LEN_FB_TIMER_TABLE           64
 
-#define SPLC_ADDR_FB_COUNTER_TABLE        0x0B40  /* 64 regs: 8 Counters * 8 regs (FC03, RO) */
+#define SPLC_ADDR_FB_COUNTER_TABLE        0x0B40  /* 64 regs: 8 Counters * 8 regs (FC03/FC16, R/W Config) */
 #define SPLC_LEN_FB_COUNTER_TABLE         64
 
 #define SPLC_LEN_FB_TABLE_TOTAL           128     /* 128 regs total */
@@ -159,35 +159,81 @@ extern "C" {
 #define SPLC_ADDR_ACTIVE_RULE_VERSION     0xA001  /* 1 reg: Monotonically increasing version counter (FC03, RO) */
 
 /* ========================================================================= */
-/* 3. REMOTE I/O V1 TAG INDEX LAYOUT (0..127)                                */
+/* 3. TAG INDEX LAYOUT ARCHITECTURE (Dynamic & Default Layouts)              */
 /* ========================================================================= */
 
+/**
+ * @brief Dynamic Tag Layout Struct (Consecutive Packing)
+ * Starting with Platform V2.0, tag groups are packed consecutively based on
+ * the declared pin counts in DeviceResourceInfo (0x0020).
+ * DO0 starts immediately after DI (at di_count), eliminating unused dummy gaps.
+ */
+typedef struct {
+    uint16_t di_base;           /* Always 0 */
+    uint16_t di_count;
+    uint16_t do_base;           /* = di_count */
+    uint16_t do_count;
+    uint16_t ai_base;           /* = di_count + do_count */
+    uint16_t ai_count;
+    uint16_t vflag_base;        /* = di_count + do_count + ai_count */
+    uint16_t vflag_count;
+    uint16_t vreg_base;         /* = di_count + do_count + ai_count + vflag_count */
+    uint16_t vreg_count;
+    uint16_t vreg_retain_base;  /* = di_count + do_count + ai_count + vflag_count + vreg_count */
+    uint16_t vreg_retain_count;
+    uint16_t counter_base;      /* = ... + vreg_retain_count */
+    uint16_t counter_count;
+    uint16_t total_tags;
+} SPLC_TagLayoutMap_t;
+
+/**
+ * @brief Helper inline function to compute dynamic layout on MCU
+ */
+static inline SPLC_TagLayoutMap_t SPLC_ComputeTagLayout(
+    uint16_t di_cnt, uint16_t do_cnt, uint16_t ai_cnt,
+    uint16_t vflag_cnt, uint16_t vreg_cnt, uint16_t retain_cnt, uint16_t counter_cnt)
+{
+    SPLC_TagLayoutMap_t m;
+    m.di_count = di_cnt;
+    m.do_count = do_cnt;
+    m.ai_count = ai_cnt;
+    m.vflag_count = vflag_cnt;
+    m.vreg_count = vreg_cnt;
+    m.vreg_retain_count = retain_cnt;
+    m.counter_count = counter_cnt;
+
+    m.di_base = 0;
+    m.do_base = di_cnt;
+    m.ai_base = (uint16_t)(m.do_base + do_cnt);
+    m.vflag_base = (uint16_t)(m.ai_base + ai_cnt);
+    m.vreg_base = (uint16_t)(m.vflag_base + vflag_cnt);
+    m.vreg_retain_base = (uint16_t)(m.vreg_base + vreg_cnt);
+    m.counter_base = (uint16_t)(m.vreg_retain_base + retain_cnt);
+    m.total_tags = (uint16_t)(m.counter_base + counter_cnt);
+    return m;
+}
+
+/* Default / Reference Capacities (Standard 8DI/8DO/4AI Hardware) */
+#define SPLC_DEFAULT_DI_COUNT             8
+#define SPLC_DEFAULT_DO_COUNT             8
+#define SPLC_DEFAULT_AI_COUNT             4
+#define SPLC_DEFAULT_VFLAG_COUNT          32
+#define SPLC_DEFAULT_VREG_COUNT           32
+#define SPLC_DEFAULT_VREG_RETAIN_COUNT    32
+#define SPLC_DEFAULT_COUNTER_COUNT        8
+
+/* Legacy Static Base Offsets (Reference only for standard 8DI/8DO profile) */
 #define SPLC_TAG_DI_START                 0
-#define SPLC_TAG_DI_COUNT                 8   /* Tag 0..7   : DI0..DI7 (Discrete Inputs, Read-Only) */
-
 #define SPLC_TAG_DO_START                 8
-#define SPLC_TAG_DO_COUNT                 8   /* Tag 8..15  : DO0..DO7 (Discrete Outputs, Read-Write) */
-
 #define SPLC_TAG_AI_START                 16
-#define SPLC_TAG_AI_COUNT                 4   /* Tag 16..19 : AI0..AI3 (Analog Inputs, Read-Only) */
-
 #define SPLC_TAG_VFLAG_START              20
-#define SPLC_TAG_VFLAG_COUNT              32  /* Tag 20..51 : VFLAG0..VFLAG31 (Virtual Flags 0/1, Read-Write) */
-
 #define SPLC_TAG_VREG_START               52
-#define SPLC_TAG_VREG_COUNT               32  /* Tag 52..83 : VREG0..VREG31 (Volatile int32, Read-Write) */
-
 #define SPLC_TAG_VREG_RETAIN_START        84
-#define SPLC_TAG_VREG_RETAIN_COUNT        32  /* Tag 84..115: VREG_RETAIN0..31 (Flash Retained int32, Read-Write) */
-
 #define SPLC_TAG_COUNTER_START            116
-#define SPLC_TAG_COUNTER_COUNT            8   /* Tag 116..123: COUNTER0..COUNTER7 (Int32 counters) */
-
-#define SPLC_TAG_RESERVED_START           124
-#define SPLC_TAG_RESERVED_COUNT           4   /* Tag 124..127: Reserved slots */
 
 /* Modbus address calculation for TagIndex: 0x0900 + (TagIndex * 2) */
 #define SPLC_TAG_TO_MODBUS_ADDR(idx)      ((uint16_t)(SPLC_ADDR_TAGS + ((idx) * SPLC_REGISTERS_PER_TAG)))
+
 
 /* ========================================================================= */
 /* 4. ENUMERATIONS (Type Semantics & Status Codes)                           */
@@ -435,7 +481,7 @@ typedef struct SPLC_PACKED {
     uint16_t mode;                /* SPLC_CounterMode_t (1: CTU, 2: CTD) */
     int32_t  preset_value;        /* Preset Value (PV, High Word first) */
     int32_t  current_value;       /* Current Value (CV, High Word first) */
-    uint16_t retain_tag_index;    /* TagIndex of bound VREG_RETAIN (84..115) or 0xFFFF */
+    uint16_t retain_tag_index;    /* TagIndex of bound CV storage register (VREG, VREG_RETAIN, VFLAG, COUNTER) or 0xFFFF if unbound */
     uint16_t reserved;            /* Reserved, always 0 */
 } SPLC_FbCounterRecord_t;
 

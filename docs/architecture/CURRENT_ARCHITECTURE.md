@@ -1,9 +1,9 @@
-# Tài Liệu Kiến Trúc Kỹ Thuật Toàn Diện SimplePLC (Contract V1.9 Freeze)
+# Tài Liệu Kiến Trúc Kỹ Thuật Toàn Diện SimplePLC (Contract Platform V2.0)
 
 > **Trạng thái**:
-> - **Kiến trúc phần mềm (Software Architecture)**: Hoàn thiện & Khóa thiết kế (Production Frozen Candidate - V1.9)
-> - **Tiêu chuẩn Khế ước (Wire Contract)**: Data Contract V1.9 Freeze (Self-Describing Descriptor 16 thanh ghi, 32-byte Rule Record, CRC-16/MODBUS, Staging Atomic Commit)
-> - **Tích hợp phần cứng (Hardware Integration)**: Bộ giả lập `McuEmulator` đạt chuẩn 100% byte-exact; Sẵn sàng kiểm thử vật lý với bo mạch STM32 theo [HARDWARE_INTEGRATION_TEST_PLAN.md](file:///g:/HoaNV/Projects/SimplePLC/docs/testing/HARDWARE_INTEGRATION_TEST_PLAN.md)
+> - **Kiến trúc phần mềm (Software Architecture)**: Hoàn thiện & Khóa thiết kế (Production Frozen Candidate - Platform V2.0)
+> - **Tiêu chuẩn Khế ước (Wire Contract)**: Data Contract Platform V2.0 (Self-Describing Descriptors 0x0000..0x0029, Wire Profile V2, Dedicated Function Blocks 0x0B00..0x0B7F, Diagnostic Control Block 0x0A20, RTC Clock 0x0810, 32-byte Rule Record, CRC-16/MODBUS, Staging Atomic Commit)
+> - **Tích hợp phần cứng (Hardware Integration)**: Bộ giả lập `McuReferenceSimulator` và `HardwareTest` đạt chuẩn 100% byte-exact; Đã kiểm thử tích hợp 14 ca test theo [HARDWARE_INTEGRATION_TEST_PLAN.md](file:///g:/HoaNV/Projects/SimplePLC/docs/testing/HARDWARE_INTEGRATION_TEST_PLAN.md)
 > - **Mục tiêu**: Nền tảng điều khiển, cấu hình và giám sát thiết bị công nghiệp (Remote I/O, Gateway, Controller), giao tiếp trực tiếp qua vi điều khiển STM32 Native USB CDC (TinyUSB) chạy giao thức Modbus RTU tốc độ cao.
 
 ---
@@ -89,22 +89,22 @@ sequenceDiagram
 
 ---
 
-### 3.2. Bản Đồ Thanh Ghi Modbus Chuẩn Hóa (Modbus Register Map V1.9)
+### 3.2. Bản Đồ Thanh Ghi Modbus Chuẩn Hóa (Modbus Register Map Platform V2.0)
 
 | Dải địa chỉ | Số Reg | Tên phân vùng | Quyền | Ý nghĩa kỹ thuật |
 | :--- | :--- | :--- | :--- | :--- |
-| **`0x0000..0x000F`** | 16 | **Device Descriptor** | RO | Bản tin tự mô tả (Self-Describing Descriptor): Class, Variant, HW Rev, FW Rev, Protocol, Rule Ver, Capabilities, I/O count, Max rules. |
+| **`0x0000..0x0009`** | 10 | **Device Descriptor** | RO | Bản tin định danh (Descriptor V1): Class, Variant, HW Rev, FW Rev, ProtocolVersion=2, RuleFormatVersion=7. |
 | **`0x0010`** | 1 | **Rule Table Info** | RO | Số lượng quy tắc đang hoạt động thực tế trên thiết bị (`ActiveRuleCount`). |
+| **`0x0020..0x0029`** | 10 | **Device Resource Info** | RO | Bản tin tài nguyên tự mô tả: WireProfile=2, MaxRules, DI/DO/AI counts, Retain count, Total tags. |
 | **`0x0100..0x073F`** | 1600 | **Active Rule Table** | RO | Bảng quy tắc đang chạy trong RAM MCU (tối đa 100 rules × 16 registers). |
 | **`0x0800..0x0809`** | 10 | **Device Health** | RO | Telemetry thời gian thực: `uptime_s` (u32), `reset_reason` (u16), `health_flags` (u16), `cpu_load` (u16), `ram_usage` (u16), `scan_time_ms` (u32), `max_scan_time_ms` (u32). |
-| **`0x0900..0x09FF`** | 256 | **Runtime Tag Values** | RO | Trạng thái 128 Tag công nghiệp (mỗi Tag chiếm 2 thanh ghi = `int32` Big-Endian). |
-| **`0x0A00`** | 1 | **System Command** | WO | Ghi mã lệnh điều khiển (`1 = REBOOT`, `2 = CLEAR_FAULTS`, `3 = FACTORY_RESET`). |
-| **`0x0A01..0x0A02`** | 2 | **Command Result** | RO | Trạng thái thực thi lệnh (`0=IDLE, 1=RUNNING, 2=DONE, 3=FAILED`) và Error Code. |
-| **`0x9000`** | 1 | **Staging Status** | RO | Trạng thái vùng đệm nạp (`0=IDLE, 1=READY, 2=COMMITTING, 3=ERROR`). |
-| **`0x9001`** | 1 | **Staging Error Code** | RO | Mã lỗi xác thực Staging (`0=NONE, 1=CRC_MISMATCH, 2=INVALID_COUNT,...`). |
-| **`0x9002`** | 1 | **Staging Rule Count** | RW | Thiết lập số lượng quy tắc chuẩn bị nạp vào Staging buffer. |
-| **`0x9003`** | 1 | **Staging CRC-16** | RW | Mã CRC-16/MODBUS của toàn bộ bảng quy tắc trong Staging để MCU đối soát. |
-| **`0x9004..0x9005`** | 2 | **Active CRC & Count** | RO | Phản chiếu mã CRC và số lượng quy tắc của bản Active hiện tại. |
+| **`0x0810..0x0813`** | 4 | **RTC Clock** | RW | Đồng hồ thời gian thực MCU: `epoch_utc_s` (u32), `tz_offset_min` (i16), `rtc_flags` (u16: SYNCED, HW_PRESENT, BATTERY_LOW). Hỗ trợ Read-Before-Write. |
+| **`0x0900..0x09FF`** | 256 | **Runtime Tag Values** | RO/RW | Trạng thái 128 Tag công nghiệp (mỗi Tag chiếm 2 thanh ghi = `int32` Big-Endian). Ghi trực tiếp được bảo vệ bởi Diag Safety Interlock. |
+| **`0x0A00..0x0A02`** | 3 | **System Command & Result**| RW | Điều khiển hệ thống: Ghi lệnh (`1 = REBOOT`, `2 = CLEAR_FAULTS`, `3 = FACTORY_RESET`), đọc Result và Error Code. |
+| **`0x0A20..0x0A24`** | 5 | **Diagnostic Control Block**| RW | Quản lý phiên chẩn đoán V2.0: Command (`1=ENTER`, `2=EXIT`, `3=HEARTBEAT`, `4=COMMIT_RETAIN`), State, Flags (`LEASE_ACTIVE`, `RETAIN_DIRTY`), Watchdog Lease (3000ms), Error Code. |
+| **`0x0B00..0x0B3F`** | 64 | **Dedicated FB Timers** | RW | 8 Dedicated Timers (TON, TOF, TP) chuyên dụng (mỗi Timer 8 registers = 16 bytes). |
+| **`0x0B40..0x0B7F`** | 64 | **Dedicated FB Counters** | RW | 8 Dedicated Counters (CTU, CTD, CTUD) chuyên dụng (mỗi Counter 8 registers = 16 bytes). |
+| **`0x9000..0x9005`** | 6 | **Staging Control & Info** | RW | Quản lý nạp quy tắc: Status (`0=IDLE, 1=READY, 2=COMMITTING, 3=ERROR`), Error Code, Rule Count, Expected CRC-16, Active CRC & Count. |
 | **`0x9010..0x964F`** | 1600 | **Staging Buffer** | RW | Vùng nhớ đệm tạm tiếp nhận dữ liệu nạp trước khi ghi vào Flash. |
 | **`0xA000`** | 1 | **Commit Command** | WO | Ghi Magic Number `0xA5A5` để MCU tiến hành Atomic Commit sang Active & Flash. |
 | **`0xA001`** | 1 | **Active Rule Version**| RO | Số phiên bản cấu hình quy tắc (tự động tăng dần +1 sau mỗi lần commit thành công). |

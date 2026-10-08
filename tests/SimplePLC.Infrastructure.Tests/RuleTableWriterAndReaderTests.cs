@@ -162,4 +162,38 @@ public class RuleTableWriterAndReaderTests
 
         Assert.Empty(rules);
     }
+
+    [Fact]
+    public async Task DeployRulesAsync_With8TimersAnd8Counters_ChunksWritesWithin24Registers()
+    {
+        var client = new FakeModbusClient();
+        await client.ConnectAsync("COM1");
+        var writer = new RuleTableWriter(client);
+
+        var rules = new List<RuleRecordDto> { CreateTestRule(0) };
+        var timers = Enumerable.Range(0, 8)
+            .Select(i => new FbTimerRecordDto { Mode = SPLC_TimerMode.TON, PresetMs = (uint)((i + 1) * 1000) })
+            .ToList();
+        var counters = Enumerable.Range(0, 8)
+            .Select(i => new FbCounterRecordDto { Mode = SPLC_CounterMode.CTU, PresetValue = (i + 1) * 10 })
+            .ToList();
+
+        // Act
+        var result = await writer.DeployRulesAsync(1, rules, timers, counters);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+
+        // Verify registers on simulator
+        for (int i = 0; i < 8; i++)
+        {
+            var timerRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.GetFbTimerAddress(i), 8);
+            Assert.Equal(1, timerRegs[1]); // TON
+            Assert.Equal((uint)((i + 1) * 1000), (uint)((timerRegs[2] << 16) | timerRegs[3]));
+
+            var counterRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.GetFbCounterAddress(i), 8);
+            Assert.Equal(1, counterRegs[1]); // CTU
+            Assert.Equal((i + 1) * 10, (counterRegs[2] << 16) | counterRegs[3]);
+        }
+    }
 }

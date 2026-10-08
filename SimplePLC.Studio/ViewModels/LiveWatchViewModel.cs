@@ -42,6 +42,95 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _selectedKindFilter = "ALL";
 
+    public int WatchlistCount => AllTags.Count(t => t.IsPinned);
+
+    public string WatchlistButtonText
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            string prefix = isVi ? "⭐ Theo dõi" : "⭐ Watchlist";
+            int count = WatchlistCount;
+            return count > 0 ? $"{prefix} ({count})" : prefix;
+        }
+    }
+
+    [RelayCommand]
+    public void TogglePin(WatchTagItemModel? item)
+    {
+        if (item == null) return;
+        item.IsPinned = !item.IsPinned;
+        OnPropertyChanged(nameof(WatchlistCount));
+        OnPropertyChanged(nameof(WatchlistButtonText));
+        if (SelectedKindFilter == "WATCHLIST")
+        {
+            ApplyFilter();
+        }
+    }
+
+    [RelayCommand]
+    public void ClearWatchlist()
+    {
+        foreach (var t in AllTags)
+        {
+            t.IsPinned = false;
+        }
+        OnPropertyChanged(nameof(WatchlistCount));
+        OnPropertyChanged(nameof(WatchlistButtonText));
+        if (SelectedKindFilter == "WATCHLIST")
+        {
+            ApplyFilter();
+        }
+    }
+
+    public void PinTagByIndex(ushort tagIndex)
+    {
+        if (_tagLookup.TryGetValue(tagIndex, out var item))
+        {
+            item.IsPinned = true;
+            OnPropertyChanged(nameof(WatchlistCount));
+            OnPropertyChanged(nameof(WatchlistButtonText));
+            if (SelectedKindFilter == "WATCHLIST")
+            {
+                ApplyFilter();
+            }
+        }
+    }
+
+    public void UnpinTagByIndex(ushort tagIndex)
+    {
+        if (_tagLookup.TryGetValue(tagIndex, out var item))
+        {
+            item.IsPinned = false;
+            OnPropertyChanged(nameof(WatchlistCount));
+            OnPropertyChanged(nameof(WatchlistButtonText));
+            if (SelectedKindFilter == "WATCHLIST")
+            {
+                ApplyFilter();
+            }
+        }
+    }
+
+    public List<int> GetWatchlistIndices()
+    {
+        return AllTags.Where(t => t.IsPinned).Select(t => (int)t.Index).ToList();
+    }
+
+    public void SetWatchlist(IEnumerable<int>? indices)
+    {
+        var set = indices != null ? new HashSet<int>(indices) : new HashSet<int>();
+        foreach (var tag in AllTags)
+        {
+            tag.IsPinned = set.Contains(tag.Index);
+        }
+        OnPropertyChanged(nameof(WatchlistCount));
+        OnPropertyChanged(nameof(WatchlistButtonText));
+        if (SelectedKindFilter == "WATCHLIST")
+        {
+            ApplyFilter();
+        }
+    }
+
     // Diagnostics Overview
     [ObservableProperty]
     private string _uptimeText = "--";
@@ -140,6 +229,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
             {
                 item.NotifyLanguageChanged();
             }
+            OnPropertyChanged(nameof(WatchlistButtonText));
             SyncFromSnapshot(_stateStore.CurrentSnapshot);
         });
     }
@@ -169,6 +259,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
         // 1. Đồng bộ cấu trúc thẻ nếu số lượng hoặc thành phần thay đổi
         if (_tagLookup.Count != snapshot.Tags.Count)
         {
+            var previouslyPinned = new HashSet<ushort>(AllTags.Where(t => t.IsPinned).Select(t => t.Index));
             AllTags.Clear();
             _tagLookup.Clear();
 
@@ -183,12 +274,15 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
                     DataType = tag.DataType,
                     RawValue = tag.RawValue,
                     Quality = tag.Quality,
-                    LastUpdated = tag.LastSuccessfulUpdateAt
+                    LastUpdated = tag.LastSuccessfulUpdateAt,
+                    IsPinned = previouslyPinned.Contains(tag.TagIndex)
                 };
                 AllTags.Add(item);
                 _tagLookup[tag.TagIndex] = item;
             }
 
+            OnPropertyChanged(nameof(WatchlistCount));
+            OnPropertyChanged(nameof(WatchlistButtonText));
             ApplyFilter();
         }
         else
@@ -278,12 +372,17 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
         string query = SearchText.Trim();
         foreach (var tag in AllTags)
         {
-            // Filter by Kind
+            // Filter by Kind / Watchlist
             bool kindMatch = SelectedKindFilter switch
             {
+                "WATCHLIST" => tag.IsPinned,
                 "DI" => tag.Kind == DomainTagKind.DiscreteInput,
                 "DO" => tag.Kind == DomainTagKind.DiscreteOutput,
                 "AI" => tag.Kind == DomainTagKind.AnalogInput,
+                "VFLAG" => tag.Kind == DomainTagKind.VirtualFlag,
+                "VREG" => tag.Kind == DomainTagKind.VirtualRegister,
+                "RETAIN" => tag.Kind == DomainTagKind.VirtualRegisterRetain,
+                "COUNTER" => tag.Kind == DomainTagKind.Counter,
                 "INTERNAL" => tag.Kind is DomainTagKind.VirtualFlag or DomainTagKind.VirtualRegister or DomainTagKind.VirtualRegisterRetain or DomainTagKind.Counter,
                 _ => true
             };

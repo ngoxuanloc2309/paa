@@ -28,7 +28,7 @@ public sealed class StandardDeviceCompatibilityValidator : IDeviceCompatibilityV
         bool allowUnknownVariants = true)
     {
         _supportedProfiles = supportedProfiles?.ToList().AsReadOnly()
-            ?? new List<SupportedDeviceProfile> { SupportedDeviceProfile.RemoteIo8Di8Do4AiV1_7 }.AsReadOnly();
+            ?? SupportedDeviceProfile.DefaultProfiles;
         _allowUnknownVariants = allowUnknownVariants;
     }
 

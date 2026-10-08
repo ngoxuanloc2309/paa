@@ -58,7 +58,10 @@ REFERENCE ARTIFACT (Secondary / Non-Authoritative):
 
 ## 3. Wire Profile V1 Resource Capacities & Base Indices
 
-| Resource | Maximum Capacity | Fixed Base Index | TagIndex Range | Modbus Address Range |
+> [!NOTE]
+> **Archived Contract Note (Platform V2.1+)**: The fixed base indices below apply strictly to legacy Wire Profile V1 devices. Modern SimplePLC devices (V2.1+) utilize **Dynamic Tag Index Packing** (`TagLayoutMap`), where `DO0` immediately succeeds `DI(N-1)` without empty slots. See [`SimplePLC_Modbus_Register_Map_V1.md`](SimplePLC_Modbus_Register_Map_V1.md) Section 4.2 for the dynamic formula.
+
+| Resource | Maximum Capacity | Fixed Base Index (V1 Legacy) | TagIndex Range | Modbus Address Range |
 |---|---|---|---|---|
 | Digital Inputs (`DI`) | 8 | `0` | `0..7` | `0x0900..0x090F` |
 | Digital Outputs (`DO`) | 8 | `8` | `8..15` | `0x0910..0x091F` |
@@ -69,6 +72,7 @@ REFERENCE ARTIFACT (Secondary / Non-Authoritative):
 | Counters (`COUNTER`) | 8 | `116` | `116..123` | `0x09E8..0x09F7` |
 | Reserved Slots | 4 | `124` | `124..127` | `0x09F8..0x09FF` |
 | **Total Wire Capacity** | **128 Tags** | — | `0..127` | `0x0900..0x09FF` |
+
 
 ---
 

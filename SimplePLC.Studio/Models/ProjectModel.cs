@@ -139,4 +139,5 @@ public class ProjectModel
     public List<ProjectRuleData> Rules { get; set; } = new();
     public string? CurrentEditingRuleId { get; set; }
     public string? CurrentDiagramId { get; set; }
+    public List<int> WatchlistTagIndices { get; set; } = new();
 }

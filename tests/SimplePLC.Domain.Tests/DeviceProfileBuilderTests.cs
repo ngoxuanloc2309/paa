@@ -80,47 +80,55 @@ public class DeviceProfileBuilderTests
     }
 
     [Fact]
-    public void SmallProduct_VFlag0_RemainsIndex20()
+    public void SmallProduct_VFlag0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
+        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var vflag0 = tags.FirstOrDefault(t => t.Name == "VFLAG0");
         Assert.NotNull(vflag0);
-        Assert.Equal(20, vflag0.TagIndex);
+        Assert.Equal(layout.VflagBase, vflag0.TagIndex);
+        Assert.Equal(10, vflag0.TagIndex);
     }
 
     [Fact]
-    public void SmallProduct_VReg0_RemainsIndex52()
+    public void SmallProduct_VReg0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
+        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var vreg0 = tags.FirstOrDefault(t => t.Name == "VREG0");
         Assert.NotNull(vreg0);
-        Assert.Equal(52, vreg0.TagIndex);
+        Assert.Equal(layout.VregBase, vreg0.TagIndex);
+        Assert.Equal(18, vreg0.TagIndex);
     }
 
     [Fact]
-    public void SmallProduct_Retain0_RemainsIndex84()
+    public void SmallProduct_Retain0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
+        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var retain0 = tags.FirstOrDefault(t => t.Name == "VREG_RETAIN0");
         Assert.NotNull(retain0);
-        Assert.Equal(84, retain0.TagIndex);
+        Assert.Equal(layout.VregRetainBase, retain0.TagIndex);
+        Assert.Equal(26, retain0.TagIndex);
     }
 
     [Fact]
-    public void SmallProduct_Counter0_RemainsIndex116()
+    public void SmallProduct_Counter0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
+        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var counter0 = tags.FirstOrDefault(t => t.Name == "COUNTER0");
         Assert.NotNull(counter0);
-        Assert.Equal(116, counter0.TagIndex);
+        Assert.Equal(layout.CounterBase, counter0.TagIndex);
+        Assert.Equal(34, counter0.TagIndex);
     }
 
     [Fact]
@@ -186,6 +194,26 @@ public class DeviceProfileBuilderTests
         Assert.Equal(2, product.WireProfile);
         Assert.True(product.SupportsDedicatedFunctionBlocks);
         Assert.True(product.SupportsDiagnosticControl);
+    }
+
+    [Fact]
+    public void SupportedProtocolVersionV2_BuildsSuccessfully()
+    {
+        var profile = ProductResourceProfile.DefaultRemoteIo;
+        bool success = DeviceProfileBuilder.TryBuild(
+            deviceClass: 1,
+            productVariant: 1,
+            protocolVersion: 2, // Protocol version 2
+            wireProfile: 2,     // Wire profile 2
+            maxRules: 100,
+            runtimeTagCount: 124,
+            resources: profile,
+            out var product,
+            out var error);
+
+        Assert.True(success);
+        Assert.NotNull(product);
+        Assert.Equal(2, product.WireProfile);
     }
 
     [Fact]

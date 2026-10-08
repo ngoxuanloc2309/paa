@@ -1098,7 +1098,7 @@
                                 </ListView.ItemContainerStyle>
                                 <ListView.View>
                                     <GridView>
-                                         <GridViewColumn Header="{Binding [SimColScan], Source={x:Static services:LocalizationService.Instance}}" Width="65">
+                                         <GridViewColumn Header="{Binding [SimColScan], Source={x:Static services:LocalizationService.Instance}}" Width="90">
                                              <GridViewColumn.CellTemplate>
                                                  <DataTemplate>
                                                      <TextBlock Text="{Binding ScanDisplay}" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
@@ -2257,14 +2257,30 @@
                                 Padding="10,6" FontSize="12" HorizontalAlignment="Stretch" Cursor="Hand" />
 
                         <!-- Save & Compile Status Card in Inspector -->
-                        <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="0,12,0,0">
+                        <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,12,0,0">
                             <StackPanel>
-                                <DockPanel LastChildFill="True" Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding [InspectorSaveTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
-                                    <TextBlock Text="{Binding SaveStatusMessage}" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" DockPanel.Dock="Right" />
-                                </DockPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding [InspectorSaveTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                    <!-- Status Pill Badge -->
+                                    <Border Grid.Column="1" Background="{Binding CompileStateBackground}" 
+                                            BorderBrush="{Binding CompileStateBorder}" BorderThickness="1" 
+                                            CornerRadius="10" Padding="8,2" Margin="4,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CompileStateDisplay}" FontSize="10" FontWeight="SemiBold" 
+                                                   Foreground="{Binding CompileStateColor}" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+
+                                <!-- Message chi tiết trạng thái biên dịch -->
+                                <TextBlock Text="{Binding SaveStatusMessage}" FontSize="11" Foreground="{Binding CompileStateColor}" 
+                                           FontWeight="Medium" TextWrapping="Wrap" Margin="0,0,0,8" />
+
                                 <TextBlock Text="{Binding [InspectorSaveDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
                                 <Button Content="{Binding [InspectorSaveButton], Source={x:Static services:LocalizationService.Instance}}" Command="{Binding SaveAndCompileCommand}"
                                         Background="#006487" Foreground="White" FontWeight="SemiBold" FontSize="11.5" Padding="10,7"
                                         BorderThickness="0" Cursor="Hand">

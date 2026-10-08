@@ -230,69 +230,114 @@
                                         <TextBlock Text="Đang xử lý..." FontSize="10.5" FontStyle="Italic" Foreground="{StaticResource PrimaryBrush}" />
                                     </StackPanel>
 
+                                    <!-- INLINE PROPOSAL & STATUS CARD -->
+                                    <Border Margin="0,8,0,2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasProposal}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding HasExtractedRules}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsRejected}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+
+                                        <StackPanel Orientation="Vertical">
+                                            <!-- Trạng thái chờ duyệt: 1 dòng tóm tắt + 2 nút nhỏ -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsRejected}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+
+                                                <TextBlock Text="{Binding ProposalSummaryText}" FontSize="11" Foreground="#475569"
+                                                           VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                                <Button Command="{Binding DataContext.AcceptProposalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="#107C41" Foreground="#FFFFFF" BorderThickness="0"
+                                                        Padding="8,3" Margin="0,0,5,0" Cursor="Hand"
+                                                        ToolTip="Áp dụng lên Canvas và sinh Rule">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <TextBlock Text="✓ Áp dụng" FontSize="10.5" FontWeight="SemiBold" />
+                                                </Button>
+
+                                                <Button Command="{Binding DataContext.RejectProposalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                        Padding="7,3" Cursor="Hand"
+                                                        ToolTip="Hủy bỏ bản vẽ nháp">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <TextBlock Text="✕ Hủy" FontSize="10.5" Foreground="#64748B" />
+                                                </Button>
+                                            </StackPanel>
+
+                                            <!-- Trạng thái đã áp dụng -->
+                                            <TextBlock Text="{Binding AppliedStatusText}" FontSize="10.5" Foreground="#107C41">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- Trạng thái đã hủy -->
+                                            <TextBlock Text="✕ Đã hủy" FontSize="10.5" Foreground="#94A3B8" FontStyle="Italic">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRejected}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
                                     <!-- Action Strip (Apply Rules & Copy) -->
                                     <Border BorderBrush="#F1F5F9" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,5,0,0"
                                             Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVis}}">
                                         <DockPanel LastChildFill="False">
-                                            <!-- AI Rule Apply Action Button (when not applied) -->
-                                            <Button DockPanel.Dock="Left"
-                                                    Command="{Binding DataContext.ApplyRulesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"
-                                                    Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                    Padding="8,3" Cursor="Hand"
-                                                    ToolTip="Tự động khởi tạo và nạp các Rule này vào Bảng Rule của dự án">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding HasExtractedRules}" Value="True" />
-                                                                    <Condition Binding="{Binding IsApplied}" Value="False" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Button.Style>
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="Bdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="Bdr" Property="Background" Value="#E2E8F0" />
-                                                                <Setter TargetName="Bdr" Property="BorderBrush" Value="#94A3B8" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ApplyButtonText}" FontSize="11" FontWeight="SemiBold" Foreground="#0F172A" />
-                                                </StackPanel>
-                                            </Button>
 
-                                            <!-- Success Applied Badge -->
-                                            <Border DockPanel.Dock="Left" Background="#E6F4EA" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="2" Padding="7,3">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding HasExtractedRules}" Value="True" />
-                                                                    <Condition Binding="{Binding IsApplied}" Value="True" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="✓ Đã nạp vào Bảng Rule" FontSize="10.5" FontWeight="SemiBold" Foreground="#0E6B37" />
-                                                </StackPanel>
-                                            </Border>
 
                                             <!-- Copy Button -->
                                             <Button DockPanel.Dock="Right"

@@ -170,6 +170,9 @@ public partial class WatchTagItemModel : ObservableObject
     [ObservableProperty]
     private string _manualInputValue = "0";
 
+    [ObservableProperty]
+    private bool _isPinned;
+
     public bool IsBoolean => DataType == TagDataType.Boolean;
     public bool IsOn => IsBoolean && RawValue != 0;
 

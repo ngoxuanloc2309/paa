@@ -24,6 +24,21 @@ public partial class ChatMessageModel : ObservableObject
     private bool _isApplied;
 
     [ObservableProperty]
+    private bool _isRejected;
+
+    [ObservableProperty]
+    private bool _hasProposal;
+
+    [ObservableProperty]
+    private string _proposalSummaryText = string.Empty;
+
+    [ObservableProperty]
+    private string _appliedStatusText = string.Empty;
+
+    [ObservableProperty]
+    private int _proposedRuleCount;
+
+    [ObservableProperty]
     private DateTime _timestamp = DateTime.Now;
 
     [ObservableProperty]
@@ -50,6 +65,11 @@ public partial class ChatMessageModel : ObservableObject
             var rules = AiRuleParser.ExtractRules(value, out string clean);
             ExtractedRules = rules;
             DisplayContent = clean;
+            ProposedRuleCount = rules.Count;
+            if (rules.Count > 0 && string.IsNullOrWhiteSpace(ProposalSummaryText))
+            {
+                ProposalSummaryText = $"Đề xuất {rules.Count} quy tắc điều khiển";
+            }
             OnPropertyChanged(nameof(HasExtractedRules));
             OnPropertyChanged(nameof(ApplyButtonText));
         }

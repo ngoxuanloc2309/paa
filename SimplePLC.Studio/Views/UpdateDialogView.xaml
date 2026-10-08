@@ -21,20 +21,21 @@
                 <ResourceDictionary Source="../Styles/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Mechanical Solid Primary Action Button (Siemens Industrial Petrol) -->
+            <!-- Mechanical Solid Primary Action Button (Industrial Slate / Charcoal Gray) -->
             <Style x:Key="BtnIndustrialPrimary" TargetType="Button">
-                <Setter Property="Background" Value="#006487" />
+                <Setter Property="Background" Value="#334155" />
                 <Setter Property="Foreground" Value="#FFFFFF" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="FontSize" Value="12" />
-                <Setter Property="Padding" Value="18,5" />
+                <Setter Property="Padding" Value="18,6" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="BorderBrush" Value="#004F6E" />
+                <Setter Property="BorderBrush" Value="#1E293B" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
+                            <Border x:Name="BtnBorder"
+                                    Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="2"
@@ -43,10 +44,18 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#004F6E" />
+                                    <Setter Property="Background" Value="#1E293B" />
+                                    <Setter Property="BorderBrush" Value="#0F172A" />
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter Property="Background" Value="#003B52" />
+                                    <Setter Property="Background" Value="#0F172A" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#E2E8F0" />
+                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                    <Setter Property="Foreground" Value="#94A3B8" />
+                                    <Setter TargetName="BtnBorder" Property="Opacity" Value="0.65" />
+                                    <Setter Property="Cursor" Value="Arrow" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -59,14 +68,15 @@
                 <Setter Property="Foreground" Value="#1E293B" />
                 <Setter Property="FontWeight" Value="Medium" />
                 <Setter Property="FontSize" Value="12" />
-                <Setter Property="Padding" Value="16,5" />
+                <Setter Property="Padding" Value="16,6" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="BorderBrush" Value="#CBD5E1" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
+                            <Border x:Name="SecBorder"
+                                    Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="2"
@@ -80,6 +90,13 @@
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
                                     <Setter Property="Background" Value="#E2E8F0" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#F8FAFC" />
+                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                    <Setter Property="Foreground" Value="#94A3B8" />
+                                    <Setter TargetName="SecBorder" Property="Opacity" Value="0.5" />
+                                    <Setter Property="Cursor" Value="Arrow" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -160,8 +177,8 @@
 
                             <TextBlock Text="{Binding [UpdateDialogLatestVersion], Source={x:Static services:LocalizationService.Instance}}" 
                                        FontSize="11.5" Foreground="#64748B" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <Border Background="#F1F5F9" BorderBrush="#006487" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
-                                <TextBlock x:Name="TxtLatestVersion" Text="v2.3.0" FontSize="11.5" FontWeight="Bold" Foreground="#006487" />
+                            <Border Background="#F1F5F9" BorderBrush="#475569" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtLatestVersion" Text="v2.3.0" FontSize="11.5" FontWeight="Bold" Foreground="#1E293B" />
                             </Border>
                         </StackPanel>
 
@@ -183,7 +200,7 @@
                         <Border DockPanel.Dock="Top" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,6">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Left" Text="{Binding [UpdateDialogChangelogTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="#006487" />
+                                           FontSize="11" FontWeight="Bold" Foreground="#1E293B" />
                                 <TextBlock DockPanel.Dock="Right" Text="SPLC-SPEC-CHG" FontSize="10.5" Foreground="#94A3B8" HorizontalAlignment="Right" />
                             </DockPanel>
                         </Border>
@@ -196,14 +213,14 @@
                 </Border>
 
                 <!-- Row 2: Download Progress (Collapsed by default) -->
-                <Border x:Name="ProgressPanel" Grid.Row="2" Background="White" BorderBrush="#006487" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
+                <Border x:Name="ProgressPanel" Grid.Row="2" Background="White" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
                     <StackPanel>
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock x:Name="TxtProgressStatus" DockPanel.Dock="Left" Text="{Binding [UpdateDialogDownloading], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#006487" />
-                            <TextBlock x:Name="TxtProgressPercent" DockPanel.Dock="Right" Text="0%" FontSize="11" FontWeight="Bold" Foreground="#006487" HorizontalAlignment="Right" />
+                            <TextBlock x:Name="TxtProgressStatus" DockPanel.Dock="Left" Text="{Binding [UpdateDialogDownloading], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#334155" />
+                            <TextBlock x:Name="TxtProgressPercent" DockPanel.Dock="Right" Text="0%" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right" />
                         </DockPanel>
                         <ProgressBar x:Name="PrgDownload" Height="5" Minimum="0" Maximum="100" Value="0" 
-                                     Foreground="#006487" Background="#E2E8F0" BorderThickness="0" />
+                                     Foreground="#334155" Background="#E2E8F0" BorderThickness="0" />
                     </StackPanel>
                 </Border>
             </Grid>

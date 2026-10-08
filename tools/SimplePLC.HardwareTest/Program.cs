@@ -294,9 +294,9 @@ internal class Program
             Console.WriteLine($"  1.3 Sau HEARTBEAT: Lease được reset về {hbStatus.LeaseRemainingMs}ms");
             Assert(hbStatus.LeaseRemainingMs >= 2500, "Lease không được gia hạn đúng");
 
-            await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DoBaseIndex, 1, ct);
-            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DoBaseIndex + 1), 1, ct);
-            var doRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DoBaseIndex), 4, ct);
+            await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DefaultLayout.DoBase, 1, ct);
+            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + 1), 1, ct);
+            var doRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DefaultLayout.DoBase), 4, ct);
             int do0 = RegisterCodec.DecodeInt32(doRegs.AsSpan(0, 2));
             int do1 = RegisterCodec.DecodeInt32(doRegs.AsSpan(2, 2));
             Console.WriteLine($"  1.4 Đọc lại ngõ ra cưỡng bức: DO0={do0}, DO1={do1} (Kỳ vọng: 1, 1)");
@@ -317,8 +317,8 @@ internal class Program
             Console.ResetColor();
 
             await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.ENTER_DIAG, ct);
-            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DoBaseIndex + 2), 1, ct);
-            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DoBaseIndex + 3), 1, ct);
+            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + 2), 1, ct);
+            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + 3), 1, ct);
             Console.WriteLine("  2.1 Đã vào DIAG_CONTROL và kích hoạt ngõ ra DO2=1, DO3=1.");
             Console.WriteLine("  2.2 Giả lập ngắt đường truyền nhịp tim, chờ Watchdog đếm ngược 3000ms...");
 
@@ -337,7 +337,7 @@ internal class Program
             Assert(expiredStatus.State == SPLC_DiagState.ENGINE_RUNNING, "MCU không tự động thu hồi quyền về ENGINE_RUNNING");
             Assert(expiredStatus.ErrorCode == SPLC_DiagErrorCode.LEASE_EXPIRED, "Mã lỗi không phải LEASE_EXPIRED");
 
-            var failSafeDoRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DoBaseIndex), 8, ct);
+            var failSafeDoRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DefaultLayout.DoBase), 8, ct);
             int do2 = RegisterCodec.DecodeInt32(failSafeDoRegs.AsSpan(4, 2));
             int do3 = RegisterCodec.DecodeInt32(failSafeDoRegs.AsSpan(6, 2));
             Console.WriteLine($"  2.4 Kiểm tra ngõ ra Fail-Safe: DO2={do2}, DO3={do3} (Kỳ vọng: 0, 0)");
@@ -354,7 +354,7 @@ internal class Program
             Console.ResetColor();
 
             await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.ENTER_DIAG, ct);
-            await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.VregRetainBaseIndex, 7777, ct);
+            await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DefaultLayout.VregRetainBase, 7777, ct);
 
             var dirtyStatus = await diag.ReadDiagnosticStatusAsync(slaveId, ct);
             Console.WriteLine($"  3.1 Ghi VREG_RETAIN0 = 7777 -> Flags: {dirtyStatus.Flags} (Có cờ RETAIN_DIRTY)");
@@ -372,7 +372,7 @@ internal class Program
             Assert(cleanExit.State == SPLC_DiagState.ENGINE_RUNNING, "Không thể thoát sạch sau Discard");
 
             await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.ENTER_DIAG, ct);
-            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.VregRetainBaseIndex + 1), 9999, ct);
+            await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.VregRetainBase + 1), 9999, ct);
             var commitStatus = await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.COMMIT_RETAIN, ct);
             Console.WriteLine($"  3.4 Ghi VREG_RETAIN1 = 9999 và COMMIT_RETAIN -> Flags: {commitStatus.Flags}");
             Assert(!commitStatus.Flags.HasFlag(SPLC_DiagFlags.RETAIN_DIRTY), "Cờ RETAIN_DIRTY không bị xóa sau Commit");
@@ -391,7 +391,7 @@ internal class Program
             bool doBlocked = false;
             try
             {
-                await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DoBaseIndex, 1, ct);
+                await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DefaultLayout.DoBase, 1, ct);
             }
             catch { doBlocked = true; }
             Console.WriteLine($"  4.1 Thử ghi DO khi đang ở ENGINE_RUNNING: {(doBlocked ? "BỊ TỪ CHỐI (ĐÚNG)" : "BỊ LỌT (SAI)")}");
@@ -400,7 +400,7 @@ internal class Program
             bool vregBlocked = false;
             try
             {
-                await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.VregBaseIndex, 100, ct);
+                await diag.WriteTagValueAsync(slaveId, ModbusRegisterMap.DefaultLayout.VregBase, 100, ct);
             }
             catch { vregBlocked = true; }
             Console.WriteLine($"  4.2 Thử ghi VREG khi đang ở ENGINE_RUNNING: {(vregBlocked ? "BỊ TỪ CHỐI (ĐÚNG)" : "BỊ LỌT (SAI)")}");
@@ -423,18 +423,18 @@ internal class Program
             await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.ENTER_DIAG, ct);
             for (ushort i = 0; i < 8; i++)
             {
-                await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DoBaseIndex + i), 1, ct);
+                await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + i), 1, ct);
             }
             Console.WriteLine("  5.1 Đã cưỡng bức đồng loạt 8 ngõ ra DO0..DO7 = 1.");
 
             // Nhả toàn bộ: Reset DO về 0 và thoát Diag
             for (ushort i = 0; i < 8; i++)
             {
-                await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DoBaseIndex + i), 0, ct);
+                await diag.WriteTagValueAsync(slaveId, (ushort)(ModbusRegisterMap.DefaultLayout.DoBase + i), 0, ct);
             }
             await diag.SendDiagnosticCommandAsync(slaveId, SPLC_DiagCommand.EXIT_DIAG, ct);
 
-            var verifyDoRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DoBaseIndex), 16, ct);
+            var verifyDoRegs = await client.ReadHoldingRegistersAsync(slaveId, ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DefaultLayout.DoBase), 16, ct);
             bool allZero = true;
             for (int i = 0; i < 8; i++)
             {
@@ -552,10 +552,11 @@ internal class Program
             Console.WriteLine($"  -> Firmware Version: {desc.FwVersionString}");
             Console.WriteLine($"  -> Hardware Version: {desc.HwVersionString}");
 
-            if (desc.ProtocolVersion == 1 && desc.RuleFormatVersion == 1)
+            if ((desc.ProtocolVersion == 1 || desc.ProtocolVersion == 2) && 
+                (desc.RuleFormatVersion == 1 || desc.RuleFormatVersion == 7))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  [PASS] Step 1: DeviceDescriptor matches SimplePLC wire contract!\n");
+                Console.WriteLine($"  [PASS] Step 1: DeviceDescriptor matches SimplePLC wire contract (Protocol v{desc.ProtocolVersion}, RuleFormat v{desc.RuleFormatVersion})!\n");
                 Console.ResetColor();
                 passedSteps++;
             }
@@ -670,14 +671,61 @@ internal class Program
             if (t0DecodedDone.Q && t0DecodedDone.ElapsedMs >= 1000)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  [PASS] Step 4: Dedicated Function Block V2 ran and tripped Q over UART!\n");
+                Console.WriteLine("  [PASS] Step 4a: Dedicated Function Block V2 Timer ran and tripped Q over UART!");
                 Console.ResetColor();
-                passedSteps++;
             }
             else
             {
-                throw new Exception($"Step 4 Failed: Timer 0 did not trip Q. Q={t0DecodedDone.Q}, ET={t0DecodedDone.ElapsedMs}.");
+                throw new Exception($"Step 4a Failed: Timer 0 did not trip Q. Q={t0DecodedDone.Q}, ET={t0DecodedDone.ElapsedMs}.");
             }
+
+            // Step 4b: Wire Contract V2 Dedicated Counter Subsystem (0x0B40, CTU with CV = COUNTER0)
+            Console.WriteLine("  -> Step 4b: Testing Dedicated Counter 0 (CTU, PV = 3, CU pulse test)...");
+            var ctuDto = new FbCounterRecordDto
+            {
+                Mode = SPLC_CounterMode.CTU,
+                PresetValue = 3,
+                CurrentValue = 0,
+                Cu = false,
+                Cd = false,
+                Reset = false,
+                Q = false,
+                RetainTagIndex = 84 // VREG_RETAIN0 or tag index
+            };
+            var ctuRegs = new ushort[8];
+            FunctionBlockCodec.EncodeCounter(ctuDto, ctuRegs);
+            // Write max 3 blocks (24 regs) - here 1 block = 8 regs to 0x0B40
+            await client.WriteMultipleRegistersAsync(slaveId, 0x0B40, ctuRegs, ct);
+
+            // Gửi 3 xung CU (0 -> 1 -> 0)
+            for (int pulse = 1; pulse <= 3; pulse++)
+            {
+                var curRegs = await client.ReadHoldingRegistersAsync(slaveId, 0x0B40, 8, ct);
+                var curDecoded = FunctionBlockCodec.DecodeCounter(curRegs);
+                curDecoded.Cu = true;
+                FunctionBlockCodec.EncodeCounter(curDecoded, ctuRegs);
+                await client.WriteMultipleRegistersAsync(slaveId, 0x0B40, ctuRegs, ct);
+                await Task.Delay(50, ct);
+
+                // Sau 50ms, MCU scan pass đã xử lý sườn lên và tăng CV. Đọc lại CV mới nhất trước khi hạ CU về false!
+                curRegs = await client.ReadHoldingRegistersAsync(slaveId, 0x0B40, 8, ct);
+                curDecoded = FunctionBlockCodec.DecodeCounter(curRegs);
+                curDecoded.Cu = false;
+                FunctionBlockCodec.EncodeCounter(curDecoded, ctuRegs);
+                await client.WriteMultipleRegistersAsync(slaveId, 0x0B40, ctuRegs, ct);
+                await Task.Delay(50, ct);
+            }
+
+            var ctuReadbackRegs = await client.ReadHoldingRegistersAsync(slaveId, 0x0B40, 8, ct);
+            var ctuReadback = FunctionBlockCodec.DecodeCounter(ctuReadbackRegs);
+            Console.WriteLine($"  -> Counter 0 Readback: Mode={ctuReadback.Mode}, CV={ctuReadback.CurrentValue}, PV={ctuReadback.PresetValue}, Q={ctuReadback.Q}");
+            Assert(ctuReadback.CurrentValue == 3, $"Counter 0 CV mismatch: expected 3, got {ctuReadback.CurrentValue}");
+            Assert(ctuReadback.Q, "Counter 0 Q must be true after reaching PV=3");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Step 4b: Dedicated Counter CTU ran and tripped Q=1 at PV=3 over UART!\n");
+            Console.ResetColor();
+            passedSteps++;
 
             // TEST STEP 5: Staging & Atomic Rule Deployment (0x9000 & 0xA000)
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -717,14 +765,77 @@ internal class Program
                 if (ruleMatch)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("  [PASS] Step 5: Rule Table deployed and verified via physical UART!\n");
+                    Console.WriteLine("  [PASS] Step 5a: Simple Rule deployed and verified via physical UART!");
                     Console.ResetColor();
-                    passedSteps++;
                 }
                 else
                 {
-                    throw new Exception("Step 5 Failed: Active Rule Table content mismatch.");
+                    throw new Exception("Step 5a Failed: Active Rule Table content mismatch.");
                 }
+
+                // Step 5b: Thử nghiệm nạp cặp luật bù trừ sinh từ Analog Trigger -> Timer TON (AI0 > 80, PT = 500ms)
+                Console.WriteLine("  -> Step 5b: Deploying Trigger -> Timer TON rules (AI0 > 80 for 500ms -> DO1 = 1, AI0 <= 80 -> DO1 = 0)...");
+                var timerRules = new[]
+                {
+                    new RuleRecordDto
+                    {
+                        Enabled = true,
+                        TriggerTag = 16, // AI0
+                        TriggerType = SPLC_TriggerType.ON_CHANGE,
+                        CompareOp = SPLC_CompareOp.GT,
+                        ThresholdLo = 80,
+                        ForMs = 500,
+                        ActionTag = 9, // DO1
+                        ActionType = SPLC_ActionType.SET_TAG,
+                        ActionParam = 1
+                    },
+                    new RuleRecordDto
+                    {
+                        Enabled = true,
+                        TriggerTag = 16, // AI0
+                        TriggerType = SPLC_TriggerType.ON_CHANGE,
+                        CompareOp = SPLC_CompareOp.LTE,
+                        ThresholdLo = 80,
+                        ForMs = 0,
+                        ActionTag = 9, // DO1
+                        ActionType = SPLC_ActionType.SET_TAG,
+                        ActionParam = 0
+                    }
+                };
+                var deployTimerRulesResult = await writer.DeployRulesAsync(slaveId, timerRules, ct);
+                Assert(deployTimerRulesResult.IsSuccess, "Failed to deploy Trigger->Timer rules");
+
+                // Thử nghiệm thực thi: Giả lập AI0 = 100 (> 80), chờ 600ms xem DO1 có tự động bật lên 1 không
+                Console.WriteLine("  -> Step 5c: Setting AI0 = 100 (> 80) in Simulator and verifying TON delay trip DO1 = 1...");
+                simulator.Control.SetTagValue(16, 100);
+
+                // Chưa đủ 500ms -> DO1 vẫn = 0
+                await Task.Delay(100, ct);
+                var do1Pre = await client.ReadHoldingRegistersAsync(slaveId, 0x0912, 2, ct);
+                Assert(RegisterCodec.DecodeInt32(do1Pre) == 0, "DO1 tripped prematurely before 500ms dwell window!");
+
+                // Đợi quá 500ms -> Rule Engine MCU scan pass phải kích hoạt DO1 = 1
+                await WaitUntilAsync(async () =>
+                {
+                    var regs = await client.ReadHoldingRegistersAsync(slaveId, 0x0912, 2, ct);
+                    return RegisterCodec.DecodeInt32(regs) == 1;
+                }, timeoutMs: 1500, pollMs: 50, timeoutMessage: "Trigger->Timer TON did not trip DO1=1 after 500ms", ct: ct);
+                Console.WriteLine("  -> Verified: DO1 tripped to 1 after AI0 > 80 for 500ms.");
+
+                // Hạ AI0 = 50 (<= 80) -> Rule 2 dập tắt DO1 về 0 ngay lập tức
+                Console.WriteLine("  -> Setting AI0 = 50 (<= 80), verifying clear rule clears DO1 = 0 immediately...");
+                simulator.Control.SetTagValue(16, 50);
+                await WaitUntilAsync(async () =>
+                {
+                    var regs = await client.ReadHoldingRegistersAsync(slaveId, 0x0912, 2, ct);
+                    return RegisterCodec.DecodeInt32(regs) == 0;
+                }, timeoutMs: 1000, pollMs: 50, timeoutMessage: "Clear rule did not reset DO1=0", ct: ct);
+                Console.WriteLine("  -> Verified: DO1 reset to 0 immediately upon AI0 <= 80.");
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  [PASS] Step 5b/5c: Trigger -> Timer TON dual macro rules executed and verified on MCU UART!\n");
+                Console.ResetColor();
+                passedSteps++;
             }
             else
             {
@@ -751,7 +862,7 @@ internal class Program
             bool writeBlocked = false;
             try
             {
-                await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.DoBaseIndex, rawValue: 1, ct);
+                await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.DefaultLayout.DoBase, rawValue: 1, ct);
             }
             catch (Exception ex)
             {
@@ -774,7 +885,7 @@ internal class Program
             }
 
             Console.WriteLine("  -> Forcing Tag DO0 (index 8, 0x0910) = 1 in DIAG_CONTROL mode...");
-            await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.DoBaseIndex, rawValue: 1, ct);
+            await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.DefaultLayout.DoBase, rawValue: 1, ct);
 
             var do0Regs = await client.ReadHoldingRegistersAsync(slaveId, 0x0910, 2, ct);
             int do0Val = RegisterCodec.DecodeInt32(do0Regs);
@@ -785,7 +896,7 @@ internal class Program
             }
 
             Console.WriteLine("  -> Writing VREG_RETAIN0 (index 84, 0x09A8) = 8888...");
-            await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.VregRetainBaseIndex, rawValue: 8888, ct);
+            await diagGateway.WriteTagValueAsync(slaveId, tagIndex: ModbusRegisterMap.DefaultLayout.VregRetainBase, rawValue: 8888, ct);
 
             var dirtyDiag = await diagGateway.ReadDiagnosticStatusAsync(slaveId, ct);
             Console.WriteLine($"  -> Diag State: {dirtyDiag.State}, Flags: {dirtyDiag.Flags} (Checking RETAIN_DIRTY bit)");

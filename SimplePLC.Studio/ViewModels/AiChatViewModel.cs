@@ -118,6 +118,7 @@ public partial class AiChatViewModel : ObservableObject
                 "Bạn chỉ cần mô tả bài toán bằng ngôn ngữ tự nhiên, tôi sẽ tự động thiết kế sơ đồ khối và đề xuất giải pháp trực quan để bạn xem trước trước khi áp dụng:\n" +
                 "• *'Mạch khởi động và dừng bơm DO0, có khóa an toàn nút dừng khẩn cấp DI2'*\n" +
                 "• *'Hẹn giờ trễ ngắt quạt làm mát DO1 sau 10 giây khi máy dừng'*\n" +
+                "• *'Cảm biến áp suất AI0 vượt quá 80 bar duy trì 5 giây thì đóng van xả DO0'*\n" +
                 "• *'Đếm đủ 100 sản phẩm từ cảm biến DI0 thì bật còi báo DO2'*\n" +
                 "• *'Quy đổi cảm biến áp suất analog AI0 (4-20mA) sang 0-10 bar'*\n\n" +
                 "Hãy nhập yêu cầu của bạn bên dưới!"));
@@ -213,6 +214,13 @@ public partial class AiChatViewModel : ObservableObject
     }
 
     public Action<List<AiRuleSpecModel>, ChatMessageModel>? OnApplyRulesRequested { get; set; }
+    public Action<int>? OnNavigateToTab { get; set; }
+
+    [RelayCommand]
+    public void ViewRuleTable(ChatMessageModel? message = null)
+    {
+        OnNavigateToTab?.Invoke(2); // Chuyển sang Tab 2: Bảng Rule
+    }
 
     [RelayCommand]
     public void ApplyRules(ChatMessageModel? message)
@@ -221,6 +229,61 @@ public partial class AiChatViewModel : ObservableObject
             return;
 
         OnApplyRulesRequested?.Invoke(message.ExtractedRules, message);
+        message.IsApplied = true;
+        message.IsRejected = false;
+        message.AppliedStatusText = $"✅ Đã đồng bộ thành công {message.ExtractedRules.Count} Rule vào Bảng Rule!";
+    }
+
+    [RelayCommand]
+    public void AcceptProposal(ChatMessageModel? message)
+    {
+        var logicVM = _logicEditorProvider?.Invoke();
+        if (logicVM != null)
+        {
+            if (logicVM.HasPendingAiProposal)
+            {
+                logicVM.AcceptAiProposal();
+            }
+
+            int ruleCount = logicVM.ValidRuleCount;
+            if (ruleCount == 0 && message?.ExtractedRules != null && message.ExtractedRules.Count > 0)
+            {
+                OnApplyRulesRequested?.Invoke(message.ExtractedRules, message);
+                ruleCount = message.ExtractedRules.Count;
+            }
+
+            var currentRules = _rulesProvider?.Invoke();
+            int totalRules = currentRules?.Count() ?? ruleCount;
+
+            if (message != null)
+            {
+                message.IsApplied = true;
+                message.IsRejected = false;
+                message.AppliedStatusText = totalRules > 0
+                    ? $"✅ Đã áp dụng thành công ({totalRules} Rule vào Bảng Rule)"
+                    : "✅ Đã áp dụng lên Canvas";
+            }
+        }
+        else if (message?.HasExtractedRules == true)
+        {
+            ApplyRules(message);
+        }
+    }
+
+    [RelayCommand]
+    public void RejectProposal(ChatMessageModel? message)
+    {
+        var logicVM = _logicEditorProvider?.Invoke();
+        if (logicVM != null && logicVM.HasPendingAiProposal)
+        {
+            logicVM.RejectAiProposal();
+        }
+        if (message != null)
+        {
+            message.HasProposal = false;
+            message.IsRejected = true;
+            message.AppliedStatusText = "✕ Đã hủy bỏ bản vẽ đề xuất nháp.";
+        }
     }
 
     [RelayCommand]
@@ -300,23 +363,168 @@ public partial class AiChatViewModel : ObservableObject
                         tx.ApplyToolCall(tc);
                     }
 
-                    var allTags = _tagsProvider() ?? Enumerable.Empty<TagModel>();
-                    var validation = AiSafetyGate.Validate(tx, allTags);
-
-                    if (!validation.IsValid)
+                    if (tx.AddedNodes.Count > 0)
                     {
-                        assistantMsg.Content = $"⚠️ **Cổng Kiểm Duyệt An Toàn Từ Chối:** {validation.ErrorMessage}\n\n*Khuyến nghị:* {validation.Guidance}";
+                        var allTags = _tagsProvider() ?? Enumerable.Empty<TagModel>();
+                        var validation = AiSafetyGate.Validate(tx, allTags);
+
+                        if (!validation.IsValid)
+                        {
+                            assistantMsg.Content = $"⚠️ **Cổng Kiểm Duyệt An Toàn Từ Chối:** {validation.ErrorMessage}\n\n*Khuyến nghị:* {validation.Guidance}";
+                            assistantMsg.IsLoading = false;
+                            return;
+                        }
+
+                        // Áp dụng Ghost Preview lên Canvas thật mà không xóa sơ đồ cũ
+                        string summary = $"Đề xuất AI: +{tx.AddedNodes.Count} khối, +{tx.AddedWires.Count} đường nối";
+                        logicVM.ApplyAiProposalToCanvas(tx, summary);
+
+                        // TỔNG HỢP THUYẾT MINH NẾU AI CHỈ TRẢ VỀ TOOL CALL MÀ THIẾU GIẢI THÍCH HOẶC CÂU CỤT NGỦN
+                        string explanation = response.Explanation;
+                        if (string.IsNullOrWhiteSpace(explanation) ||
+                            explanation.Trim() == "Đã xử lý cấu hình theo yêu cầu." ||
+                            !explanation.Contains("Nguyên lý"))
+                        {
+                            explanation = AiExplanationSynthesizer.Synthesize(tx, userPrompt);
+                        }
+
+                        assistantMsg.HasProposal = true;
+                        assistantMsg.ProposalSummaryText = $"Đề xuất: +{tx.AddedNodes.Count} khối, +{tx.AddedWires.Count} đường nối";
+                        assistantMsg.Content = explanation;
                         assistantMsg.IsLoading = false;
                         return;
                     }
+                }
+            }
 
-                    // Áp dụng Ghost Preview lên Canvas thật mà không xóa sơ đồ cũ
-                    logicVM.ApplyAiProposalToCanvas(tx, $"Đề xuất AI: {response.Explanation.Split('\n')[0]}");
+            // Fallback: Nếu không có Tool Calls hoặc Tool Calls rỗng, kiểm tra xem có rule JSON trong text không
+            var extractedRules = AiRuleParser.ExtractRules(response.Explanation, out _);
+            if (extractedRules.Count == 0)
+            {
+                extractedRules = TryExtractRulesFromTextOrPrompt(response.Explanation, userPrompt);
+            }
 
-                    string toolSummary = $"\n\n✨ **Đã tạo bản vẽ đề xuất trực quan trên sơ đồ** ({tx.AddedNodes.Count} khối, {tx.AddedWires.Count} đường nối). Bạn hãy xem trước trên sơ đồ và nhấn **[✓ Chấp nhận]** để áp dụng vào dự án!";
-                    assistantMsg.Content = response.Explanation + toolSummary;
-                    assistantMsg.IsLoading = false;
-                    return;
+            if (extractedRules.Count > 0 && _logicEditorProvider != null)
+            {
+                var logicVM = _logicEditorProvider();
+                if (logicVM != null)
+                {
+                    // Tự động chuyển đổi các rule thành DraftGraphTransaction để hiển thị Ghost Preview
+                    var tx = new DraftGraphTransaction();
+                    double x = 60, y = 100;
+                    int ruleIdx = 0;
+
+                    foreach (var rule in extractedRules)
+                    {
+                        string inId = $"node_in_{ruleIdx}";
+                        string trgId = $"node_trg_{ruleIdx}";
+                        string actId = $"node_act_{ruleIdx}";
+                        string grdId = $"node_grd_{ruleIdx}";
+
+                        tx.AddedNodes.Add(new DraftNode
+                        {
+                            Id = inId,
+                            NodeType = "Input",
+                            Label = $"Ngõ vào ({rule.InputTag})",
+                            PositionX = x,
+                            PositionY = y,
+                            TagName = rule.InputTag
+                        });
+
+                        tx.AddedNodes.Add(new DraftNode
+                        {
+                            Id = trgId,
+                            NodeType = "Trigger",
+                            Label = $"Kích hoạt ({rule.Trigger})",
+                            PositionX = x + 240,
+                            PositionY = y,
+                            TriggerType = rule.Trigger,
+                            CompareOp = rule.CompareOp,
+                            ThresholdLo = rule.ThresholdLo,
+                            ThresholdHi = rule.ThresholdHi,
+                            DebounceMs = (int)rule.ForMs
+                        });
+
+                        tx.AddedWires.Add(new DraftWire
+                        {
+                            SourceNodeId = inId,
+                            SourcePort = "Out",
+                            TargetNodeId = trgId,
+                            TargetPort = "In"
+                        });
+
+                        string lastId = trgId;
+                        double currentX = x + 240;
+
+                        if (!string.IsNullOrWhiteSpace(rule.GuardTag) && !string.Equals(rule.GuardTag, "NONE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            currentX += 240;
+                            tx.AddedNodes.Add(new DraftNode
+                            {
+                                Id = grdId,
+                                NodeType = "Guard",
+                                Label = $"Khóa an toàn ({rule.GuardTag})",
+                                PositionX = currentX,
+                                PositionY = y,
+                                TagName = rule.GuardTag
+                            });
+
+                            tx.AddedWires.Add(new DraftWire
+                            {
+                                SourceNodeId = lastId,
+                                SourcePort = "Out",
+                                TargetNodeId = grdId,
+                                TargetPort = "In"
+                            });
+
+                            lastId = grdId;
+                        }
+
+                        currentX += 240;
+                        tx.AddedNodes.Add(new DraftNode
+                        {
+                            Id = actId,
+                            NodeType = "Action",
+                            Label = $"Tác vụ ({rule.ActionTag})",
+                            PositionX = currentX,
+                            PositionY = y,
+                            TagName = rule.ActionTag,
+                            ActionType = rule.ActionType,
+                            ActionParam = rule.Param
+                        });
+
+                        tx.AddedWires.Add(new DraftWire
+                        {
+                            SourceNodeId = lastId,
+                            SourcePort = "Out",
+                            TargetNodeId = actId,
+                            TargetPort = "In"
+                        });
+
+                        y += 180;
+                        ruleIdx++;
+                    }
+
+                    if (tx.AddedNodes.Count > 0)
+                    {
+                        string summary = $"Đề xuất AI: +{tx.AddedNodes.Count} khối, +{tx.AddedWires.Count} đường nối";
+                        logicVM.ApplyAiProposalToCanvas(tx, summary);
+
+                        assistantMsg.HasProposal = true;
+                        assistantMsg.ProposalSummaryText = $"Đề xuất: +{tx.AddedNodes.Count} khối, +{tx.AddedWires.Count} đường nối";
+
+                        string explanation = response.Explanation;
+                        if (string.IsNullOrWhiteSpace(explanation) ||
+                            explanation.Trim() == "Đã xử lý cấu hình theo yêu cầu." ||
+                            !explanation.Contains("Nguyên lý"))
+                        {
+                            explanation = AiExplanationSynthesizer.Synthesize(tx, userPrompt);
+                        }
+
+                        assistantMsg.Content = explanation;
+                        assistantMsg.IsLoading = false;
+                        return;
+                    }
                 }
             }
 
@@ -340,5 +548,63 @@ public partial class AiChatViewModel : ObservableObject
             _cts?.Dispose();
             _cts = null;
         }
+    }
+
+    private static List<AiRuleSpecModel> TryExtractRulesFromTextOrPrompt(string explanation, string prompt)
+    {
+        var rules = new List<AiRuleSpecModel>();
+        string combined = (explanation + " " + prompt).ToLowerInvariant();
+
+        var diMatches = System.Text.RegularExpressions.Regex.Matches(combined, @"\bdi[0-7]\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var doMatches = System.Text.RegularExpressions.Regex.Matches(combined, @"\bdo[0-7]\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (diMatches.Count >= 2 && doMatches.Count >= 1 &&
+            (combined.Contains("start") || combined.Contains("bật")) &&
+            (combined.Contains("stop") || combined.Contains("tắt")))
+        {
+            string startTag = diMatches[0].Value.ToUpperInvariant();
+            string stopTag = diMatches[1].Value.ToUpperInvariant();
+            string outTag = doMatches[0].Value.ToUpperInvariant();
+
+            rules.Add(new AiRuleSpecModel
+            {
+                Narrative = $"Bật {outTag} khi nhấn nút Start {startTag}",
+                InputTag = startTag,
+                Trigger = "ON_RISE",
+                ForMs = 50,
+                ActionTag = outTag,
+                ActionType = "SET_TAG",
+                Param = 1
+            });
+
+            rules.Add(new AiRuleSpecModel
+            {
+                Narrative = $"Tắt {outTag} khi nhấn nút Stop {stopTag}",
+                InputTag = stopTag,
+                Trigger = "ON_RISE",
+                ForMs = 50,
+                ActionTag = outTag,
+                ActionType = "SET_TAG",
+                Param = 0
+            });
+        }
+        else if (diMatches.Count >= 1 && doMatches.Count >= 1)
+        {
+            string inTag = diMatches[0].Value.ToUpperInvariant();
+            string outTag = doMatches[0].Value.ToUpperInvariant();
+            bool isToggle = combined.Contains("toggle") || combined.Contains("đảo");
+            rules.Add(new AiRuleSpecModel
+            {
+                Narrative = $"Điều khiển {outTag} từ ngõ vào {inTag}",
+                InputTag = inTag,
+                Trigger = "ON_RISE",
+                ForMs = 50,
+                ActionTag = outTag,
+                ActionType = isToggle ? "TOGGLE_TAG" : "SET_TAG",
+                Param = 1
+            });
+        }
+
+        return rules;
     }
 }

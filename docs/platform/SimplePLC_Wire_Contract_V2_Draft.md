@@ -22,8 +22,12 @@ SimplePLC Platform V2.0 defines the **Diagnostic & Commissioning Control Subsyst
      - `DeviceResourceInfo` at `0x0020` (10 registers)
      - `ActiveRuleTable` at `0x0100` (up to 1600 registers)
      - `DeviceHealth` at `0x0800` (10 registers)
+     - `RTC Clock` at `0x0810..0x0813` (4 registers: Epoch UTC, Timezone Offset, Flags: Synced, HW_Present, Battery_Low)
      - `RuntimeTagValues` at `0x0900` (256 registers)
-     - `SystemCommand` at `0x0A00` (1 register) and `SystemCommandResult` at `0x0A01` (2 registers)
+     - `SystemCommand` at `0x0A00` (1 register) và `SystemCommandResult` at `0x0A01` (2 registers)
+     - `Diagnostic Control Block` at `0x0A20..0x0A24` (5 registers)
+     - `Dedicated FB Timers` at `0x0B00..0x0B3F` (64 registers = 8 timers)
+     - `Dedicated FB Counters` at `0x0B40..0x0B7F` (64 registers = 8 counters)
      - `Staging & Commit Block` at `0x9000..0xA001`
    - Devices declare V2 support strictly by reporting `wire_profile = 2` at register `0x0020`. V1 devices (`wire_profile = 1`) remain frozen and continue operating in Safe Monitor (Read-Only) mode.
 
@@ -199,43 +203,65 @@ The table below governs firmware behavior when commands arrive under various sub
 
 Writes are strictly regulated according to active ownership:
 
-| Tag Group | TagIndex Range | Modbus Address | State: `ENGINE_RUNNING` | State: `DIAG_CONTROL` | Target Hardware / Storage |
+| Tag Group | Typical Tag Range | Modbus Address | State: `ENGINE_RUNNING` | State: `DIAG_CONTROL` | Target Hardware / Storage |
 |---|---|---|:---:|:---:|---|
-| **`DI`** | `0..7` | `0x0900..0x090F` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Physical Inputs (Optocouplers) |
-| **`DO`** | `8..15` | `0x0910..0x091F` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Physical Relays / Transistors |
-| **`AI`** | `16..19` | `0x0920..0x0927` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Analog Inputs (ADC Channels) |
-| **`VFLAG`** | `20..51` | `0x0928..0x0967` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Internal Memory Bits (RAM) |
-| **`VREG`** | `52..83` | `0x0968..0x09A7` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Math & Timing Registers (RAM) |
-| **`VREG_RETAIN`**| `84..115`| `0x09A8..0x09E7` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Retentive Shadow Buffer (**RAM Only**) |
-| **`COUNTER`** | `116..123`| `0x09E8..0x09F7` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | High-Speed Counter Registers (RAM) |
-| **`RESERVED`**| `124..127`| `0x09F8..0x09FF` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Reserved Platform Slots (Read=0, Write=0x02) |
+| **`DI`** | `0 .. di_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Physical Inputs (Optocouplers) |
+| **`DO`** | `DoBase .. DoBase + do_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Physical Relays / Transistors |
+| **`AI`** | `AiBase .. AiBase + ai_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Analog Inputs (ADC Channels) |
+| **`VFLAG`** | `VflagBase .. + vflag_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Internal Memory Bits (RAM) |
+| **`VREG`** | `VregBase .. + vreg_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Math & Timing Registers (RAM) |
+| **`VREG_RETAIN`**| `VregRetainBase .. + retain_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | Retentive Shadow Buffer (**RAM Only**) |
+| **`COUNTER`** | `CounterBase .. + counter_count - 1` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ✅ **Writable** (`FC16`) | High-Speed Counter Registers (RAM) |
+| **`RESERVED`**| `TotalTags .. 127` | `0x0900 + TagIndex * 2` | ❌ Denied (`0x02`) | ❌ Denied (`0x02`) | Unused / Reserved Platform Slots (Write=0x02) |
 
-### 5.1 Address & Tag Validation Rules (Fixed Tag Space & Sparse Layout)
+---
 
-SimplePLC maps all tags to **fixed TagIndex locations** regardless of how many tags are physically present on a given hardware variant:
+### 5.1 Dynamic Tag Index Packing (`TagLayoutMap`)
 
-```text
-TagIndex = (Modbus Register Address - 0x0900) / 2
+> [!IMPORTANT]
+> **Dynamic Consecutive Packing Rule**:
+> In SimplePLC Platform V2, tag indices are **no longer mapped to fixed 8-slot static boundaries**. Instead, tag groups are packed **consecutively** based on the hardware resources declared by MCU firmware in `DeviceResourceInfo` (`0x0020`):
+> - `DiBase = 0`
+> - `DoBase = di_count`
+> - `AiBase = di_count + do_count`
+> - `VflagBase = di_count + do_count + ai_count`
+> - `VregBase = di_count + do_count + ai_count + vflag_count`
+> - `VregRetainBase = di_count + do_count + ai_count + vflag_count + vreg_count`
+> - `CounterBase = di_count + do_count + ai_count + vflag_count + vreg_count + vreg_retain_count`
+> - `TotalTags = CounterBase + counter_count`
+
+**Rationale**: When an MCU variant provides only 4 DI pins (channels 0..3), physical output `DO0` immediately starts at **TagIndex 4**. This eliminates unused dummy gaps (`4..7`), saving communication bandwidth and maintaining contiguous memory indexing.
+
+#### Firmware Validation Algorithm:
+```c
+/* 1. Compute TagIndex from Modbus Holding Register address */
+uint16_t tag_index = (address - 0x0900) / 2;
+
+/* 2. Reject if out of bounds */
+if (tag_index >= total_declared_tags || tag_index >= SPLC_MAX_RUNTIME_TAGS) {
+    return MODBUS_EX_ILLEGAL_DATA_ADDRESS; // 0x02
+}
+
+/* 3. Determine Group & Check Writable Permission in DIAG_CONTROL */
+if (tag_index < do_base) {
+    return MODBUS_EX_ILLEGAL_DATA_ADDRESS; /* DI is Read-Only */
+} else if (tag_index < ai_base) {
+    /* DO (Physical Relay/Transistor) -> Writable in DIAG */
+} else if (tag_index < vflag_base) {
+    return MODBUS_EX_ILLEGAL_DATA_ADDRESS; /* AI is Read-Only */
+} else if (tag_index < vreg_base) {
+    /* VFLAG -> Writable */
+} else if (tag_index < vreg_retain_base) {
+    /* VREG -> Writable */
+} else if (tag_index < counter_base) {
+    /* VREG_RETAIN -> Writable in RAM shadow */
+    s_diag_flags |= SPLC_DIAG_FLAG_RETAIN_DIRTY;
+} else if (tag_index < total_declared_tags) {
+    /* COUNTER -> Writable */
+} else {
+    return MODBUS_EX_ILLEGAL_DATA_ADDRESS;
+}
 ```
-
-To support sparse configurations (e.g., Zigbee hardware declaring only 2 DI and 2 DO), the firmware validates each tag against its **declared group capacity**, rather than treating `runtime_tag_count` as a contiguous ceiling.
-
-> [!CAUTION] Critical Validation Invariant: DO NOT use `TagIndex < runtime_tag_count`
-> `runtime_tag_count` is the total count of valid declared tags across all groups, NOT a continuous index boundary.
-> For example: On a device with `DI = 2, DO = 2`, `runtime_tag_count = 4`. But `DO0` is at `TagIndex 8`. Checking `8 < 4` would falsely reject valid `DO0` operations!
-
-#### Per-Tag Validation Algorithm:
-1. Compute `TagIndex = (Address - 0x0900) / 2`.
-2. Classify group and check relative index against `DeviceResourceInfo`:
-   * **`DI` (`TagIndex 0..7`)**: Physical Input → **Always Denied (`0x02`)** (Read-Only).
-   * **`DO` (`TagIndex 8..15`)**: `rel = TagIndex - 8`. Valid if `rel < do_count`. If `rel >= do_count` → **Denied (`0x02`)**.
-   * **`AI` (`TagIndex 16..19`)**: Analog Input → **Always Denied (`0x02`)** (Read-Only).
-   * **`VFLAG` (`TagIndex 20..51`)**: `rel = TagIndex - 20`. Valid if `rel < vflag_count`. If `rel >= vflag_count` → **Denied (`0x02`)**.
-   * **`VREG` (`TagIndex 52..83`)**: `rel = TagIndex - 52`. Valid if `rel < vreg_count`. If `rel >= vreg_count` → **Denied (`0x02`)**.
-   * **`VREG_RETAIN` (`TagIndex 84..115`)**: `rel = TagIndex - 84`. Valid if `rel < vreg_retain_count`. If `rel >= vreg_retain_count` → **Denied (`0x02`)**.
-   * **`COUNTER` (`TagIndex 116..123`)**: `rel = TagIndex - 116`. Valid if `rel < counter_count`. If `rel >= counter_count` → **Denied (`0x02`)**.
-   * **`RESERVED` (`TagIndex 124..127`)**: Platform Reserved → **Always Denied (`0x02`)**.
-   * **Out of Space (`TagIndex >= 128` or `Address > 0x09FF`)**: → **Always Denied (`0x02`)**.
 
 ---
 
@@ -500,23 +526,29 @@ To bridge this specification into the clean architecture codebase, the following
 
 ---
 
-### 8.2 Host-Side Sparse Tag Reading Architecture
+### 8.2 Host-Side Tag Reading Architecture (Dynamic Consecutive Layout)
 
-In SimplePLC, `ProductDefinition.Tags` is a sparse collection with non-contiguous `TagIndex` values (e.g. `TagIndex 0, 1` for DI, `TagIndex 8, 9` for DO).
-Therefore, the host software **MUST NOT** perform:
+In SimplePLC Platform V2, `ProductDefinition.Tags` is generated from `TagLayoutMap`, which packs declared tags consecutively without arbitrary holes between groups. 
+The host software reads tags based on the actual declared bounds:
 
 ```csharp
-// ANTI-PATTERN: Fails on sparse hardware layouts!
-var values = await ReadRuntimeTagValuesAsync(count: product.Tags.Count); // Assuming indices 0..count-1
+// CORRECT PATTERN: Read based on computed TagLayoutMap
+var layout = ModbusRegisterMap.ComputeLayout(
+    res.DigitalInputCount, res.DigitalOutputCount, res.AnalogInputCount,
+    res.VirtualFlagCount, res.VirtualRegisterCount, res.RetentiveRegisterCount,
+    res.CounterCount);
+var values = await ReadRuntimeTagValuesAsync(startTagIndex: 0, count: layout.TotalTags);
 ```
 
 #### Standard Reading Strategies:
-1. **Strategy A: Chunked Full Memory Space Read (Standard Studio Monitor Service)**:
-   - Read the active tag memory space (`0x0900` up to `0x0900 + (HighestTagIndex + 1) * 2`).
-   - For standard 124-tag systems, this spans up to `0x09F7` (248 registers), partitioned into 2 standard Modbus FC03 requests (e.g., 124 registers each).
-   - Maps each 32-bit register pair directly to its fixed `TagIndex = (RegisterAddress - 0x0900) / 2`.
+1. **Strategy A: Chunked Active Tag Read (Standard Studio Monitor Service)**:
+   - Read the active tag memory space (`0x0900` up to `0x0900 + layout.TotalTags * 2`).
+   - For a standard full-capacity system (120-128 tags), this spans up to `0x09F7` (240-256 registers), partitioned into 2 standard Modbus FC03 requests (e.g., 120-128 registers each).
+   - Maps each 32-bit register pair directly to its `TagIndex = (RegisterAddress - 0x0900) / 2`.
    - Yields `RuntimeTagValue(int TagIndex, int RawValue)`.
 2. **Strategy B: Per-Group Block Read (Low-Bandwidth Option)**:
+   - Read only specific active ranges using `layout.DiBase`, `layout.DoBase`, `layout.AiBase`, etc.
+
    - Issues discrete FC03 reads per populated group (e.g. 1 read for DI `0x0900`, 1 read for DO `0x0910`).
    - Ideal for low-baudrate RS-485 connections where only declared channels are polled.
 
@@ -668,7 +700,7 @@ typedef struct {
     uint16_t mode;             /* SPLC_CounterMode_t */
     int32_t  preset_value;     /* Preset Value (PV, Big-Endian) */
     int32_t  current_value;    /* Current Value (CV, Big-Endian, Volatile RAM) */
-    uint16_t retain_tag_index; /* VREG_RETAIN TagIndex (84..115) or 0xFFFF */
+    uint16_t retain_tag_index; /* Storage Register Binding (VREG, VREG_RETAIN, VFLAG, COUNTER) or 0xFFFF */
     uint16_t reserved;         /* Sender writes 0; receiver ignores */
 } SPLC_PlcCounter_t;
 
@@ -751,11 +783,14 @@ void SPLC_ExecuteScanPass(uint32_t delta_ms)
         s_prev_counter_cu[i] = cu_now;
         s_prev_counter_r[i]  = r_now;
 
-        /* Đồng bộ RAM shadow của VREG_RETAIN nếu có cấu hình */
+        /* Đồng bộ giá trị đếm sang thanh ghi lưu trữ (VREG, VREG_RETAIN, VFLAG, COUNTER) */
         if (c->retain_tag_index != SPLC_COUNTER_RETAIN_NONE &&
-            c->retain_tag_index >= 84 && c->retain_tag_index < 116) {
-            s_vreg_retain_shadow[c->retain_tag_index - 84] = c->current_value;
-            s_diag_flags |= SPLC_DIAG_FLAG_RETAIN_DIRTY;
+            c->retain_tag_index < s_layout.total_tags) {
+            SPLC_WriteTagValue(c->retain_tag_index, c->current_value);
+            if (c->retain_tag_index >= s_layout.vreg_retain_base &&
+                c->retain_tag_index < s_layout.vreg_retain_base + s_layout.vreg_retain_count) {
+                s_diag_flags |= SPLC_DIAG_FLAG_RETAIN_DIRTY;
+            }
         }
     }
 

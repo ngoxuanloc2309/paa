@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
+using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Domain.Builders;
 
@@ -15,6 +16,7 @@ public static class DeviceProfileBuilder
     public const ushort WireProfileV1 = 1;
     public const ushort WireProfileV2 = 2;
     public const ushort ProtocolVersionV1 = 1;
+    public const ushort ProtocolVersionV2 = 2;
     public const ushort MaxRulesV1 = 100;
     public const ushort MaxRuntimeTagsV1 = 128;
 
@@ -26,18 +28,9 @@ public static class DeviceProfileBuilder
     public const ushort MaxRetentiveRegisters = 32;
     public const ushort MaxCounters = 8;
 
-    // Bất biến kiến trúc Wire Profile V1: Địa chỉ chỉ số gốc (Base TagIndex)
-    public const ushort DiBaseIndex = 0;
-    public const ushort DoBaseIndex = 8;
-    public const ushort AiBaseIndex = 16;
-    public const ushort VflagBaseIndex = 20;
-    public const ushort VregBaseIndex = 52;
-    public const ushort VregRetainBaseIndex = 84;
-    public const ushort CounterBaseIndex = 116;
-
     /// <summary>
     /// Thử thẩm định và dựng ProductDefinition từ metadata thiết bị khai báo.
-    /// Trả về true nếu hợp lệ; trả về false kèm errorMessage nếu vi phạm Wire Profile V1.
+    /// Trả về true nếu hợp lệ; trả về false kèm errorMessage nếu vi phạm Wire Profile V1 hoặc V2.
     /// </summary>
     public static bool TryBuild(
         ushort deviceClass,
@@ -53,9 +46,9 @@ public static class DeviceProfileBuilder
         product = null;
         errorMessage = null;
 
-        if (protocolVersion != ProtocolVersionV1)
+        if (protocolVersion != ProtocolVersionV1 && protocolVersion != ProtocolVersionV2)
         {
-            errorMessage = $"Unsupported protocol version {protocolVersion}. Only Protocol Version {ProtocolVersionV1} is supported.";
+            errorMessage = $"Unsupported protocol version {protocolVersion}. Only Protocol Version {ProtocolVersionV1} and {ProtocolVersionV2} are supported.";
             return false;
         }
 
@@ -167,56 +160,37 @@ public static class DeviceProfileBuilder
     /// </summary>
     public static List<TagDefinition> GenerateTags(ProductResourceProfile resources)
     {
+        var layout = new TagLayoutMap(
+            resources.DigitalInputs,
+            resources.DigitalOutputs,
+            resources.AnalogInputs,
+            resources.VirtualFlags,
+            resources.VirtualRegisters,
+            resources.RetentiveRegisters,
+            resources.Counters);
+
         var list = new List<TagDefinition>(resources.TotalTags);
 
-        // 1. DI: Base 0 (0..7)
         for (ushort i = 0; i < resources.DigitalInputs; i++)
-        {
-            ushort idx = (ushort)(DiBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"DI{i}", TagKind.DiscreteInput, TagDataType.Boolean, isReadOnly: true, $"Digital Input {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.DiBase + i), $"DI{i}", TagKind.DiscreteInput, TagDataType.Boolean, isReadOnly: true, $"Digital Input {i}"));
 
-        // 2. DO: Base 8 (8..15)
         for (ushort i = 0; i < resources.DigitalOutputs; i++)
-        {
-            ushort idx = (ushort)(DoBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"DO{i}", TagKind.DiscreteOutput, TagDataType.Boolean, isReadOnly: false, $"Digital Output {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.DoBase + i), $"DO{i}", TagKind.DiscreteOutput, TagDataType.Boolean, isReadOnly: false, $"Digital Output {i}"));
 
-        // 3. AI: Base 16 (16..19)
         for (ushort i = 0; i < resources.AnalogInputs; i++)
-        {
-            ushort idx = (ushort)(AiBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"AI{i}", TagKind.AnalogInput, TagDataType.Int32, isReadOnly: true, $"Analog Input {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.AiBase + i), $"AI{i}", TagKind.AnalogInput, TagDataType.Int32, isReadOnly: true, $"Analog Input {i}"));
 
-        // 4. VFLAG: Base 20 (20..51)
         for (ushort i = 0; i < resources.VirtualFlags; i++)
-        {
-            ushort idx = (ushort)(VflagBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"VFLAG{i}", TagKind.VirtualFlag, TagDataType.Boolean, isReadOnly: false, $"Virtual Flag {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.VflagBase + i), $"VFLAG{i}", TagKind.VirtualFlag, TagDataType.Boolean, isReadOnly: false, $"Virtual Flag {i}"));
 
-        // 5. VREG: Base 52 (52..83)
         for (ushort i = 0; i < resources.VirtualRegisters; i++)
-        {
-            ushort idx = (ushort)(VregBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"VREG{i}", TagKind.VirtualRegister, TagDataType.Int32, isReadOnly: false, $"Virtual Register {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.VregBase + i), $"VREG{i}", TagKind.VirtualRegister, TagDataType.Int32, isReadOnly: false, $"Virtual Register {i}"));
 
-        // 6. VREG_RETAIN: Base 84 (84..115)
         for (ushort i = 0; i < resources.RetentiveRegisters; i++)
-        {
-            ushort idx = (ushort)(VregRetainBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"VREG_RETAIN{i}", TagKind.VirtualRegisterRetain, TagDataType.Int32, isReadOnly: false, $"Retain Virtual Register {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.VregRetainBase + i), $"VREG_RETAIN{i}", TagKind.VirtualRegisterRetain, TagDataType.Int32, isReadOnly: false, $"Retain Virtual Register {i}"));
 
-        // 7. COUNTER: Base 116 (116..123)
         for (ushort i = 0; i < resources.Counters; i++)
-        {
-            ushort idx = (ushort)(CounterBaseIndex + i);
-            list.Add(new TagDefinition(idx, $"COUNTER{i}", TagKind.Counter, TagDataType.Int32, isReadOnly: false, $"Counter {i}"));
-        }
+            list.Add(new TagDefinition((ushort)(layout.CounterBase + i), $"COUNTER{i}", TagKind.Counter, TagDataType.Int32, isReadOnly: false, $"Counter {i}"));
 
         return list;
     }

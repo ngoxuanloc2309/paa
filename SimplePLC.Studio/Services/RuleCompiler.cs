@@ -83,6 +83,26 @@ public sealed class RuleCompiler : IRuleCompiler
                     {
                         tmInTag = (ushort)tmInNode.Tag.Index;
                     }
+                    else if (inConn?.Source?.Node is TriggerNodeViewModel trigVm)
+                    {
+                        var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == trigVm);
+                        if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            tmInTag = (ushort)trigInNode.Tag.Index;
+                        }
+                    }
+                    else if (inConn?.Source?.Node is GuardNodeViewModel guardVm)
+                    {
+                        var guardInConn = connectionList.FirstOrDefault(c => c.Target?.Node == guardVm);
+                        if (guardInConn?.Source?.Node is TriggerNodeViewModel gTrigVm)
+                        {
+                            var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == gTrigVm);
+                            if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                            {
+                                tmInTag = (ushort)trigInNode.Tag.Index;
+                            }
+                        }
+                    }
 
                     var tmQConn = connectionList.FirstOrDefault(c => c.Source?.Node == tm &&
                         (string.Equals(c.Source.Title, "Q", StringComparison.OrdinalIgnoreCase) ||
@@ -135,7 +155,9 @@ public sealed class RuleCompiler : IRuleCompiler
 
                 case CounterNodeViewModel cnt:
                     ushort? cntInTag = cnt.InputTag != null && cnt.InputTag.Kind != TagKind.None ? (ushort)cnt.InputTag.Index : null;
-                    ushort cntCvTag = (ushort)(cnt.CvTag != null && cnt.CvTag.Kind != TagKind.None ? cnt.CvTag.Index : 84);
+                    ushort cntCvTag = (ushort)(cnt.CvTag != null && cnt.CvTag.Kind != TagKind.None 
+                        ? cnt.CvTag.Index 
+                        : (tagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.Counter)?.Index ?? 116));
                     ushort? cntQTag = cnt.OutputTag != null && cnt.OutputTag.Kind != TagKind.None ? (ushort)cnt.OutputTag.Index : null;
                     ushort? cntResetTag = cnt.ResetTag != null && cnt.ResetTag.Kind != TagKind.None ? (ushort)cnt.ResetTag.Index : null;
 
@@ -147,6 +169,14 @@ public sealed class RuleCompiler : IRuleCompiler
                     if (cuConn?.Source?.Node is InputNodeViewModel inNode && inNode.Tag != null)
                     {
                         cntInTag = (ushort)inNode.Tag.Index;
+                    }
+                    else if (cuConn?.Source?.Node is TriggerNodeViewModel cuTrigVm)
+                    {
+                        var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == cuTrigVm);
+                        if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            cntInTag = (ushort)trigInNode.Tag.Index;
+                        }
                     }
 
                     var rConn = connectionList.FirstOrDefault(c => c.Target?.Node == cnt &&

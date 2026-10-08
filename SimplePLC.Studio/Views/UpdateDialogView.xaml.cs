@@ -72,7 +72,7 @@ public partial class UpdateDialogView : Window
                     Text = headerText,
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x64, 0x87)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)),
                     Margin = new Thickness(0, 6, 0, 4)
                 };
                 ChangelogContentPanel.Children.Add(h);
@@ -91,7 +91,7 @@ public partial class UpdateDialogView : Window
                 itemBlock.Inlines.Add(new Run("▪ ")
                 {
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x64, 0x87))
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69))
                 });
 
                 // Parse **bold** syntax
@@ -160,6 +160,7 @@ public partial class UpdateDialogView : Window
         _isDownloading = true;
         BtnUpdateNow.IsEnabled = false;
         BtnCancel.IsEnabled = false;
+        BtnUpdateNow.Content = LocalizationService.Instance.IsVietnamese ? "Đang cập nhật..." : "Updating...";
         ProgressPanel.Visibility = Visibility.Visible;
         TxtStatusMessage.Text = string.Empty;
 
@@ -196,6 +197,7 @@ public partial class UpdateDialogView : Window
             _isDownloading = false;
             BtnUpdateNow.IsEnabled = true;
             BtnCancel.IsEnabled = true;
+            BtnUpdateNow.Content = LocalizationService.Instance["UpdateDialogBtnUpdate"];
             ProgressPanel.Visibility = Visibility.Collapsed;
             TxtStatusMessage.Text = LocalizationService.Instance.IsVietnamese ? "Đã hủy tải bản cập nhật." : "Download canceled.";
         }
@@ -204,6 +206,7 @@ public partial class UpdateDialogView : Window
             _isDownloading = false;
             BtnUpdateNow.IsEnabled = true;
             BtnCancel.IsEnabled = true;
+            BtnUpdateNow.Content = LocalizationService.Instance["UpdateDialogBtnUpdate"];
             ProgressPanel.Visibility = Visibility.Collapsed;
             TxtStatusMessage.Text = $"Lỗi tải tệp: {ex.Message}";
         }

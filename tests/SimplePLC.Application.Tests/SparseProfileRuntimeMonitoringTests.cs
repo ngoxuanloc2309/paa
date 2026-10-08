@@ -74,17 +74,17 @@ public class SparseProfileRuntimeMonitoringTests
         Assert.True(built, errorMsg);
         Assert.NotNull(sparseProduct);
         Assert.Equal(16, sparseProduct.Tags.Count);
-        Assert.Equal(27, sparseProduct.Tags.Max(t => t.TagIndex)); // VFLAG7 tại index 27
+        Assert.Equal(15, sparseProduct.Tags.Max(t => t.TagIndex)); // 16 tags: 0..15 theo dynamic layout
 
-        // 2. Chuẩn bị Mock Reader với dữ liệu tại các vị trí rời rạc
+        // 2. Chuẩn bị Mock Reader với dữ liệu tại các vị trí động (DI: 0..3, DO: 4..7, VFLAG: 8..15)
         var mockTagReader = new MockRuntimeTagReader();
         var rawData = new int[32]; // Dải slot 0..31
-        rawData[0] = 1;     // DI0
-        rawData[3] = 0;     // DI3
-        rawData[8] = 42;    // DO0 tại index 8
-        rawData[11] = 99;   // DO3 tại index 11
-        rawData[20] = 777;  // VFLAG0 tại index 20
-        rawData[27] = 888;  // VFLAG7 tại index 27
+        rawData[0] = 1;     // DI0 tại index 0
+        rawData[3] = 0;     // DI3 tại index 3
+        rawData[4] = 42;    // DO0 tại index 4
+        rawData[7] = 99;    // DO3 tại index 7
+        rawData[8] = 777;   // VFLAG0 tại index 8
+        rawData[15] = 888;  // VFLAG7 tại index 15
         mockTagReader.ValuesToReturn = rawData;
 
         var mockHealth = new MockHealthReader();
@@ -108,9 +108,9 @@ public class SparseProfileRuntimeMonitoringTests
         var updatedTags = await tagsTcs.Task;
 
         // 4. Assert
-        // Phải yêu cầu đọc ít nhất 28 slots để bao phủ được VFLAG7 (index 27)
-        Assert.True(mockTagReader.LastRequestedCount >= 28,
-            $"Expected LastRequestedCount >= 28, but was {mockTagReader.LastRequestedCount}");
+        // Phải yêu cầu đọc ít nhất 16 slots để bao phủ được VFLAG7 (index 15)
+        Assert.True(mockTagReader.LastRequestedCount >= 16,
+            $"Expected LastRequestedCount >= 16, but was {mockTagReader.LastRequestedCount}");
 
         // Kết quả phải trả về đúng 16 tag của sản phẩm
         Assert.Equal(16, updatedTags.Count);
@@ -121,17 +121,17 @@ public class SparseProfileRuntimeMonitoringTests
         Assert.True(tagDict.ContainsKey(0));
         Assert.Equal(1, tagDict[0].Value);
 
-        Assert.True(tagDict.ContainsKey(8), "DO0 (index 8) must be present in updated tags");
-        Assert.Equal(42, tagDict[8].Value);
+        Assert.True(tagDict.ContainsKey(4), "DO0 (index 4) must be present in updated tags");
+        Assert.Equal(42, tagDict[4].Value);
 
-        Assert.True(tagDict.ContainsKey(11), "DO3 (index 11) must be present in updated tags");
-        Assert.Equal(99, tagDict[11].Value);
+        Assert.True(tagDict.ContainsKey(7), "DO3 (index 7) must be present in updated tags");
+        Assert.Equal(99, tagDict[7].Value);
 
-        Assert.True(tagDict.ContainsKey(20), "VFLAG0 (index 20) must be present in updated tags");
-        Assert.Equal(777, tagDict[20].Value);
+        Assert.True(tagDict.ContainsKey(8), "VFLAG0 (index 8) must be present in updated tags");
+        Assert.Equal(777, tagDict[8].Value);
 
-        Assert.True(tagDict.ContainsKey(27), "VFLAG7 (index 27) must be present in updated tags");
-        Assert.Equal(888, tagDict[27].Value);
+        Assert.True(tagDict.ContainsKey(15), "VFLAG7 (index 15) must be present in updated tags");
+        Assert.Equal(888, tagDict[15].Value);
 
         // Xác nhận trong RuntimeStateStore: tất cả 16 tag đều chuyển sang GOOD
         var snapshot = stateStore.CurrentSnapshot;

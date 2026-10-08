@@ -1,21 +1,58 @@
 # SimplePLC Platform Contract Changelog
 
-## [2.0.0-draft] - 2026-09-23 (DRAFT SPECIFICATION)
+## [2.2.6] - 2026-10-08 (COUNTER STORAGE BINDING, DYNAMIC TAG MAP & SAVE/LOAD FIX)
+
+### Fixed
+- **Counter Storage Register (CV) Binding & Telemetry**:
+  - Broadened `RetainTagIndex` binding in `RuleCompiler` to accept any valid storage register (`VREG`, `VREG_RETAIN`, `VFLAG`, `COUNTER`) instead of strictly requiring `VREG_RETAIN`.
+  - Firmware now correctly resolves the storage tag index and populates `CurrentValue` in FB Counter telemetry (`0x0B40..0x0B7F`), allowing Canvas Counter nodes to reflect real-time count progression.
+  - Automatic fallback to dedicated `COUNTER{i}` tag index when CV is unassigned.
+- **Project File Save / Load Graph Preservation**:
+  - Fixed issue where saved projects opened as blank canvas by ensuring `RuleTable` loads first and nodes are automatically restored from the project graph or compiled rules.
+- **Device Info Dialog Card Ordering**:
+  - Corrected order to [1] Device Identification -> [2] I/O & Memory Resource Map -> [3] Physical Communication Parameters.
+
+### Changed
+- **Dynamic Tag Index Packing (`TagLayoutMap`)**:
+  - Consecutive tag layout dynamically packed from MCU `DeviceResourceInfo` (`0x0020`), removing all hardcoded static offsets.
+- **Simulator & Hardware Test Automation**:
+  - All 748 unit tests passing 100%.
+  - Verified 7/7 physical hardware test steps and 5/5 diagnostic scenarios over UART COM7 <-> COM9.
+
+## [2.1.0] - 2026-10-08 (DYNAMIC TAG LAYOUT ARCHITECTURE)
+
+### Changed
+- **Dynamic Tag Index Packing (`TagLayoutMap`)**:
+  - Removed static hardcoded Base Indices (`DiBaseIndex=0`, `DoBaseIndex=8`, `AiBaseIndex=16`...).
+  - Introduced `TagLayoutMap` struct in `SimplePLC.Protocol.Models` and `ModbusRegisterMap.ComputeLayout(...)`.
+  - Tag base offsets are now packed consecutively according to the exact number of hardware pins declared by MCU in `DeviceResourceInfo` (`0x0020`):
+    - `DiBase = 0`
+    - `DoBase = DiCount` (e.g. 4 DI board has `DO0` at index 4 instead of index 8, eliminating empty dummy slots).
+    - `AiBase = DiCount + DoCount`
+    - `VflagBase = DiCount + DoCount + AiCount`, etc.
+  - Studio `TagCatalogViewModel` dynamically rebuilds Tag Catalog and channel assignments upon receiving device profile via `RebuildFromLayout(TagLayoutMap)`.
+  - Updated all simulators, emulators, and test suites across all 5 test projects (747/747 passed).
+
+## [2.0.0] - 2026-10-07 (PLATFORM V2.0 RELEASE)
 
 ### Added
-- **Diagnostic & Commissioning Subsystem (Wire Profile V2 Draft)**:
+- **Diagnostic & Commissioning Subsystem (Wire Profile V2)**:
   - Specified `wire_profile = 2` as a strict superset of Wire Profile V1.
   - Added dedicated `Diagnostic Control Block` at `0x0A20..0x0A24` (5 registers) separated from one-shot system commands:
-    - `0x0A20`: `DIAG_COMMAND` (WO command mailbox: `ENTER_DIAG=1`, `HEARTBEAT=2`, `EXIT_DIAG=3`, `COMMIT_RETAIN=4`, `RESTORE_SAFE_OUTPUTS=5`).
+    - `0x0A20`: `DIAG_COMMAND` (WO command mailbox: `ENTER_DIAG=1`, `HEARTBEAT=2`, `EXIT_DIAG=3`, `COMMIT_RETAIN=4`, `DISCARD_RETAIN=5`).
     - `0x0A21`: `DIAG_STATE` (RO observable state: `ENGINE_RUNNING=1`, `DIAG_CONTROL=2`, `TRANSITIONING=3`, `FAULT=4`).
     - `0x0A22`: `DIAG_FLAGS` (RO bitmask: `RETAIN_DIRTY=bit0`, `LEASE_ACTIVE=bit1`).
-    - `0x0A23`: `DIAG_LEASE_REMAINING_MS` (RO countdown in ms).
-    - `0x0A24`: `DIAG_ERROR_CODE` (RO diagnostic error code).
-  - Defined mutual-exclusive Tag Store ownership: `ENGINE_RUNNING` (Rule Engine owns tags; Modbus writes to `0x0900` locked) vs `DIAG_CONTROL` (Studio owns tags; FC16 writes to `0x0900` enabled).
-  - Specified leased session lifecycle with target 1000ms heartbeat, 3000ms lease duration, and baseline safe fallback (restore logic ownership and execute fresh scan).
-  - Enforced strict 32-bit FC16 atomic write contract on runtime tags (`Quantity = 2 * N`), forbidding FC06 single-register writes.
-  - Specified RAM shadow for `VREG_RETAIN` during diagnostics with atomic ping-pong Flash commit verification to eliminate Flash wear.
-  - Detailed in `docs/platform/SimplePLC_Wire_Contract_V2_Draft.md`.
+    - `0x0A23`: `DIAG_LEASE_REMAINING_MS` (RO countdown in ms, default 3000ms watchdog lease).
+    - `0x0A24`: `DIAG_ERROR_CODE` (RO diagnostic error code: `NONE=0`, `DENIED_FAULT=1`, `LEASE_EXPIRED=2`, `FLASH_CRC_MISMATCH=3`, `INVALID_COMMAND=4`, `RETAIN_DIRTY=5`).
+  - Defined mutual-exclusive Tag Store ownership: `ENGINE_RUNNING` (Rule Engine owns tags; Modbus writes to `0x0900` locked by safety interlock) vs `DIAG_CONTROL` (Studio owns tags; FC16 writes enabled).
+- **Dedicated Function Blocks Subsystem (`0x0B00..0x0B7F`)**:
+  - `0x0B00..0x0B3F`: 8 Dedicated Timers (TON, TOF, TP), 8 registers each (16 bytes).
+  - `0x0B40..0x0B7F`: 8 Dedicated Counters (CTU, CTD, CTUD), 8 registers each (16 bytes).
+- **Real-Time Clock Subsystem (RTC Clock `0x0810..0x0813`)**:
+  - `epoch_utc_s` (u32), `tz_offset_min` (i16), `rtc_flags` (u16: `SYNCED 0x0001`, `HW_PRESENT 0x0002`, `BATTERY_LOW 0x0004`).
+  - Protocol Read-Before-Write: Studio reads `0x0810..0x0813` prior to synchronization, preserving hardware RTC flags and battery status.
+- **Hardware Integration Test Plan V2.0**:
+  - Expanded test plan with 14 full hardware test cases (`HIT-001` through `HIT-014`).
 
 ---
 

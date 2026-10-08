@@ -49,8 +49,8 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo trì hệ thống (`1: REBOOT`, `2: FACTORY_RESET`, `3: CLEAR_RULES`, `4: CLEAR_RETAIN`). |
 | `0x0A01..0x0A02` | **System Command Result** | R | FC03 | 2 regs (4 B) | Kết quả thực thi lệnh: `[0]=CommandStatus`, `[1]=ErrorCode`. |
 | `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16 | 5 regs (10 B) | Phân hệ chẩn đoán cưỡng bức: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseRemainingMs` (0x0A23), `ErrorCode` (0x0A24). |
-| `0x0B00..0x0B3F` | **Function Block Timers** | R | FC03 | 64 regs (128 B) | Bảng trạng thái 8 khối Timer IEC 61131-3 (TON, TOF, TP). Mỗi khối 8 thanh ghi (16 bytes). |
-| `0x0B40..0x0B7F` | **Function Block Counters**| R | FC03 | 64 regs (128 B) | Bảng trạng thái 8 khối Counter IEC 61131-3 (CTU, CTD). Mỗi khối 8 thanh ghi (16 bytes). |
+| `0x0B00..0x0B3F` | **Function Block Timers** | R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Timer IEC 61131-3 (TON, TOF, TP). Host ghi cấu hình (Mode, PT) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, ET). Mỗi khối 8 thanh ghi (16 bytes). |
+| `0x0B40..0x0B7F` | **Function Block Counters**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Counter IEC 61131-3 (CTU, CTD). Host ghi cấu hình (Mode, PV, RetainTagIndex) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, CV). Mỗi khối 8 thanh ghi (16 bytes). |
 | `0x9000..0x9005` | **Staging Config Handshake**| R/W | FC03/FC16 | 6 regs (12 B) | `Status`, `ErrorCode`, `RuleCountStaged`, `ExpectedCrc16`, `ActiveRuleCount`, `ActiveRuleCrc16`. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | Vùng đệm nạp Rule mới (ghi từng block tối đa 120 registers). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và tráo bảng (atomic swap). |
@@ -58,25 +58,39 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 
 ---
 
-## 4. Phân bổ `TagIndex` Remote I/O V1 (124 Active Tags / 128 Dung lượng)
+## 4. Phân bổ `TagIndex` Động (Dynamic Tag Index Layout)
 
-Trong SimplePLC V2.0, địa chỉ Modbus của mỗi Tag được ánh xạ cố định theo công thức:
-`Modbus Address = 0x0900 + (TagIndex * 2)`
+Từ phiên bản SimplePLC V2.0+, các chỉ số `TagIndex` **không còn cố định theo các mốc 8 slot tĩnh**. MCU Firmware tự động phân bổ và đóng gói liên tục (`Consecutive Packing`) các nhóm Tag dựa trên số lượng cổng thực tế khai báo trong `DeviceResourceInfo` (`0x0020`):
 
+### 4.1. Công thức tính Base Index động
 ```text
-TagIndex        Tên Tag           Số lượng   Loại Tag                  Địa chỉ Modbus
-------------------------------------------------------------------------------------------
-0   .. 7        DI0 .. DI7        8          DiscreteInput (DI)        0x0900 .. 0x090F (Read-Only)
-8   .. 15       DO0 .. DO7        8          DiscreteOutput (DO)       0x0910 .. 0x091F (Read-Write)
-16  .. 19       AI0 .. AI3        4          AnalogInput (AI)          0x0920 .. 0x0927 (Read-Only)
-20  .. 51       VFLAG0 .. VFLAG31 32         VirtualFlag (VFLAG)       0x0928 .. 0x0967 (Read-Write)
-52  .. 83       VREG0 .. VREG31   32         VirtualRegister (VREG)    0x0968 .. 0x09A7 (Read-Write)
-84  .. 115      VREG_R0..R31      32         VREG_RETAIN (Non-Volatile)0x09A8 .. 0x09E7 (Read-Write)
-116 .. 123      COUNTER0..7       8          Counter (Bộ đếm)          0x09E8 .. 0x09F7 (Read-Write)
-124 .. 127      RESERVED          4          Dự phòng                  0x09F8 .. 0x09FF (Khóa truy cập)
-------------------------------------------------------------------------------------------
-TỔNG HOẠT ĐỘNG: 124 Tags (248 thanh ghi) | TỔNG DUNG LƯỢNG: 128 Tags (256 thanh ghi)
+DiBase         = 0
+DoBase         = di_count
+AiBase         = di_count + do_count
+VflagBase      = di_count + do_count + ai_count
+VregBase       = di_count + do_count + ai_count + vflag_count
+VregRetainBase = di_count + do_count + ai_count + vflag_count + vreg_count
+CounterBase    = di_count + do_count + ai_count + vflag_count + vreg_count + vreg_retain_count
+TotalTags      = CounterBase + counter_count
 ```
+
+Địa chỉ thanh ghi Modbus tương ứng:
+$$\text{Modbus Address} = 0\text{x}0900 + (\text{TagIndex} \times 2)$$
+
+### 4.2. So sánh ví dụ thực tế
+
+| Nhóm Tag | Cấu hình Tiêu chuẩn (8DI, 8DO, 4AI) | Cấu hình Nhỏ gọn (4DI, 4DO, 2AI) | Đặc tính truy cập |
+| :--- | :--- | :--- | :--- |
+| **`DI`** | TagIndex `0 .. 7` (`0x0900..0x090F`) | TagIndex `0 .. 3` (`0x0900..0x0907`) | Read-Only (Optocoupler vật lý) |
+| **`DO`** | TagIndex `8 .. 15` (`0x0910..0x091F`) | TagIndex `4 .. 7` (`0x0908..0x090F`) | Read-Write (Relay/Transistor) |
+| **`AI`** | TagIndex `16 .. 19` (`0x0920..0x0927`)| TagIndex `8 .. 9` (`0x0910..0x0913`) | Read-Only (ADC 0-10V/4-20mA) |
+| **`VFLAG`** | TagIndex `20 .. 51` (`0x0928..0x0967`)| TagIndex `10 .. 41` (`0x0914..0x0953`)| Read-Write (Cờ bit nội bộ RAM) |
+| **`VREG`** | TagIndex `52 .. 83` (`0x0968..0x09A7`)| TagIndex `42 .. 73` (`0x0954..0x0993`)| Read-Write (Biến số 32-bit RAM) |
+| **`VREG_RETAIN`**| TagIndex `84 .. 115` (`0x09A8..0x09E7`)| TagIndex `74 .. 105` (`0x0994..0x09D3`)| Read-Write (Biến lưu giữ Flash) |
+| **`COUNTER`**| TagIndex `116 .. 123` (`0x09E8..0x09F7`)| TagIndex `106 .. 113` (`0x09D4..0x09E3`)| Read-Write (Bộ đếm phần cứng/mềm) |
+
+> [!TIP]
+> **Ưu điểm cho Firmware**: Khi board chỉ có 4 cổng DI, `DO0` sẽ bắt đầu ngay tại `TagIndex 4`. Firmware không cần chừa các slot trống không có thực `4..7`, giúp bộ nhớ RAM phẳng và việc lập trình vòng lặp IO đơn giản, tự nhiên hơn.
 
 ---
 
@@ -170,31 +184,53 @@ current_hhmm = (hours * 100) + minutes
 
 ## 7. Phân hệ Function Block IEC 61131-3 (Timers & Counters Subsystem)
 
-Toàn bộ phân vùng `0x0B00..0x0B7F` (128 registers = 256 bytes) dành riêng cho bảng trạng thái Function Block. Mỗi khối được căn gióng lũy thừa 2 với kích thước cố định **8 thanh ghi (16 bytes)**.
+Toàn bộ phân vùng `0x0B00..0x0B7F` (128 registers = 256 bytes) dành cho phân hệ Function Block chuyên dụng. Mỗi khối được căn gióng lũy thừa 2 với kích thước cố định **8 thanh ghi (16 bytes)**.
+
+### 7.0. Nguyên tắc Phân quyền & Giới hạn Giao tiếp (R/W Access & Chunking Contract)
+1. **Phân quyền truy cập (Read/Write Separation)**:
+   * **Host (SimplePLC Studio)** có quyền ghi cấu hình khởi tạo (Configuration) bằng Modbus **FC16**:
+     * Với Timer: `mode` (+1), `pt_ms` (+2..+3).
+     * Với Counter: `mode` (+1), `preset_value` (+2..+3), `retain_tag_index` (+6).
+   * **MCU Firmware** sở hữu và cập nhật các trường trạng thái / thời gian thực (Runtime Telemetry) trong chu kỳ quét:
+     * Với Timer: `status_bits` (+0), `et_ms` (+4..+5).
+     * Với Counter: `status_bits` (+0), `current_value` (+4..+5).
+   * **Host đọc viễn trắc** bằng Modbus **FC03** để hiển thị Live Watch trên Canvas và bảng Function Block Inspector.
+2. **Quy tắc chia gói FC16 (Chunking Contract - Tối đa 3 khối/lệnh)**:
+   * Do giới hạn bộ đệm nhận UART RX của một số vi điều khiển là **64 bytes**, Host **bắt buộc chia nhỏ** mỗi lệnh ghi FC16 xuống tối đa **3 khối (24 thanh ghi = 48 bytes dữ liệu)**.
+   * Frame Modbus RTU ghi 3 khối: 1 (Slave) + 1 (FC16) + 2 (Addr) + 2 (Count) + 1 (ByteCount) + 48 (Data) + 2 (CRC) = **57 bytes**, đảm bảo an toàn tuyệt đối không làm tràn RX buffer.
+   * Khi nạp đủ 8 khối, Host phát 3 lệnh liên tiếp: Chunk 1 (3 khối), Chunk 2 (3 khối), Chunk 3 (2 khối).
+3. **Đính chính địa chỉ (Address Disambiguation)**:
+   * Bảng Timers bắt đầu tại `0x0B00` (kết thúc tại `0x0B3F`).
+   * Bảng Counters bắt đầu tại **`0x0B40`** (kết thúc tại `0x0B7F`).
+   * *Đính chính*: **Không tồn tại địa chỉ `0x0BC0`**. Địa chỉ `0x0BC0` là lỗi typo trong các bản thảo sơ khai (nhầm lẫn giữa `0x0B40` và `0x0BC0`), địa chỉ chuẩn xác duy nhất là `0x0B40`.
 
 ### 7.1. Bảng Timer Subsystem (`0x0B00..0x0B3F`, 8 Timers TON/TOF/TP)
 Địa chỉ Timer `i` (`i` trong `[0..7]`): `Addr = 0x0B00 + (i * 8)`.
-* **`+0`**: `status_bits` (`uint16_t`):
+* **`+0`**: `status_bits` (`uint16_t`, RO, do MCU cập nhật):
   * `Bit 0` (`0x0001`): `IN` (Tín hiệu đầu vào đang kích hoạt).
   * `Bit 1` (`0x0002`): `Q` (Ngõ ra trạng thái của Timer).
   * `Bit 2` (`0x0004`): `RESET` (Tín hiệu Reset đang kích hoạt).
   * `Bit 3` (`0x0008`): `RUNNING` (Timer đang tích lũy thời gian `ET < PT`).
-* **`+1`**: `mode` (`uint16_t`): `1 = TON` (On-Delay), `2 = TOF` (Off-Delay), `3 = TP` (Pulse Timer).
-* **`+2..+3`**: `pt_ms` (`uint32_t`, High Word trước) — Thời gian cài đặt (Preset Time) tính bằng ms.
-* **`+4..+5`**: `et_ms` (`uint32_t`, High Word trước) — Thời gian đã trôi qua (Elapsed Time) tính bằng ms.
+* **`+1`**: `mode` (`uint16_t`, R/W): `1 = TON` (On-Delay), `2 = TOF` (Off-Delay), `3 = TP` (Pulse Timer).
+* **`+2..+3`**: `pt_ms` (`uint32_t`, R/W, High Word trước) — Thời gian cài đặt (Preset Time) tính bằng ms.
+* **`+4..+5`**: `et_ms` (`uint32_t`, RO, High Word trước, do MCU cập nhật) — Thời gian đã trôi qua (Elapsed Time) tính bằng ms.
 * **`+6..+7`**: `reserved[2]` — Luôn trả về 0x0000.
 
 ### 7.2. Bảng Counter Subsystem (`0x0B40..0x0B7F`, 8 Counters CTU/CTD)
 Địa chỉ Counter `i` (`i` trong `[0..7]`): `Addr = 0x0B40 + (i * 8)`.
-* **`+0`**: `status_bits` (`uint16_t`):
+* **`+0`**: `status_bits` (`uint16_t`, RO, do MCU cập nhật):
   * `Bit 0` (`0x0001`): `CU` (Xung đếm lên active).
   * `Bit 1` (`0x0002`): `CD` (Xung đếm xuống active).
   * `Bit 2` (`0x0004`): `RESET` (Tín hiệu Reset active).
   * `Bit 3` (`0x0008`): `Q` (Ngõ ra Counter: Với CTU là `CV >= PV`, với CTD là `CV <= 0`).
-* **`+1`**: `mode` (`uint16_t`): `1 = CTU` (Count Up), `2 = CTD` (Count Down).
-* **`+2..+3`**: `preset_value` (`int32_t`, High Word trước) — Giá trị ngưỡng cài đặt (PV).
-* **`+4..+5`**: `current_value` (`int32_t`, High Word trước) — Giá trị đếm hiện tại (CV).
-* **`+6`**: `retain_tag_index` (`uint16_t`) — Chỉ số Tag `VREG_RETAIN` được liên kết (84..115) hoặc `0xFFFF` nếu không lưu bền vững.
+* **`+1`**: `mode` (`uint16_t`, R/W): `1 = CTU` (Count Up), `2 = CTD` (Count Down).
+* **`+2..+3`**: `preset_value` (`int32_t`, R/W, High Word trước) — Giá trị ngưỡng cài đặt (PV).
+* **`+4..+5`**: `current_value` (`int32_t`, RO/Mirror, High Word trước) — Giá trị đếm hiện tại (CV).
+  * Firmware trích xuất giá trị này từ ô nhớ thanh ghi được chỉ định bởi `retain_tag_index` (Storage Register Binding) để trả về cho App hiển thị viễn trắc lên node Counter trên Canvas.
+* **`+6`**: `retain_tag_index` (`uint16_t`, R/W) — Chỉ số Tag thanh ghi lưu trữ (Storage Register Binding) của khối Counter:
+  * Trỏ tới bất kỳ thanh ghi lưu trữ hợp lệ nào (`VREG`, `VREG_RETAIN`, `VFLAG`, `COUNTER[i]`). Được App gửi xuống lúc Deploy để Firmware biết vị trí thanh ghi chứa số đếm CV của khối Counter và cập nhật vào `current_value`.
+  * Trả về `0xFFFF` (`SPLC_FB_RETAIN_NONE`) nếu Counter không có thanh ghi liên kết.
+  * Nếu trỏ tới vùng `VREG_RETAIN`, giá trị đếm sẽ tự động được bảo lưu qua các chu kỳ mất nguồn / reboot theo cơ chế Retentive Flash.
 * **`+7`**: `reserved` — Luôn trả về 0x0000.
 
 ---
@@ -223,15 +259,15 @@ Toàn bộ phân vùng `0x0B00..0x0B7F` (128 registers = 256 bytes) dành riêng
 ### 8.2. Vòng đời phiên chẩn đoán và cơ chế bảo vệ Failsafe
 1. **Thiết lập quyền**: Host ghi `ENTER_DIAG (1)` vào `0x0A20`. MCU dừng chu kỳ logic tại scan boundary kế tiếp, nạp `LeaseRemainingMs = 3000`, bật cờ `LEASE_ACTIVE`, chuyển trạng thái `DIAG_STATE = DIAG_CONTROL (2)`.
    * **Quy tắc phân định chu kỳ quét khi ở `DIAG_CONTROL`**:
-     * **Dedicated Function Blocks (Timers 0x0B00, Counters 0x0BC0)**, **Đồng hồ RTC (0x0810)** và **Watchdog Lease countdown (0x0A23)** **vẫn tiếp tục được cập nhật bình thường** trong mỗi chu kỳ quét để bảo toàn tính toàn vẹn thời gian thực và cho phép timeout tự động.
-     * **Bảng Luật thực thi (Active Rule Table 0x1000..)** **tạm thời bị bỏ qua (suspended)**, nhường toàn quyền điều khiển I/O cho kỹ sư. Điều này ngăn chặn hiện tượng tranh chấp ghi đè (Race Condition) làm mất giá trị mà kỹ sư đang cưỡng bức thủ công.
+     * **Dedicated Function Blocks (Timers 0x0B00, Counters 0x0B40)**, **Đồng hồ RTC (0x0810)** và **Watchdog Lease countdown (0x0A23)** **vẫn tiếp tục được cập nhật bình thường** trong mỗi chu kỳ quét để bảo toàn tính toàn vẹn thời gian thực và cho phép timeout tự động.
+     * **Bảng Luật thực thi (Active Rule Table 0x0100..0x073F)** **tạm thời bị bỏ qua (suspended)**, nhường toàn quyền điều khiển I/O cho kỹ sư. Điều này ngăn chặn hiện tượng tranh chấp ghi đè (Race Condition) làm mất giá trị mà kỹ sư đang cưỡng bức thủ công.
 2. **Duy trì Heartbeat**: Studio định kỳ mỗi 1000 ms gửi lệnh `HEARTBEAT (2)` vào `0x0A20`. MCU nạp lại `LeaseRemainingMs = 3000`.
 3. **Failsafe khi đứt kết nối (Lease Expiry)**:
    * Nếu cáp bị rút, Studio bị đóng đột ngột hoặc mất kết nối, trong mỗi chu kỳ quét 10ms MCU trừ `LeaseRemainingMs -= 10`.
    * Khi `LeaseRemainingMs <= 0`:
      * MCU tự động chuyển `DIAG_STATE = ENGINE_RUNNING (1)`.
      * Tắt cờ `LEASE_ACTIVE`, gán mã lỗi `DIAG_ERROR_CODE = LEASE_EXPIRED (2)`.
-     * **Bảo vệ ngõ ra an toàn (Failsafe DO)**: MCU lập tức đưa toàn bộ các ngõ ra Digital Outputs `DO0..DO7` (Tags 8..15, địa chỉ `0x0910..0x091F`) về mức an toàn `0` để ngăn ngừa sự cố chập cháy hoặc tai nạn máy công nghiệp.
+     * **Bảo vệ ngõ ra an toàn (Failsafe DO)**: MCU lập tức đưa toàn bộ các ngõ ra Digital Outputs `DO0..DO(do_count-1)` (từ chỉ số `TagLayoutMap.DoBase` đến `DoBase + do_count - 1`, địa chỉ thanh ghi tương ứng từ `0x0900 + DoBase * 2`) về mức an toàn `0` để ngăn ngừa sự cố chập cháy hoặc tai nạn máy công nghiệp.
 4. **Bảo vệ Retain Dirty Interlock**:
    * Nếu kỹ sư thay đổi giá trị của `VREG_RETAIN` trong lúc test, MCU bật cờ `RETAIN_DIRTY`.
    * Nếu Host gửi `EXIT_DIAG (3)` khi `RETAIN_DIRTY == 1`, MCU **từ chối thoát** và gán mã lỗi `RETAIN_DIRTY (5)`. Host bắt buộc phải gửi lệnh `COMMIT_RETAIN (4)` để ghi Flash hoặc `DISCARD_RETAIN (5)` để hủy bỏ.

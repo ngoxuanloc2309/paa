@@ -253,14 +253,37 @@ public sealed class RuleCompiler : IRuleCompiler
                 });
             }
 
-            foreach (var counterNode in counterNodes)
+            for (int i = 0; i < counterNodes.Count; i++)
             {
+                var counterNode = counterNodes[i];
                 var cData = counterNode.CounterData ?? new CounterNodeData();
                 var mode = cData.Type == CounterMacroType.Ctd ? SPLC_CounterMode.CTD : SPLC_CounterMode.CTU;
-                ushort retainTagIndex = (cData.CvTagIndex >= ModbusRegisterMap.VregRetainBaseIndex &&
-                                         cData.CvTagIndex < ModbusRegisterMap.VregRetainBaseIndex + ModbusRegisterMap.MaxRetentiveRegisters)
-                    ? cData.CvTagIndex
-                    : ModbusRegisterMap.FbCounterRetainNone;
+
+                // Tính retain_tag_index động từ DeviceResourceInfo làm con trỏ thanh ghi lưu trữ CV (Storage Register Binding)
+                ushort retainTagIndex = ModbusRegisterMap.FbCounterRetainNone;
+                ushort resolvedCvTagIndex = cData.CvTagIndex;
+                var cvTagDef = product.FindTagByIndex(resolvedCvTagIndex);
+                if (cvTagDef == null)
+                {
+                    // Quy ước: Counter thứ i dùng tag COUNTER[i] làm CV nếu cData.CvTagIndex chưa được cấu hình
+                    var defaultCounterTag = product.FindTagByName($"COUNTER{i}");
+                    if (defaultCounterTag != null)
+                    {
+                        cvTagDef = defaultCounterTag;
+                        resolvedCvTagIndex = defaultCounterTag.TagIndex;
+                        cData.CvTagIndex = resolvedCvTagIndex;
+                    }
+                }
+
+                // Chấp nhận mọi thanh ghi lưu trữ hợp lệ (VREG, VREG_RETAIN, VFLAG, COUNTER...)
+                if (cvTagDef != null && resolvedCvTagIndex != ModbusRegisterMap.FbCounterRetainNone)
+                {
+                    retainTagIndex = resolvedCvTagIndex;
+                }
+                else if (resolvedCvTagIndex < product.Resources.TotalTags && resolvedCvTagIndex != ModbusRegisterMap.FbCounterRetainNone)
+                {
+                    retainTagIndex = resolvedCvTagIndex;
+                }
 
                 compiledFbCounters.Add(new FbCounterRecordDto
                 {
@@ -272,20 +295,54 @@ public sealed class RuleCompiler : IRuleCompiler
                 });
             }
         }
-        else
-        {
-            // Step 2b: Macro Expansion for Timer nodes (TON, TOF, TP)
-            foreach (var timerNode in timerNodes)
-            {
-                var tData = timerNode.TimerData ?? new TimerNodeData();
-                ushort resolvedInTagIndex = tData.InTagIndex;
-            ushort resolvedQTagIndex = tData.QTagIndex;
 
-            // Nếu Timer node được nối dây từ một Input node upstream -> lấy InTagIndex từ Input node
+        // Bước 2b: Macro Expansion for Timer nodes (TON, TOF, TP) - Luôn sinh cho cả WireProfile 1 và >= 2
+        foreach (var timerNode in timerNodes)
+        {
+            var tData = timerNode.TimerData ?? new TimerNodeData();
+            ushort resolvedInTagIndex = tData.InTagIndex;
+            ushort resolvedQTagIndex = tData.QTagIndex;
+            TriggerNodeData? customTrigData = null;
+            GuardModel interlockGuard = GuardModel.Empty;
+
+            // Phân giải kết nối ngõ vào của Timer:
+            // Hỗ trợ nhận từ Input (Boolean), Trigger (Comparator/Edge), hoặc Guard (Interlock)
             var inEdge = graph.GetIncomingEdges(timerNode.Id).FirstOrDefault();
-            if (inEdge != null && nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode) && srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
+            if (inEdge != null && nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode))
             {
-                resolvedInTagIndex = srcNode.InputData.TagIndex;
+                if (srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
+                {
+                    resolvedInTagIndex = srcNode.InputData.TagIndex;
+                }
+                else if (srcNode.Kind == LogicNodeKind.Trigger && srcNode.TriggerData != null)
+                {
+                    customTrigData = srcNode.TriggerData;
+                    var trigInEdge = graph.GetIncomingEdges(srcNode.Id).FirstOrDefault();
+                    if (trigInEdge != null && nodeMap.TryGetValue(trigInEdge.SourceNodeId, out var inpNode) && inpNode.Kind == LogicNodeKind.Input && inpNode.InputData != null)
+                    {
+                        resolvedInTagIndex = inpNode.InputData.TagIndex;
+                    }
+                }
+                else if (srcNode.Kind == LogicNodeKind.Guard && srcNode.GuardData != null)
+                {
+                    var gTag = product.FindTagByIndex(srcNode.GuardData.TagIndex);
+                    if (gTag != null)
+                    {
+                        interlockGuard = new GuardModel(gTag, srcNode.GuardData.Negated);
+                    }
+
+                    // Upstream của Guard là Trigger
+                    var guardInEdge = graph.GetIncomingEdges(srcNode.Id).FirstOrDefault();
+                    if (guardInEdge != null && nodeMap.TryGetValue(guardInEdge.SourceNodeId, out var trigNode) && trigNode.Kind == LogicNodeKind.Trigger && trigNode.TriggerData != null)
+                    {
+                        customTrigData = trigNode.TriggerData;
+                        var trigInEdge = graph.GetIncomingEdges(trigNode.Id).FirstOrDefault();
+                        if (trigInEdge != null && nodeMap.TryGetValue(trigInEdge.SourceNodeId, out var inpNode) && inpNode.Kind == LogicNodeKind.Input && inpNode.InputData != null)
+                        {
+                            resolvedInTagIndex = inpNode.InputData.TagIndex;
+                        }
+                    }
+                }
             }
 
             // Nếu Timer node được nối dây sang Action node downstream -> lấy QTagIndex từ Action node
@@ -325,51 +382,138 @@ public sealed class RuleCompiler : IRuleCompiler
             {
                 case TimerMacroType.Ton:
                 {
-                    // R0: IN ON_RISE for PT -> SET Q = 1
-                    var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = tData.PresetMs };
-                    var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
-                    var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 0, timerNode.Label);
-                    candidateRules.Add((timerNode, trig0, act0, GuardModel.Empty, $"{labelPrefix}_TON_ON", origin0));
+                    if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
+                    {
+                        // TON với Comparator Trigger (ví dụ AI0 > 80 duy trì liên tục trong PresetMs -> Q = 1)
+                        // R0: Điều kiện đúng duy trì đủ PresetMs -> SET Q = 1
+                        var trig0 = new TriggerModel(inTag, customTrigData.Type)
+                        {
+                            CompareOp = customTrigData.CompareOp,
+                            ThresholdLo = customTrigData.ThresholdLo,
+                            ThresholdHi = customTrigData.ThresholdHi,
+                            ForMs = tData.PresetMs
+                        };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, interlockGuard, $"{labelPrefix}_TON_ON", origin0));
 
-                    // R1: IN ON_FALL for 0 -> SET Q = 0
-                    var trig1 = new TriggerModel(inTag, TriggerKind.OnFall) { ForMs = 0 };
-                    var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
-                    var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 1, timerNode.Label);
-                    candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TON_OFF", origin1));
+                        // R1: Điều kiện đảo ngược rớt ngưỡng -> tức thời Reset Q = 0
+                        var invertedOp = InvertCompareOp(customTrigData.CompareOp);
+                        var trig1 = new TriggerModel(inTag, TriggerKind.OnChange)
+                        {
+                            CompareOp = invertedOp,
+                            ThresholdLo = customTrigData.ThresholdLo,
+                            ThresholdHi = customTrigData.ThresholdHi,
+                            ForMs = 0
+                        };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TON_OFF", origin1));
+                    }
+                    else
+                    {
+                        // R0: IN ON_RISE for PT -> SET Q = 1
+                        var trigKind0 = customTrigData?.Type ?? TriggerKind.OnRise;
+                        var trig0 = new TriggerModel(inTag, trigKind0) { ForMs = tData.PresetMs };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, interlockGuard, $"{labelPrefix}_TON_ON", origin0));
+
+                        // R1: IN ON_FALL for 0 -> SET Q = 0
+                        var trig1 = new TriggerModel(inTag, TriggerKind.OnFall) { ForMs = 0 };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TON", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TON_OFF", origin1));
+                    }
                     break;
                 }
 
                 case TimerMacroType.Tof:
                 {
-                    // R0: IN ON_RISE for 0 -> SET Q = 1
-                    var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = 0 };
-                    var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
-                    var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 0, timerNode.Label);
-                    candidateRules.Add((timerNode, trig0, act0, GuardModel.Empty, $"{labelPrefix}_TOF_ON", origin0));
+                    if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
+                    {
+                        // R0: Điều kiện đúng -> SET Q = 1
+                        var trig0 = new TriggerModel(inTag, customTrigData.Type)
+                        {
+                            CompareOp = customTrigData.CompareOp,
+                            ThresholdLo = customTrigData.ThresholdLo,
+                            ThresholdHi = customTrigData.ThresholdHi,
+                            ForMs = 0
+                        };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, interlockGuard, $"{labelPrefix}_TOF_ON", origin0));
 
-                    // R1: IN ON_FALL for PT, Guard Q == 1 -> SET Q = 0
-                    var trig1 = new TriggerModel(inTag, TriggerKind.OnFall) { ForMs = tData.PresetMs };
-                    var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
-                    var guard1 = new GuardModel(qTag, negated: false);
-                    var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 1, timerNode.Label);
-                    candidateRules.Add((timerNode, trig1, act1, guard1, $"{labelPrefix}_TOF_OFF", origin1));
+                        // R1: Điều kiện đảo ngược duy trì đủ PresetMs, Guard Q == 1 -> SET Q = 0
+                        var invertedOp = InvertCompareOp(customTrigData.CompareOp);
+                        var trig1 = new TriggerModel(inTag, TriggerKind.OnChange)
+                        {
+                            CompareOp = invertedOp,
+                            ThresholdLo = customTrigData.ThresholdLo,
+                            ThresholdHi = customTrigData.ThresholdHi,
+                            ForMs = tData.PresetMs
+                        };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var guard1 = new GuardModel(qTag, negated: false);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, guard1, $"{labelPrefix}_TOF_OFF", origin1));
+                    }
+                    else
+                    {
+                        // R0: IN ON_RISE for 0 -> SET Q = 1
+                        var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = 0 };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, interlockGuard, $"{labelPrefix}_TOF_ON", origin0));
+
+                        // R1: IN ON_FALL for PT, Guard Q == 1 -> SET Q = 0
+                        var trig1 = new TriggerModel(inTag, TriggerKind.OnFall) { ForMs = tData.PresetMs };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var guard1 = new GuardModel(qTag, negated: false);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TOF", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, guard1, $"{labelPrefix}_TOF_OFF", origin1));
+                    }
                     break;
                 }
 
                 case TimerMacroType.Tp:
                 {
-                    // R0: IN ON_RISE for 0, Guard Q == 0 -> SET Q = 1
-                    var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = 0 };
-                    var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
-                    var guard0 = new GuardModel(qTag, negated: true);
-                    var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 0, timerNode.Label);
-                    candidateRules.Add((timerNode, trig0, act0, guard0, $"{labelPrefix}_TP_START", origin0));
+                    if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
+                    {
+                        // R0: Điều kiện đúng, Guard Q == 0 -> SET Q = 1
+                        var trig0 = new TriggerModel(inTag, customTrigData.Type)
+                        {
+                            CompareOp = customTrigData.CompareOp,
+                            ThresholdLo = customTrigData.ThresholdLo,
+                            ThresholdHi = customTrigData.ThresholdHi,
+                            ForMs = 0
+                        };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var guard0 = new GuardModel(qTag, negated: true);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, guard0, $"{labelPrefix}_TP_START", origin0));
 
-                    // R1: Q ON_RISE for PT -> SET Q = 0
-                    var trig1 = new TriggerModel(qTag, TriggerKind.OnRise) { ForMs = tData.PresetMs };
-                    var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
-                    var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 1, timerNode.Label);
-                    candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TP_EXPIRE", origin1));
+                        // R1: Q ON_RISE for PT -> SET Q = 0
+                        var trig1 = new TriggerModel(qTag, TriggerKind.OnRise) { ForMs = tData.PresetMs };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TP_EXPIRE", origin1));
+                    }
+                    else
+                    {
+                        // R0: IN ON_RISE for 0, Guard Q == 0 -> SET Q = 1
+                        var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = 0 };
+                        var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                        var guard0 = new GuardModel(qTag, negated: true);
+                        var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 0, timerNode.Label);
+                        candidateRules.Add((timerNode, trig0, act0, guard0, $"{labelPrefix}_TP_START", origin0));
+
+                        // R1: Q ON_RISE for PT -> SET Q = 0
+                        var trig1 = new TriggerModel(qTag, TriggerKind.OnRise) { ForMs = tData.PresetMs };
+                        var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                        var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "TP", 1, timerNode.Label);
+                        candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_TP_EXPIRE", origin1));
+                    }
                     break;
                 }
             }
@@ -382,21 +526,37 @@ public sealed class RuleCompiler : IRuleCompiler
             ushort resolvedCuTagIndex = cData.CuTagIndex;
             ushort? resolvedResetTagIndex = cData.ResetTagIndex;
             ushort resolvedQTagIndex = cData.QTagIndex;
+            TriggerNodeData? customCuTrigData = null;
 
             // Phân giải kết nối dây từ graph:
             // 1. Incoming edges (CU/CD hoặc R)
             foreach (var inEdge in graph.GetIncomingEdges(counterNode.Id))
             {
-                if (nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode) && srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
+                if (nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode))
                 {
-                    if (string.Equals(inEdge.TargetPort, "R", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(inEdge.TargetPort, "Reset", StringComparison.OrdinalIgnoreCase))
+                    bool isResetPort = string.Equals(inEdge.TargetPort, "R", StringComparison.OrdinalIgnoreCase) ||
+                                       string.Equals(inEdge.TargetPort, "Reset", StringComparison.OrdinalIgnoreCase);
+
+                    if (srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
                     {
-                        resolvedResetTagIndex = srcNode.InputData.TagIndex;
+                        if (isResetPort) resolvedResetTagIndex = srcNode.InputData.TagIndex;
+                        else resolvedCuTagIndex = srcNode.InputData.TagIndex;
                     }
-                    else
+                    else if (srcNode.Kind == LogicNodeKind.Trigger && srcNode.TriggerData != null)
                     {
-                        resolvedCuTagIndex = srcNode.InputData.TagIndex;
+                        var trigInEdge = graph.GetIncomingEdges(srcNode.Id).FirstOrDefault();
+                        if (trigInEdge != null && nodeMap.TryGetValue(trigInEdge.SourceNodeId, out var inpNode) && inpNode.Kind == LogicNodeKind.Input && inpNode.InputData != null)
+                        {
+                            if (isResetPort)
+                            {
+                                resolvedResetTagIndex = inpNode.InputData.TagIndex;
+                            }
+                            else
+                            {
+                                resolvedCuTagIndex = inpNode.InputData.TagIndex;
+                                customCuTrigData = srcNode.TriggerData;
+                            }
+                        }
                     }
                 }
             }
@@ -412,6 +572,21 @@ public sealed class RuleCompiler : IRuleCompiler
 
             var cuTag = product.FindTagByIndex(resolvedCuTagIndex);
             var cvTag = product.FindTagByIndex(cData.CvTagIndex);
+            if (cvTag == null)
+            {
+                // Quy ước: Counter thứ i dùng tag COUNTER[i] làm CV nếu cData.CvTagIndex chưa được cấu hình
+                int counterIdx = counterNodes.IndexOf(counterNode);
+                if (counterIdx >= 0)
+                {
+                    var defaultCounterTag = product.FindTagByName($"COUNTER{counterIdx}");
+                    if (defaultCounterTag != null)
+                    {
+                        cvTag = defaultCounterTag;
+                        cData.CvTagIndex = defaultCounterTag.TagIndex;
+                    }
+                }
+            }
+
             var qTag = product.FindTagByIndex(resolvedQTagIndex);
             TagDefinition? resetTag = resolvedResetTagIndex.HasValue ? product.FindTagByIndex(resolvedResetTagIndex.Value) : null;
 
@@ -455,7 +630,21 @@ public sealed class RuleCompiler : IRuleCompiler
             // CTU: CU ON_RISE -> CV += 1
             // CTD: CD ON_RISE -> CV += -1 (decrement)
             int incStep = cData.Type == CounterMacroType.Ctd ? -1 : 1;
-            var trigCount = new TriggerModel(cuTag, TriggerKind.OnRise) { ForMs = 0 };
+            TriggerModel trigCount;
+            if (customCuTrigData != null && customCuTrigData.CompareOp != CompareOperator.None)
+            {
+                trigCount = new TriggerModel(cuTag, customCuTrigData.Type)
+                {
+                    CompareOp = customCuTrigData.CompareOp,
+                    ThresholdLo = customCuTrigData.ThresholdLo,
+                    ThresholdHi = customCuTrigData.ThresholdHi,
+                    ForMs = 0
+                };
+            }
+            else
+            {
+                trigCount = new TriggerModel(cuTag, customCuTrigData?.Type ?? TriggerKind.OnRise) { ForMs = 0 };
+            }
             var actCount = new ActionModel(cvTag, ActionKind.IncrementCounter, incStep);
             var guardCount = resetTag != null ? new GuardModel(resetTag, negated: true) : GuardModel.Empty;
             var originCount = new GeneratedRuleOrigin(counterNode.Id, macroId, macroType, ruleExpIndex++, counterNode.Label);
@@ -493,7 +682,6 @@ public sealed class RuleCompiler : IRuleCompiler
             var originClear = new GeneratedRuleOrigin(counterNode.Id, macroId, macroType, ruleExpIndex++, counterNode.Label);
             candidateRules.Add((counterNode, trigClear, actClear, GuardModel.Empty, $"{labelPrefix}_{macroType}_CLEAR", originClear));
         }
-    }
 
         // Step 2d: Macro Expansion for Scale nodes (Linear Scaler)
         foreach (var scaleNode in scaleNodes)
@@ -670,4 +858,15 @@ public sealed class RuleCompiler : IRuleCompiler
 
         return CompileResult.Success(program, diagnostics);
     }
+
+    private static CompareOperator InvertCompareOp(CompareOperator op) => op switch
+    {
+        CompareOperator.GreaterThan => CompareOperator.LessThanOrEqual,
+        CompareOperator.LessThan => CompareOperator.GreaterThanOrEqual,
+        CompareOperator.GreaterThanOrEqual => CompareOperator.LessThan,
+        CompareOperator.LessThanOrEqual => CompareOperator.GreaterThan,
+        CompareOperator.Equal => CompareOperator.NotEqual,
+        CompareOperator.NotEqual => CompareOperator.Equal,
+        _ => CompareOperator.None
+    };
 }

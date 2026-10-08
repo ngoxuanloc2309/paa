@@ -13,6 +13,7 @@ using SimplePLC.Studio.Services;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Application.Models;
+using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Studio.ViewModels;
 
@@ -53,7 +54,7 @@ public partial class TagCatalogViewModel : ObservableObject
 
     public TagCatalogViewModel()
     {
-        InitializeTags();
+        InitializeTagsFromLayout(TagLayoutMap.Default);
         UpdateGroupButtons();
         _currentGroupInfo = GetGroupInfo("ALL");
         ApplyFilter();
@@ -138,77 +139,64 @@ public partial class TagCatalogViewModel : ObservableObject
         }
     }
 
-    private void InitializeTags()
+    private void InitializeTags() => InitializeTagsFromLayout(TagLayoutMap.Default);
+
+    private void InitializeTagsFromLayout(TagLayoutMap layout)
     {
         AllTags.Clear();
-        // Index for NONE
         AllTags.Add(new TagModel { Index = 65535, Kind = TagKind.None, Name = "NONE", Alias = "— Không chọn —", Group = "SYSTEM" });
 
-        // 8 DI (Index 0..7)
-        for (int i = 0; i < 8; i++)
-        {
-            AllTags.Add(new TagModel { Index = i, Kind = TagKind.DiscreteInput, Name = $"DI{i}", Channel = i + 1, Group = "DI", Value = 0 });
-        }
+        for (int i = 0; i < layout.DiCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.DiBase + i), Kind = TagKind.DiscreteInput, Name = $"DI{i}", Channel = i + 1, Group = "DI", Value = 0 });
 
-        // 8 DO (Index 8..15)
-        for (int i = 0; i < 8; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 8, Kind = TagKind.DiscreteOutput, Name = $"DO{i}", Channel = i + 1, Group = "DO", Value = 0 });
-        }
+        for (int i = 0; i < layout.DoCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.DoBase + i), Kind = TagKind.DiscreteOutput, Name = $"DO{i}", Channel = i + 1, Group = "DO", Value = 0 });
 
-        // 4 AI (Index 16..19)
-        for (int i = 0; i < 4; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 16, Kind = TagKind.AnalogInput, Name = $"AI{i}", Channel = i + 1, Group = "AI", Value = 0 });
-        }
+        for (int i = 0; i < layout.AiCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.AiBase + i), Kind = TagKind.AnalogInput, Name = $"AI{i}", Channel = i + 1, Group = "AI", Value = 0 });
 
-        // 32 VFLAG (Index 20..51)
-        for (int i = 0; i < 32; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 20, Kind = TagKind.VirtualFlag, Name = $"VFLAG{i}", Channel = i + 1, Group = "VFLAG", Value = 0 });
-        }
+        for (int i = 0; i < layout.VflagCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.VflagBase + i), Kind = TagKind.VirtualFlag, Name = $"VFLAG{i}", Channel = i + 1, Group = "VFLAG", Value = 0 });
 
-        // 32 VREG (Index 52..83)
-        for (int i = 0; i < 32; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 52, Kind = TagKind.VirtualRegister, Name = $"VREG{i}", Channel = i + 1, Group = "VREG", Value = 0 });
-        }
+        for (int i = 0; i < layout.VregCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.VregBase + i), Kind = TagKind.VirtualRegister, Name = $"VREG{i}", Channel = i + 1, Group = "VREG", Value = 0 });
 
-        // 32 VREG_RETAIN (Index 84..115)
-        for (int i = 0; i < 32; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 84, Kind = TagKind.VirtualRegisterRetain, Name = $"VREG_RETAIN{i}", Channel = i + 1, Group = "VREG_R", Value = 0 });
-        }
+        for (int i = 0; i < layout.VregRetainCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.VregRetainBase + i), Kind = TagKind.VirtualRegisterRetain, Name = $"VREG_RETAIN{i}", Channel = i + 1, Group = "VREG_R", Value = 0 });
 
-        // 8 COUNTER (Index 116..123)
-        for (int i = 0; i < 8; i++)
-        {
-            AllTags.Add(new TagModel { Index = i + 116, Kind = TagKind.Counter, Name = $"COUNTER{i}", Channel = i + 1, Group = "COUNTER", Value = 0 });
-        }
+        for (int i = 0; i < layout.CounterCount; i++)
+            AllTags.Add(new TagModel { Index = (ushort)(layout.CounterBase + i), Kind = TagKind.Counter, Name = $"COUNTER{i}", Channel = i + 1, Group = "COUNTER", Value = 0 });
 
-        // Đồng bộ danh mục tag Boolean / Digital cho Guard và các khối logic số
+        RebuildDerivedCollections();
+    }
+
+    /// <summary>
+    /// Gọi khi MCU kết nối và gửi DeviceResourceInfo thực.
+    /// Rebuild toàn bộ Tag Catalog theo layout của MCU.
+    /// </summary>
+    public void RebuildFromLayout(TagLayoutMap layout)
+    {
+        InitializeTagsFromLayout(layout);
+        UpdateGroupButtons();
+        CurrentGroupInfo = GetGroupInfo(SelectedGroup);
+        ApplyFilter();
+        OnPropertyChanged(nameof(TotalTagCount));
+        OnPropertyChanged(nameof(TitleText));
+    }
+
+    private void RebuildDerivedCollections()
+    {
         DigitalTags.Clear();
         foreach (var tag in AllTags.Where(t => t.Kind == TagKind.None || t.IsDigital))
-        {
             DigitalTags.Add(tag);
-        }
 
-        // Đồng bộ danh mục tag ngõ ra số cho Action và Timer (DO, VFLAG)
         OutputDigitalTags.Clear();
         foreach (var tag in AllTags.Where(t => t.Kind == TagKind.DiscreteOutput || t.Kind == TagKind.VirtualFlag))
-        {
             OutputDigitalTags.Add(tag);
-        }
 
-        // Đồng bộ danh mục tag thanh ghi (CV) cho Counter (VREG_RETAIN, VREG, COUNTER)
         RegisterTags.Clear();
         foreach (var tag in AllTags.Where(t => t.Kind is TagKind.VirtualRegisterRetain or TagKind.VirtualRegister or TagKind.Counter))
-        {
             RegisterTags.Add(tag);
-        }
-
-        // Mặc định để trống Alias, người dùng sử dụng IO nào sẽ tự đặt tên gợi nhớ cho IO đó.
-        // Nếu người dùng muốn nạp bộ tên mẫu công nghiệp, họ có thể bấm nút '↺ Đặt lại mặc định'.
     }
 
     public void ResetAllAliases()
@@ -336,11 +324,20 @@ public partial class TagCatalogViewModel : ObservableObject
         }
         syncedTags.Add(noneTag);
 
+        var layout = new TagLayoutMap(
+            product.Resources.DigitalInputs,
+            product.Resources.DigitalOutputs,
+            product.Resources.AnalogInputs,
+            product.Resources.VirtualFlags,
+            product.Resources.VirtualRegisters,
+            product.Resources.RetentiveRegisters,
+            product.Resources.Counters);
+
         // 2. Duyệt qua từng TagDefinition được sinh từ phần cứng MCU
         foreach (var def in product.Tags)
         {
             string group = MapGroup(def.Kind);
-            int channel = CalculateChannel(def.Kind, def.TagIndex);
+            int channel = CalculateChannel(def.Kind, def.TagIndex, layout);
 
             if (existingMap.TryGetValue(def.TagIndex, out var existing))
             {
@@ -373,26 +370,8 @@ public partial class TagCatalogViewModel : ObservableObject
             AllTags.Add(tag);
         }
 
-        // 4. Đồng bộ DigitalTags cho các khối Guard / Logic số
-        DigitalTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind == TagKind.None || t.IsDigital))
-        {
-            DigitalTags.Add(tag);
-        }
-
-        // Đồng bộ danh mục tag ngõ ra số cho Action và Timer (DO, VFLAG)
-        OutputDigitalTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind == TagKind.DiscreteOutput || t.Kind == TagKind.VirtualFlag))
-        {
-            OutputDigitalTags.Add(tag);
-        }
-
-        // Đồng bộ danh mục tag thanh ghi (CV) cho Counter (VREG_RETAIN, VREG, COUNTER)
-        RegisterTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind is TagKind.VirtualRegisterRetain or TagKind.VirtualRegister or TagKind.Counter))
-        {
-            RegisterTags.Add(tag);
-        }
+        // 4. Đồng bộ các collection phụ thuộc
+        RebuildDerivedCollections();
 
         // 5. Cập nhật thanh nút lọc nhóm GroupButtons
         UpdateGroupButtons(product.Resources);
@@ -445,17 +424,19 @@ public partial class TagCatalogViewModel : ObservableObject
         _ => "SYSTEM"
     };
 
-    private static int CalculateChannel(TagKind kind, int index) => kind switch
+    private static int CalculateChannel(TagKind kind, int index, TagLayoutMap layout) => kind switch
     {
-        TagKind.DiscreteInput => index + 1,
-        TagKind.DiscreteOutput => (index - 8) + 1,
-        TagKind.AnalogInput => (index - 16) + 1,
-        TagKind.VirtualFlag => (index - 20) + 1,
-        TagKind.VirtualRegister => (index - 52) + 1,
-        TagKind.VirtualRegisterRetain => (index - 84) + 1,
-        TagKind.Counter => (index - 116) + 1,
+        TagKind.DiscreteInput => (index - layout.DiBase) + 1,
+        TagKind.DiscreteOutput => (index - layout.DoBase) + 1,
+        TagKind.AnalogInput => (index - layout.AiBase) + 1,
+        TagKind.VirtualFlag => (index - layout.VflagBase) + 1,
+        TagKind.VirtualRegister => (index - layout.VregBase) + 1,
+        TagKind.VirtualRegisterRetain => (index - layout.VregRetainBase) + 1,
+        TagKind.Counter => (index - layout.CounterBase) + 1,
         _ => 1
     };
+
+    private static int CalculateChannel(TagKind kind, int index) => CalculateChannel(kind, index, TagLayoutMap.Default);
 
     public TagGroupInfo GetGroupInfo(string group)
     {

@@ -85,7 +85,50 @@
             <!-- 1. Content Cards -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
                 <StackPanel>
-                    <!-- Card 1: Bản đồ tài nguyên I/O & Bộ nhớ -->
+                    <!-- Card 1: Nhận dạng phần cứng & Firmware (Mục 1) -->
+                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [DeviceInfoGroupOverview], Source={x:Static services:LocalizationService.Instance}}"
+                                       FontSize="11.5" FontWeight="Bold" Foreground="#006487" Margin="0,0,0,10" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="165" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="Auto" MinWidth="165" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0 -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [DeviceInfoClass], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DeviceClassText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
+
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding [DeviceInfoHwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding HwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                                <!-- Row 1 -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [DeviceInfoVariant], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DeviceVariantText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding [DeviceInfoFwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="#006487" Margin="6,4" VerticalAlignment="Center" />
+
+                                <!-- Row 2 -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [DeviceInfoWireProfile], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WireProfileText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding [DeviceInfoRuleFormat], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding RuleFormatText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 2: Bản đồ tài nguyên I/O & Bộ nhớ (Mục 2) -->
                     <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="{Binding [DeviceInfoGroupResources], Source={x:Static services:LocalizationService.Instance}}"
@@ -132,49 +175,6 @@
 
                                 <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding [DeviceInfoCounters], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
                                 <TextBlock Grid.Row="3" Grid.Column="4" Text="{Binding CountersText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Card 2: Nhận dạng phần cứng & Firmware -->
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="{Binding [DeviceInfoGroupOverview], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#006487" Margin="0,0,0,10" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" MinWidth="165" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="20" />
-                                    <ColumnDefinition Width="Auto" MinWidth="165" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <!-- Row 0 -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [DeviceInfoClass], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DeviceClassText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
-
-                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding [DeviceInfoHwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding HwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-
-                                <!-- Row 1 -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [DeviceInfoVariant], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DeviceVariantText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
-
-                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding [DeviceInfoFwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="#006487" Margin="6,4" VerticalAlignment="Center" />
-
-                                <!-- Row 2 -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [DeviceInfoWireProfile], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WireProfileText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-
-                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding [DeviceInfoRuleFormat], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding RuleFormatText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
                             </Grid>
                         </StackPanel>
                     </Border>

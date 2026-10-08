@@ -22,18 +22,17 @@ Tài liệu định hướng và đặc tả kỹ thuật dành riêng cho team 
 
 ### 3. [Khế Ước Giao Thức & Cấu Trúc Dữ Liệu (`docs/platform/`)](platform/)
 Đặc tả chi tiết giao thức truyền thông Modbus RTU và khế ước dữ liệu qua đường dây (Wire Contracts):
-* [`SimplePLC_Wire_Contract_V1_9.md`](platform/SimplePLC_Wire_Contract_V1_9.md): Đặc tả khế ước nhị phân chuẩn Platform V1.9 (Rule 32-byte Big-Endian, CRC-16/MODBUS).
-* [`SimplePLC_Wire_Contract_V2_Draft.md`](platform/SimplePLC_Wire_Contract_V2_Draft.md): Dự thảo mở rộng cho Profile V2.0.
-* [`SimplePLC_Modbus_Register_Map_V1.md`](platform/SimplePLC_Modbus_Register_Map_V1.md): Bản đồ phân bổ thanh ghi Modbus chuẩn (`0x0000..0x9FFF`).
-* [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): Cấu trúc hồ sơ thiết bị tự mô tả (Self-Describing Device Profile).
-* [`SimplePLC_App_MCU_Structs_v1.9_Self_Describing_Profile.docx`](platform/SimplePLC_App_MCU_Structs_v1.9_Self_Describing_Profile.docx): Bản Word khế ước V1.9.
-* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông.
+* [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[CHUẨN CỐT LÕI]** Cấu trúc hồ sơ thiết bị tự mô tả Self-Describing Device Profile V2.0 (Wire Profile 2, RTC Clock Read-Before-Write, Dedicated Function Blocks).
+* [`SimplePLC_Wire_Contract_V2_Draft.md`](platform/SimplePLC_Wire_Contract_V2_Draft.md): Đặc tả phân hệ Chẩn đoán Diag & Commissioning Control V2.0 (`0x0A20`).
+* [`SimplePLC_Modbus_Register_Map_V1.md`](platform/SimplePLC_Modbus_Register_Map_V1.md): Bản đồ phân bổ thanh ghi Modbus chuẩn hóa Platform V2.0 (`0x0000..0xA001`).
+* [`SimplePLC_Wire_Contract_V1_9.md`](platform/SimplePLC_Wire_Contract_V1_9.md): Đặc tả khế ước nhị phân nền tảng kế thừa V1.9 (Rule 32-byte Big-Endian, CRC-16/MODBUS).
+* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông V1.0 -> V2.0.
 
 ---
 
 ### 4. [Kiểm Thử & Tích Hợp Phần Cứng (`docs/testing/`)](testing/)
 Kế hoạch và quy trình thử nghiệm đo kiểm thực tế trên bench test:
-* [`HARDWARE_INTEGRATION_TEST_PLAN.md`](testing/HARDWARE_INTEGRATION_TEST_PLAN.md): Kế hoạch kiểm thử tích hợp phần cứng USB CDC / RS485 từ HIT-001 đến HIT-010.
+* [`HARDWARE_INTEGRATION_TEST_PLAN.md`](testing/HARDWARE_INTEGRATION_TEST_PLAN.md): Kế hoạch kiểm thử tích hợp phần cứng USB CDC / RS485 chuẩn Platform V2.0 (14 ca kiểm thử từ HIT-001 đến HIT-014).
 
 ---
 

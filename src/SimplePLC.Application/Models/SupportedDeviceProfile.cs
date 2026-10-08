@@ -35,4 +35,25 @@ public sealed record SupportedDeviceProfile(
             RuleFormatVersion: 1,
             ProfileName: "Remote I/O (8DI-8DO-4AI) V1.7"
         );
+
+    /// <summary>
+    /// Profile chuẩn cho biến thể Remote I/O 8DI-8DO-4AI V2.0 (Wire Profile V2).
+    /// </summary>
+    public static SupportedDeviceProfile RemoteIo8Di8Do4AiV2_0 =>
+        new(
+            DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            ProtocolVersion: 2,
+            RuleFormatVersion: 7,
+            ProfileName: "Remote I/O (8DI-8DO-4AI) V2.0"
+        );
+
+    /// <summary>
+    /// Danh sách tất cả các profile mặc định được SimplePLC hỗ trợ.
+    /// </summary>
+    public static IReadOnlyList<SupportedDeviceProfile> DefaultProfiles => new[]
+    {
+        RemoteIo8Di8Do4AiV1_7,
+        RemoteIo8Di8Do4AiV2_0
+    };
 }

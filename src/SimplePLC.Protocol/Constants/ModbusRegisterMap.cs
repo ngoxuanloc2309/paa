@@ -34,15 +34,25 @@ public static class ModbusRegisterMap
     public const ushort MaxRetentiveRegisters = 32;
     public const ushort MaxCounters = 8;
 
-    // Địa chỉ chỉ số gốc (Base TagIndex) cố định trong Wire Profile V1
-    public const ushort DiBaseIndex = 0;
-    public const ushort DoBaseIndex = 8;
-    public const ushort AiBaseIndex = 16;
-    public const ushort VflagBaseIndex = 20;
-    public const ushort VregBaseIndex = 52;
-    public const ushort VregRetainBaseIndex = 84;
-    public const ushort CounterBaseIndex = 116;
-    public const ushort ReservedBaseIndex = 124;
+    // ==========================================
+    // 1b. TAG LAYOUT — tính động theo số lượng thực tế
+    // ==========================================
+
+    /// <summary>
+    /// Tính TagLayoutMap động từ số lượng tài nguyên thực của thiết bị.
+    /// DiBase = 0, DoBase = diCount, AiBase = diCount+doCount, ...
+    /// </summary>
+    public static SimplePLC.Protocol.Models.TagLayoutMap ComputeLayout(
+        ushort diCount, ushort doCount, ushort aiCount,
+        ushort vflagCount, ushort vregCount, ushort vregRetainCount, ushort counterCount)
+        => new(diCount, doCount, aiCount, vflagCount, vregCount, vregRetainCount, counterCount);
+
+    /// <summary>
+    /// Layout mặc định đầy đủ (8 DI, 8 DO, 4 AI, 32 VFLAG, 32 VREG, 32 VREG_RETAIN, 8 COUNTER).
+    /// Dùng khi chưa có DeviceResourceInfo từ MCU.
+    /// </summary>
+    public static SimplePLC.Protocol.Models.TagLayoutMap DefaultLayout
+        => SimplePLC.Protocol.Models.TagLayoutMap.Default;
 
     /// <summary>
     /// Magic number ghi vào COMMIT_COMMAND (0xA000) để MCU xác minh CRC và commit Rule Table.

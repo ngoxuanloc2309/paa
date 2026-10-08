@@ -59,9 +59,9 @@ public sealed record DeviceSession(
     uint? ActiveConfigVersion = null)
 {
     public bool IsCompatible => State == ConnectionState.Connected
-        && ProtocolVersion == 1
-        && RuleFormatVersion == 1
-        && DeviceProfile == 1;
+        && (ProtocolVersion == 1 || ProtocolVersion == 2)
+        && (RuleFormatVersion == 1 || RuleFormatVersion == 7)
+        && (DeviceProfile == 1 || DeviceProfile == 2);
 }
 
 public sealed record CompileResult(

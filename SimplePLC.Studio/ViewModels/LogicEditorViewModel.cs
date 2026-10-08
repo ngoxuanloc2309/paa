@@ -365,6 +365,9 @@ public partial class LogicEditorViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CompileStateDisplay))]
+    [NotifyPropertyChangedFor(nameof(CompileStateColor))]
+    [NotifyPropertyChangedFor(nameof(CompileStateBackground))]
+    [NotifyPropertyChangedFor(nameof(CompileStateBorder))]
     private CompileState _compileState = CompileState.NotCompiled;
 
     public string CompileStateDisplay => CompileState switch
@@ -372,6 +375,27 @@ public partial class LogicEditorViewModel : ObservableObject
         CompileState.Valid => LocalizationService.Tr("CompileStateValid"),
         CompileState.Stale => LocalizationService.Tr("CompileStateStale"),
         _ => LocalizationService.Tr("CompileStateInvalid")
+    };
+
+    public string CompileStateColor => CompileState switch
+    {
+        CompileState.Valid => "#107C41",      // Forest Green
+        CompileState.Stale => "#C05621",      // Safety Amber
+        _ => "#B91C1C"                       // Safety Red
+    };
+
+    public string CompileStateBackground => CompileState switch
+    {
+        CompileState.Valid => "#E6F4EA",     // Green soft light
+        CompileState.Stale => "#FEF3C7",     // Amber soft light
+        _ => "#FEE2E2"                       // Red soft light
+    };
+
+    public string CompileStateBorder => CompileState switch
+    {
+        CompileState.Valid => "#A7F3D0",
+        CompileState.Stale => "#FDE68A",
+        _ => "#FECACA"
     };
 
     [ObservableProperty]
@@ -1416,14 +1440,15 @@ public partial class LogicEditorViewModel : ObservableObject
             .Select(c => c.CvTag!.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var retainTags = TagCatalog.RegisterTags
-            .Where(t => t.Name.StartsWith("VREG_RETAIN", StringComparison.OrdinalIgnoreCase))
+        // Quy ước: Counter i ưu tiên dùng tag COUNTER[i] làm CV để MCU hiển thị và đồng bộ
+        var counterTags = TagCatalog.AllTags
+            .Where(t => t.Kind == TagKind.Counter)
             .ToList();
 
-        var cvTag = retainTags.FirstOrDefault(t => !usedCvNames.Contains(t.Name))
+        var cvTag = counterTags.FirstOrDefault(t => !usedCvNames.Contains(t.Name))
+            ?? counterTags.FirstOrDefault()
             ?? TagCatalog.RegisterTags.FirstOrDefault(t => !usedCvNames.Contains(t.Name))
-            ?? TagCatalog.RegisterTags.FirstOrDefault()
-            ?? TagCatalog.AllTags.FirstOrDefault(t => t.Name == "VREG_RETAIN0");
+            ?? TagCatalog.RegisterTags.FirstOrDefault();
 
         return new CounterNodeViewModel(mode, inTag: tag, cvTag: cvTag, qTag: null);
     }
@@ -2045,13 +2070,15 @@ public partial class LogicEditorViewModel : ObservableObject
     public GraphNodeViewModel? CreateNodeFromData(ProjectNodeData pNode)
     {
         GraphNodeViewModel? node = null;
-        if (pNode.Type == "Input")
+        string type = pNode.Type ?? string.Empty;
+
+        if (string.Equals(type, "Input", StringComparison.OrdinalIgnoreCase))
         {
             var tag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase))
                       ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteInput);
             node = new InputNodeViewModel(tag);
         }
-        else if (pNode.Type == "Trigger")
+        else if (string.Equals(type, "Trigger", StringComparison.OrdinalIgnoreCase))
         {
             node = new TriggerNodeViewModel
             {
@@ -2062,18 +2089,20 @@ public partial class LogicEditorViewModel : ObservableObject
                 ThresholdHi = pNode.ThresholdHi
             };
         }
-        else if (pNode.Type == "Guard")
+        else if (string.Equals(type, "Guard", StringComparison.OrdinalIgnoreCase))
         {
-            var tag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TargetTagName, StringComparison.OrdinalIgnoreCase))
+            string guardTagName = !string.IsNullOrWhiteSpace(pNode.TargetTagName) ? pNode.TargetTagName : pNode.TagName;
+            var tag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, guardTagName, StringComparison.OrdinalIgnoreCase))
                       ?? TagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG0");
             node = new GuardNodeViewModel(tag)
             {
                 Negate = pNode.Negate
             };
         }
-        else if (pNode.Type == "Action")
+        else if (string.Equals(type, "Action", StringComparison.OrdinalIgnoreCase))
         {
-            var tag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TargetTagName, StringComparison.OrdinalIgnoreCase))
+            string actionTagName = !string.IsNullOrWhiteSpace(pNode.TargetTagName) ? pNode.TargetTagName : pNode.TagName;
+            var tag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, actionTagName, StringComparison.OrdinalIgnoreCase))
                       ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput);
             node = new ActionNodeViewModel(tag)
             {
@@ -2081,7 +2110,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 ActionParam = pNode.ActionParam
             };
         }
-        else if (pNode.Type == "Timer")
+        else if (string.Equals(type, "Timer", StringComparison.OrdinalIgnoreCase))
         {
             var inTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
             var qTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.OutputTagName, StringComparison.OrdinalIgnoreCase))
@@ -2092,7 +2121,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 qTag: qTag,
                 presetMs: pNode.PresetMs > 0 ? pNode.PresetMs : 3000);
         }
-        else if (pNode.Type == "Counter")
+        else if (string.Equals(type, "Counter", StringComparison.OrdinalIgnoreCase))
         {
             var inTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
             var cvTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.CvTagName, StringComparison.OrdinalIgnoreCase))
@@ -2112,7 +2141,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 resetTag: resetTag,
                 presetValue: pNode.PresetValue > 0 ? pNode.PresetValue : 10);
         }
-        else if (pNode.Type == "Scale")
+        else if (string.Equals(type, "Scale", StringComparison.OrdinalIgnoreCase))
         {
             var inTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase))
                        ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput);
@@ -2398,6 +2427,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 LocationX = dn.PositionX,
                 LocationY = dn.PositionY,
                 TagName = dn.TagName,
+                TargetTagName = dn.TagName,
                 TriggerType = Enum.TryParse<TriggerType>(dn.TriggerType, true, out var tt) ? tt : TriggerType.ON_RISE,
                 CompareOp = Enum.TryParse<CompareOp>(dn.CompareOp, true, out var cmp) ? cmp : CompareOp.NONE,
                 ThresholdLo = dn.ThresholdLo,
@@ -2475,7 +2505,8 @@ public partial class LogicEditorViewModel : ObservableObject
         HasPendingAiProposal = false;
         _currentAiTransaction = null;
 
-        CompileAndSaveRules(true);
+        // Thực hiện biên dịch rõ ràng (Explicit Compile) để tự động sinh và nạp Rule vào Bảng Rule (Rule Table)
+        CompileAndSaveRules(false);
         NotifyGraphModified();
     }
 
@@ -3448,6 +3479,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 RuleIndex = eval.RuleIndex + 1,
                 TimestampMs = snapshot.TickMs,
                 InputChange = inputSummary,
+                HasInputChange = prevVal != currVal,
                 TriggerResult = trigRes,
                 TriggerReason = trigReason,
                 TriggerPassed = trigPassed,
@@ -3766,11 +3798,19 @@ public partial class LogicEditorViewModel : ObservableObject
 
         foreach (var timerNode in Nodes.OfType<TimerNodeViewModel>())
         {
-            // 1. Upstream connection highlight
+            // 1. Upstream connection highlight (supports Input, Trigger, Guard)
             var timerConn = Connections.FirstOrDefault(c => c.Target?.Node == timerNode);
             if (timerConn?.Source?.Node is InputNodeViewModel inp && inp.Tag != null)
             {
                 timerConn.IsActive = inp.Tag.Value != 0;
+            }
+            else if (timerConn?.Source?.Node is TriggerNodeViewModel trigVm)
+            {
+                timerConn.IsActive = trigVm.IsSimTriggered;
+            }
+            else if (timerConn?.Source?.Node is GuardNodeViewModel guardVm)
+            {
+                timerConn.IsActive = guardVm.IsSimPassed;
             }
 
             // 2. Output tag state & downstream connection highlight (Q -> Action)
@@ -3839,12 +3879,20 @@ public partial class LogicEditorViewModel : ObservableObject
 
         foreach (var counterNode in Nodes.OfType<CounterNodeViewModel>())
         {
-            // 1. Upstream connections highlight (CU and R)
+            // 1. Upstream connections highlight (CU and R; supports Input, Trigger, Guard)
             foreach (var counterConn in Connections.Where(c => c.Target?.Node == counterNode))
             {
                 if (counterConn.Source?.Node is InputNodeViewModel inp && inp.Tag != null)
                 {
                     counterConn.IsActive = inp.Tag.Value != 0;
+                }
+                else if (counterConn.Source?.Node is TriggerNodeViewModel trigVm)
+                {
+                    counterConn.IsActive = trigVm.IsSimTriggered;
+                }
+                else if (counterConn.Source?.Node is GuardNodeViewModel guardVm)
+                {
+                    counterConn.IsActive = guardVm.IsSimPassed;
                 }
             }
 

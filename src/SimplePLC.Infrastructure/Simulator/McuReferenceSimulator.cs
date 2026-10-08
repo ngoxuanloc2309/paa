@@ -3,6 +3,7 @@ using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Infrastructure.Simulator;
 
@@ -57,6 +58,34 @@ public sealed class McuReferenceSimulator
     /// Bề mặt điều khiển kiểm thử độc lập (Test & Simulation Control API).
     /// </summary>
     public SimulatorControl Control { get; }
+
+    public DeviceResourceInfoDto GetResourceInfo()
+    {
+        if (_faults.OverrideResourceInfo != null)
+        {
+            return _faults.OverrideResourceInfo;
+        }
+
+        Span<ushort> buffer = stackalloc ushort[ModbusRegisterMap.DeviceResourceInfoLength];
+        for (int i = 0; i < ModbusRegisterMap.DeviceResourceInfoLength; i++)
+        {
+            buffer[i] = _memory.InternalRead((ushort)(ModbusRegisterMap.DeviceResourceInfoAddress + i));
+        }
+        return RegisterCodec.DecodeDeviceResourceInfo(buffer);
+    }
+
+    public TagLayoutMap GetTagLayout()
+    {
+        var res = GetResourceInfo();
+        return ModbusRegisterMap.ComputeLayout(
+            res.DigitalInputCount,
+            res.DigitalOutputCount,
+            res.AnalogInputCount,
+            res.VirtualFlagCount,
+            res.VirtualRegisterCount,
+            res.RetentiveRegisterCount,
+            res.CounterCount);
+    }
 
     public McuReferenceSimulator(ushort wireProfile = 1)
     {
@@ -347,15 +376,13 @@ public sealed class McuReferenceSimulator
 
                 FunctionBlockCodec.EncodeCounter(counter, counterRegs);
 
-                // Đồng bộ sang VREG_RETAIN nếu có cấu hình
+                var layout = GetTagLayout();
+
+                // Đồng bộ sang thanh ghi lưu trữ (VREG, VREG_RETAIN, VFLAG, COUNTER...) nếu có cấu hình
                 if (counter.RetainTagIndex != ModbusRegisterMap.FbCounterRetainNone &&
-                    counter.RetainTagIndex >= ModbusRegisterMap.VregRetainBaseIndex &&
-                    counter.RetainTagIndex < ModbusRegisterMap.VregRetainBaseIndex + ModbusRegisterMap.MaxRetentiveRegisters)
+                    counter.RetainTagIndex < layout.TotalTags)
                 {
-                    ushort tagAddr = ModbusRegisterMap.GetRuntimeTagAddress(counter.RetainTagIndex);
-                    RegisterCodec.EncodeInt32(counter.CurrentValue, cvRegs);
-                    _memory.InternalWrite(tagAddr, cvRegs[0]);
-                    _memory.InternalWrite((ushort)(tagAddr + 1), cvRegs[1]);
+                    WriteTagValue(counter.RetainTagIndex, counter.CurrentValue);
                 }
             }
         }
@@ -375,9 +402,10 @@ public sealed class McuReferenceSimulator
                 _memory.InternalWrite(ModbusRegisterMap.DiagErrorCodeAddress, (ushort)SPLC_DiagErrorCode.LEASE_EXPIRED);
 
                 // Fail-safe: Tự động trả các ngõ ra DO (0x0910..0x091F) về 0 an toàn
-                for (int doIdx = 0; doIdx < ModbusRegisterMap.MaxDigitalOutputs; doIdx++)
+                var currentLayout = GetTagLayout();
+                for (int doIdx = 0; doIdx < currentLayout.DoCount; doIdx++)
                 {
-                    ushort doAddr = ModbusRegisterMap.GetRuntimeTagAddress(ModbusRegisterMap.DoBaseIndex + doIdx);
+                    ushort doAddr = ModbusRegisterMap.GetRuntimeTagAddress((ushort)(currentLayout.DoBase + doIdx));
                     _memory.InternalWrite(doAddr, 0);
                     _memory.InternalWrite((ushort)(doAddr + 1), 0);
                 }
@@ -666,6 +694,20 @@ public sealed class McuReferenceSimulator
         {
             int offset = 9 - startAddress;
             result[offset] = 0x0200; // Fake version 2.0
+        }
+
+        if (_faults.OverrideDescriptor != null && startAddress <= 9 && startAddress + count > 0)
+        {
+            Span<ushort> descRegs = stackalloc ushort[10];
+            RegisterCodec.EncodeDeviceDescriptor(_faults.OverrideDescriptor, descRegs);
+            for (int i = 0; i < 10; i++)
+            {
+                int regAddr = i;
+                if (regAddr >= startAddress && regAddr < startAddress + count)
+                {
+                    result[regAddr - startAddress] = descRegs[i];
+                }
+            }
         }
 
         if (_faults.OverrideDeviceClass.HasValue && startAddress == 0 && count > 0)

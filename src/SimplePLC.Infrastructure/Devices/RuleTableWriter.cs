@@ -29,27 +29,42 @@ public sealed class RuleTableWriter : IRuleTableWriter
         CancellationToken cancellationToken = default)
     {
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
+        // Giới hạn tối đa 3 khối (24 thanh ghi = 48 bytes payload, frame 57 bytes <= 64 bytes RX buffer của MCU)
+        const int maxBlocksPerChunk = 3;
+
         if (timers != null && timers.Count > 0)
         {
-            int timerRegsCount = timers.Count * ModbusRegisterMap.FbRegistersPerBlock;
-            var timerRegs = new ushort[timerRegsCount];
-            for (int i = 0; i < timers.Count; i++)
+            for (int offset = 0; offset < timers.Count; offset += maxBlocksPerChunk)
             {
-                FunctionBlockCodec.EncodeTimer(timers[i], timerRegs.AsSpan(i * ModbusRegisterMap.FbRegistersPerBlock, ModbusRegisterMap.FbRegistersPerBlock));
+                int count = Math.Min(maxBlocksPerChunk, timers.Count - offset);
+                ushort startAddr = (ushort)(ModbusRegisterMap.FbTimerTableBaseAddress + (offset * ModbusRegisterMap.FbRegistersPerBlock));
+                var chunkRegs = new ushort[count * ModbusRegisterMap.FbRegistersPerBlock];
+                for (int i = 0; i < count; i++)
+                {
+                    FunctionBlockCodec.EncodeTimer(
+                        timers[offset + i],
+                        chunkRegs.AsSpan(i * ModbusRegisterMap.FbRegistersPerBlock, ModbusRegisterMap.FbRegistersPerBlock));
+                }
+                await _client.WriteMultipleRegistersAsync(slaveId, startAddr, chunkRegs, cancellationToken).ConfigureAwait(false);
             }
-            await _client.WriteMultipleRegistersAsync(slaveId, ModbusRegisterMap.FbTimerTableBaseAddress, timerRegs, cancellationToken).ConfigureAwait(false);
         }
 
-        // 2. Nạp cấu hình Counter blocks (0x0B40) nếu có
+        // 2. Nạp cấu hình Counter blocks (0x0B40) nếu có (tối đa 3 khối mỗi frame)
         if (counters != null && counters.Count > 0)
         {
-            int counterRegsCount = counters.Count * ModbusRegisterMap.FbRegistersPerBlock;
-            var counterRegs = new ushort[counterRegsCount];
-            for (int i = 0; i < counters.Count; i++)
+            for (int offset = 0; offset < counters.Count; offset += maxBlocksPerChunk)
             {
-                FunctionBlockCodec.EncodeCounter(counters[i], counterRegs.AsSpan(i * ModbusRegisterMap.FbRegistersPerBlock, ModbusRegisterMap.FbRegistersPerBlock));
+                int count = Math.Min(maxBlocksPerChunk, counters.Count - offset);
+                ushort startAddr = (ushort)(ModbusRegisterMap.FbCounterTableBaseAddress + (offset * ModbusRegisterMap.FbRegistersPerBlock));
+                var chunkRegs = new ushort[count * ModbusRegisterMap.FbRegistersPerBlock];
+                for (int i = 0; i < count; i++)
+                {
+                    FunctionBlockCodec.EncodeCounter(
+                        counters[offset + i],
+                        chunkRegs.AsSpan(i * ModbusRegisterMap.FbRegistersPerBlock, ModbusRegisterMap.FbRegistersPerBlock));
+                }
+                await _client.WriteMultipleRegistersAsync(slaveId, startAddr, chunkRegs, cancellationToken).ConfigureAwait(false);
             }
-            await _client.WriteMultipleRegistersAsync(slaveId, ModbusRegisterMap.FbCounterTableBaseAddress, counterRegs, cancellationToken).ConfigureAwait(false);
         }
 
         // 3. Tiến hành Staging và Commit Rule Table

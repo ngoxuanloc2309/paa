@@ -10,6 +10,7 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
     private IRuntimeTagReader _tagReader;
     private IDeviceHealthReader _healthReader;
     private IFunctionBlockGateway? _fbGateway;
+    private IRtcClockClient? _rtcClient;
     private readonly IDeviceOperationCoordinator? _coordinator;
     private readonly RuntimeStateStore? _stateStore;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -20,6 +21,7 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
 
     public event Action<IReadOnlyList<RuntimeTagValue>>? TagsUpdated;
     public event Action<DeviceHealthInfo>? HealthUpdated;
+    public event Action<SimplePLC.Protocol.Dto.RtcClockDto>? RtcUpdated;
     public event Action<Exception>? PollingError;
 
     /// <summary>
@@ -43,18 +45,25 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromMilliseconds(200);
     public int HealthCheckDivisor { get; set; } = 5;
 
+    /// <summary>
+    /// Tỷ lệ chu kỳ đọc RTC Clock (mặc định 25 chu kỳ @ 200ms = 5 giây/lần).
+    /// </summary>
+    public int RtcCheckDivisor { get; set; } = 25;
+
     public RuntimeMonitorService(
         IRuntimeTagReader tagReader,
         IDeviceHealthReader healthReader,
         IDeviceOperationCoordinator? coordinator = null,
         RuntimeStateStore? stateStore = null,
-        IFunctionBlockGateway? fbGateway = null)
+        IFunctionBlockGateway? fbGateway = null,
+        IRtcClockClient? rtcClient = null)
     {
         _tagReader = tagReader ?? throw new ArgumentNullException(nameof(tagReader));
         _healthReader = healthReader ?? throw new ArgumentNullException(nameof(healthReader));
         _coordinator = coordinator;
         _stateStore = stateStore;
         _fbGateway = fbGateway;
+        _rtcClient = rtcClient;
     }
 
     /// <summary>
@@ -79,6 +88,7 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
             _tagReader = session.RuntimeTags;
             _healthReader = session.Health;
             _fbGateway = session.FunctionBlocks;
+            _rtcClient = session.RtcClock;
 
             lock (_syncLock)
             {
@@ -206,6 +216,7 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
         CancellationToken ct)
     {
         int tickCounter = 0;
+        int rtcTickCounter = 0;
 
         while (!ct.IsCancellationRequested)
         {
@@ -297,6 +308,25 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
                         var healthInfo = DeviceHealthMapper.ToInfo(healthDto);
                         HealthUpdated?.Invoke(healthInfo);
                         _stateStore?.UpdateHealth(healthInfo);
+                    }
+
+                    // 3. Định kỳ đọc RTC Clock nếu thiết bị hỗ trợ Wire Profile V2 (mặc định mỗi 5 giây)
+                    if (product.SupportsRtcClock && _rtcClient != null)
+                    {
+                        rtcTickCounter++;
+                        if (rtcTickCounter >= RtcCheckDivisor)
+                        {
+                            rtcTickCounter = 0;
+                            try
+                            {
+                                var rtcDto = await _rtcClient.ReadRtcClockAsync(slaveId, ct).ConfigureAwait(false);
+                                RtcUpdated?.Invoke(rtcDto);
+                            }
+                            catch
+                            {
+                                // Bỏ qua lỗi đọc RTC tạm thời (không làm gián đoạn luồng telemetry chính)
+                            }
+                        }
                     }
                 }
             }

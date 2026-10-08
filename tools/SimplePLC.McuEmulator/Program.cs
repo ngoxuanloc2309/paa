@@ -2,6 +2,7 @@ using System.IO.Ports;
 using SimplePLC.Infrastructure.Simulator;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.McuEmulator;
 
@@ -17,6 +18,7 @@ internal class Program
         ushort aiCount = 4;
         ushort wireProfile = 2;
         bool hasCustomProfile = false;
+        bool autoSignals = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -56,6 +58,10 @@ internal class Program
                 aiCount = ai;
                 hasCustomProfile = true;
                 i++;
+            }
+            else if (args[i] == "--auto" || args[i] == "--auto-signals")
+            {
+                autoSignals = true;
             }
             else if (args[i] == "--help" || args[i] == "-h")
             {
@@ -171,8 +177,9 @@ internal class Program
         }
 
         // Vòng lặp nhận phím điều khiển tương tác
+        var layout = simulator.GetTagLayout();
         int ai0Value = 1000;
-        bool[] diStates = new bool[8];
+        bool[] diStates = new bool[Math.Max(8, (int)layout.DiCount)];
 
         while (!cts.IsCancellationRequested)
         {
@@ -184,27 +191,28 @@ internal class Program
                     break;
                 }
 
-                if (key.Key >= ConsoleKey.D1 && key.Key <= ConsoleKey.D8)
+                int maxDiKey = Math.Min(8, (int)layout.DiCount);
+                if (maxDiKey > 0 && key.Key >= ConsoleKey.D1 && key.Key < ConsoleKey.D1 + maxDiKey)
                 {
                     int index = key.Key - ConsoleKey.D1;
                     diStates[index] = !diStates[index];
-                    simulator.Control.SetTagValue((ushort)index, diStates[index] ? 1 : 0);
+                    simulator.Control.SetTagValue((ushort)(layout.DiBase + index), diStates[index] ? 1 : 0);
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine($"[INPUT] DI{index} toggled -> {(diStates[index] ? "HIGH (1)" : "LOW (0)")}");
                     Console.ResetColor();
                 }
-                else if (key.Key == ConsoleKey.OemPlus || key.Key == ConsoleKey.Add)
+                else if (layout.AiCount > 0 && (key.Key == ConsoleKey.OemPlus || key.Key == ConsoleKey.Add))
                 {
                     ai0Value = Math.Min(10000, ai0Value + 200);
-                    simulator.Control.SetTagValue(16, ai0Value);
+                    simulator.Control.SetTagValue(layout.AiBase, ai0Value);
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine($"[INPUT] AI0 changed -> {ai0Value} mV");
                     Console.ResetColor();
                 }
-                else if (key.Key == ConsoleKey.OemMinus || key.Key == ConsoleKey.Subtract)
+                else if (layout.AiCount > 0 && (key.Key == ConsoleKey.OemMinus || key.Key == ConsoleKey.Subtract))
                 {
                     ai0Value = Math.Max(0, ai0Value - 200);
-                    simulator.Control.SetTagValue(16, ai0Value);
+                    simulator.Control.SetTagValue(layout.AiBase, ai0Value);
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine($"[INPUT] AI0 changed -> {ai0Value} mV");
                     Console.ResetColor();
@@ -224,6 +232,48 @@ internal class Program
                     simulator.Control.FactoryReset();
                     Console.WriteLine("[SYSTEM] Flash cleared. ResetReason: POWER_ON");
                     Console.ResetColor();
+                }
+            }
+
+            // Nếu bật chế độ auto-signals: Tự động giả lập sóng tín hiệu công nghiệp
+            if (autoSignals)
+            {
+                long nowMs = Environment.TickCount64;
+                if (layout.DiCount > 0)
+                {
+                    // DI0: Chu kỳ 2 giây (1s ON, 1s OFF)
+                    bool autoDi0 = (nowMs % 2000) < 1000;
+                    if (autoDi0 != diStates[0])
+                    {
+                        diStates[0] = autoDi0;
+                        simulator.Control.SetTagValue(layout.DiBase, autoDi0 ? 1 : 0);
+                    }
+                }
+
+                if (layout.DiCount > 1)
+                {
+                    // DI1: Chu kỳ 4 giây (2s ON, 2s OFF)
+                    bool autoDi1 = (nowMs % 4000) < 2000;
+                    if (autoDi1 != diStates[1])
+                    {
+                        diStates[1] = autoDi1;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 1), autoDi1 ? 1 : 0);
+                    }
+                }
+
+                if (layout.AiCount > 0)
+                {
+                    // AI0: Dải 0..5000 mV tăng giảm hình sin chu kỳ 10 giây
+                    double radians = (nowMs % 10000) / 10000.0 * 2.0 * Math.PI;
+                    int waveAi0 = (int)(2500 + 2000 * Math.Sin(radians));
+                    simulator.Control.SetTagValue(layout.AiBase, waveAi0);
+                }
+
+                if (layout.AiCount > 1)
+                {
+                    // AI1: Dải 0..10000 mV ramp tuyến tính chu kỳ 8 giây
+                    int waveAi1 = (int)((nowMs % 8000) * 10000 / 8000);
+                    simulator.Control.SetTagValue((ushort)(layout.AiBase + 1), waveAi1);
                 }
             }
 

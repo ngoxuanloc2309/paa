@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
+using SimplePLC.Studio.Services.Ai;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
@@ -287,5 +288,108 @@ public class AiCopilotTests
         // Biên dịch đồ thị thành công
         Assert.Equal(CompileState.Valid, mainVM.LogicEditorVM.CompileState);
         Assert.True(string.IsNullOrEmpty(mainVM.LogicEditorVM.SimGateWarning));
+    }
+
+    [Fact]
+    public void AiExplanationSynthesizer_StartStopPump_Produces3SectionExplanationAndJsonRules()
+    {
+        // Giả lập giao dịch đồ thị từ tool call (Start/Stop bơm DO0 với DI0 và DI1)
+        var tx = new DraftGraphTransaction();
+        tx.AddedNodes.Add(new DraftNode { Id = "in_start", NodeType = "Input", TagName = "DI0", Label = "Nút nhấn Start" });
+        tx.AddedNodes.Add(new DraftNode { Id = "trg_start", NodeType = "Trigger", TriggerType = "ON_RISE", DebounceMs = 50 });
+        tx.AddedNodes.Add(new DraftNode { Id = "act_start", NodeType = "Action", TagName = "DO0", ActionType = "SET_TAG", ActionParam = 1, Label = "Bơm chính" });
+
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "in_start", TargetNodeId = "trg_start" });
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "trg_start", TargetNodeId = "act_start" });
+
+        tx.AddedNodes.Add(new DraftNode { Id = "in_stop", NodeType = "Input", TagName = "DI1", Label = "Nút nhấn Stop" });
+        tx.AddedNodes.Add(new DraftNode { Id = "trg_stop", NodeType = "Trigger", TriggerType = "ON_RISE", DebounceMs = 50 });
+        tx.AddedNodes.Add(new DraftNode { Id = "act_stop", NodeType = "Action", TagName = "DO0", ActionType = "SET_TAG", ActionParam = 0, Label = "Bơm chính" });
+
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "in_stop", TargetNodeId = "trg_stop" });
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "trg_stop", TargetNodeId = "act_stop" });
+
+        string synthesized = AiExplanationSynthesizer.Synthesize(tx, "Mạch Start/Stop bật tắt bơm DO0 với nút nhấn DI0 (Start) và DI1 (Stop)");
+
+        // 1. Phải có cấu trúc chuẩn 3 phần công nghiệp
+        Assert.Contains("1. Nguyên lý hoạt động", synthesized);
+        Assert.Contains("2. Danh mục Tag", synthesized);
+        Assert.Contains("3. Cơ chế an toàn công nghiệp", synthesized);
+
+        // 2. Phải có danh mục tag cụ thể
+        Assert.Contains("DI0", synthesized);
+        Assert.Contains("DI1", synthesized);
+        Assert.Contains("DO0", synthesized);
+
+        // 3. Phải có khối JSON rules để tự động nạp
+        Assert.Contains("```json:rules", synthesized);
+        var rules = AiRuleParser.ExtractRules(synthesized, out _);
+        Assert.Equal(2, rules.Count);
+        Assert.Equal("DI0", rules[0].InputTag);
+        Assert.Equal(1, rules[0].Param);
+        Assert.Equal("DI1", rules[1].InputTag);
+        Assert.Equal(0, rules[1].Param);
+    }
+
+    [Fact]
+    public void AcceptAiProposal_WhenAccepted_CommitsRulesIntoRuleTableAndMarksOfficial()
+    {
+        var mainVM = new MainViewModel(uiDispatcher: a => a());
+        var logicVM = mainVM.LogicEditorVM;
+
+        var tx = new DraftGraphTransaction();
+        tx.AddedNodes.Add(new DraftNode { Id = "in1", NodeType = "Input", TagName = "DI0", PositionX = 100, PositionY = 100 });
+        tx.AddedNodes.Add(new DraftNode { Id = "trg1", NodeType = "Trigger", TriggerType = "ON_RISE", PositionX = 340, PositionY = 100 });
+        tx.AddedNodes.Add(new DraftNode { Id = "act1", NodeType = "Action", TagName = "DO0", ActionType = "SET_TAG", ActionParam = 1, PositionX = 580, PositionY = 100 });
+
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "in1", SourcePort = "Out", TargetNodeId = "trg1", TargetPort = "In" });
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "trg1", SourcePort = "Out", TargetNodeId = "act1", TargetPort = "In" });
+
+        logicVM.ApplyAiProposalToCanvas(tx, "Test proposal");
+        Assert.True(logicVM.HasPendingAiProposal);
+        Assert.True(logicVM.Nodes.All(n => n.IsGhost));
+
+        // Người dùng ấn Accept
+        logicVM.AcceptAiProposal();
+
+        // 1. Ghost phải chuyển thành official
+        Assert.False(logicVM.HasPendingAiProposal);
+        Assert.False(logicVM.Nodes.Any(n => n.IsGhost));
+
+        // 2. Quan trọng nhất: Bảng Rule (RuleTableVM) PHẢI CÓ RULE ĐƯỢC BIÊN DỊCH VÀ NẠP VÀO!
+        Assert.NotEmpty(mainVM.RuleTableVM.Rules);
+        var rule = mainVM.RuleTableVM.Rules[0];
+        Assert.Equal("DI0", rule.TriggerTag?.Name);
+        Assert.Equal("DO0", rule.ActionTag?.Name);
+        Assert.Equal(1, rule.ActionParam);
+    }
+
+    [Fact]
+    public void AiChatViewModel_AcceptProposal_SetsAppliedStatusTextAndSyncsRules()
+    {
+        var mainVM = new MainViewModel(uiDispatcher: a => a());
+        var chatVM = mainVM.AiChatVM;
+        var logicVM = mainVM.LogicEditorVM;
+
+        var message = new ChatMessageModel("assistant", "Đề xuất mạch Start/Stop");
+        message.HasProposal = true;
+
+        var tx = new DraftGraphTransaction();
+        tx.AddedNodes.Add(new DraftNode { Id = "in1", NodeType = "Input", TagName = "DI0" });
+        tx.AddedNodes.Add(new DraftNode { Id = "trg1", NodeType = "Trigger", TriggerType = "ON_RISE" });
+        tx.AddedNodes.Add(new DraftNode { Id = "act1", NodeType = "Action", TagName = "DO0", ActionType = "SET_TAG", ActionParam = 1 });
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "in1", TargetNodeId = "trg1" });
+        tx.AddedWires.Add(new DraftWire { SourceNodeId = "trg1", TargetNodeId = "act1" });
+
+        logicVM.ApplyAiProposalToCanvas(tx, "Test proposal");
+
+        chatVM.AcceptProposal(message);
+
+        // Đã áp dụng, thông báo trạng thái rõ ràng ngay trong tin nhắn
+        Assert.True(message.IsApplied);
+        Assert.False(message.IsRejected);
+        Assert.Contains("Đã áp dụng thành công", message.AppliedStatusText);
+        Assert.Contains("Rule vào Bảng Rule", message.AppliedStatusText);
+        Assert.NotEmpty(mainVM.RuleTableVM.Rules);
     }
 }

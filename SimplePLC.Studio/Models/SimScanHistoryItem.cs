@@ -25,8 +25,10 @@ public sealed class SimScanHistoryItem
     public int RuleIndex { get; set; }
     public string ScanDisplay => RuleIndex > 0 ? $"#{ScanNumber} (R{RuleIndex})" : $"#{ScanNumber}";
 
+    public bool HasInputChange { get; set; }
+
     public bool HasActivity =>
-        !string.IsNullOrWhiteSpace(InputChange) ||
+        HasInputChange ||
         TriggerPassed ||
         ActionFired ||
         string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase);
@@ -39,7 +41,7 @@ public sealed class SimScanHistoryItem
             if (ActionFired) return isVi ? "LỆNH XUẤT" : "ACTION";
             if (string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase)) return isVi ? "BỊ KHÓA" : "BLOCKED";
             if (TriggerPassed) return isVi ? "KÍCH HOẠT" : "TRIGGERED";
-            if (!string.IsNullOrWhiteSpace(InputChange)) return isVi ? "I/O ĐỔI" : "I/O CHANGED";
+            if (HasInputChange) return isVi ? "I/O ĐỔI" : "I/O CHANGED";
             return isVi ? "ỔN ĐỊNH" : "STEADY";
         }
     }
@@ -48,7 +50,7 @@ public sealed class SimScanHistoryItem
         ActionFired ? "#006487" :
         string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase) ? "#B91C1C" :
         TriggerPassed ? "#006487" :
-        !string.IsNullOrWhiteSpace(InputChange) ? "#107C41" : "#64748B";
+        HasInputChange ? "#107C41" : "#64748B";
 }
 
 public sealed class SimSpeedOption

@@ -61,6 +61,23 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
         </Style>
+        <Style x:Key="PinStarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" Padding="4">
+                            <ContentPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <!-- FULL-WIDTH BALANCED INDUSTRIAL LIVE WATCH WORKSPACE (TIA PORTAL / CODESYS STANDARD) -->
@@ -75,7 +92,7 @@
         <!-- 0. COMPACT INDUSTRIAL TOOLBAR -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <!-- Search Box -->
-            <Border DockPanel.Dock="Left" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,6" Width="290">
+            <Border DockPanel.Dock="Left" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,6" Width="240">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -104,6 +121,25 @@
 
             <!-- Filter Chips -->
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                <!-- ⭐ WATCHLIST -->
+                <Button Content="{Binding WatchlistButtonText}"
+                        Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
+                        ToolTip="{Binding [FilterWatchlist], Source={x:Static services:LocalizationService.Instance}}"
+                        Command="{Binding SetKindFilterCommand}" CommandParameter="WATCHLIST">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="WATCHLIST">
+                                    <Setter Property="Background" Value="#D97706" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
                 <!-- ALL -->
                 <Button Content="{Binding [FilterAll], Source={x:Static services:LocalizationService.Instance}}"
                         Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
@@ -176,17 +212,71 @@
                     </Button.Style>
                 </Button>
 
-                <!-- INTERNAL -->
-                <Button Content="{Binding [FilterVarCounter], Source={x:Static services:LocalizationService.Instance}}"
+                <!-- VFLAG -->
+                <Button Content="{Binding [FilterVFlag], Source={x:Static services:LocalizationService.Instance}}"
                         Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
-                        Command="{Binding SetKindFilterCommand}" CommandParameter="INTERNAL">
+                        Command="{Binding SetKindFilterCommand}" CommandParameter="VFLAG">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="INTERNAL">
-                                    <Setter Property="Background" Value="#475569" />
+                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="VFLAG">
+                                    <Setter Property="Background" Value="#4F46E5" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#475569" />
+                                    <Setter Property="BorderBrush" Value="#4F46E5" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- VREG -->
+                <Button Content="{Binding [FilterVReg], Source={x:Static services:LocalizationService.Instance}}"
+                        Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
+                        Command="{Binding SetKindFilterCommand}" CommandParameter="VREG">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="VREG">
+                                    <Setter Property="Background" Value="#0891B2" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderBrush" Value="#0891B2" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- RETAIN -->
+                <Button Content="{Binding [FilterRetain], Source={x:Static services:LocalizationService.Instance}}"
+                        Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
+                        Command="{Binding SetKindFilterCommand}" CommandParameter="RETAIN">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="RETAIN">
+                                    <Setter Property="Background" Value="#9333EA" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderBrush" Value="#9333EA" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- COUNTER -->
+                <Button Content="{Binding [FilterCounter], Source={x:Static services:LocalizationService.Instance}}"
+                        Padding="12,6" Margin="0,0,8,0" FontSize="11.5"
+                        Command="{Binding SetKindFilterCommand}" CommandParameter="COUNTER">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedKindFilter}" Value="COUNTER">
+                                    <Setter Property="Background" Value="#0D9488" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderBrush" Value="#0D9488" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -271,7 +361,74 @@
                           TextOptions.TextRenderingMode="ClearType"
                           RenderOptions.ClearTypeHint="Enabled">
 
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="{Binding [LiveWatchClearWatchlist], Source={x:Static services:LocalizationService.Instance}}"
+                                      Command="{Binding ClearWatchlistCommand}" />
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="ContextMenu">
+                                <Setter.Value>
+                                    <ContextMenu>
+                                        <MenuItem Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Style>
+                                                <Style TargetType="MenuItem">
+                                                    <Setter Property="Header" Value="{Binding [LiveWatchPinTag], Source={x:Static services:LocalizationService.Instance}}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                                            <Setter Property="Header" Value="{Binding [LiveWatchUnpinTag], Source={x:Static services:LocalizationService.Instance}}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </MenuItem.Style>
+                                        </MenuItem>
+                                        <Separator />
+                                        <MenuItem Header="{Binding [LiveWatchClearWatchlist], Source={x:Static services:LocalizationService.Instance}}"
+                                                  Command="{Binding DataContext.ClearWatchlistCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                                    </ContextMenu>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.RowStyle>
+
                     <DataGrid.Columns>
+                        <!-- 0. Pin / Watchlist Star Column (Centered, 38px) -->
+                        <DataGridTemplateColumn Width="38" CanUserResize="False"
+                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                            <DataGridTemplateColumn.Header>
+                                <TextBlock Text="⭐" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Ghim / Watchlist" />
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource PinStarButtonStyle}">
+                                        <TextBlock FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="☆" />
+                                                    <Setter Property="Foreground" Value="#CBD5E1" />
+                                                    <Setter Property="ToolTip" Value="{Binding [LiveWatchPinTag], Source={x:Static services:LocalizationService.Instance}}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                                            <Setter Property="Text" Value="★" />
+                                                            <Setter Property="Foreground" Value="#D97706" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                            <Setter Property="ToolTip" Value="{Binding [LiveWatchUnpinTag], Source={x:Static services:LocalizationService.Instance}}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
                         <!-- 1. Index (Centered, 55px) -->
                         <DataGridTextColumn Header="{Binding [ColLiveIndex], Source={x:Static services:LocalizationService.Instance}}"
                                             Binding="{Binding Index}" Width="55"
@@ -558,6 +715,32 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <!-- Empty Watchlist Placeholder Overlay -->
+                <Border Grid.Row="0" Background="#FAFAFA" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="32,24" Margin="24">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding SelectedKindFilter}" Value="WATCHLIST" />
+                                        <Condition Binding="{Binding FilteredTags.Count}" Value="0" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="⭐" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" Foreground="#D97706" />
+                        <TextBlock Text="{Binding [FilterWatchlist], Source={x:Static services:LocalizationService.Instance}}"
+                                   FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                        <TextBlock Text="{Binding [LiveWatchEmptyWatchlist], Source={x:Static services:LocalizationService.Instance}}"
+                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="360" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
 
                 <!-- Retain Dirty Action Banner -->
                 <Border Grid.Row="1" Background="#FEF3C7" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="14,6">
