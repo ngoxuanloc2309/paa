@@ -16,7 +16,7 @@ public sealed class HardwareDevicePreset
     public string DescriptionKey { get; init; } = string.Empty;
     public SPLC_DeviceClass DeviceClass { get; init; } = SPLC_DeviceClass.REMOTE_IO;
     public ushort DeviceVariant { get; init; } = 1;
-    public string McuTarget { get; init; } = "STM32F401CCU6 (ARM Cortex-M4)";
+    public string McuTarget { get; init; } = "SynaptiX SYNX-RIO-884";
 
     public ushort DigitalInputs { get; init; } = 8;
     public ushort DigitalOutputs { get; init; } = 8;
@@ -52,7 +52,7 @@ public sealed class HardwareDevicePreset
     }
 
     /// <summary>
-    /// Danh sách các preset mẫu định nghĩa chuẩn theo các họ thiết bị trong tài liệu Contract V2.0.
+    /// Danh sách các preset mẫu định nghĩa chuẩn theo các họ thiết bị thương mại SynaptiX.
     /// </summary>
     public static IReadOnlyList<HardwareDevicePreset> BuiltInPresets { get; } = new List<HardwareDevicePreset>
     {
@@ -60,11 +60,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "REMOTE_IO_8DI_8DO_4AI",
-            DisplayName = "REMOTE_IO (8DI - 8DO - 4AI)",
+            DisplayName = "SynaptiX Remote I/O",
             DescriptionKey = "PresetRemoteIo8Di8Do4AiDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
-            McuTarget = "STM32F401CCU6 (Standard Remote I/O)",
+            McuTarget = "SynaptiX SYNX-RIO-884",
             DigitalInputs = 8,
             DigitalOutputs = 8,
             AnalogInputs = 4,
@@ -79,11 +79,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "REMOTE_IO_4DI_4DO",
-            DisplayName = "REMOTE_IO (Compact 4DI - 4DO)",
+            DisplayName = "SynaptiX Compact I/O",
             DescriptionKey = "PresetRemoteIo4Di4DoDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = 3,
-            McuTarget = "STM32F103 / ESP32 (Wireless Substation)",
+            McuTarget = "SynaptiX SYNX-RIO-440",
             DigitalInputs = 4,
             DigitalOutputs = 4,
             AnalogInputs = 0,
@@ -98,11 +98,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "REMOTE_IO_8DI_8DO",
-            DisplayName = "REMOTE_IO (Discrete 8DI - 8DO)",
+            DisplayName = "SynaptiX Relay Unit",
             DescriptionKey = "PresetRemoteIo8Di8DoDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = 4,
-            McuTarget = "STM32F401 (Pure Discrete Relay Control)",
+            McuTarget = "SynaptiX SYNX-RIO-880",
             DigitalInputs = 8,
             DigitalOutputs = 8,
             AnalogInputs = 0,
@@ -117,11 +117,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "DATALOGGER_4DI_2DO_4AI",
-            DisplayName = "DATALOGGER (Sensor Hub 4DI - 2DO - 4AI)",
+            DisplayName = "SynaptiX Data Logger",
             DescriptionKey = "PresetDataloggerDesc",
             DeviceClass = SPLC_DeviceClass.DATALOGGER,
             DeviceVariant = (ushort)SPLC_DataloggerVariant.VARIANT_8AI,
-            McuTarget = "STM32F401 / RP2040 (Environmental & Analog Logger)",
+            McuTarget = "SynaptiX SYNX-DL-424",
             DigitalInputs = 4,
             DigitalOutputs = 2,
             AnalogInputs = 4,
@@ -136,11 +136,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "GATEWAY_RS485_ETH",
-            DisplayName = "GATEWAY (RS485 / Ethernet Bridge)",
+            DisplayName = "SynaptiX Gateway",
             DescriptionKey = "PresetGatewayDesc",
             DeviceClass = SPLC_DeviceClass.GATEWAY,
             DeviceVariant = (ushort)SPLC_GatewayVariant.VARIANT_RS485_ETH,
-            McuTarget = "STM32F407 / ESP32 (Industrial Gateway & Protocol Bridge)",
+            McuTarget = "SynaptiX SYNX-GW-220",
             DigitalInputs = 2,
             DigitalOutputs = 2,
             AnalogInputs = 0,
@@ -155,11 +155,11 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "CONTROLLER_STANDALONE",
-            DisplayName = "CONTROLLER (Standalone PLC 8DI - 8DO - 4AI)",
+            DisplayName = "SynaptiX Controller",
             DescriptionKey = "PresetControllerDesc",
             DeviceClass = SPLC_DeviceClass.CONTROLLER,
             DeviceVariant = 1,
-            McuTarget = "STM32F405 / ARM Cortex-M4 (Standalone Edge Controller)",
+            McuTarget = "SynaptiX SYNX-PLC-884",
             DigitalInputs = 8,
             DigitalOutputs = 8,
             AnalogInputs = 4,

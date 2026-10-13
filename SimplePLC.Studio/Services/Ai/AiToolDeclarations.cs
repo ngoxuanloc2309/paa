@@ -34,7 +34,7 @@ public static class AiToolDeclarations
         return new JsonObject
         {
             ["name"] = "add_node",
-            ["description"] = "Tạo một khối logic mới trên FBD Canvas của SimplePLC Studio với tọa độ và cấu hình cụ thể.",
+            ["description"] = "Tạo một khối logic mới trên FBD Canvas của SynaptiX IDE với tọa độ và cấu hình cụ thể.",
             ["parameters"] = new JsonObject
             {
                 ["type"] = "object",
@@ -254,7 +254,7 @@ public static class AiToolDeclarations
         return new JsonObject
         {
             ["name"] = "diagnose_logic_bugs",
-            ["description"] = "Kích hoạt bộ kiểm tra tĩnh toàn diện của SimplePLC (Graph Grammar, Xung đột ghi Write Conflict, Chu trình lặp Cyclic Dependency) để phát hiện lỗi logic tiềm ẩn.",
+            ["description"] = "Kích hoạt bộ kiểm tra tĩnh toàn diện của SynaptiX IDE (Graph Grammar, Xung đột ghi Write Conflict, Chu trình lặp Cyclic Dependency) để phát hiện lỗi logic tiềm ẩn.",
             ["parameters"] = new JsonObject
             {
                 ["type"] = "object",

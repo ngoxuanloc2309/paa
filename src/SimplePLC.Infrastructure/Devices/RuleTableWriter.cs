@@ -21,11 +21,30 @@ public sealed class RuleTableWriter : IRuleTableWriter
         _client = client ?? throw new ArgumentNullException(nameof(client));
     }
 
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, null, cancellationToken);
+
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, null, cancellationToken);
+
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
         IReadOnlyList<RuleRecordDto> rules,
         IReadOnlyList<FbTimerRecordDto>? timers,
         IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
         CancellationToken cancellationToken = default)
     {
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
@@ -67,7 +86,51 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
-        // 3. Tiến hành Staging và Commit Rule Table
+        // 3. Nạp cấu hình MQTT Telemetry blocks (0x0C00) nếu có (SPLC-SPEC-MQTT-001)
+        if (mqttConfigs != null)
+        {
+            int blockCount = Math.Min(mqttConfigs.Count, ModbusRegisterMap.MqttMaxBlocks);
+            for (int i = 0; i < blockCount; i++)
+            {
+                var blockRegs = new ushort[ModbusRegisterMap.MqttRegistersPerBlock];
+                MqttTelemetryCodec.EncodeBlock(mqttConfigs[i], blockRegs);
+
+                ushort blockStartAddr = ModbusRegisterMap.GetMqttBlockAddress(i);
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    blockStartAddr,
+                    blockRegs.AsMemory());
+
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Vô hiệu hóa (disable) các khối MQTT cũ không còn nằm trong cấu hình triển khai
+            for (int j = blockCount; j < ModbusRegisterMap.MqttMaxBlocks; j++)
+            {
+                ushort staleBlockAddr = ModbusRegisterMap.GetMqttBlockAddress(j);
+                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 4. Nạp cấu hình MQTT Broker (0x0E00) nếu có (SPLC-SPEC-MQTT-001)
+        if (brokerConfig != null)
+        {
+            var brokerRegs = new ushort[ModbusRegisterMap.MqttBrokerConfigRegisters];
+            MqttBrokerConfigCodec.Encode(brokerConfig, brokerRegs);
+
+            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                ModbusRegisterMap.MqttBrokerConfigBaseAddress,
+                brokerRegs.AsMemory());
+
+            foreach (var (chunkAddress, chunkMemory) in chunks)
+            {
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 5. Tiến hành Staging và Commit Rule Table
         return await DeployRulesAsync(slaveId, rules, cancellationToken).ConfigureAwait(false);
     }
 

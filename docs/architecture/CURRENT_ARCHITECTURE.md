@@ -226,11 +226,13 @@ sequenceDiagram
 
 ## 5. Kiến Trúc Tầng Trình Diễn Studio (Presentation & MVVM)
 
-### 5.1. Hai Chiều Đồng Bộ: Graph Canvas ⮀ Matrix Rule Table
+#### 5.1. Hai Chiều Đồng Bộ: Graph Canvas ⮀ Matrix Rule Table
 Ứng dụng cung cấp 2 phương thức lập trình logic trực quan:
-1. **Logic Editor (Nodify Graph Canvas)**: Mô hình hóa các nút bấm, cảm biến, điều kiện thời gian và đầu ra theo dạng sơ đồ khối trực quan.
+1. **Logic Editor (Nodify Graph Canvas)**: Mô hình hóa các nút bấm, cảm biến, điều kiện thời gian và đầu ra theo dạng sơ đồ khối trực quan:
+   * **Core Blocks**: Input, Trigger, Guard, Action.
+   * **IEC 61131-3 Function Blocks**: Timer (TON/TOF/TP), Counter (CTU/CTD), Analog Scaler (Linear Scale y = kx + b), và **Comparator (CMP)** (độc lập hóa toán tử so sánh số học `==, !=, >, <, >=, <=, Between` với khả năng nối dây linh hoạt từ Input/Scale hoặc chọn trực tiếp Tag đầu vào).
 2. **Rule Table (Matrix Table)**: Dạng bảng danh sách công nghiệp chuẩn hóa (tương tự bảng lệnh Instruction List / Rule Grid).
-* **GraphCompiler**: Đóng vai trò cầu nối, phân tích topo các kết nối giữa các Node trên đồ thị để trích xuất ra danh sách các `RuleRecord` chuẩn, tự động phản chiếu sang Bảng Quy Tắc và ngược lại theo thời gian thực.
+* **RuleCompiler**: Đóng vai trò cầu nối, phân tích topo các kết nối giữa các Node trên đồ thị (Graph Grammar V1), hòa hợp (fuse) các tham số từ khối Comparator/Scaler sang Micro-Rule 32-byte tiêu chuẩn của MCU và tự động phản chiếu hai chiều theo thời gian thực.
 
 ### 5.2. Hệ Thống Đa Ngôn Ngữ Động (Reactive Localization Engine)
 Dịch vụ [`LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs) hỗ trợ chuyển đổi ngôn ngữ tức thời giữa Tiếng Việt và Tiếng Anh:
@@ -245,11 +247,15 @@ Toàn bộ mã màu giao diện được quản lý tập trung tại [`Styles/C
   * Hiệu ứng di chuột (`IsMouseOver = True`): **`#F1F5F9`** (Hover mượt mà).
   * Áp dụng tự động qua **Implicit Styles** cho `DataGridRow`, `DataGridCell` và `ListBoxItem` trên toàn bộ ứng dụng mà không cần cấu hình lẻ tẻ tại từng màn hình.
 
+### 5.4. Trải Nghiệm Giám Sát Trực Tuyến Tinh Gọn (Live Watch Clean UX)
+* Bảng giám sát **Live Watch Table** được tinh gọn tối đa theo tiêu chuẩn công thái học điều khiển công nghiệp: Chỉ hiển thị các trường quan trọng đối với kỹ sư vận hành (*Ghim | Tên Tag | Tên gợi nhớ | Địa chỉ Modbus | Kiểu dữ liệu | Phân loại | Giá trị thực tế | Chất lượng tín hiệu | Thời gian cập nhật | Cưỡng bức Force*).
+* Dữ liệu thô mức thấp (`Raw Hex`) được đưa vào Tooltip hiển thị khi rê chuột vào ô giá trị, giúp giao diện bảng luôn thoáng đãng, không bị nhiễu thị giác bởi các dãy số nhị phân/hexadecimal thô.
+
 ---
 
 ## 6. Chiến Lược Kiểm Thử & Đảm Bảo Chất Lượng (Quality Assurance)
 
-Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động đa tầng với hơn **352 unit tests** và kiểm thử nghiệm thu khép kín:
+Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động đa tầng với hơn **1,037 unit tests** và kiểm thử nghiệm thu khép kín:
 
 ```mermaid
 graph TD

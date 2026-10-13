@@ -29,6 +29,11 @@ public sealed class FbTimerRecordDto
     /// </summary>
     public uint ElapsedMs { get; set; }
 
+    /// <summary>
+    /// Offset +6: Rule Reference (1-based index của rule đếm giờ trong bảng rule gửi xuống: 1..100, 0 nếu không dùng).
+    /// </summary>
+    public ushort RuleRef { get; set; }
+
     // ==========================================
     // CÁC THUỘC TÍNH TIỆN ÍCH BIT TRẠNG THÁI (STATUS BITS)
     // ==========================================

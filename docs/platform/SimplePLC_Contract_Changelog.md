@@ -1,5 +1,41 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.3.2] - 2026-10-12 (RTC CLOCK & GLOBAL TIMEZONE SYNCHRONIZATION)
+
+### Added / Changed
+- **Chính sách An toàn Múi giờ khi Kết nối (On-Connect Read-Only Policy)**:
+  - Khi Studio kết nối với bộ điều khiển qua cổng COM/Modbus, hệ thống **chỉ thực hiện FC03 đọc** `0x0810..0x0813` để lấy thời gian và trạng thái phần cứng (`HasHardwareRtc`, `IsBatteryLow`) phục vụ giám sát thanh Status Bar.
+  - **Tuyệt đối không tự động ghi đè giờ PC xuống MCU khi vừa kết nối**, bảo vệ nguyên vẹn múi giờ quốc tế (ví dụ: UTC-5, UTC+1, UTC+9) đã cấu hình trước đó của dây chuyền trước rủi ro bị máy tính bảo trì ở Việt Nam (UTC+7) ghi đè.
+- **Dịch vụ Đồng bộ Múi giờ Vận hành Tùy chọn (`IRtcClockClient.SyncToCustomTimezoneAsync`)**:
+  - Hỗ trợ tính toán chính xác epoch UTC và `tz_offset_min` theo bất kỳ múi giờ nào trong số 141 múi giờ toàn cầu chuẩn Windows/IANA.
+  - Tự động áp dụng quy tắc Read-Before-Write để bảo toàn cờ `HW_PRESENT` và `BATTERY_LOW` của MCU.
+- **Chuẩn hóa Giao diện Hộp thoại RTC (`RtcSyncDialogView`)**:
+  - Loại bỏ hoàn toàn khối nhập tay thủ công (Manual Date/Time Override) nhằm triệt tiêu rủi ro sai lệch múi giờ và loại bỏ thanh cuộn dọc (Zero-Scroll Dialog, chiều cao co giãn tự động ~320px).
+  - Tái cấu trúc bảng chọn múi giờ: Mục đầu tiên là giờ máy tính hiện tại kèm tên địa lý đầy đủ, tiếp theo là 141 múi giờ quốc tế sắp xếp tuần tự theo trục kinh độ từ Tây sang Đông (`UTC-12:00` đến `UTC+14:00`).
+  - Tích hợp tính năng gõ phím tìm kiếm tức thì (`IsTextSearchEnabled="True"`) và căn giữa hoàn hảo theo chiều dọc.
+  - Đồng bộ 100% token kiểu dáng, màu sắc công nghiệp Siemens Petrol Blue (`#006487`), font kỹ thuật `Consolas/Segoe UI`, và style nút `BtnSecondary`, `BtnPrimary`.
+
+## [2.3.1] - 2026-10-10 (TIMER TELEMETRY RULE_REF LINKING)
+
+### Added / Changed
+- **Function Block Timer `rule_ref` Binding (`0x0B00 + 8*i`, offset +6)**:
+  - Nâng cấp thanh ghi offset `+6` (trước đây là reserved, ghi 0) thành `rule_ref` (R/W, 1-based index `1..100`, ghi `0` nếu unlinked/không dùng). Offset `+7` tiếp tục là reserved (ghi 0).
+  - Cập nhật struct `SPLC_FbTimerRecord_t` và `SPLC_PlcTimer_t` trong C header và tài liệu Wire Contract.
+  - Cập nhật DTO `FbTimerRecordDto.RuleRef` và codec `FunctionBlockCodec` (Encode/Decode).
+  - Cập nhật `RuleCompiler`: tính toán và gán `rule_ref = (vị trí rule đếm giờ trong bảng rule gửi xuống, tính từ 0) + 1` sau khi chốt thứ tự topo cuối cùng của bảng Rule.
+  - Phục vụ firmware theo dõi bộ đếm thời gian thực của Rule Engine và phản hồi viễn trắc `ET`, `RUNNING`, `Q`, `IN` về `0x0B00`.
+
+## [2.3.0] - 2026-10-10 (MQTT IIOT GATEWAY & TELEMETRY SUBSYSTEM PROFILE)
+
+### Added
+- **MQTT IIoT Gateway & Telemetry Binary Structs Specification (`SPLC-DOC-SPEC-V20-MQTT-STRUCTS`)**:
+  - Ban hành tài liệu đặc tả nền tảng chuẩn: [`docs/platform/SimplePLC_App_MCU_Structs_MQTT_IIoT_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_MQTT_IIoT_Profile.md).
+  - Phân vùng cấu hình Máy chủ Broker toàn cục (`0x0E00..0x0E5F`, 96 holding registers = 192 bytes): Host/IP (64B), Port, TLS/SSL, Client ID, Username, Password, KeepAlive và 12 registers phản hồi trạng thái Live từ MCU.
+  - Phân vùng 4 khối xuất bản Telemetry FBD (`0x0C00..0x0D7F`, 384 holding registers = 768 bytes): Topic (32B), Timing ms, COV Deadband float32, mảng 8 TagIndex và Bản mẫu Custom JSON Payload (128B).
+  - Cập nhật Master Memory Map V2.0 trong [`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md).
+  - Hoàn thiện bộ Codec Host C# (`MqttBrokerConfigCodec.cs`, `MqttTelemetryCodec.cs`) và Authoritative C Header [`docs/firmware/splc_mqtt_wire.h`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/splc_mqtt_wire.h).
+  - Xác thực nghiệm thu tự động 10/10 test cases qua phần cứng ảo UART `COM7` <-> `COM9` và 100% unit tests.
+
 ## [2.2.6] - 2026-10-08 (COUNTER STORAGE BINDING, DYNAMIC TAG MAP & SAVE/LOAD FIX)
 
 ### Fixed

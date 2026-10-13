@@ -148,9 +148,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="ALL">
-                                    <Setter Property="Background" Value="#006487" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#006487" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -166,9 +166,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="DI">
-                                    <Setter Property="Background" Value="#006487" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#006487" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -184,9 +184,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="DO">
-                                    <Setter Property="Background" Value="#107C41" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -202,9 +202,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="AI">
-                                    <Setter Property="Background" Value="#C05621" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#C05621" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -220,9 +220,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="VFLAG">
-                                    <Setter Property="Background" Value="#4F46E5" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#4F46E5" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -238,9 +238,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="VREG">
-                                    <Setter Property="Background" Value="#0891B2" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#0891B2" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -256,9 +256,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="RETAIN">
-                                    <Setter Property="Background" Value="#9333EA" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#9333EA" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -274,9 +274,9 @@
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding SelectedKindFilter}" Value="COUNTER">
-                                    <Setter Property="Background" Value="#0D9488" />
+                                    <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#0D9488" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -294,7 +294,7 @@
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource BtnSecondary}">
                             <Setter Property="Content" Value="{Binding [LiveWatchBtnEnterManual], Source={x:Static services:LocalizationService.Instance}}" />
-                            <Setter Property="Background" Value="#FEF3C7" />
+                            <Setter Property="Background" Value="#FFFBEB" />
                             <Setter Property="Foreground" Value="#C05621" />
                             <Setter Property="BorderBrush" Value="#C05621" />
                             <Style.Triggers>
@@ -460,7 +460,7 @@
                                                 HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding ModbusAddressHex}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" FontWeight="SemiBold" Foreground="#006487" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ModbusAddressHex}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" FontWeight="SemiBold" Foreground="#334155" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -491,7 +491,8 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Grid HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Opacity="{Binding Quality, Converter={StaticResource QualityOpacityConverter}}">
+                                          Opacity="{Binding Quality, Converter={StaticResource QualityOpacityConverter}}"
+                                          ToolTip="{Binding RawHexText, StringFormat='Raw: {0}'}">
                                         <!-- Boolean LED Indicator -->
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                                             <StackPanel.Style>
@@ -515,7 +516,7 @@
                                         </StackPanel>
 
                                         <!-- Numeric / Analog Value -->
-                                        <TextBlock Text="{Binding FormattedValue}" FontWeight="SemiBold" FontSize="12.5" Foreground="#006487" FontFamily="Consolas, Cascadia Code, Courier New" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding FormattedValue}" FontWeight="SemiBold" FontSize="12.5" Foreground="#334155" FontFamily="Consolas, Cascadia Code, Courier New" VerticalAlignment="Center" HorizontalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -532,14 +533,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <!-- 8. Raw (Hex/Debug) (Centered, 1.4*) -->
-                        <DataGridTextColumn Header="{Binding [ColLiveRaw], Source={x:Static services:LocalizationService.Instance}}"
-                                            Binding="{Binding RawHexText}" Width="1.4*" MinWidth="120"
-                                            HeaderStyle="{StaticResource CenteredColumnHeaderStyle}"
-                                            ElementStyle="{StaticResource MonoCenterCellText}"
-                                            Foreground="#64748B" />
-
-                        <!-- 9. Quality Badge (Centered, 1.2*) -->
+                        <!-- 8. Quality Badge (Centered, 1.2*) -->
                         <DataGridTemplateColumn Header="{Binding [ColLiveQuality], Source={x:Static services:LocalizationService.Instance}}" Width="1.2*" MinWidth="110"
                                                 HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
                             <DataGridTemplateColumn.CellTemplate>
@@ -743,7 +737,7 @@
                 </Border>
 
                 <!-- Retain Dirty Action Banner -->
-                <Border Grid.Row="1" Background="#FEF3C7" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="14,6">
+                <Border Grid.Row="1" Background="#FFFBEB" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="14,6">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed" />

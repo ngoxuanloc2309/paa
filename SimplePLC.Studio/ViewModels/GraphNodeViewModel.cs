@@ -45,6 +45,14 @@ public abstract partial class GraphNodeViewModel : ObservableObject, IDisposable
     private DiffState _diffStatus = DiffState.None;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNetworkNumber))]
+    [NotifyPropertyChangedFor(nameof(NetworkBadgeText))]
+    private int _networkNumber;
+
+    public bool HasNetworkNumber => NetworkNumber > 0;
+    public string NetworkBadgeText => $"#{NetworkNumber}";
+
+    [ObservableProperty]
     private bool _hasError;
 
     [ObservableProperty]
@@ -177,9 +185,7 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             if (!string.IsNullOrWhiteSpace(Tag.Alias))
                 return Tag.Alias;
 
-            return LocalizationService.Instance.IsVietnamese 
-                ? $"Ngõ vào {Tag.Kind}" 
-                : $"{Tag.Kind} Input";
+            return Tag.DisplayName;
         }
     }
 
@@ -1025,6 +1031,9 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             
             if (!string.IsNullOrWhiteSpace(TargetTag.Alias))
                 return TargetTag.Alias;
+
+            if (!string.IsNullOrWhiteSpace(TargetTag.DisplayName))
+                return TargetTag.DisplayName;
 
             return LocalizationService.Instance.IsVietnamese 
                 ? $"Ngõ ra {TargetTag.Kind}" 

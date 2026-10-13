@@ -53,6 +53,14 @@ internal class Program
             {
                 mode = "full";
             }
+            else if (a == "--mqtt" || a == "-m" || a == "-mq")
+            {
+                mode = "mqtt";
+            }
+            else if (a == "--auto-mqtt" || a == "--suite" || a == "-am")
+            {
+                mode = "auto-mqtt";
+            }
             else if (a == "--menu")
             {
                 mode = "menu";
@@ -72,6 +80,8 @@ internal class Program
             Console.WriteLine("  [1] Chạy MCU Server nền trên " + mcuPort + " (Sẵn sàng cho Studio kết nối " + studioPort + ")");
             Console.WriteLine("  [2] Chạy 5 kịch bản tự động kiểm thử Chẩn đoán & Cưỡng bức (Diag Scenarios)");
             Console.WriteLine("  [3] Chạy kiểm thử End-to-End toàn diện 6 bước (Full Hardware Test)");
+            Console.WriteLine("  [4] Chạy kiểm thử truyền thông MQTT Telemetry (SPLC-SPEC-MQTT-001)");
+            Console.WriteLine("  [5] Chạy Bộ Kiểm Thử Tự Động Độc Lập Phần Cứng (Clean Code Bug Hunter)");
             Console.WriteLine("  [0] Thoát");
             Console.Write("\nLựa chọn của bạn (mặc định 1): ");
             string? choice = Console.ReadLine()?.Trim();
@@ -79,6 +89,8 @@ internal class Program
             {
                 "2" => "diag",
                 "3" => "full",
+                "4" => "mqtt",
+                "5" => "auto-mqtt",
                 "0" => "exit",
                 _ => "server"
             };
@@ -100,6 +112,14 @@ internal class Program
         else if (mode == "diag")
         {
             return await RunDiagScenariosAsync(mcuPort, studioPort, baudRate, slaveId, cts.Token);
+        }
+        else if (mode == "mqtt")
+        {
+            return await RunMqttTestAsync(mcuPort, studioPort, baudRate, slaveId, cts.Token);
+        }
+        else if (mode == "auto-mqtt")
+        {
+            return await RunAutoMqttSuiteAsync(mcuPort, studioPort, baudRate, slaveId, cts.Token);
         }
         else
         {
@@ -1087,5 +1107,438 @@ internal class Program
                 throw new TimeoutException($"[TIMEOUT] {timeoutMessage} (waited {timeoutMs}ms, polling every {pollMs}ms)");
             await Task.Delay(pollMs, ct).ConfigureAwait(false);
         }
+    }
+
+    // =========================================================================
+    // CHẾ ĐỘ 4: KIỂM THỬ TRUYỀN THÔNG MQTT TELEMETRY THEO CHUẨN SPLC-SPEC-MQTT-001
+    // =========================================================================
+    private static async Task<int> RunMqttTestAsync(string mcuPort, string studioPort, int baudRate, byte slaveId, CancellationToken ct)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("     SimplePLC MQTT Telemetry Wire Protocol Test (SPLC-SPEC-MQTT-001)           ");
+        Console.WriteLine("================================================================================");
+        Console.ResetColor();
+        Console.WriteLine($"MCU Server Port:    {mcuPort} (Simulates STM32 MCU Modbus Slave ID {slaveId})");
+        Console.WriteLine($"Studio Client Port: {studioPort} (Simulates Studio Modbus Master via USB-CDC)");
+        Console.WriteLine($"Baud Rate:          {baudRate} bps, 8-N-1");
+        Console.WriteLine($"Base Address:       0x{ModbusRegisterMap.MqttTelemetryTableBaseAddress:X4} (Holding Registers)");
+        Console.WriteLine($"Block Size:         {ModbusRegisterMap.MqttRegistersPerBlock} registers (192 bytes / block)");
+        Console.WriteLine($"Max Blocks:         {ModbusRegisterMap.MqttMaxBlocks} blocks (Total 384 registers: 0x0C00 - 0x0D7F)");
+        Console.WriteLine("--------------------------------------------------------------------------------");
+
+        // 1. Khởi tạo Serial Port cho MCU Simulator
+        using var mcuSerial = new SerialPort(mcuPort, baudRate, Parity.None, 8, StopBits.One)
+        {
+            DtrEnable = true,
+            RtsEnable = true,
+            ReadTimeout = 1000,
+            WriteTimeout = 1000
+        };
+
+        try
+        {
+            mcuSerial.Open();
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FATAL] Không thể mở cổng MCU {mcuPort}: {ex.Message}");
+            Console.ResetColor();
+            return 1;
+        }
+
+        var simulator = new McuReferenceSimulator(wireProfile: 2);
+        var mcuServer = new McuModbusRtuServer(simulator, slaveId);
+
+        long rxCount = 0;
+        long txCount = 0;
+
+        mcuServer.FrameReceived += frame =>
+        {
+            Interlocked.Increment(ref rxCount);
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"  [MCU RX Frame] {Convert.ToHexString(frame)}");
+            Console.ResetColor();
+        };
+
+        mcuServer.FrameSent += frame =>
+        {
+            Interlocked.Increment(ref txCount);
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"  [MCU TX Frame] {Convert.ToHexString(frame)}");
+            Console.ResetColor();
+        };
+
+        _ = Task.Run(() => mcuServer.RunAsync(mcuSerial.BaseStream, mcuSerial.BaseStream, ct), ct);
+
+        // Scan pass engine giả lập
+        _ = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                simulator.ExecuteScanPass(20);
+                await Task.Delay(20, ct).ConfigureAwait(false);
+            }
+        }, ct);
+
+        // 2. Khởi tạo Client phía App / Studio trên studioPort
+        var transport = new UsbCdcTransport();
+        try
+        {
+            await transport.OpenAsync(new UsbCdcOptions(studioPort, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2)), ct);
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FATAL] Không thể mở cổng Studio {studioPort}: {ex.Message}");
+            Console.ResetColor();
+            mcuSerial.Close();
+            return 1;
+        }
+
+        var client = new ModbusRtuClient(transport);
+        var writer = new RuleTableWriter(client);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"[OK] Physical serial link established between {mcuPort} and {studioPort}!\n");
+        Console.ResetColor();
+
+        int passedSteps = 0;
+        int totalSteps = 6;
+
+        try
+        {
+            // STEP 1: Handshake kiểm tra UART Link
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 1: Handshake Kiểm tra Đường truyền UART Link qua Modbus FC03 (0x0000, 10 regs)");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            var descRegs = await client.ReadHoldingRegistersAsync(slaveId, 0x0000, 10, ct);
+            var desc = RegisterCodec.DecodeDeviceDescriptor(descRegs);
+            Console.WriteLine($"  -> Firmware: {desc.FwVersionString}, Protocol: v{desc.ProtocolVersion}, RuleFormat: v{desc.RuleFormatVersion}");
+            Assert(desc.ProtocolVersion >= 1, "Handshake failed: Invalid protocol version");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 1: UART Link COM7 <-> COM9 hoạt động ổn định và tin cậy!\n");
+            Console.ResetColor();
+            passedSteps++;
+
+            // STEP 2: Tạo DTO Cấu hình 2 Khối MQTT Telemetry (Hybrid: Standard JSON + Custom Template)
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 2: Chuẩn bị 2 Khối Cấu hình MQTT Telemetry DTO (Chuẩn Hybrid)");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            var block0 = new MqttTelemetryConfigDto
+            {
+                NodeId = "MQTT_BLOCK_0",
+                Topic = "synaptix/telemetry/line1",
+                PublishMode = "Periodic",
+                IntervalMs = 2500,
+                Deadband = 0.5,
+                Qos = 1,
+                Retain = true,
+                PayloadMode = "JSON",
+                DataTagIndex = 0, // DI0
+                IncludeDevice = true,
+                IncludeTimestamp = true
+            };
+
+            var block1 = new MqttTelemetryConfigDto
+            {
+                NodeId = "MQTT_BLOCK_1",
+                Topic = "factory/press/pressure",
+                PublishMode = "COV",
+                IntervalMs = 1000,
+                Deadband = 1.25,
+                Qos = 0,
+                Retain = false,
+                PayloadMode = "Custom",
+                DataTagIndex = 10, // AI0
+                CustomTemplate = "{\"press\":{val},\"ts\":{ts},\"unit\":\"bar\"}",
+                IncludeDevice = false,
+                IncludeTimestamp = true
+            };
+
+            Console.WriteLine("  Khối 0 (Standard JSON):");
+            Console.WriteLine($"    - Topic:        {block0.Topic}");
+            Console.WriteLine($"    - Mode:         {block0.PublishMode} ({block0.IntervalMs} ms, Deadband: {block0.Deadband})");
+            Console.WriteLine($"    - Payload Mode: {block0.PayloadMode}");
+            Console.WriteLine($"    - QoS / Retain: QoS={block0.Qos}, Retain={block0.Retain}");
+
+            Console.WriteLine("  Khối 1 (Custom Template 128-byte Buffer):");
+            Console.WriteLine($"    - Topic:        {block1.Topic}");
+            Console.WriteLine($"    - Mode:         {block1.PublishMode} (Deadband: {block1.Deadband})");
+            Console.WriteLine($"    - Payload Mode: {block1.PayloadMode}");
+            Console.WriteLine($"    - Template:     {block1.CustomTemplate} ({block1.CustomTemplate.Length} bytes)");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 2: Chuẩn bị DTO hoàn tất!\n");
+            Console.ResetColor();
+            passedSteps++;
+
+            // STEP 3: Nạp Cấu hình MQTT từ App xuống MCU qua COM7 (Modbus FC16 Chunks)
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 3: Nạp Cấu hình MQTT xuống MCU qua COM7 -> COM9 (Modbus FC16 Chunks)");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            var sampleRules = new[]
+            {
+                new RuleRecordDto
+                {
+                    Enabled = true,
+                    TriggerTag = 0,
+                    TriggerType = SPLC_TriggerType.ON_CHANGE,
+                    CompareOp = SPLC_CompareOp.EQ,
+                    ThresholdLo = 1,
+                    ActionTag = 8,
+                    ActionType = SPLC_ActionType.SET_TAG,
+                    ActionParam = 1
+                }
+            };
+
+            var deployResult = await writer.DeployRulesAsync(
+                slaveId,
+                rules: sampleRules,
+                timers: null,
+                counters: null,
+                mqttConfigs: new[] { block0, block1 },
+                cancellationToken: ct
+            );
+
+            Console.WriteLine($"  -> Kết quả nạp: IsSuccess={deployResult.IsSuccess}, ErrorCode={deployResult.ErrorCode}");
+            Assert(deployResult.IsSuccess, $"Nạp cấu hình MQTT thất bại: {deployResult.ErrorMessage}");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 3: Nạp cấu hình MQTT thành công qua Modbus FC16!\n");
+            Console.ResetColor();
+            passedSteps++;
+
+            // STEP 4: Đọc ngược và Xác thực Khối 0 (Standard JSON) tại 0x0C00 (96 registers)
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 4: Đọc ngược Khối 0 tại 0x0C00 (96 regs / 192 bytes) & Verify Fields");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            ushort[] block0Regs = await ReadHoldingRegistersChunkedAsync(client, slaveId, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttRegistersPerBlock, 32, ct);
+            var decoded0 = MqttTelemetryCodec.DecodeBlock(block0Regs);
+
+            Console.WriteLine($"  [Readback Khối 0]:");
+            Console.WriteLine($"    - Magic Offset+0:     0x{block0Regs[0]:X4} (Control Flags)");
+            Console.WriteLine($"    - Topic Giải mã:     '{decoded0.Topic}'");
+            Console.WriteLine($"    - PublishMode:        {decoded0.PublishMode}");
+            Console.WriteLine($"    - IntervalMs:         {decoded0.IntervalMs} ms");
+            Console.WriteLine($"    - Deadband:           {decoded0.Deadband}");
+            Console.WriteLine($"    - QoS / Retain:       QoS={decoded0.Qos}, Retain={decoded0.Retain}");
+            Console.WriteLine($"    - PayloadMode:        {decoded0.PayloadMode}");
+
+            Assert(decoded0.Topic == block0.Topic, $"Topic mismatch: Expected '{block0.Topic}', Got '{decoded0.Topic}'");
+            Assert(decoded0.PublishMode == block0.PublishMode, $"PublishMode mismatch: Expected '{block0.PublishMode}', Got '{decoded0.PublishMode}'");
+            Assert(decoded0.IntervalMs == block0.IntervalMs, $"IntervalMs mismatch: Expected {block0.IntervalMs}, Got {decoded0.IntervalMs}");
+            Assert(Math.Abs(decoded0.Deadband - block0.Deadband) < 0.001, "Deadband mismatch");
+            Assert(decoded0.Qos == block0.Qos, "QoS mismatch");
+            Assert(decoded0.Retain == block0.Retain, "Retain mismatch");
+            Assert(decoded0.PayloadMode == block0.PayloadMode, "PayloadMode mismatch");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 4: Khối 0 (Standard JSON) xác thực khớp 100% từng trường dữ liệu!\n");
+            Console.ResetColor();
+            passedSteps++;
+
+            // STEP 5: Đọc ngược và Xác thực Khối 1 (Custom Template) tại 0x0C60 (96 registers)
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 5: Đọc ngược Khối 1 tại 0x0C60 (96 regs / 192 bytes) & Verify Custom Template");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            ushort block1Address = ModbusRegisterMap.GetMqttBlockAddress(1);
+            ushort[] block1Regs = await ReadHoldingRegistersChunkedAsync(client, slaveId, block1Address, ModbusRegisterMap.MqttRegistersPerBlock, 32, ct);
+            var decoded1 = MqttTelemetryCodec.DecodeBlock(block1Regs);
+
+            Console.WriteLine($"  [Readback Khối 1]:");
+            Console.WriteLine($"    - Control Flags:      0x{block1Regs[0]:X4}");
+            Console.WriteLine($"    - Topic Giải mã:     '{decoded1.Topic}'");
+            Console.WriteLine($"    - PublishMode:        {decoded1.PublishMode}");
+            Console.WriteLine($"    - Deadband:           {decoded1.Deadband}");
+            Console.WriteLine($"    - PayloadMode:        {decoded1.PayloadMode}");
+            Console.WriteLine($"    - Custom Template:    '{decoded1.CustomTemplate}' ({decoded1.CustomTemplate.Length} bytes)");
+
+            Assert(decoded1.Topic == block1.Topic, $"Topic mismatch: Expected '{block1.Topic}', Got '{decoded1.Topic}'");
+            Assert(decoded1.PublishMode == block1.PublishMode, $"PublishMode mismatch: Expected '{block1.PublishMode}', Got '{decoded1.PublishMode}'");
+            Assert(Math.Abs(decoded1.Deadband - block1.Deadband) < 0.001, "Deadband mismatch");
+            Assert(decoded1.PayloadMode == block1.PayloadMode, "PayloadMode mismatch");
+            Assert(decoded1.CustomTemplate == block1.CustomTemplate, $"Template mismatch: Expected '{block1.CustomTemplate}', Got '{decoded1.CustomTemplate}'");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 5: Khối 1 (Custom Raw Template 128B) giải mã toàn vẹn 100%!\n");
+            Console.ResetColor();
+            passedSteps++;
+
+            // STEP 6: Cập nhật động & Vô hiệu hóa Khối (Dynamic Update & Disable Test)
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("BƯỚC 6: Kiểm tra Cập nhật Động (Thay đổi Chu kỳ = 5000ms, Topic mới)");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.ResetColor();
+
+            block0.IntervalMs = 5000;
+            block0.Topic = "synaptix/line1/slow";
+
+            // Nạp lại cấu hình cập nhật
+            var updateResult = await writer.DeployRulesAsync(
+                slaveId,
+                rules: sampleRules,
+                timers: null,
+                counters: null,
+                mqttConfigs: new[] { block0 },
+                cancellationToken: ct
+            );
+
+            Assert(updateResult.IsSuccess, "Cập nhật động thất bại");
+
+            ushort[] updatedBlock0Regs = await ReadHoldingRegistersChunkedAsync(client, slaveId, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttRegistersPerBlock, 32, ct);
+            var updatedDecoded0 = MqttTelemetryCodec.DecodeBlock(updatedBlock0Regs);
+
+            Console.WriteLine($"  [Readback sau Cập nhật Khối 0]:");
+            Console.WriteLine($"    - Topic:        '{updatedDecoded0.Topic}' (Kỳ vọng: 'synaptix/line1/slow')");
+            Console.WriteLine($"    - IntervalMs:   {updatedDecoded0.IntervalMs} ms (Kỳ vọng: 5000 ms)");
+
+            Assert(updatedDecoded0.Topic == "synaptix/line1/slow", "Topic sau cập nhật không khớp");
+            Assert(updatedDecoded0.IntervalMs == 5000, "IntervalMs sau cập nhật không khớp");
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  [PASS] Bước 6: Cập nhật động và nạp lại cấu hình thời gian thực thành công!\n");
+            Console.ResetColor();
+            passedSteps++;
+        }
+        finally
+        {
+            await transport.DisposeAsync();
+            mcuSerial.Close();
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("================================================================================");
+        Console.WriteLine($"   KIỂM THỬ TRUYỀN THÔNG MQTT THÀNH CÔNG RỰC RỠ: {passedSteps}/{totalSteps} BƯỚC (100% PASS)  ");
+        Console.WriteLine($"   Tổng số Frame Modbus RTU đã trao đổi trên UART: RX = {rxCount}, TX = {txCount}");
+        Console.WriteLine("================================================================================");
+        Console.ResetColor();
+
+        return 0;
+    }
+
+    private static async Task<ushort[]> ReadHoldingRegistersChunkedAsync(
+        ModbusRtuClient client,
+        byte slaveId,
+        ushort startAddress,
+        ushort totalCount,
+        ushort chunkSize = 32,
+        CancellationToken ct = default)
+    {
+        var result = new ushort[totalCount];
+        ushort read = 0;
+        while (read < totalCount)
+        {
+            ushort countToRead = (ushort)Math.Min((int)chunkSize, totalCount - read);
+            var chunk = await client.ReadHoldingRegistersAsync(slaveId, (ushort)(startAddress + read), countToRead, ct);
+            chunk.CopyTo(result.AsMemory(read, countToRead));
+            read += countToRead;
+        }
+        return result;
+    }
+
+    // =========================================================================
+    // CHẾ ĐỘ 5: BỘ KIỂM THỬ TỰ ĐỘNG ĐỘC LẬP PHẦN CỨNG (CLEAN CODE BUG HUNTER)
+    // =========================================================================
+    private static async Task<int> RunAutoMqttSuiteAsync(string mcuPort, string studioPort, int baudRate, byte slaveId, CancellationToken ct)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("    SimplePLC Independent Hardware Automation Test Suite (Clean Code)          ");
+        Console.WriteLine("================================================================================");
+        Console.ResetColor();
+        Console.WriteLine($"Cổng MCU:        {mcuPort} (STM32 Simulator Slave ID {slaveId})");
+        Console.WriteLine($"Cổng Studio:     {studioPort} (Studio Master Client)");
+        Console.WriteLine($"Tốc độ Baud:     {baudRate} bps");
+        Console.WriteLine("--------------------------------------------------------------------------------");
+
+        await using var suite = new Automation.MqttHardwareTestSuite(mcuPort, studioPort, baudRate, slaveId);
+        try
+        {
+            await suite.InitializeAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FATAL] Không thể khởi tạo môi trường kiểm thử: {ex.Message}");
+            Console.ResetColor();
+            return 1;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("-> Bắt đầu thực thi chuỗi ca kiểm thử tự động (Edge Cases, Boundaries, Stress)...");
+        Console.ResetColor();
+
+        var results = await suite.RunAllTestsAsync(ct);
+
+        int passed = 0;
+        int failed = 0;
+
+        Console.WriteLine("\n--------------------------------------------------------------------------------");
+        Console.WriteLine("                    BẢNG KẾT QUẢ AUTOMATION TEST CHI TIẾT                       ");
+        Console.WriteLine("--------------------------------------------------------------------------------");
+
+        foreach (var r in results)
+        {
+            if (r.Passed)
+            {
+                passed++;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"  [PASS] ");
+                Console.ResetColor();
+                Console.WriteLine($"{r.TestId}: {r.TestName,-55} ({r.ElapsedMs,4} ms)");
+                if (!string.IsNullOrEmpty(r.Details))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"         -> {r.Details}");
+                    Console.ResetColor();
+                }
+            }
+            else
+            {
+                failed++;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write($"  [FAIL] ");
+                Console.ResetColor();
+                Console.WriteLine($"{r.TestId}: {r.TestName,-55} ({r.ElapsedMs,4} ms)");
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"         -> LỖI: {r.ErrorMessage}");
+                Console.ResetColor();
+            }
+        }
+
+        Console.WriteLine("--------------------------------------------------------------------------------");
+        if (failed == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"  TỔNG KẾT: {passed}/{results.Count} TEST CASES PASSED (100% THÀNH CÔNG)");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"  TỔNG KẾT: {passed}/{results.Count} PASSED, {failed} FAILED (PHÁT HIỆN LỖI TRONG MÃ NGUỒN!)");
+            Console.ResetColor();
+        }
+        Console.WriteLine("================================================================================\n");
+
+        return failed == 0 ? 0 : 1;
     }
 }

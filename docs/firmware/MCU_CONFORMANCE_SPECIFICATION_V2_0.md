@@ -51,6 +51,8 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16 | 5 regs (10 B) | Phân hệ chẩn đoán cưỡng bức: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseRemainingMs` (0x0A23), `ErrorCode` (0x0A24). |
 | `0x0B00..0x0B3F` | **Function Block Timers** | R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Timer IEC 61131-3 (TON, TOF, TP). Host ghi cấu hình (Mode, PT) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, ET). Mỗi khối 8 thanh ghi (16 bytes). |
 | `0x0B40..0x0B7F` | **Function Block Counters**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Counter IEC 61131-3 (CTU, CTD). Host ghi cấu hình (Mode, PV, RetainTagIndex) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, CV). Mỗi khối 8 thanh ghi (16 bytes). |
+| `0x0C00..0x0D7F` | **MQTT Telemetry Blocks**  | R/W | FC03/FC16 | 384 regs (768 B) | Cấu hình 4 khối xuất bản dữ liệu viễn trắc MQTT IIoT (SPLC-SPEC-MQTT-001). Mỗi khối 96 thanh ghi (192 bytes) gồm: Flags/Topic/Timing (32 regs) và Payload Template JSON (64 regs). |
+| `0x0E00..0x0E5F` | **MQTT Broker Configuration**| R/W | FC03/FC16 | 96 regs (192 B) | Cấu hình kết nối mạng máy chủ MQTT Broker cấp hệ thống: Host/IP (64B), Port, TLS/SSL, Client ID, Username, Password, KeepAlive. |
 | `0x9000..0x9005` | **Staging Config Handshake**| R/W | FC03/FC16 | 6 regs (12 B) | `Status`, `ErrorCode`, `RuleCountStaged`, `ExpectedCrc16`, `ActiveRuleCount`, `ActiveRuleCrc16`. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | Vùng đệm nạp Rule mới (ghi từng block tối đa 120 registers). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và tráo bảng (atomic swap). |
@@ -154,9 +156,10 @@ Phân vùng gồm 4 thanh ghi (8 bytes):
   * `Bit 1` (`0x0002`): `SPLC_RTC_FLAG_HW_PRESENT` (1 = Có chip phần cứng RTC như DS3231/PCF8563 hoặc thạch anh 32.768kHz LSE; 0 = Đếm giờ mềm). *Do MCU tự kiểm tra phần cứng khi khởi động, Host không được tự ý xóa cờ này.*
   * `Bit 2` (`0x0004`): `SPLC_RTC_FLAG_BATTERY_LOW` (1 = Pin nuôi RTC bị yếu/hết pin hoặc tháo pin; 0 = Pin tốt). *Do MCU đo đạc điện áp pin / đọc thanh ghi cảnh báo của IC RTC để báo cáo cho Host.*
 
-* **Quy tắc Giao tiếp Read-Before-Write**:
-  * Khi Host kết nối, Host thực hiện **FC03 đọc `0x0810..0x0813`** trước để lấy trạng thái phần cứng và độ lệch giờ.
-  * Khi Host gửi frame **FC16 ghi `0x0810..0x0813`**, Host **bắt buộc phải bảo toàn** cờ `HW_PRESENT` và `BATTERY_LOW` của MCU, chỉ cập nhật `SYNCED = 1`.
+* **Quy tắc Giao tiếp & An toàn Múi giờ (Read-Before-Write & On-Connect Policy)**:
+  * **Khi Host kết nối (On-Connect)**: Host chỉ thực hiện **FC03 đọc `0x0810..0x0813`** để cập nhật trạng thái hiển thị trên Status Bar. **Tuyệt đối KHÔNG tự động ghi đè giờ PC xuống MCU**, nhằm bảo vệ nguyên vẹn múi giờ quốc tế (ví dụ: Mỹ UTC-5, Nhật Bản UTC+9) đã cấu hình trước đó của thiết bị.
+  * **Khi Host gửi lệnh đồng bộ (Explicit User Sync)**: Thao tác ghi đồng bộ thời gian/múi giờ mới chỉ diễn ra khi kỹ sư chủ động bấm nút "Đồng bộ" trong hộp thoại RTC.
+  * Khi Host gửi frame **FC16 ghi `0x0810..0x0813`**, Host **bắt buộc phải bảo toàn** cờ `HW_PRESENT` và `BATTERY_LOW` của MCU (áp dụng cơ chế Read-Before-Write), chỉ cập nhật `epoch_utc_s`, `tz_offset_min` và `SYNCED = 1`.
   * Phía Firmware MCU: Nếu nhận được FC16, Firmware cập nhật `epoch_utc_s`, `tz_offset_min`, và đặt `SYNCED = 1`, đồng thời giữ nguyên trạng thái `HW_PRESENT` và `BATTERY_LOW` theo phần cứng thực tế.
 
 ### 6.2. Thuật toán tính toán giờ địa phương danh định `HHmm`

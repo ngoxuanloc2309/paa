@@ -28,9 +28,30 @@ public static class GraphGrammarV1
             return false;
         }
 
+        if (sourceKind == LogicNodeKind.MqttPublish)
+        {
+            errorCode = "SPLC-GRAPH-MQTT-OUT";
+            errorReason = "MQTT Publish node has no output connectors.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.MqttPublish)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MQTT-IN";
+            errorReason = "MQTT Publish node can only receive an upstream connection from Input, Scale, Trigger, Guard, Comparator, Timer, or Counter.";
+            return false;
+        }
+
         if (sourceKind == LogicNodeKind.Timer)
         {
-            if (targetKind == LogicNodeKind.Action)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -38,13 +59,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-TIMER-OUT";
-            errorReason = "Timer output Q can only connect to an Action node.";
+            errorReason = "Timer output Q can only connect to an Action or MQTT Publish node.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Counter)
         {
-            if (targetKind == LogicNodeKind.Action)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -52,13 +73,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-COUNTER-OUT";
-            errorReason = "Counter output Q can only connect to an Action node.";
+            errorReason = "Counter output Q can only connect to an Action or MQTT Publish node.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Scale)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -66,7 +87,35 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-SCALE-OUT";
-            errorReason = "Scale output can connect to an Action or Trigger node.";
+            errorReason = "Scale output can connect to an Action, Trigger, Comparator, or MQTT Publish node.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.Comparator)
+        {
+            if (targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Guard || targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-CMP-OUT";
+            errorReason = "Comparator output (BOOL) can connect to a Trigger, Guard, Action, or MQTT Publish node.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.Comparator)
+        {
+            if (sourceKind == LogicNodeKind.Input || sourceKind == LogicNodeKind.Scale)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-CMP-IN";
+            errorReason = "Comparator node can only receive an upstream numeric value from an Input or Scale node.";
             return false;
         }
 

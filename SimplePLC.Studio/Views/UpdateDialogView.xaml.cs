@@ -141,28 +141,23 @@ public partial class UpdateDialogView : Window
     {
         if (_isDownloading) return;
 
+        // Reset error banner
+        ErrorAlertPanel.Visibility = Visibility.Collapsed;
+        TxtErrorMessage.Text = string.Empty;
+
         if (string.IsNullOrEmpty(_updateInfo.DownloadUrl))
         {
             // Nếu không tìm thấy asset file tải trực tiếp, mở trang web GitHub Release
-            try
-            {
-                string releaseWebUrl = $"https://github.com/{AppUpdateService.GitHubRepoOwner}/{AppUpdateService.GitHubRepoName}/releases/tag/v{_updateInfo.LatestVersion}";
-                Process.Start(new ProcessStartInfo(releaseWebUrl) { UseShellExecute = true });
-                Close();
-            }
-            catch (Exception ex)
-            {
-                TxtStatusMessage.Text = $"Lỗi: {ex.Message}";
-            }
+            OpenReleaseInBrowser();
+            Close();
             return;
         }
 
         _isDownloading = true;
         BtnUpdateNow.IsEnabled = false;
         BtnCancel.IsEnabled = false;
-        BtnUpdateNow.Content = LocalizationService.Instance.IsVietnamese ? "Đang cập nhật..." : "Updating...";
+        BtnUpdateNow.Content = LocalizationService.Instance.IsVietnamese ? "Đang tải..." : "Downloading...";
         ProgressPanel.Visibility = Visibility.Visible;
-        TxtStatusMessage.Text = string.Empty;
 
         _downloadCts = new CancellationTokenSource();
         var progress = new Progress<double>(pct =>
@@ -172,7 +167,7 @@ public partial class UpdateDialogView : Window
                 PrgDownload.Value = pct;
                 TxtProgressPercent.Text = $"{pct:F0}%";
                 TxtProgressStatus.Text = LocalizationService.Instance.IsVietnamese
-                    ? $"Đang tải bản cập nhật... ({pct:F0}%)"
+                    ? $"Đang tải gói cập nhật... ({pct:F0}%)"
                     : $"Downloading update... ({pct:F0}%)";
             });
         });
@@ -199,16 +194,52 @@ public partial class UpdateDialogView : Window
             BtnCancel.IsEnabled = true;
             BtnUpdateNow.Content = LocalizationService.Instance["UpdateDialogBtnUpdate"];
             ProgressPanel.Visibility = Visibility.Collapsed;
-            TxtStatusMessage.Text = LocalizationService.Instance.IsVietnamese ? "Đã hủy tải bản cập nhật." : "Download canceled.";
         }
         catch (Exception ex)
         {
             _isDownloading = false;
             BtnUpdateNow.IsEnabled = true;
             BtnCancel.IsEnabled = true;
-            BtnUpdateNow.Content = LocalizationService.Instance["UpdateDialogBtnUpdate"];
+            BtnUpdateNow.Content = LocalizationService.Instance["UpdateDialogBtnRetry"];
             ProgressPanel.Visibility = Visibility.Collapsed;
-            TxtStatusMessage.Text = $"Lỗi tải tệp: {ex.Message}";
+
+            ShowErrorAlert(ex);
+        }
+    }
+
+    private void ShowErrorAlert(Exception ex)
+    {
+        ErrorAlertPanel.Visibility = Visibility.Visible;
+        TxtErrorHeading.Text = LocalizationService.Instance["UpdateDialogErrHeading"];
+
+        string message = ex.Message;
+        if (message.Contains("404") || message.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
+        {
+            TxtErrorMessage.Text = LocalizationService.Instance["UpdateDialogErr404"];
+        }
+        else
+        {
+            string prefix = LocalizationService.Instance.IsVietnamese ? "Không thể tải tệp cập nhật: " : "Failed to download update: ";
+            TxtErrorMessage.Text = $"{prefix}{message}";
+        }
+    }
+
+    private void BtnOpenBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        OpenReleaseInBrowser();
+    }
+
+    private void OpenReleaseInBrowser()
+    {
+        try
+        {
+            string tag = string.IsNullOrWhiteSpace(_updateInfo.LatestVersion) ? "" : $"/tag/v{_updateInfo.LatestVersion}";
+            string releaseWebUrl = $"https://github.com/{AppUpdateService.GitHubRepoOwner}/{AppUpdateService.GitHubRepoName}/releases{tag}";
+            Process.Start(new ProcessStartInfo(releaseWebUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Không thể mở trình duyệt: {ex.Message}", "SynaptiX IDE", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

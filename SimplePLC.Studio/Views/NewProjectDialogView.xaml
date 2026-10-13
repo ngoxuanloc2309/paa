@@ -48,10 +48,10 @@
             <!-- 1. Body Content (Left: Config Forms with Scroll, Right: Hardware Preview) -->
             <Grid Grid.Row="1" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
-                    <!-- Left: Config inputs (Flexible, generous width ~550px) -->
+                    <!-- Left: Config inputs (Flexible, generous width ~540px) -->
                     <ColumnDefinition Width="*" />
-                    <!-- Right: Hardware preview card (360px) -->
-                    <ColumnDefinition Width="360" />
+                    <!-- Right: Hardware preview card (390px) -->
+                    <ColumnDefinition Width="390" />
                 </Grid.ColumnDefinitions>
 
                 <!-- LEFT COLUMN: Forms in ScrollViewer to guarantee full visibility without horizontal crowding -->
@@ -235,10 +235,10 @@
                             <Separator Margin="0,12,0,8" Background="#E2E8F0" />
                         </StackPanel>
 
-                        <!-- Tabular Channel Matrix (Clean 2-Column Grid with generous 170px MinWidth) -->
+                        <!-- Tabular Channel Matrix (Dynamic Auto Label Column & Expansive Value Column) -->
                         <Grid Grid.Row="1" VerticalAlignment="Top">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" MinWidth="170" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>

@@ -7,10 +7,29 @@ namespace SimplePLC.Studio.Models;
 
 public class AiSettingsModel
 {
-    private static readonly string SettingsFilePath = Path.Combine(
+    private static readonly string DefaultSettingsFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SimplePLC",
+        "SynaptiX",
         "ai_settings.json");
+
+    public static string? CustomSettingsFilePath { get; set; }
+
+    public static string SettingsFilePath
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(CustomSettingsFilePath))
+                return CustomSettingsFilePath;
+
+            // Đảm bảo test runner không ghi đè / phá hỏng file cấu hình thực tế của người dùng
+            if (AppDomain.CurrentDomain.FriendlyName.Contains("testhost", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.Combine(Path.GetTempPath(), "synaptix_test_ai_settings.json");
+            }
+
+            return DefaultSettingsFilePath;
+        }
+    }
 
     public string ApiKey { get; set; } = string.Empty;
     public string ModelName { get; set; } = "gemini-3.8-flash";
@@ -29,20 +48,24 @@ public class AiSettingsModel
                 var settings = JsonSerializer.Deserialize<AiSettingsModel>(json);
                 if (settings != null)
                 {
-                    if (string.IsNullOrWhiteSpace(settings.ModelName) ||
-                        settings.ModelName == "gemini-2.0-flash" ||
-                        settings.ModelName == "gemini-1.5-flash" ||
-                        settings.ModelName == "gemini-1.5-pro")
+                    // Lọc bỏ giá trị test mẫu nếu từng bị nhiễm vào file cấu hình
+                    if (settings.ApiKey == "valid-api-key")
+                    {
+                        settings.ApiKey = string.Empty;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(settings.ModelName))
                     {
                         settings.ModelName = "gemini-3.8-flash";
                     }
+
                     return settings;
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore and fallback to default
+            System.Diagnostics.Debug.WriteLine($"Failed to load AI settings: {ex.Message}");
         }
 
         return new AiSettingsModel();
@@ -52,14 +75,15 @@ public class AiSettingsModel
     {
         try
         {
-            var dir = Path.GetDirectoryName(SettingsFilePath);
+            var path = SettingsFilePath;
+            var dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
 
             var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SettingsFilePath, json);
+            File.WriteAllText(path, json);
         }
         catch (Exception ex)
         {

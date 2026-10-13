@@ -9,6 +9,7 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+[Collection("AppServicesDeployTests")]
 public class DeviceOperationsTests
 {
     [Fact]
@@ -110,7 +111,7 @@ public class DeviceOperationsTests
     public void DeployViewModel_DeviceInfoBadge_ShowsDisconnected_Initially()
     {
         var deployVM = new DeployViewModel();
-        Assert.Contains("USB CDC", deployVM.DeviceInfoBadge);
+        Assert.Contains("RS-485/USB", deployVM.DeviceInfoBadge);
     }
 
     [Fact]

@@ -262,7 +262,7 @@ public partial class RuleTableViewModel : ObservableObject
         var sfd = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "CSV File (*.csv)|*.csv",
-            FileName = $"SimplePLC_Rules_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            FileName = $"SynaptiX_Rules_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
         };
 
         if (sfd.ShowDialog() == true)
@@ -279,13 +279,13 @@ public partial class RuleTableViewModel : ObservableObject
 
                 MessageBox.Show(
                     string.Format(LocalizationService.Tr("RuleExportSuccess"), Rules.Count, sfd.FileName),
-                    "SimplePLC Studio",
+                    "SynaptiX IDE",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Export failed: {ex.Message}", "SimplePLC Studio", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Export failed: {ex.Message}", "SynaptiX IDE", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

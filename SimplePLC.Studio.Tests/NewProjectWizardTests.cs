@@ -12,7 +12,7 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
-public class NewProjectWizardTests
+public class NewProjectWizardTests : IDisposable
 {
     [Fact]
     public void NewProjectViewModel_DefaultState_LoadsStandardRemoteIoPreset()
@@ -22,7 +22,7 @@ public class NewProjectWizardTests
 
         // Assert
         Assert.Equal("Project_1", vm.ProjectName);
-        Assert.Equal("SimplePLC Engineer", vm.Author);
+        Assert.Equal("SynaptiX Engineer", vm.Author);
         Assert.NotNull(vm.SelectedPreset);
         Assert.Equal("REMOTE_IO_8DI_8DO_4AI", vm.SelectedPreset.Id);
         Assert.Equal(8, vm.PreviewDigitalInputs);
@@ -173,7 +173,7 @@ public class NewProjectWizardTests
         };
         mainVM.NewProject();
 
-        string tempPath = Path.Combine(Path.GetTempPath(), $"test_hw_proj_{Guid.NewGuid():N}.splc");
+        string tempPath = Path.Combine(Path.GetTempPath(), $"test_hw_proj_{Guid.NewGuid():N}.synx");
         try
         {
             // Set an alias to verify tag preservation
@@ -213,5 +213,10 @@ public class NewProjectWizardTests
         {
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
+    }
+
+    public void Dispose()
+    {
+        AppServices.Instance.CurrentProduct = ProductDefinition.CreateRemoteIo8Di8Do4Ai();
     }
 }

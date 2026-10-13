@@ -18,9 +18,16 @@ public class DualModeCompilerV2Tests
     public void TargetV2_WithTimerAndCounter_GeneratesMacroRules_AndPopulatesDedicatedFunctionBlocks()
     {
         // Arrange
+        var di0 = _productV2.FindTagByName("DI0")!;
+        var di1 = _productV2.FindTagByName("DI1")!;
+        var di2 = _productV2.FindTagByName("DI2")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
+        var do1 = _productV2.FindTagByName("DO1")!;
+        var retain0 = _productV2.FindTagByName("VREG_RETAIN0")!;
+
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: 0, presetMs: 5000, qTagIndex: 8));
-        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: 1, resetTagIndex: 2, cvTagIndex: 84, presetValue: 20, qTagIndex: 9));
+        graph.Nodes.Add(LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: di0.TagIndex, presetMs: 5000, qTagIndex: do0.TagIndex));
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: di1.TagIndex, resetTagIndex: di2.TagIndex, cvTagIndex: retain0.TagIndex, presetValue: 20, qTagIndex: do1.TagIndex));
 
         // Act
         var result = _compiler.Compile(graph, _productV2);
@@ -36,21 +43,33 @@ public class DualModeCompilerV2Tests
         var timer = result.Program.FunctionBlockTimers[0];
         Assert.Equal(SPLC_TimerMode.TON, timer.Mode);
         Assert.Equal(5000u, timer.PresetMs);
+        Assert.True(timer.RuleRef >= 1 && timer.RuleRef <= result.Program.RuleCount);
+        var timingRule = result.Program.Rules[timer.RuleRef - 1];
+        Assert.Equal(5000u, timingRule.Trigger.ForMs);
+        Assert.Equal(do0.TagIndex, timingRule.Action.TargetTag.TagIndex);
+        Assert.Equal(1, timingRule.Action.Parameter);
 
         Assert.Single(result.Program.FunctionBlockCounters);
         var counter = result.Program.FunctionBlockCounters[0];
         Assert.Equal(SPLC_CounterMode.CTU, counter.Mode);
         Assert.Equal(20, counter.PresetValue);
-        Assert.Equal(84, counter.RetainTagIndex); // TagIndex 84 in VREG_RETAIN space
+        Assert.Equal(retain0.TagIndex, counter.RetainTagIndex); // TagIndex in VREG_RETAIN space
     }
 
     [Fact]
     public void TargetV1_WithTimerAndCounter_ExpandsMacroRules_ForBackwardCompatibility()
     {
         // Arrange
+        var di0 = _productV1.FindTagByName("DI0")!;
+        var di1 = _productV1.FindTagByName("DI1")!;
+        var di2 = _productV1.FindTagByName("DI2")!;
+        var do0 = _productV1.FindTagByName("DO0")!;
+        var do1 = _productV1.FindTagByName("DO1")!;
+        var retain0 = _productV1.FindTagByName("VREG_RETAIN0")!;
+
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: 0, presetMs: 5000, qTagIndex: 8));
-        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: 1, resetTagIndex: 2, cvTagIndex: 84, presetValue: 20, qTagIndex: 9));
+        graph.Nodes.Add(LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: di0.TagIndex, presetMs: 5000, qTagIndex: do0.TagIndex));
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: di1.TagIndex, resetTagIndex: di2.TagIndex, cvTagIndex: retain0.TagIndex, presetValue: 20, qTagIndex: do1.TagIndex));
 
         // Act
         var result = _compiler.Compile(graph, _productV1);
@@ -68,10 +87,12 @@ public class DualModeCompilerV2Tests
     public void TargetV2_ExceedingTimerLimit_ReturnsErrCapacityExceeded()
     {
         // Arrange: 9 timers (limit is 8)
+        var di0 = _productV2.FindTagByName("DI0")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
         var graph = new LogicGraph();
         for (int i = 0; i < 9; i++)
         {
-            graph.Nodes.Add(LogicNode.CreateTimer($"T{i}", TimerMacroType.Ton, inTagIndex: 0, presetMs: 1000, qTagIndex: 8));
+            graph.Nodes.Add(LogicNode.CreateTimer($"T{i}", TimerMacroType.Ton, inTagIndex: di0.TagIndex, presetMs: 1000, qTagIndex: do0.TagIndex));
         }
 
         // Act
@@ -86,10 +107,13 @@ public class DualModeCompilerV2Tests
     public void TargetV2_ExceedingCounterLimit_ReturnsErrCapacityExceeded()
     {
         // Arrange: 9 counters (limit is 8)
+        var di1 = _productV2.FindTagByName("DI1")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
+        var retain0 = _productV2.FindTagByName("VREG_RETAIN0")!;
         var graph = new LogicGraph();
         for (int i = 0; i < 9; i++)
         {
-            graph.Nodes.Add(LogicNode.CreateCounter($"C{i}", CounterMacroType.Ctu, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 84, presetValue: 10, qTagIndex: 8));
+            graph.Nodes.Add(LogicNode.CreateCounter($"C{i}", CounterMacroType.Ctu, cuTagIndex: di1.TagIndex, resetTagIndex: null, cvTagIndex: retain0.TagIndex, presetValue: 10, qTagIndex: do0.TagIndex));
         }
 
         // Act
@@ -103,9 +127,12 @@ public class DualModeCompilerV2Tests
     [Fact]
     public void TargetV2_VolatileCounter_BindsCvTagIndex()
     {
-        // Arrange: Counter with CV on VREG (Tag 52) which is volatile RAM, should still bind 52 so MCU knows where CV is stored
+        // Arrange: Counter with CV on VREG (e.g. VREG0) which is volatile RAM, should still bind VREG0 so MCU knows where CV is stored
+        var di1 = _productV2.FindTagByName("DI1")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
+        var vreg0 = _productV2.FindTagByName("VREG0")!;
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 52, presetValue: 15, qTagIndex: 8));
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: di1.TagIndex, resetTagIndex: null, cvTagIndex: vreg0.TagIndex, presetValue: 15, qTagIndex: do0.TagIndex));
 
         // Act
         var result = _compiler.Compile(graph, _productV2);
@@ -115,15 +142,18 @@ public class DualModeCompilerV2Tests
         Assert.Single(result.Program!.FunctionBlockCounters);
         var counter = result.Program.FunctionBlockCounters[0];
         Assert.Equal(SPLC_CounterMode.CTD, counter.Mode);
-        Assert.Equal(52, counter.RetainTagIndex); // Successfully bound to VREG tag 52
+        Assert.Equal(vreg0.TagIndex, counter.RetainTagIndex); // Successfully bound to VREG tag
     }
 
     [Fact]
     public void TargetV2_UnspecifiedCvTag_DefaultsToDedicatedCounterTag()
     {
-        // Arrange: Counter with unspecified/unmapped CV tag (e.g. 999) -> falls back to COUNTER0 (Tag 116)
+        // Arrange: Counter with unspecified/unmapped CV tag (e.g. 999) -> falls back to COUNTER0 tag
+        var di1 = _productV2.FindTagByName("DI1")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
+        var counter0 = _productV2.FindTagByName("COUNTER0")!;
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: 1, resetTagIndex: null, cvTagIndex: 999, presetValue: 15, qTagIndex: 8));
+        graph.Nodes.Add(LogicNode.CreateCounter("C1", CounterMacroType.Ctd, cuTagIndex: di1.TagIndex, resetTagIndex: null, cvTagIndex: 999, presetValue: 15, qTagIndex: do0.TagIndex));
 
         // Act
         var result = _compiler.Compile(graph, _productV2);
@@ -133,7 +163,7 @@ public class DualModeCompilerV2Tests
         Assert.Single(result.Program!.FunctionBlockCounters);
         var counter = result.Program.FunctionBlockCounters[0];
         Assert.Equal(SPLC_CounterMode.CTD, counter.Mode);
-        Assert.Equal(116, counter.RetainTagIndex); // Automatically resolved to COUNTER0 tag index
+        Assert.Equal(counter0.TagIndex, counter.RetainTagIndex); // Automatically resolved to COUNTER0 tag index
     }
 
     [Fact]
@@ -174,5 +204,59 @@ public class DualModeCompilerV2Tests
         Assert.Single(result.Program!.FunctionBlockCounters);
         var counter = result.Program.FunctionBlockCounters[0];
         Assert.Equal(75, counter.RetainTagIndex); // Successfully resolved to 75 dynamically!
+    }
+
+    [Fact]
+    public void TargetV2_AllTimerModes_HaveValidRuleRef_PointingToTimingRule()
+    {
+        // Arrange
+        var di0 = _productV2.FindTagByName("DI0")!;
+        var di1 = _productV2.FindTagByName("DI1")!;
+        var di2 = _productV2.FindTagByName("DI2")!;
+        var do0 = _productV2.FindTagByName("DO0")!;
+        var do1 = _productV2.FindTagByName("DO1")!;
+        var do2 = _productV2.FindTagByName("DO2")!;
+
+        var graph = new LogicGraph();
+        graph.Nodes.Add(LogicNode.CreateTimer("TON_1", TimerMacroType.Ton, inTagIndex: di0.TagIndex, presetMs: 1500, qTagIndex: do0.TagIndex));
+        graph.Nodes.Add(LogicNode.CreateTimer("TOF_1", TimerMacroType.Tof, inTagIndex: di1.TagIndex, presetMs: 2500, qTagIndex: do1.TagIndex));
+        graph.Nodes.Add(LogicNode.CreateTimer("TP_1", TimerMacroType.Tp, inTagIndex: di2.TagIndex, presetMs: 3500, qTagIndex: do2.TagIndex));
+
+        // Act
+        var result = _compiler.Compile(graph, _productV2);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Program);
+        Assert.Equal(3, result.Program.FunctionBlockTimers.Count);
+
+        // 1. TON: rule đếm giờ là TON_ON (ForMs = 1500, action SET DO0 = 1)
+        var tonFb = result.Program.FunctionBlockTimers[0];
+        Assert.Equal(SPLC_TimerMode.TON, tonFb.Mode);
+        Assert.True(tonFb.RuleRef >= 1 && tonFb.RuleRef <= result.Program.RuleCount);
+        var tonTimingRule = result.Program.Rules[tonFb.RuleRef - 1];
+        Assert.Equal(1500u, tonTimingRule.Trigger.ForMs);
+        Assert.Equal(do0.TagIndex, tonTimingRule.Action.TargetTag.TagIndex);
+        Assert.Equal(1, tonTimingRule.Action.Parameter);
+
+        // 2. TOF: rule đếm giờ là TOF_OFF (ForMs = 2500, guard DO1 == 1, action SET DO1 = 0)
+        var tofFb = result.Program.FunctionBlockTimers[1];
+        Assert.Equal(SPLC_TimerMode.TOF, tofFb.Mode);
+        Assert.True(tofFb.RuleRef >= 1 && tofFb.RuleRef <= result.Program.RuleCount);
+        var tofTimingRule = result.Program.Rules[tofFb.RuleRef - 1];
+        Assert.Equal(2500u, tofTimingRule.Trigger.ForMs);
+        Assert.Equal(do1.TagIndex, tofTimingRule.Action.TargetTag.TagIndex);
+        Assert.Equal(0, tofTimingRule.Action.Parameter);
+        Assert.Equal(do1.TagIndex, tofTimingRule.Guard.Tag?.TagIndex);
+
+        // 3. TP: rule đếm giờ là TP_EXPIRE (trigger DO2 ON_RISE, ForMs = 3500, action SET DO2 = 0)
+        var tpFb = result.Program.FunctionBlockTimers[2];
+        Assert.Equal(SPLC_TimerMode.TP, tpFb.Mode);
+        Assert.True(tpFb.RuleRef >= 1 && tpFb.RuleRef <= result.Program.RuleCount);
+        var tpTimingRule = result.Program.Rules[tpFb.RuleRef - 1];
+        Assert.Equal(3500u, tpTimingRule.Trigger.ForMs);
+        Assert.Equal(do2.TagIndex, tpTimingRule.Trigger.Tag.TagIndex);
+        Assert.Equal(do2.TagIndex, tpTimingRule.Action.TargetTag.TagIndex);
+        Assert.Equal(0, tpTimingRule.Action.Parameter);
     }
 }

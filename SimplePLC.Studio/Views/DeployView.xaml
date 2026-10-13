@@ -37,8 +37,8 @@
                                             <Condition Binding="{Binding IsSuccess}" Value="False" />
                                             <Condition Binding="{Binding IsDeploying}" Value="False" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Background" Value="#006487" />
-                                        <Setter Property="BorderBrush" Value="#004D68" />
+                                        <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryHoverBrush}" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -124,7 +124,7 @@
                         <Border Visibility="{Binding CanDeploy, Converter={StaticResource InverseBoolToVis}}" Margin="0,0,0,14">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#FEF3C7" />
+                                    <Setter Property="Background" Value="#FFFBEB" />
                                     <Setter Property="BorderBrush" Value="#C05621" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
@@ -210,7 +210,7 @@
                                     <TextBlock Text="{Binding [DeploySafetyMechLabel], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
                                     <TextBlock Text="{Binding [DeploySafetyMechDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#006487" TextWrapping="Wrap" />
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#334155" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -274,7 +274,7 @@
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
                                                                 <Setter Property="Background" Value="#ECEFF1" />
-                                                                <Setter Property="BorderBrush" Value="#006487" />
+                                                                <Setter Property="BorderBrush" Value="#334155" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -288,7 +288,7 @@
                                                                     <Setter Property="Foreground" Value="#107C41" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
-                                                                    <Setter Property="Foreground" Value="#006487" />
+                                                                    <Setter Property="Foreground" Value="#334155" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -326,7 +326,7 @@
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
                                                                     <Setter Property="Text" Value="{Binding [DeployStepStatusRunning], Source={x:Static services:LocalizationService.Instance}}" />
-                                                                    <Setter Property="Foreground" Value="#006487" />
+                                                                    <Setter Property="Foreground" Value="#334155" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>

@@ -354,7 +354,7 @@ public class AiCopilotTests
 
         // 1. Ghost phải chuyển thành official
         Assert.False(logicVM.HasPendingAiProposal);
-        Assert.False(logicVM.Nodes.Any(n => n.IsGhost));
+        Assert.DoesNotContain(logicVM.Nodes, n => n.IsGhost);
 
         // 2. Quan trọng nhất: Bảng Rule (RuleTableVM) PHẢI CÓ RULE ĐƯỢC BIÊN DỊCH VÀ NẠP VÀO!
         Assert.NotEmpty(mainVM.RuleTableVM.Rules);

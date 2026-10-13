@@ -182,4 +182,162 @@ public class TimeTriggerAndRtcStudioTests
         engine.TimeProvider = () => new DateTime(2026, 9, 30, 6, 1, 0);
         Assert.Equal(RuleEvaluationStatus.Skip, engine.Scan(new[] { rule }, 70).Evaluations[0].Status);
     }
+
+    [Fact]
+    public void RtcSyncViewModel_Initialization_PopulatesTimezonesAndLocalOptionFirst()
+    {
+        var fakeRtcClient = new FakeRtcClockClient();
+        var vm = new RtcSyncViewModel(fakeRtcClient);
+
+        Assert.NotEmpty(vm.AvailableTimezones);
+        Assert.True(vm.AvailableTimezones.Count >= 10);
+
+        // Mục đầu tiên phải là Giờ máy tính hiện tại (Local PC)
+        Assert.NotNull(vm.SelectedTimezone);
+        Assert.True(vm.SelectedTimezone.IsLocalPc);
+        Assert.NotEmpty(vm.TargetPreviewTimeText);
+        Assert.NotEmpty(vm.TargetModbusSummaryText);
+    }
+
+    [Fact]
+    public void RtcSyncViewModel_TimezoneChange_UpdatesPreviewCorrectly()
+    {
+        var fakeRtcClient = new FakeRtcClockClient();
+        var vm = new RtcSyncViewModel(fakeRtcClient);
+
+        // Chuyển sang Eastern Standard Time (New York, UTC-5)
+        var nyOpt = vm.AvailableTimezones.FirstOrDefault(t => t.TimeZoneInfo.Id == "Eastern Standard Time");
+        Assert.NotNull(nyOpt);
+
+        vm.SelectedTimezone = nyOpt;
+
+        Assert.Contains("UTC-", vm.TargetPreviewTimeText);
+        Assert.True(vm.TargetModbusSummaryText.Contains("-300") || vm.TargetModbusSummaryText.Contains("-240"));
+    }
+
+    [Fact]
+    public async Task RtcSyncViewModel_SyncCommand_ExecutesAndNotifiesSuccess()
+    {
+        var fakeRtcClient = new FakeRtcClockClient();
+        var vm = new RtcSyncViewModel(fakeRtcClient);
+
+        bool? closedWithSuccess = null;
+        vm.RequestClose = success => closedWithSuccess = success;
+
+        var nyOpt = vm.AvailableTimezones.First(t => t.TimeZoneInfo.Id == "Eastern Standard Time");
+        vm.SelectedTimezone = nyOpt;
+
+        await vm.SyncAsync();
+
+        Assert.True(closedWithSuccess);
+        Assert.NotNull(vm.SyncedResult);
+        Assert.True(vm.SyncedResult.IsSynced);
+        Assert.True(vm.SyncedResult.TimezoneOffsetMinutes == -300 || vm.SyncedResult.TimezoneOffsetMinutes == -240);
+    }
+
+    [Fact]
+    public async Task RtcSyncViewModel_ManualTimeOverride_CalculatesSpecificTime()
+    {
+        var fakeRtcClient = new FakeRtcClockClient();
+        var vm = new RtcSyncViewModel(fakeRtcClient);
+
+        bool? closedWithSuccess = null;
+        vm.RequestClose = success => closedWithSuccess = success;
+
+        var nyOpt = vm.AvailableTimezones.First(t => t.TimeZoneInfo.Id == "Eastern Standard Time");
+        vm.SelectedTimezone = nyOpt;
+
+        vm.IsManualTimeEnabled = true;
+        vm.ManualDate = new DateTime(2026, 10, 15);
+        vm.ManualHour = 8;
+        vm.ManualMinute = 30;
+        vm.ManualSecond = 0;
+
+        await vm.SyncAsync();
+
+        Assert.True(closedWithSuccess);
+        Assert.NotNull(vm.SyncedResult);
+        Assert.Equal(8, vm.SyncedResult.LocalDateTime.Hour);
+        Assert.Equal(30, vm.SyncedResult.LocalDateTime.Minute);
+    }
+
+    [Fact]
+    public void RtcSyncDialogView_XAML_InstantiatesWithoutResourceExceptions()
+    {
+        RunOnSta(() =>
+        {
+            var fakeRtcClient = new FakeRtcClockClient();
+            var vm = new RtcSyncViewModel(fakeRtcClient);
+            var dialog = new Views.RtcSyncDialogView(vm);
+            Assert.NotNull(dialog);
+            Assert.Same(vm, dialog.DataContext);
+        });
+    }
+
+    private static void RunOnSta(Action action)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                action();
+                tcs.SetResult(true);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        tcs.Task.GetAwaiter().GetResult();
+    }
+
+    private class FakeRtcClockClient : Application.Abstractions.IRtcClockClient
+    {
+        public Task<SimplePLC.Protocol.Dto.RtcClockDto> ReadRtcClockAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new SimplePLC.Protocol.Dto.RtcClockDto
+            {
+                EpochUtcSeconds = 1774915200,
+                TimezoneOffsetMinutes = 420,
+                IsSynced = true,
+                HasHardwareRtc = true,
+                IsBatteryLow = false
+            });
+        }
+
+        public Task WriteRtcClockAsync(SimplePLC.Protocol.Dto.RtcClockDto rtc, byte slaveId = 1, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<SimplePLC.Protocol.Dto.RtcClockDto> SyncToNowAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new SimplePLC.Protocol.Dto.RtcClockDto { IsSynced = true });
+        }
+
+        public Task<SimplePLC.Protocol.Dto.RtcClockDto> SyncSmartAsync(byte slaveId = 1, uint maxDriftSeconds = 2, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new SimplePLC.Protocol.Dto.RtcClockDto { IsSynced = true });
+        }
+
+        public Task<SimplePLC.Protocol.Dto.RtcClockDto> SyncToCustomTimezoneAsync(
+            TimeZoneInfo targetTimezone,
+            DateTimeOffset? customLocalDateTime = null,
+            byte slaveId = 1,
+            CancellationToken cancellationToken = default)
+        {
+            DateTimeOffset target = customLocalDateTime ?? TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimezone);
+            return Task.FromResult(new SimplePLC.Protocol.Dto.RtcClockDto
+            {
+                EpochUtcSeconds = (uint)target.ToUnixTimeSeconds(),
+                TimezoneOffsetMinutes = (short)targetTimezone.GetUtcOffset(target).TotalMinutes,
+                IsSynced = true,
+                HasHardwareRtc = true,
+                IsBatteryLow = false
+            });
+        }
+    }
 }

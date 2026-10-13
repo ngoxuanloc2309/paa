@@ -15,11 +15,13 @@ public class DeployViewModelIntegrationTests : IDisposable
     {
         // Tests in this class assert Vietnamese UI strings
         LocalizationService.Instance.CurrentLanguage = "vi";
+        AppServices.Instance.CurrentProduct = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai();
     }
 
     public void Dispose()
     {
         LocalizationService.Instance.CurrentLanguage = "en";
+        AppServices.Instance.CurrentProduct = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai();
     }
 
 

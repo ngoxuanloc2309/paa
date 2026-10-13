@@ -7,11 +7,11 @@ namespace SimplePLC.Studio.Models;
 public class ProjectMetadata
 {
     public string ProjectName { get; set; } = "Untitled";
-    public string Author { get; set; } = "SimplePLC Engineer";
+    public string Author { get; set; } = "SynaptiX Engineer";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
     public int SchemaVersion { get; set; } = 1;
-    public string TargetDevice { get; set; } = "STM32F401";
+    public string TargetDevice { get; set; } = "SynaptiX Controller";
     public string Description { get; set; } = string.Empty;
 
     // Hardware Target & Resource Profile (Contract V2.0)
@@ -25,6 +25,17 @@ public class ProjectMetadata
     public int RetentiveRegisters { get; set; } = 32;
     public int Counters { get; set; } = 8;
     public int MaxRules { get; set; } = 100;
+
+    // MQTT IIoT Broker Settings (Project Level)
+    public bool MqttBrokerEnabled { get; set; } = true;
+    public string MqttBrokerHost { get; set; } = string.Empty;
+    public int MqttBrokerPort { get; set; } = 1883;
+    public string MqttClientId { get; set; } = string.Empty;
+    public string MqttUsername { get; set; } = string.Empty;
+    public string MqttPassword { get; set; } = string.Empty;
+    public bool MqttTlsEnabled { get; set; } = false;
+    public bool MqttCleanSession { get; set; } = true;
+    public ushort MqttKeepAliveSec { get; set; } = 60;
 }
 
 public class ProjectTagData
@@ -92,6 +103,26 @@ public class ProjectNodeData
     public bool IsClamped { get; set; } = true;
     public double ClampMin { get; set; } = 0.0;
     public double ClampMax { get; set; } = 100.0;
+
+    // MQTT Publish node properties
+    public string MqttTopic { get; set; } = "synaptix/telemetry/data";
+    public string MqttPayloadMode { get; set; } = "JSON"; // "Raw", "JSON", "Custom"
+    public string MqttCustomTemplate { get; set; } = string.Empty;
+    public int MqttQos { get; set; } = 0; // 0, 1, 2
+    public bool MqttRetain { get; set; } = false;
+    public string MqttPublishMode { get; set; } = "Event"; // "Event", "COV", "Cyclic"
+    public double MqttDeadband { get; set; } = 0.5;
+    public string MqttUnit { get; set; } = string.Empty;
+    public bool MqttIncludeDevice { get; set; } = true;
+    public bool MqttIncludeTimestamp { get; set; } = true;
+    public List<MqttPayloadFieldData> MqttFields { get; set; } = new();
+}
+
+public class MqttPayloadFieldData
+{
+    public string Key { get; set; } = string.Empty;
+    public string TagName { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
 }
 
 public class ProjectConnectionData

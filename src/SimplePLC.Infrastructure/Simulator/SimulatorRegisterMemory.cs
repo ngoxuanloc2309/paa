@@ -40,7 +40,9 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DiagBlockBaseAddress, ModbusRegisterMap.DiagBlockLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTimerTableLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbCounterTableBaseAddress, ModbusRegisterMap.FbCounterTableLength) ||
-               IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength);
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters);
     }
 
     /// <summary>
@@ -61,7 +63,9 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.CommitCommandAddress, 1) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTimerTableLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbCounterTableBaseAddress, ModbusRegisterMap.FbCounterTableLength) ||
-               IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength);
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters);
     }
 
     private static bool IsWithin(int start, int end, int rangeStart, int rangeLength)

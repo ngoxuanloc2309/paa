@@ -162,8 +162,8 @@ public class AppUpdateService
                     info.LatestVersion = CleanVersionString(rawTag);
                     info.ReleaseTitle = $"SynaptiX IDE {rawTag}";
                     info.ReleaseNotes = $"Phiên bản chính thức {rawTag} của SynaptiX IDE.\n- Chuẩn phần cứng: Hỗ trợ SynaptiX Industrial Controller (SPLC-AF-003).\n- Tự động cập nhật và hoán đổi tệp an toàn.";
-                    info.DownloadUrl = $"https://github.com/{GitHubRepoOwner}/{GitHubRepoName}/releases/download/{rawTag}/SimplePLC.Studio.exe";
-                    info.AssetFileName = "SimplePLC.Studio.exe";
+                    info.DownloadUrl = $"https://github.com/{GitHubRepoOwner}/{GitHubRepoName}/releases/download/{rawTag}/SynaptixIDE.exe";
+                    info.AssetFileName = "SynaptixIDE.exe";
                     info.HasUpdate = IsNewerVersion(info.LatestVersion, currentVersion);
                     return info;
                 }

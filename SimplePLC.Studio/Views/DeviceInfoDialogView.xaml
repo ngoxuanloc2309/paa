@@ -89,7 +89,7 @@
                     <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="{Binding [DeviceInfoGroupOverview], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#006487" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" MinWidth="165" />
@@ -116,7 +116,7 @@
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DeviceVariantText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="6,4" VerticalAlignment="Center" />
 
                                 <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding [DeviceInfoFwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="#006487" Margin="6,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="#334155" Margin="6,4" VerticalAlignment="Center" />
 
                                 <!-- Row 2 -->
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [DeviceInfoWireProfile], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
@@ -132,7 +132,7 @@
                     <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="{Binding [DeviceInfoGroupResources], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#006487" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" MinWidth="165" />
@@ -183,7 +183,7 @@
                     <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12">
                         <StackPanel>
                             <TextBlock Text="{Binding [DeviceInfoGroupComms], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#006487" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" MinWidth="165" />

@@ -27,6 +27,7 @@ public partial class DeployViewModel : ObservableObject
     private readonly RuleTableViewModel? _ruleTableVM;
     private readonly LogicEditorViewModel? _logicEditorVM;
     private readonly Action<int>? _navigateTab;
+    private readonly Func<ProjectMetadata>? _getMetadata;
 
     public ObservableCollection<DeployStepItem> Steps { get; } = new();
 
@@ -40,9 +41,9 @@ public partial class DeployViewModel : ObservableObject
     [ObservableProperty] private string _statusSubtitle = "";
     [ObservableProperty] private string _stepperBadgeText = "Chờ bắt đầu";
     [ObservableProperty] private bool _showProgressBar;
-    [ObservableProperty] private string _actionButtonText = "Bắt Đầu Nạp Xuống PLC";
+    [ObservableProperty] private string _actionButtonText = "Bắt Đầu Nạp Xuống Thiết Bị";
     [ObservableProperty] private string _consoleLog = "--- STAGED MODBUS DEPLOYMENT (R10) ---\n";
-    [ObservableProperty] private string _deviceInfoBadge = "SimplePLC · USB CDC · Chưa kết nối";
+    [ObservableProperty] private string _deviceInfoBadge = "SynaptiX Controller · RS-485/USB · Chưa kết nối";
     [ObservableProperty] private string _manifestRuleSummary = "";
     [ObservableProperty] private int _manifestRuleCount;
     [ObservableProperty] private string _manifestRuleCountText = "";
@@ -67,12 +68,14 @@ public partial class DeployViewModel : ObservableObject
         DeployRulesUseCase? deployUseCase = null, 
         RuleTableViewModel? ruleTableVM = null,
         LogicEditorViewModel? logicEditorVM = null,
-        Action<int>? navigateTab = null)
+        Action<int>? navigateTab = null,
+        Func<ProjectMetadata>? getMetadata = null)
     {
         _injectedDeployUseCase = deployUseCase;
         _ruleTableVM = ruleTableVM;
         _logicEditorVM = logicEditorVM;
         _navigateTab = navigateTab;
+        _getMetadata = getMetadata;
 
         if (_ruleTableVM != null)
         {
@@ -126,13 +129,13 @@ public partial class DeployViewModel : ObservableObject
         {
             var d = active.Descriptor;
             string port = active.Endpoint is UsbCdcEndpoint usb ? usb.PortName : (active.Endpoint?.ToString() ?? "COM");
-            DeviceInfoBadge = $"SimplePLC · USB CDC ({port}) · {(isVi ? "Trực tuyến" : "Online")}";
+            DeviceInfoBadge = $"SynaptiX Controller · RS-485/USB ({port}) · {(isVi ? "Trực tuyến" : "Online")}";
         }
         else
         {
             DeviceInfoBadge = isVi
-                ? "SimplePLC · USB CDC · Chưa kết nối"
-                : "SimplePLC · USB CDC · Disconnected";
+                ? "SynaptiX Controller · RS-485/USB · Chưa kết nối"
+                : "SynaptiX Controller · RS-485/USB · Disconnected";
         }
     }
 
@@ -213,6 +216,11 @@ public partial class DeployViewModel : ObservableObject
 
         int ruleCount = 0;
         string ruleDesc = "";
+        int fbCount = _logicEditorVM?.CurrentProgram != null 
+            ? (_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count + _logicEditorVM.CurrentProgram.FunctionBlockCounters.Count) 
+            : 0;
+        int mqttCount = _logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0;
+
         if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
         {
             ruleCount = _ruleTableVM.Rules.Count;
@@ -222,12 +230,17 @@ public partial class DeployViewModel : ObservableObject
             {
                 ruleDesc = $"{firstRule.Id} ({firstRule.TriggerSummary} ➔ {firstRule.ActionSummary})";
             }
-            HasValidRules = enabledCount > 0;
+            HasValidRules = enabledCount > 0 || fbCount > 0 || mqttCount > 0;
             ManifestRuleCount = enabledCount;
             ManifestRuleSummary = ruleDesc;
+            string extraDesc = "";
+            if (fbCount > 0 || mqttCount > 0)
+            {
+                extraDesc = isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT)" : $" (+ {fbCount} FBs, {mqttCount} MQTT)";
+            }
             string baseSummary = isVi
-                ? $"Sẵn sàng nạp: {ruleCount} quy tắc trong Bảng Rule ({enabledCount} đang bật)"
-                : $"Ready to deploy: {ruleCount} rules from Rule Table ({enabledCount} enabled)";
+                ? $"Sẵn sàng nạp: {ruleCount} quy tắc trong Bảng Rule ({enabledCount} đang bật){extraDesc}"
+                : $"Ready to deploy: {ruleCount} rules from Rule Table ({enabledCount} enabled){extraDesc}";
 
             PreflightSummary = isConnected
                 ? baseSummary + "."
@@ -236,18 +249,17 @@ public partial class DeployViewModel : ObservableObject
         else if (_logicEditorVM?.CurrentProgram != null)
         {
             ruleCount = _logicEditorVM.CurrentProgram.RuleCount;
-            int fbCount = _logicEditorVM.CurrentProgram.FunctionBlockTimers.Count + _logicEditorVM.CurrentProgram.FunctionBlockCounters.Count;
-            HasValidRules = ruleCount > 0 || fbCount > 0;
+            HasValidRules = ruleCount > 0 || fbCount > 0 || mqttCount > 0;
             ManifestRuleCount = ruleCount;
 
-            if (fbCount > 0 && ruleCount == 0)
+            if ((fbCount > 0 || mqttCount > 0) && ruleCount == 0)
             {
                 ruleDesc = isVi
-                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters (0 Rule slots)"
-                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters (0 Rule slots)";
+                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT (0 Rule slots)"
+                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT (0 Rule slots)";
                 string baseSummary = isVi
-                    ? $"Sẵn sàng nạp {fbCount} Function Blocks xuống thiết bị."
-                    : $"Ready to deploy {fbCount} Function Blocks to device.";
+                    ? $"Sẵn sàng nạp {fbCount} Function Blocks & {mqttCount} MQTT Blocks xuống thiết bị."
+                    : $"Ready to deploy {fbCount} Function Blocks & {mqttCount} MQTT Blocks to device.";
                 PreflightSummary = isConnected
                     ? baseSummary
                     : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
@@ -256,6 +268,10 @@ public partial class DeployViewModel : ObservableObject
             {
                 ruleDesc = isVi ? $"{ruleCount} quy tắc từ bản vẽ logic" : $"{ruleCount} rules from logic canvas";
                 string baseSummary = string.Format(LocalizationService.Tr("DeployPreflightReady"), ruleCount);
+                if (fbCount > 0 || mqttCount > 0)
+                {
+                    baseSummary += isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT)" : $" (+ {fbCount} FBs, {mqttCount} MQTT)";
+                }
                 PreflightSummary = isConnected
                     ? baseSummary
                     : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
@@ -438,7 +454,17 @@ public partial class DeployViewModel : ObservableObject
             RuleTable ruleTable;
             IReadOnlyList<FbTimerRecordDto>? fbTimers = null;
             IReadOnlyList<FbCounterRecordDto>? fbCounters = null;
+            IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null;
 
+            // Luôn trích xuất Function Blocks (Timer, Counter) và MQTT Telemetry blocks từ Logic Editor nếu có
+            if (_logicEditorVM?.CurrentProgram != null)
+            {
+                fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
+                fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
+                mqttConfigs = _logicEditorVM.CurrentProgram.MqttTelemetryConfigs;
+            }
+
+            // Trích xuất Rule Table: Ưu tiên bảng rule đã biên tập trong Rule Table, hoặc fallback về Logic Editor
             if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
             {
                 ruleTable = _ruleTableVM.ToDomainRuleTable(product);
@@ -446,31 +472,21 @@ public partial class DeployViewModel : ObservableObject
             else if (_logicEditorVM?.CurrentProgram != null)
             {
                 ruleTable = _logicEditorVM.CurrentProgram.ToRuleTable();
-                fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
-                fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
             }
             else
             {
-                Steps[0].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule trống. Vui lòng thêm ít nhất 1 quy tắc vào Logic Editor hoặc Bảng Rule."
-                    : "Cannot deploy: Rule table is empty. Please add at least one rule to the Logic Editor or Rule Table.";
-                StatusMessage = PreflightSummary;
-                AppendLog(PreflightSummary);
-                IsDeploying = false;
-                UpdatePreflightSummary();
-                return;
+                ruleTable = new RuleTable();
             }
 
             int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
-            if (ruleTable.Count == 0 && totalFbs == 0)
+            int totalMqtt = mqttConfigs?.Count ?? 0;
+            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0)
             {
                 Steps[0].Status = StepStatus.Failed;
                 DeployState = DeployState.Failed;
                 PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule và Function Blocks đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối Timer/Counter."
-                    : "Cannot deploy: Both Rule table and Function Blocks are empty. Please add at least one rule or Timer/Counter node.";
+                    ? "Không thể nạp: Bảng rule, Function Blocks và khối MQTT đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
+                    : "Cannot deploy: Rule table, Function Blocks, and MQTT blocks are empty. Please add at least one rule or function block.";
                 StatusMessage = PreflightSummary;
                 AppendLog(PreflightSummary);
                 IsDeploying = false;
@@ -495,14 +511,38 @@ public partial class DeployViewModel : ObservableObject
             Steps[0].Status = StepStatus.Success;
             ProgressPercent = 30;
             AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
-            if (totalFbs > 0)
+            if (totalFbs > 0 || totalMqtt > 0)
             {
                 bool isVi = LocalizationService.Instance.IsVietnamese;
                 AppendLog(isVi
-                    ? $"[Cấu hình FB V2] Phát hiện {fbTimers?.Count ?? 0} Timers và {fbCounters?.Count ?? 0} Counters (0 rule slots)."
-                    : $"[FB V2 Config] Detected {fbTimers?.Count ?? 0} Timers and {fbCounters?.Count ?? 0} Counters (0 rule slots).");
+                    ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots)."
+                    : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots).");
             }
             await Task.Delay(60).ConfigureAwait(true);
+
+            // Build MQTT Broker config if available
+            MqttBrokerConfigDto? brokerConfig = null;
+            var meta = _getMetadata?.Invoke();
+            if (meta != null && (totalMqtt > 0 || meta.MqttBrokerEnabled))
+            {
+                brokerConfig = new MqttBrokerConfigDto
+                {
+                    Enabled = meta.MqttBrokerEnabled,
+                    Host = meta.MqttBrokerHost?.Trim() ?? string.Empty,
+                    Port = (ushort)(meta.MqttBrokerPort > 0 ? meta.MqttBrokerPort : 1883),
+                    UseTls = meta.MqttTlsEnabled,
+                    CleanSession = meta.MqttCleanSession,
+                    KeepAliveSec = meta.MqttKeepAliveSec > 0 ? meta.MqttKeepAliveSec : (ushort)60,
+                    ClientId = meta.MqttClientId ?? string.Empty,
+                    Username = meta.MqttUsername ?? string.Empty,
+                    Password = meta.MqttPassword ?? string.Empty
+                };
+
+                bool isVi = LocalizationService.Instance.IsVietnamese;
+                AppendLog(isVi
+                    ? $"[Cấu hình Broker] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Kích hoạt: {brokerConfig.Enabled})"
+                    : $"[Broker Config] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Enabled: {brokerConfig.Enabled})");
+            }
 
             // Steps 2-4: Staging and Commit
             Steps[1].Status = StepStatus.InProgress;
@@ -510,7 +550,7 @@ public partial class DeployViewModel : ObservableObject
             AppendLog(LocalizationService.Tr("DeployLogStaging"));
 
             var deployUseCase = GetDeployUseCase();
-            var deployResult = await deployUseCase.ExecuteAsync(ruleTable, fbTimers, fbCounters, slaveId: 1).ConfigureAwait(true);
+            var deployResult = await deployUseCase.ExecuteAsync(ruleTable, fbTimers, fbCounters, mqttConfigs, brokerConfig, slaveId: 1).ConfigureAwait(true);
 
             if (deployResult.IsSuccess)
             {

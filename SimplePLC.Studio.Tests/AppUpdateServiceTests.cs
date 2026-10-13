@@ -100,6 +100,6 @@ public class AppUpdateServiceTests
         Assert.NotNull(info.LatestVersion);
         Assert.True(Version.TryParse(info.LatestVersion, out var v) && v >= new Version("1.3.2"));
         Assert.Contains(info.LatestVersion, info.DownloadUrl);
-        Assert.Equal("SimplePLC.Studio.exe", info.AssetFileName);
+        Assert.Equal("SynaptixIDE.exe", info.AssetFileName);
     }
 }

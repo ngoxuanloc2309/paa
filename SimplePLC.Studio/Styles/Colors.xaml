@@ -17,11 +17,11 @@
     <Color x:Key="ColorTextSecondary">#374151</Color>
     <Color x:Key="ColorTextMuted">#6B7280</Color>
 
-    <!-- Industrial Authority Accents (IEC 60073 Automation Standards) -->
-    <!-- Primary: Industrial Slate / Mechanical Charcoal Gray -->
-    <Color x:Key="ColorPrimary">#334155</Color>
-    <Color x:Key="ColorPrimaryHover">#1E293B</Color>
-    <Color x:Key="ColorPrimaryActive">#0F172A</Color>
+    <!-- Industrial Authority Accents (Siemens TIA Portal & IEC 60073 Automation Standards) -->
+    <!-- Primary: Siemens Industrial Petrol Blue #006487 -->
+    <Color x:Key="ColorPrimary">#006487</Color>
+    <Color x:Key="ColorPrimaryHover">#004B66</Color>
+    <Color x:Key="ColorPrimaryActive">#00364A</Color>
     
     <!-- Success / RUN / GOOD: Industrial Forest Green -->
     <Color x:Key="ColorSuccess">#107C41</Color>
@@ -31,7 +31,7 @@
     <!-- Warning / STALE / FORCE: Industrial Safety Amber -->
     <Color x:Key="ColorWarning">#C05621</Color>
     <Color x:Key="ColorWarningHover">#9C4221</Color>
-    <Color x:Key="ColorWarningLight">#FEF3C7</Color>
+    <Color x:Key="ColorWarningLight">#FFFBEB</Color>
     
     <!-- Danger / FAULT / TRIP: Industrial Safety Red -->
     <Color x:Key="ColorDanger">#B91C1C</Color>
@@ -46,12 +46,27 @@
 
     <!-- Node Domain Technical Accents (IEC 61131-3 & Automation Standards) -->
     <Color x:Key="ColorNodeTag">#1E3A8A</Color>       <!-- Deep Slate Navy (I/O Tags) -->
-    <Color x:Key="ColorNodeTrigger">#006487</Color>   <!-- Siemens Petrol (Logic/Triggers) -->
+    <Color x:Key="ColorNodeTrigger">#334155</Color>   <!-- Industrial Slate (Logic/Triggers) -->
     <Color x:Key="ColorNodeGuard">#C05621</Color>     <!-- Safety Amber (Guards/Conditions) -->
     <Color x:Key="ColorNodeAction">#107C41</Color>    <!-- Forest Green (Coils/Actions) -->
     <Color x:Key="ColorNodeTimer">#4C1D95</Color>     <!-- Industrial Deep Indigo (IEC 61131-3 Timers TON/TOF/TP) -->
     <Color x:Key="ColorNodeCounter">#0F766E</Color>   <!-- Industrial Deep Teal (Counters CTU/CTD) -->
-    <Color x:Key="ColorNodeScale">#0369A1</Color>     <!-- Industrial Steel Blue (Analog Scaler) -->
+    <Color x:Key="ColorNodeScale">#475569</Color>     <!-- Industrial Slate Blue (Analog Scaler) -->
+    <Color x:Key="ColorNodeComparator">#006487</Color> <!-- Siemens Petrol Blue (IEC 61131-3 Comparators CMP) -->
+    <Color x:Key="ColorNodeMqtt">#006487</Color>       <!-- Siemens Petrol Blue (MQTT Telemetry) -->
+
+    <!-- Industrial Semantic Tokens for System-wide Consistency -->
+    <Color x:Key="IndustrialPrimary">#006487</Color>
+    <Color x:Key="IndustrialPrimaryHover">#004B66</Color>
+    <Color x:Key="IndustrialPrimaryActive">#00364A</Color>
+    <Color x:Key="IndustrialSurfaceCanvas">#ECEFF1</Color>
+    <Color x:Key="IndustrialSurfacePanel">#FFFFFF</Color>
+    <Color x:Key="IndustrialSurfaceInset">#F8FAFC</Color>
+    <Color x:Key="IndustrialSurfaceDark">#1E293B</Color>
+    <Color x:Key="IndustrialBorderDefault">#CBD5E1</Color>
+    <Color x:Key="IndustrialBorderSubtle">#E2E8F0</Color>
+    <Color x:Key="IndustrialBorderStrong">#94A3B8</Color>
+
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="BgWindowBrush" Color="{StaticResource ColorBgWindow}" />
@@ -90,11 +105,25 @@
     <SolidColorBrush x:Key="NodeTimerBrush" Color="{StaticResource ColorNodeTimer}" />
     <SolidColorBrush x:Key="NodeCounterBrush" Color="{StaticResource ColorNodeCounter}" />
     <SolidColorBrush x:Key="NodeScaleBrush" Color="{StaticResource ColorNodeScale}" />
+    <SolidColorBrush x:Key="NodeComparatorBrush" Color="{StaticResource ColorNodeComparator}" />
+    <SolidColorBrush x:Key="NodeMqttBrush" Color="{StaticResource ColorNodeMqtt}" />
 
     <!-- Selection & Highlight Brushes -->
     <SolidColorBrush x:Key="SelectionHighlightBrush" Color="{StaticResource ColorSelectionHighlight}" />
     <SolidColorBrush x:Key="SelectionHighlightTextBrush" Color="{StaticResource ColorSelectionHighlightText}" />
     <SolidColorBrush x:Key="SelectionInactiveBrush" Color="{StaticResource ColorSelectionInactive}" />
     <SolidColorBrush x:Key="SelectionHoverBrush" Color="{StaticResource ColorSelectionHover}" />
+
+    <!-- Industrial Structural & Semantic Brushes -->
+    <SolidColorBrush x:Key="IndustrialPrimaryBrush" Color="{StaticResource IndustrialPrimary}" />
+    <SolidColorBrush x:Key="IndustrialPrimaryHoverBrush" Color="{StaticResource IndustrialPrimaryHover}" />
+    <SolidColorBrush x:Key="IndustrialPrimaryActiveBrush" Color="{StaticResource IndustrialPrimaryActive}" />
+    <SolidColorBrush x:Key="IndustrialSurfaceCanvasBrush" Color="{StaticResource IndustrialSurfaceCanvas}" />
+    <SolidColorBrush x:Key="IndustrialSurfacePanelBrush" Color="{StaticResource IndustrialSurfacePanel}" />
+    <SolidColorBrush x:Key="IndustrialSurfaceInsetBrush" Color="{StaticResource IndustrialSurfaceInset}" />
+    <SolidColorBrush x:Key="IndustrialSurfaceDarkBrush" Color="{StaticResource IndustrialSurfaceDark}" />
+    <SolidColorBrush x:Key="IndustrialBorderDefaultBrush" Color="{StaticResource IndustrialBorderDefault}" />
+    <SolidColorBrush x:Key="IndustrialBorderSubtleBrush" Color="{StaticResource IndustrialBorderSubtle}" />
+    <SolidColorBrush x:Key="IndustrialBorderStrongBrush" Color="{StaticResource IndustrialBorderStrong}" />
 
 </ResourceDictionary>

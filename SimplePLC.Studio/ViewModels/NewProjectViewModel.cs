@@ -20,7 +20,7 @@ public partial class NewProjectViewModel : ObservableObject
     private string _projectLocation = string.Empty;
 
     [ObservableProperty]
-    private string _author = "SimplePLC Engineer";
+    private string _author = "SynaptiX Engineer";
 
     [ObservableProperty]
     private string _description = string.Empty;
@@ -66,7 +66,7 @@ public partial class NewProjectViewModel : ObservableObject
     [ObservableProperty]
     private bool _isStatusSuccess;
 
-    // Phục vụ nhận diện từ MCU đang kết nối
+    // Phục vụ nhận diện từ thiết bị đang kết nối
     private ProductDefinition? _detectedProduct;
     private string? _detectedMcuName;
 
@@ -75,7 +75,7 @@ public partial class NewProjectViewModel : ObservableObject
         _selectedPreset = Presets[0];
         _projectLocation = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "SimplePLC",
+            "SynaptiX",
             "Projects");
 
         CheckConnectedDevice();
@@ -119,7 +119,7 @@ public partial class NewProjectViewModel : ObservableObject
         {
             if (_detectedProduct != null) return _detectedProduct.ProductName;
             if (IsCustomMode) return "Custom Hardware Device";
-            return SelectedPreset?.DisplayName ?? "SimplePLC Device";
+            return SelectedPreset?.DisplayName ?? "SynaptiX Controller";
         }
     }
 
@@ -128,8 +128,8 @@ public partial class NewProjectViewModel : ObservableObject
         get
         {
             if (!string.IsNullOrEmpty(_detectedMcuName)) return _detectedMcuName;
-            if (IsCustomMode) return "Custom Microcontroller";
-            return SelectedPreset?.McuTarget ?? "STM32F401CCU6";
+            if (IsCustomMode) return "SynaptiX Custom Controller";
+            return SelectedPreset?.McuTarget ?? "SynaptiX SYNX-RIO-884";
         }
     }
 
@@ -249,7 +249,7 @@ public partial class NewProjectViewModel : ObservableObject
         if (DeviceProfileMapper.TryBuildProductDefinition(session.Descriptor, session.ResourceInfo, out var product, out var error))
         {
             _detectedProduct = product;
-            _detectedMcuName = $"MCU Connected (HW {session.Descriptor.HwVersionMajor}.{session.Descriptor.HwVersionMinor}, FW {session.Descriptor.FwVersionMajor}.{session.Descriptor.FwVersionMinor})";
+            _detectedMcuName = $"SynaptiX Controller (HW {session.Descriptor.HwVersionMajor}.{session.Descriptor.HwVersionMinor}, FW {session.Descriptor.FwVersionMajor}.{session.Descriptor.FwVersionMinor})";
             IsCustomMode = false;
             StatusMessage = LocalizationService.Tr("NewProjectDeviceDetectedSuccess");
             IsStatusSuccess = true;
@@ -333,7 +333,7 @@ public partial class NewProjectViewModel : ObservableObject
         {
             ProjectLocation = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "SimplePLC",
+                "SynaptiX",
                 "Projects");
         }
 

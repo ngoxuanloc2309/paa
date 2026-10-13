@@ -26,7 +26,10 @@ public sealed class RuleCompiler : IRuleCompiler
         TagCatalogViewModel tagCatalog,
         ProductDefinition? product = null)
     {
-        var targetProduct = product ?? AppServices.Instance.CurrentProduct ?? ProductDefinition.CreateRemoteIo8Di8Do4Ai();
+        var targetProduct = product 
+            ?? tagCatalog?.CurrentProduct 
+            ?? AppServices.Instance.CurrentProduct 
+            ?? ProductDefinition.CreateRemoteIo8Di8Do4Ai();
         var graph = new LogicGraph();
 
         var nodeList = nodes.ToList();
@@ -40,8 +43,8 @@ public sealed class RuleCompiler : IRuleCompiler
             switch (node)
             {
                 case InputNodeViewModel inp:
-                    ushort inTagIdx = (ushort)(inp.Tag != null && inp.Tag.Kind != TagKind.None ? inp.Tag.Index : 0);
-                    graph.Nodes.Add(LogicNode.CreateInput(inp.Id, inTagIdx, inp.CustomLabel));
+                    ushort inTagIdx = ResolveTagIndex(inp.Tag, targetProduct);
+                    graph.Nodes.Add(LogicNode.CreateInput(inp.Id, inTagIdx, inp.DisplayTitle));
                     break;
 
                 case TriggerNodeViewModel trig:
@@ -52,28 +55,28 @@ public sealed class RuleCompiler : IRuleCompiler
                         trig.ThresholdLo,
                         trig.ThresholdHi,
                         trig.ForMs,
-                        trig.CustomLabel));
+                        trig.DisplayTitle));
                     break;
 
                 case GuardNodeViewModel grd:
-                    ushort grdTagIdx = (ushort)(grd.GuardTag != null && grd.GuardTag.Kind != TagKind.None ? grd.GuardTag.Index : 0);
-                    graph.Nodes.Add(LogicNode.CreateGuard(grd.Id, grdTagIdx, grd.Negate, grd.CustomLabel));
+                    ushort grdTagIdx = ResolveTagIndex(grd.GuardTag, targetProduct);
+                    graph.Nodes.Add(LogicNode.CreateGuard(grd.Id, grdTagIdx, grd.Negate, grd.DisplayTitle));
                     break;
 
                 case ActionNodeViewModel act:
-                    ushort actTagIdx = (ushort)(act.TargetTag != null && act.TargetTag.Kind != TagKind.None ? act.TargetTag.Index : 0);
+                    ushort actTagIdx = ResolveTagIndex(act.TargetTag, targetProduct);
                     graph.Nodes.Add(LogicNode.CreateAction(
                         act.Id,
                         actTagIdx,
                         (ActionKind)act.ActionType,
                         act.ActionParam,
                         executionOrder: actionOrder++,
-                        act.CustomLabel));
+                        act.DisplayTitle));
                     break;
 
                 case TimerNodeViewModel tm:
-                    ushort? tmInTag = tm.InputTag != null && tm.InputTag.Kind != TagKind.None ? (ushort)tm.InputTag.Index : null;
-                    ushort? tmQTag = tm.OutputTag != null && tm.OutputTag.Kind != TagKind.None ? (ushort)tm.OutputTag.Index : null;
+                    ushort? tmInTag = tm.InputTag != null && tm.InputTag.Kind != TagKind.None ? ResolveTagIndex(tm.InputTag, targetProduct) : null;
+                    ushort? tmQTag = tm.OutputTag != null && tm.OutputTag.Kind != TagKind.None ? ResolveTagIndex(tm.OutputTag, targetProduct) : null;
 
                     // Resolve connections directly if wired on canvas
                     var inConn = connectionList.FirstOrDefault(c => c.Target?.Node == tm &&
@@ -81,14 +84,14 @@ public sealed class RuleCompiler : IRuleCompiler
                          c.Target == tm.InputConnectors.FirstOrDefault()));
                     if (inConn?.Source?.Node is InputNodeViewModel tmInNode && tmInNode.Tag != null)
                     {
-                        tmInTag = (ushort)tmInNode.Tag.Index;
+                        tmInTag = ResolveTagIndex(tmInNode.Tag, targetProduct);
                     }
                     else if (inConn?.Source?.Node is TriggerNodeViewModel trigVm)
                     {
                         var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == trigVm);
                         if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
                         {
-                            tmInTag = (ushort)trigInNode.Tag.Index;
+                            tmInTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
                         }
                     }
                     else if (inConn?.Source?.Node is GuardNodeViewModel guardVm)
@@ -99,7 +102,7 @@ public sealed class RuleCompiler : IRuleCompiler
                             var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == gTrigVm);
                             if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
                             {
-                                tmInTag = (ushort)trigInNode.Tag.Index;
+                                tmInTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
                             }
                         }
                     }
@@ -109,7 +112,7 @@ public sealed class RuleCompiler : IRuleCompiler
                          c.Source == tm.OutputConnectors.FirstOrDefault()));
                     if (tmQConn?.Target?.Node is ActionNodeViewModel tmActNode && tmActNode.TargetTag != null)
                     {
-                        tmQTag = (ushort)tmActNode.TargetTag.Index;
+                        tmQTag = ResolveTagIndex(tmActNode.TargetTag, targetProduct);
                     }
 
                     // Nếu khối Timer thiếu ngõ vào IN
@@ -150,16 +153,19 @@ public sealed class RuleCompiler : IRuleCompiler
                         tm.PresetMs,
                         tmQTag.Value,
                         executionOrder: actionOrder++,
-                        tm.CustomLabel));
+                        tm.DisplayTitle));
                     break;
 
                 case CounterNodeViewModel cnt:
-                    ushort? cntInTag = cnt.InputTag != null && cnt.InputTag.Kind != TagKind.None ? (ushort)cnt.InputTag.Index : null;
-                    ushort cntCvTag = (ushort)(cnt.CvTag != null && cnt.CvTag.Kind != TagKind.None 
-                        ? cnt.CvTag.Index 
-                        : (tagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.Counter)?.Index ?? 116));
-                    ushort? cntQTag = cnt.OutputTag != null && cnt.OutputTag.Kind != TagKind.None ? (ushort)cnt.OutputTag.Index : null;
-                    ushort? cntResetTag = cnt.ResetTag != null && cnt.ResetTag.Kind != TagKind.None ? (ushort)cnt.ResetTag.Index : null;
+                    ushort? cntInTag = cnt.InputTag != null && cnt.InputTag.Kind != TagKind.None ? ResolveTagIndex(cnt.InputTag, targetProduct) : null;
+                    var defaultCounterTag = tagCatalog?.AllTags.FirstOrDefault(t => t.Kind == TagKind.Counter);
+                    ushort cntCvTag = cnt.CvTag != null && cnt.CvTag.Kind != TagKind.None 
+                        ? ResolveTagIndex(cnt.CvTag, targetProduct)
+                        : (defaultCounterTag != null
+                            ? ResolveTagIndex(defaultCounterTag, targetProduct)
+                            : (targetProduct.Tags.FirstOrDefault(t => t.Kind == TagKind.Counter)?.TagIndex ?? 116));
+                    ushort? cntQTag = cnt.OutputTag != null && cnt.OutputTag.Kind != TagKind.None ? ResolveTagIndex(cnt.OutputTag, targetProduct) : null;
+                    ushort? cntResetTag = cnt.ResetTag != null && cnt.ResetTag.Kind != TagKind.None ? ResolveTagIndex(cnt.ResetTag, targetProduct) : null;
 
                     // Resolve connections directly if wired on canvas
                     var cuConn = connectionList.FirstOrDefault(c => c.Target?.Node == cnt &&
@@ -168,14 +174,14 @@ public sealed class RuleCompiler : IRuleCompiler
                          c.Target == cnt.InputConnectors.FirstOrDefault()));
                     if (cuConn?.Source?.Node is InputNodeViewModel inNode && inNode.Tag != null)
                     {
-                        cntInTag = (ushort)inNode.Tag.Index;
+                        cntInTag = ResolveTagIndex(inNode.Tag, targetProduct);
                     }
                     else if (cuConn?.Source?.Node is TriggerNodeViewModel cuTrigVm)
                     {
                         var trigInConn = connectionList.FirstOrDefault(c => c.Target?.Node == cuTrigVm);
                         if (trigInConn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
                         {
-                            cntInTag = (ushort)trigInNode.Tag.Index;
+                            cntInTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
                         }
                     }
 
@@ -185,7 +191,7 @@ public sealed class RuleCompiler : IRuleCompiler
                          (cnt.InputConnectors.Count > 1 && c.Target == cnt.InputConnectors[1])));
                     if (rConn?.Source?.Node is InputNodeViewModel rNode && rNode.Tag != null)
                     {
-                        cntResetTag = (ushort)rNode.Tag.Index;
+                        cntResetTag = ResolveTagIndex(rNode.Tag, targetProduct);
                     }
 
                     var qConn = connectionList.FirstOrDefault(c => c.Source?.Node == cnt &&
@@ -193,7 +199,7 @@ public sealed class RuleCompiler : IRuleCompiler
                          c.Source == cnt.OutputConnectors.FirstOrDefault()));
                     if (qConn?.Target?.Node is ActionNodeViewModel actNode && actNode.TargetTag != null)
                     {
-                        cntQTag = (ushort)actNode.TargetTag.Index;
+                        cntQTag = ResolveTagIndex(actNode.TargetTag, targetProduct);
                     }
 
                     // Nếu khối Counter thiếu ngõ vào đếm
@@ -236,24 +242,24 @@ public sealed class RuleCompiler : IRuleCompiler
                         cnt.PresetValue,
                         cntQTag.Value,
                         executionOrder: actionOrder++,
-                        cnt.CustomLabel));
+                        cnt.DisplayTitle));
                     break;
 
                 case ScaleNodeViewModel scl:
-                    ushort sclInTag = (ushort)(scl.InputTag?.Index ?? 0);
+                    ushort sclInTag = scl.InputTag != null ? ResolveTagIndex(scl.InputTag, targetProduct) : (ushort)0;
                     var sclInConn = connectionList.FirstOrDefault(c => c.Target?.Node == scl &&
                         (string.Equals(c.Target.Title, "IN", StringComparison.OrdinalIgnoreCase) ||
-                         c.Target == scl.InputConnectors.FirstOrDefault()));
+                          c.Target == scl.InputConnectors.FirstOrDefault()));
                     if (sclInConn?.Source?.Node is InputNodeViewModel sclInVm && sclInVm.Tag != null)
                     {
-                        sclInTag = (ushort)sclInVm.Tag.Index;
+                        sclInTag = ResolveTagIndex(sclInVm.Tag, targetProduct);
                     }
 
-                    ushort? sclOutTag = scl.OutputTag != null ? (ushort)scl.OutputTag.Index : null;
+                    ushort? sclOutTag = scl.OutputTag != null ? ResolveTagIndex(scl.OutputTag, targetProduct) : null;
                     var sclOutConn = connectionList.FirstOrDefault(c => c.Source?.Node == scl);
                     if (sclOutConn?.Target?.Node is ActionNodeViewModel actOut && actOut.TargetTag != null)
                     {
-                        sclOutTag = (ushort)actOut.TargetTag.Index;
+                        sclOutTag = ResolveTagIndex(actOut.TargetTag, targetProduct);
                     }
 
                     graph.Nodes.Add(LogicNode.CreateScale(
@@ -268,7 +274,88 @@ public sealed class RuleCompiler : IRuleCompiler
                         scl.DecimalPlaces,
                         scl.Unit,
                         executionOrder: actionOrder++,
-                        scl.CustomLabel));
+                        scl.DisplayTitle));
+                    break;
+
+                case ComparatorNodeViewModel cmp:
+                    ushort cmpInTag = cmp.InputTag != null && cmp.InputTag.Kind != TagKind.None ? ResolveTagIndex(cmp.InputTag, targetProduct) : (ushort)0;
+                    var cmpInConn = connectionList.FirstOrDefault(c => c.Target?.Node == cmp &&
+                        (string.Equals(c.Target.Title, "IN", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == cmp.InputConnectors.FirstOrDefault()));
+                    if (cmpInConn?.Source?.Node is InputNodeViewModel cmpInVm && cmpInVm.Tag != null)
+                    {
+                        cmpInTag = ResolveTagIndex(cmpInVm.Tag, targetProduct);
+                    }
+                    else if (cmpInConn?.Source?.Node is ScaleNodeViewModel cmpSclSource)
+                    {
+                        if (cmpSclSource.OutputTag != null) cmpInTag = ResolveTagIndex(cmpSclSource.OutputTag, targetProduct);
+                        else if (cmpSclSource.InputTag != null) cmpInTag = ResolveTagIndex(cmpSclSource.InputTag, targetProduct);
+                    }
+
+                    graph.Nodes.Add(LogicNode.CreateComparator(
+                        cmp.Id,
+                        cmpInTag,
+                        (CompareOperator)cmp.CompareOp,
+                        cmp.ThresholdLo,
+                        cmp.ThresholdHi,
+                        executionOrder: actionOrder++,
+                        label: cmp.DisplayTitle));
+                    break;
+
+                case MqttPublishNodeViewModel mqtt:
+                    ushort? mqttEnTag = null;
+                    ushort? mqttDataTag = mqtt.DataTag != null && mqtt.DataTag.Kind != TagKind.None ? ResolveTagIndex(mqtt.DataTag, targetProduct) : null;
+
+                    // Resolve incoming connections to Trig (EN) and Val (Data)
+                    var trigConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
+                        (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
+                    if (trigConn?.Source?.Node is InputNodeViewModel trigInVm && trigInVm.Tag != null)
+                    {
+                        mqttEnTag = ResolveTagIndex(trigInVm.Tag, targetProduct);
+                    }
+                    else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmpTrig && cmpTrig.InputTag != null)
+                    {
+                        mqttEnTag = ResolveTagIndex(cmpTrig.InputTag, targetProduct);
+                    }
+
+                    var valConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
+                        (string.Equals(c.Target.Title, "Val", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(c.Target.Title, "IN", StringComparison.OrdinalIgnoreCase)));
+                    if (valConn?.Source?.Node is InputNodeViewModel valInVm && valInVm.Tag != null)
+                    {
+                        mqttDataTag = ResolveTagIndex(valInVm.Tag, targetProduct);
+                    }
+                    else if (valConn?.Source?.Node is ScaleNodeViewModel sclVal && sclVal.OutputTag != null)
+                    {
+                        mqttDataTag = ResolveTagIndex(sclVal.OutputTag, targetProduct);
+                    }
+
+                    var fieldDtos = mqtt.Fields.Select(f => new SimplePLC.Protocol.Dto.MqttPayloadFieldDto
+                    {
+                        Key = f.Key,
+                        TagIndex = f.Tag != null ? ResolveTagIndex(f.Tag, targetProduct) : (ushort)0,
+                        Unit = f.Unit
+                    }).ToList();
+
+                    graph.Nodes.Add(LogicNode.CreateMqttPublish(
+                        mqtt.Id,
+                        mqttEnTag,
+                        mqttDataTag,
+                        mqtt.Topic,
+                        mqtt.PublishMode,
+                        mqtt.Deadband,
+                        mqtt.IntervalMs,
+                        mqtt.Qos,
+                        mqtt.Retain,
+                        mqtt.PayloadMode,
+                        mqtt.Unit,
+                        mqtt.IncludeDevice,
+                        mqtt.IncludeTimestamp,
+                        fieldDtos,
+                        mqtt.CustomTemplate,
+                        executionOrder: actionOrder++,
+                        label: mqtt.DisplayTitle));
                     break;
 
                 default:
@@ -323,9 +410,10 @@ public sealed class RuleCompiler : IRuleCompiler
         var rules = new List<RuleItemModel>();
         if (coreResult.Program != null)
         {
+            var allTags = tagCatalog?.AllTags ?? (IEnumerable<TagModel>)Array.Empty<TagModel>();
             foreach (var domainRule in coreResult.Program.Rules)
             {
-                var ruleItem = RuleItemModel.FromDomainRule(domainRule, tagCatalog.AllTags);
+                var ruleItem = RuleItemModel.FromDomainRule(domainRule, allTags);
                 ruleItem.Id = $"R{domainRule.RuleIndex + 1}";
 
                 // Gắn SourceMap attribution từ Macro (Disassembly attribution)
@@ -348,10 +436,10 @@ public sealed class RuleCompiler : IRuleCompiler
 
     private static string LocalizeDiagnostic(SimplePLC.Application.Logic.Compilation.CompileDiagnostic diag, IReadOnlyList<GraphNodeViewModel>? nodes = null)
     {
-        if (!LocalizationService.Instance.IsVietnamese)
-        {
-            return diag.Message;
-        }
+        var targetNode = !string.IsNullOrEmpty(diag.NodeId)
+            ? nodes?.FirstOrDefault(n => n.Id == diag.NodeId)
+            : null;
+        var nodeLabel = targetNode?.DisplayTitle ?? (!string.IsNullOrEmpty(diag.NodeId) ? "Node" : diag.FieldName ?? "");
 
         var key = "Diag_" + diag.Code;
         var template = LocalizationService.Tr(key);
@@ -370,10 +458,13 @@ public sealed class RuleCompiler : IRuleCompiler
                         return string.Format(template, cyclePath);
                     }
 
-                    var targetNode = !string.IsNullOrEmpty(diag.NodeId)
-                        ? nodes?.FirstOrDefault(n => n.Id == diag.NodeId)
-                        : null;
-                    var nodeLabel = targetNode?.DisplayTitle ?? diag.NodeId ?? diag.FieldName ?? "";
+                    // Handle templates with {1} placeholder (e.g. Counter port name CU/CD)
+                    if (template.Contains("{1}"))
+                    {
+                        var portName = diag.FieldName ?? "";
+                        return string.Format(template, nodeLabel, portName);
+                    }
+
                     return string.Format(template, nodeLabel);
                 }
                 return template;
@@ -384,6 +475,28 @@ public sealed class RuleCompiler : IRuleCompiler
             }
         }
 
-        return diag.Message;
+        // Fallback: If no localized template found, sanitize any raw GUIDs from the core message
+        var fallbackMsg = diag.Message;
+        if (!string.IsNullOrEmpty(diag.NodeId) && !string.IsNullOrEmpty(nodeLabel))
+        {
+            fallbackMsg = fallbackMsg.Replace(diag.NodeId, nodeLabel);
+            if (diag.NodeId.Length >= 8)
+            {
+                fallbackMsg = fallbackMsg.Replace(diag.NodeId[..8], nodeLabel);
+            }
+        }
+        return fallbackMsg;
+    }
+
+    private static ushort ResolveTagIndex(TagModel? tag, ProductDefinition product)
+    {
+        if (tag == null || tag.Kind == TagKind.None) return 0;
+        ushort idx = (ushort)tag.Index;
+        var def = product.FindTagByIndex(idx);
+        if (def != null && string.Equals(def.Name, tag.Name, StringComparison.OrdinalIgnoreCase))
+            return idx;
+        var byName = product.FindTagByName(tag.Name);
+        return byName?.TagIndex ?? idx;
     }
 }
+

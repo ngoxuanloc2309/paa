@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         Title="{Binding [UpdateTitleNewRelease], Source={x:Static services:LocalizationService.Instance}}"
-        Width="620" Height="460"
+        Width="620" Height="485"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -21,15 +21,15 @@
                 <ResourceDictionary Source="../Styles/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Mechanical Solid Primary Action Button (Industrial Slate / Charcoal Gray) -->
+            <!-- Siemens TIA Portal Primary Action Button (Industrial Petrol Blue #006487) -->
             <Style x:Key="BtnIndustrialPrimary" TargetType="Button">
-                <Setter Property="Background" Value="#334155" />
+                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                 <Setter Property="Foreground" Value="#FFFFFF" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="Padding" Value="18,6" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="BorderBrush" Value="#1E293B" />
+                <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
                     <Setter.Value>
@@ -44,11 +44,11 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#1E293B" />
-                                    <Setter Property="BorderBrush" Value="#0F172A" />
+                                    <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}" />
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter Property="Background" Value="#0F172A" />
+                                    <Setter Property="Background" Value="{StaticResource PrimaryActiveBrush}" />
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter Property="Background" Value="#E2E8F0" />
@@ -154,6 +154,8 @@
                     <RowDefinition Height="*" />
                     <!-- Row 2: Progress (if downloading) -->
                     <RowDefinition Height="Auto" />
+                    <!-- Row 3: Error / Alert Card (Collapsed by default) -->
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- Row 0: Version & Package Specs Bar -->
@@ -220,8 +222,38 @@
                             <TextBlock x:Name="TxtProgressPercent" DockPanel.Dock="Right" Text="0%" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right" />
                         </DockPanel>
                         <ProgressBar x:Name="PrgDownload" Height="5" Minimum="0" Maximum="100" Value="0" 
-                                     Foreground="#334155" Background="#E2E8F0" BorderThickness="0" />
+                                     Foreground="{StaticResource IndustrialPrimaryBrush}" Background="#E2E8F0" BorderThickness="0" />
                     </StackPanel>
+                </Border>
+
+                <!-- Row 3: Dedicated Error / Alert Panel (Collapsed by default) -->
+                <Border x:Name="ErrorAlertPanel" Grid.Row="3" Background="#FEF2F2" BorderBrush="#F87171" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Error Icon Badge -->
+                        <Border Grid.Column="0" Width="26" Height="26" Background="#FEE2E2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <TextBlock Text="⚠" FontSize="14" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0" />
+                        </Border>
+
+                        <!-- Error Message Stack -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtErrorHeading" Text="{Binding [UpdateDialogErrHeading], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontSize="11" FontWeight="Bold" Foreground="#991B1B" />
+                            <TextBlock x:Name="TxtErrorMessage" Text="" FontSize="11" Foreground="#B91C1C" TextWrapping="Wrap" LineHeight="16" Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <!-- Fallback Action Button: Open in Browser -->
+                        <Button Grid.Column="2" x:Name="BtnOpenBrowserFallback" 
+                                Content="{Binding [UpdateDialogBtnBrowser], Source={x:Static services:LocalizationService.Instance}}" 
+                                Click="BtnOpenBrowser_Click"
+                                Style="{StaticResource BtnIndustrialSecondary}" 
+                                Padding="10,5" FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0" Cursor="Hand" />
+                    </Grid>
                 </Border>
             </Grid>
 
@@ -233,7 +265,9 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" x:Name="TxtStatusMessage" Text="" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource DangerBrush}" FontWeight="Medium" />
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="SPLC-AF-003 // Update Client" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" />
+                    </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="BtnCancel" Content="{Binding [UpdateDialogBtnLater], Source={x:Static services:LocalizationService.Instance}}" 

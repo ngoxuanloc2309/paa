@@ -35,6 +35,38 @@ public partial class LogicEditorViewModel : ObservableObject
     private bool _hasPendingAiProposal;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveGridCellSize))]
+    private bool _isGridVisible = true;
+
+    private bool _isSyncingSelection;
+
+    /// <summary>
+    /// Kích thước ô lưới căn chỉnh FBD Logic Editor (Phương án 1: 20px siêu mảnh khi bật, 1px vô hình khi tắt).
+    /// </summary>
+    public uint ActiveGridCellSize => IsGridVisible ? 20u : 1u;
+
+    [RelayCommand]
+    public void ToggleGrid()
+    {
+        IsGridVisible = !IsGridVisible;
+    }
+
+    [RelayCommand]
+    public void OpenMqttConfig(MqttPublishNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedMqttNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new MqttConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.MqttConfigDialogView(dialogVm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        NotifyGraphModified();
+    }
+
+    [ObservableProperty]
     private string _aiProposalSummaryText = string.Empty;
 
     private DraftGraphTransaction? _currentAiTransaction;
@@ -42,22 +74,26 @@ public partial class LogicEditorViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedInputNode))]
     [NotifyPropertyChangedFor(nameof(SelectedTriggerNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedComparatorNode))]
     [NotifyPropertyChangedFor(nameof(SelectedGuardNode))]
     [NotifyPropertyChangedFor(nameof(SelectedActionNode))]
     [NotifyPropertyChangedFor(nameof(SelectedTimerNode))]
     [NotifyPropertyChangedFor(nameof(SelectedCounterNode))]
     [NotifyPropertyChangedFor(nameof(SelectedScaleNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedMqttNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
 
     public InputNodeViewModel? SelectedInputNode => SelectedNode as InputNodeViewModel;
     public TriggerNodeViewModel? SelectedTriggerNode => SelectedNode as TriggerNodeViewModel;
+    public ComparatorNodeViewModel? SelectedComparatorNode => SelectedNode as ComparatorNodeViewModel;
     public GuardNodeViewModel? SelectedGuardNode => SelectedNode as GuardNodeViewModel;
     public ActionNodeViewModel? SelectedActionNode => SelectedNode as ActionNodeViewModel;
     public TimerNodeViewModel? SelectedTimerNode => SelectedNode as TimerNodeViewModel;
     public CounterNodeViewModel? SelectedCounterNode => SelectedNode as CounterNodeViewModel;
     public ScaleNodeViewModel? SelectedScaleNode => SelectedNode as ScaleNodeViewModel;
+    public MqttPublishNodeViewModel? SelectedMqttNode => SelectedNode as MqttPublishNodeViewModel;
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -87,6 +123,14 @@ public partial class LogicEditorViewModel : ObservableObject
                 if (oldScl.InputTag != null) oldScl.InputTag.PropertyChanged -= OnTagPropertyChanged;
                 if (oldScl.OutputTag != null) oldScl.OutputTag.PropertyChanged -= OnTagPropertyChanged;
             }
+            if (oldValue is ComparatorNodeViewModel oldCmp)
+            {
+                if (oldCmp.InputTag != null) oldCmp.InputTag.PropertyChanged -= OnTagPropertyChanged;
+            }
+            if (oldValue is MqttPublishNodeViewModel oldMqtt)
+            {
+                if (oldMqtt.DataTag != null) oldMqtt.DataTag.PropertyChanged -= OnTagPropertyChanged;
+            }
         }
 
         if (newValue != null)
@@ -115,11 +159,35 @@ public partial class LogicEditorViewModel : ObservableObject
                 if (newScl.InputTag != null) newScl.InputTag.PropertyChanged += OnTagPropertyChanged;
                 if (newScl.OutputTag != null) newScl.OutputTag.PropertyChanged += OnTagPropertyChanged;
             }
+            if (newValue is ComparatorNodeViewModel newCmp)
+            {
+                if (newCmp.InputTag != null) newCmp.InputTag.PropertyChanged += OnTagPropertyChanged;
+            }
+            if (newValue is MqttPublishNodeViewModel newMqtt)
+            {
+                if (newMqtt.DataTag != null) newMqtt.DataTag.PropertyChanged += OnTagPropertyChanged;
+            }
 
-            if (!newValue.IsSelected)
-                newValue.IsSelected = true;
-            if (!SelectedNodes.Contains(newValue))
-                SelectedNodes.Add(newValue);
+            if (!_isSyncingSelection)
+            {
+                _isSyncingSelection = true;
+                try
+                {
+                    if (!newValue.IsSelected)
+                        newValue.IsSelected = true;
+                    if (!SelectedNodes.Contains(newValue))
+                        SelectedNodes.Add(newValue);
+                }
+                finally
+                {
+                    _isSyncingSelection = false;
+                }
+            }
+            else
+            {
+                if (!newValue.IsSelected)
+                    newValue.IsSelected = true;
+            }
         }
 
         OnPropertyChanged(nameof(NarrativePreview));
@@ -206,6 +274,20 @@ public partial class LogicEditorViewModel : ObservableObject
                 NotifyGraphModified();
                 return;
             }
+        }
+        else if (sender is MqttPublishNodeViewModel mqtt)
+        {
+            if (e.PropertyName == nameof(MqttPublishNodeViewModel.DataTag))
+            {
+                if (mqtt.DataTag != null)
+                {
+                    mqtt.DataTag.PropertyChanged -= OnTagPropertyChanged;
+                    mqtt.DataTag.PropertyChanged += OnTagPropertyChanged;
+                }
+            }
+            OnPropertyChanged(nameof(NarrativePreview));
+            NotifyGraphModified();
+            return;
         }
 
         OnPropertyChanged(nameof(NarrativePreview));
@@ -749,7 +831,18 @@ public partial class LogicEditorViewModel : ObservableObject
                     node.PropertyChanged += OnNodeSelectionPropertyChanged;
                     if (node.IsSelected && !SelectedNodes.Contains(node))
                     {
-                        SelectedNodes.Add(node);
+                        if (!_isSyncingSelection)
+                        {
+                            _isSyncingSelection = true;
+                            try
+                            {
+                                SelectedNodes.Add(node);
+                            }
+                            finally
+                            {
+                                _isSyncingSelection = false;
+                            }
+                        }
                     }
                 }
             }
@@ -758,8 +851,23 @@ public partial class LogicEditorViewModel : ObservableObject
                 foreach (GraphNodeViewModel node in e.OldItems)
                 {
                     node.PropertyChanged -= OnNodeSelectionPropertyChanged;
-                    node.IsSelected = false;
-                    SelectedNodes.Remove(node);
+                    if (!_isSyncingSelection)
+                    {
+                        _isSyncingSelection = true;
+                        try
+                        {
+                            node.IsSelected = false;
+                            SelectedNodes.Remove(node);
+                        }
+                        finally
+                        {
+                            _isSyncingSelection = false;
+                        }
+                    }
+                    else
+                    {
+                        node.IsSelected = false;
+                    }
                     node.Dispose();
                 }
             }
@@ -775,33 +883,43 @@ public partial class LogicEditorViewModel : ObservableObject
 
         SelectedNodes.CollectionChanged += (s, e) =>
         {
-            if (e.NewItems != null)
-            {
-                foreach (GraphNodeViewModel node in e.NewItems)
-                {
-                    node.IsSelected = true;
-                }
-            }
-            if (e.OldItems != null)
-            {
-                foreach (GraphNodeViewModel node in e.OldItems)
-                {
-                    node.IsSelected = false;
-                }
-            }
+            if (_isSyncingSelection) return;
 
-            if (SelectedNodes.Count > 0)
+            _isSyncingSelection = true;
+            try
             {
-                if (SelectedNode == null || !SelectedNodes.Contains(SelectedNode))
+                if (e.NewItems != null)
                 {
-                    SelectedNode = SelectedNodes.Last();
+                    foreach (GraphNodeViewModel node in e.NewItems)
+                    {
+                        node.IsSelected = true;
+                    }
                 }
+                if (e.OldItems != null)
+                {
+                    foreach (GraphNodeViewModel node in e.OldItems)
+                    {
+                        node.IsSelected = false;
+                    }
+                }
+
+                if (SelectedNodes.Count > 0)
+                {
+                    if (SelectedNode == null || !SelectedNodes.Contains(SelectedNode))
+                    {
+                        SelectedNode = SelectedNodes.Last();
+                    }
+                }
+                else
+                {
+                    SelectedNode = null;
+                }
+                OnPropertyChanged(nameof(HasSelection));
             }
-            else
+            finally
             {
-                SelectedNode = null;
+                _isSyncingSelection = false;
             }
-            OnPropertyChanged(nameof(HasSelection));
         };
 
         History.HistoryChanged += (s, e) =>
@@ -987,21 +1105,32 @@ public partial class LogicEditorViewModel : ObservableObject
     {
         if (sender is GraphNodeViewModel node && e.PropertyName == nameof(GraphNodeViewModel.IsSelected))
         {
-            if (node.IsSelected)
+            if (_isSyncingSelection) return;
+
+            _isSyncingSelection = true;
+            try
             {
-                if (!SelectedNodes.Contains(node))
+                if (node.IsSelected)
                 {
-                    SelectedNodes.Add(node);
+                    if (!SelectedNodes.Contains(node))
+                    {
+                        SelectedNodes.Add(node);
+                    }
+                    SelectedNode = node;
                 }
-                SelectedNode = node;
+                else
+                {
+                    SelectedNodes.Remove(node);
+                    if (SelectedNode == node)
+                    {
+                        SelectedNode = SelectedNodes.LastOrDefault();
+                    }
+                }
+                OnPropertyChanged(nameof(HasSelection));
             }
-            else
+            finally
             {
-                SelectedNodes.Remove(node);
-                if (SelectedNode == node)
-                {
-                    SelectedNode = SelectedNodes.LastOrDefault();
-                }
+                _isSyncingSelection = false;
             }
         }
         else if (e.PropertyName != null && SemanticNodeProperties.Contains(e.PropertyName))
@@ -1047,6 +1176,17 @@ public partial class LogicEditorViewModel : ObservableObject
         nameof(CounterNodeViewModel.CvTag),
         nameof(CounterNodeViewModel.OutputTag),
         nameof(CounterNodeViewModel.ResetTag),
+        nameof(MqttPublishNodeViewModel.Topic),
+        nameof(MqttPublishNodeViewModel.PayloadMode),
+        nameof(MqttPublishNodeViewModel.CustomTemplate),
+        nameof(MqttPublishNodeViewModel.Qos),
+        nameof(MqttPublishNodeViewModel.Retain),
+        nameof(MqttPublishNodeViewModel.PublishMode),
+        nameof(MqttPublishNodeViewModel.Deadband),
+        nameof(MqttPublishNodeViewModel.Unit),
+        nameof(MqttPublishNodeViewModel.DataTag),
+        nameof(MqttPublishNodeViewModel.IncludeDevice),
+        nameof(MqttPublishNodeViewModel.IncludeTimestamp),
         nameof(GraphNodeViewModel.CustomLabel)
     };
 
@@ -1173,6 +1313,17 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             scaleNode.InputTag = inScale.Tag;
         }
+        else if (target.Node is MqttPublishNodeViewModel mqttNode)
+        {
+            if (source.Node is InputNodeViewModel inMqtt)
+            {
+                mqttNode.DataTag = inMqtt.Tag;
+            }
+            else if (source.Node is ScaleNodeViewModel scaleMqtt)
+            {
+                mqttNode.DataTag = scaleMqtt.OutputTag ?? scaleMqtt.InputTag;
+            }
+        }
         else if (source.Node is CounterNodeViewModel counterNodeFrom && target.Node is ActionNodeViewModel actNode)
         {
             counterNodeFrom.OutputTag = actNode.TargetTag;
@@ -1185,6 +1336,42 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             scaleNodeFrom.OutputTag = sclActNode.TargetTag;
         }
+    }
+
+    internal static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
+    {
+        InputNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Input,
+        TriggerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Trigger,
+        GuardNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Guard,
+        ActionNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        MqttPublishNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        TimerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Timer,
+        CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
+        ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
+        ComparatorNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Comparator,
+        _ => null
+    };
+
+    public static double GetConnectorVerticalOffset(GraphNodeViewModel? node, ConnectorViewModel? connector)
+    {
+        const double singlePinOffset = 58.0; // Row 0 (4px accent) + Row 1 (26px header) + 56px body / 2
+        if (node == null || connector == null)
+            return singlePinOffset;
+
+        var list = connector.IsInput ? node.InputConnectors : node.OutputConnectors;
+        if (list.Count <= 1)
+            return singlePinOffset;
+
+        int index = list.IndexOf(connector);
+        if (index < 0)
+            return singlePinOffset;
+
+        // Chiều cao mỗi cổng là 16px, tổng chiều cao các cổng = list.Count * 16px
+        // Khoảng trống trên/dưới trong vùng body 56px: (56 - list.Count * 16) / 2
+        // Vị trí tâm của cổng index: 30 + topMargin + index * 16 + 8
+        double totalPortsHeight = list.Count * 16.0;
+        double topMargin = Math.Max(0, (56.0 - totalPortsHeight) / 2.0);
+        return 30.0 + topMargin + (index * 16.0) + 8.0;
     }
 
     [RelayCommand]
@@ -1218,19 +1405,6 @@ public partial class LogicEditorViewModel : ObservableObject
         // Không cho phép nối vào cùng khối hoặc nối Output-Output / Input-Input
         if (source.Node == target.Node || source.IsInput || !target.IsInput)
             return;
-
-        // Kiểm tra ngữ pháp Logic Core V1 (GraphGrammarV1)
-        static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
-        {
-            InputNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Input,
-            TriggerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Trigger,
-            GuardNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Guard,
-            ActionNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-            TimerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Timer,
-            CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
-            ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
-            _ => null
-        };
 
         var srcKind = GetNodeKind(source.Node);
         var tgtKind = GetNodeKind(target.Node);
@@ -1274,6 +1448,14 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             scaleNode.InputTag = inScale.Tag;
         }
+        else if (target.Node is ComparatorNodeViewModel cmpNode && source.Node is InputNodeViewModel inCmp)
+        {
+            cmpNode.InputTag = inCmp.Tag;
+        }
+        else if (target.Node is ComparatorNodeViewModel cmpFromScl && source.Node is ScaleNodeViewModel sclNode)
+        {
+            cmpFromScl.InputTag = sclNode.OutputTag ?? sclNode.InputTag;
+        }
         else if (source.Node is CounterNodeViewModel counterNodeFrom && target.Node is ActionNodeViewModel actNode)
         {
             counterNodeFrom.OutputTag = actNode.TargetTag;
@@ -1287,10 +1469,17 @@ public partial class LogicEditorViewModel : ObservableObject
             scaleNodeFrom.OutputTag = sclActNode.TargetTag;
         }
 
-        // Tự động căn thẳng hàng ngang hai khối nếu độ cao ban đầu tương đương nhau (chênh lệch <= 35px)
-        if (source.Node != null && target.Node != null && Math.Abs(source.Node.Location.Y - target.Node.Location.Y) <= 35.0)
+        // Tự động căn thẳng hàng ngang hai khối theo chân cắm nếu độ cao ban đầu tương đối gần nhau (chênh lệch Pin <= 50px)
+        if (source.Node != null && target.Node != null)
         {
-            target.Node.Location = new Point(target.Node.Location.X, source.Node.Location.Y);
+            double srcPinY = source.Node.Location.Y + GetConnectorVerticalOffset(source.Node, source);
+            double tgtPinY = target.Node.Location.Y + GetConnectorVerticalOffset(target.Node, target);
+
+            if (Math.Abs(srcPinY - tgtPinY) <= 50.0)
+            {
+                double alignedY = source.Node.Location.Y + GetConnectorVerticalOffset(source.Node, source) - GetConnectorVerticalOffset(target.Node, target);
+                target.Node.Location = new Point(target.Node.Location.X, alignedY);
+            }
         }
     }
 
@@ -1341,6 +1530,10 @@ public partial class LogicEditorViewModel : ObservableObject
             {
                 sclTarget.InputTag = null;
             }
+            else if (conn.Target?.Node is ComparatorNodeViewModel cmpTarget)
+            {
+                cmpTarget.InputTag = null;
+            }
 
             if (conn.Source?.Node is CounterNodeViewModel cntSource)
             {
@@ -1368,37 +1561,56 @@ public partial class LogicEditorViewModel : ObservableObject
 
     public void DeselectAllNodes()
     {
-        foreach (var node in Nodes)
-        {
-            node.IsSelected = false;
-        }
-        SelectedNodes.Clear();
-        SelectedNode = null;
         DeselectAllConnections();
+        if (_isSyncingSelection) return;
+
+        _isSyncingSelection = true;
+        try
+        {
+            foreach (var node in Nodes)
+            {
+                node.IsSelected = false;
+            }
+            SelectedNodes.Clear();
+            SelectedNode = null;
+            OnPropertyChanged(nameof(HasSelection));
+        }
+        finally
+        {
+            _isSyncingSelection = false;
+        }
     }
 
     public void SelectExclusive(GraphNodeViewModel node)
     {
         DeselectAllConnections();
-        foreach (var n in Nodes)
+        if (_isSyncingSelection) return;
+
+        _isSyncingSelection = true;
+        try
         {
-            if (n != node && n.IsSelected)
+            foreach (var n in Nodes)
             {
-                n.IsSelected = false;
+                if (n != node && n.IsSelected)
+                {
+                    n.IsSelected = false;
+                }
             }
-        }
-        SelectedNodes.Clear();
-        node.IsSelected = true;
-        if (!SelectedNodes.Contains(node))
-        {
+            SelectedNodes.Clear();
+            node.IsSelected = true;
             SelectedNodes.Add(node);
+            SelectedNode = node;
+            OnPropertyChanged(nameof(HasSelection));
         }
-        SelectedNode = node;
+        finally
+        {
+            _isSyncingSelection = false;
+        }
     }
 
-    public void AddNode(string nodeType, Point position, TagModel? tag = null)
+    public GraphNodeViewModel? CreateNodeInstance(string nodeType, TagModel? tag = null)
     {
-        GraphNodeViewModel? newNode = nodeType switch
+        return nodeType switch
         {
             "Input" => new InputNodeViewModel(tag ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteInput)),
             "Trigger" => new TriggerNodeViewModel(),
@@ -1412,25 +1624,99 @@ public partial class LogicEditorViewModel : ObservableObject
             "Scale" => new ScaleNodeViewModel(
                 tag ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput),
                 null),
+            "MqttPublish" or "MQTT" or "MqttPub" => new MqttPublishNodeViewModel(
+                tag ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput || t.Kind == TagKind.DiscreteInput)),
+            "Comparator" or "CMP" => new ComparatorNodeViewModel(
+                tag,
+                CompareOp.GT,
+                50,
+                100),
             _ => null
         };
+    }
 
+    public void AddNode(string nodeType, Point position, TagModel? tag = null)
+    {
+        var newNode = CreateNodeInstance(nodeType, tag);
         if (newNode != null)
         {
             RecordSnapshot("Add Node");
             newNode.Location = position;
 
-            // Hủy chọn tất cả các khối cũ trước khi chọn khối mới kéo vào
-            DeselectAllNodes();
-
             Nodes.Add(newNode);
-            newNode.IsSelected = true;
-            if (!SelectedNodes.Contains(newNode))
-            {
-                SelectedNodes.Add(newNode);
-            }
-            SelectedNode = newNode;
+            SelectExclusive(newNode);
         }
+    }
+
+    public Point GetNextRuleSpawnPosition()
+    {
+        if (Nodes.Count == 0)
+        {
+            return new Point(60.0, 60.0);
+        }
+
+        // Điểm đáy của các khối hiện có (Location.Y + 86px chiều cao chuẩn của khối)
+        double maxY = Nodes.Max(n => n.Location.Y + 86.0);
+
+        // Khoảng cách giữa các Rule/Network là 54px (tổng bước nhảy là 86 + 54 = 140px, là bội số của lưới 20px)
+        double nextY = Math.Round((maxY + 54.0) / 20.0) * 20.0;
+        return new Point(60.0, nextY);
+    }
+
+    [RelayCommand]
+    public void InsertNextConnectedNode(string nodeType)
+    {
+        if (string.IsNullOrWhiteSpace(nodeType))
+            return;
+
+        var newNode = CreateNodeInstance(nodeType);
+        if (newNode == null)
+            return;
+
+        var currentSelected = SelectedNode;
+        if (currentSelected != null && currentSelected.OutputConnectors.Count > 0 && newNode.InputConnectors.Count > 0)
+        {
+            var srcKind = GetNodeKind(currentSelected);
+            var tgtKind = GetNodeKind(newNode);
+
+            bool canConnect = srcKind != null && tgtKind != null &&
+                              SimplePLC.Application.Logic.Graph.GraphGrammarV1.CanConnect(srcKind.Value, tgtKind.Value);
+
+            if (canConnect)
+            {
+                RecordSnapshot("Insert Connected Node");
+
+                var srcPin = currentSelected.OutputConnectors[0];
+                var tgtPin = newNode.InputConnectors[0];
+
+                double srcPinOffset = GetConnectorVerticalOffset(currentSelected, srcPin);
+                double tgtPinOffset = GetConnectorVerticalOffset(newNode, tgtPin);
+
+                // Đặt sang phải khối đang chọn: khoảng cách 240px (chuẩn lưới 20px)
+                double newX = currentSelected.Location.X + 240.0;
+                // Căn thẳng hàng ngang chân cắm tuyệt đối
+                double newY = currentSelected.Location.Y + srcPinOffset - tgtPinOffset;
+
+                newNode.Location = new Point(newX, newY);
+
+                Nodes.Add(newNode);
+                SelectExclusive(newNode);
+
+                // Nối dây tự động giữa 2 cổng
+                CompleteConnection((srcPin, tgtPin));
+                return;
+            }
+        }
+
+        // Nếu không có node chọn hoặc không thể nối tiếp: tách thành Rule mới ở hàng dưới
+        RecordSnapshot("Insert Node");
+        Point spawnPos = GetNextRuleSpawnPosition();
+        newNode.Location = spawnPos;
+
+        Nodes.Add(newNode);
+        SelectExclusive(newNode);
+
+        CompileAndSaveRules(true);
     }
 
     private CounterNodeViewModel CreateCounterNode(string mode, TagModel? tag)
@@ -1840,23 +2126,44 @@ public partial class LogicEditorViewModel : ObservableObject
 
     public void ApplyMagneticAlignment(GraphNodeViewModel node)
     {
-        // 1. Chỉ tìm các khối có dây nối trực tiếp với khối này
-        var connectedNeighbors = Connections
+        // 1. Tìm các kết nối trực tiếp với khối này để căn gióng chân cắm
+        var directConnections = Connections
             .Where(c => c.Source.Node == node || c.Target.Node == node)
-            .Select(c => c.Source.Node == node ? c.Target.Node : c.Source.Node)
-            .OfType<GraphNodeViewModel>()
-            .Distinct()
             .ToList();
 
         bool snappedY = false;
-        foreach (var other in connectedNeighbors)
+        foreach (var conn in directConnections)
         {
-            // Bắt dính nam châm thông minh: chỉ khi độ lệch trục Y với khối nối trực tiếp <= 10px thì mới hít thẳng hàng ngang
-            if (Math.Abs(node.Location.Y - other.Location.Y) <= 10.0)
+            GraphNodeViewModel? other;
+            ConnectorViewModel myConn;
+            ConnectorViewModel otherConn;
+
+            if (conn.Source.Node == node)
+            {
+                other = conn.Target.Node;
+                myConn = conn.Source;
+                otherConn = conn.Target;
+            }
+            else
+            {
+                other = conn.Source.Node;
+                myConn = conn.Target;
+                otherConn = conn.Source;
+            }
+
+            if (other == null) continue;
+
+            // Tính vị trí Y lý tưởng của node để 2 chân cắm nối với nhau nằm trên cùng 1 đường chân trời (Horizontal Line)
+            double otherPinOffset = GetConnectorVerticalOffset(other, otherConn);
+            double myPinOffset = GetConnectorVerticalOffset(node, myConn);
+            double idealY = other.Location.Y + otherPinOffset - myPinOffset;
+
+            // Ngưỡng hít từ tính (Magnetic Snap Threshold): trong khoảng +-20px quanh đường thẳng tắp
+            if (Math.Abs(node.Location.Y - idealY) <= 20.0)
             {
                 node.Location = new Point(
                     Math.Round(node.Location.X),
-                    other.Location.Y
+                    idealY
                 );
                 snappedY = true;
                 break;
@@ -1865,7 +2172,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (!snappedY)
         {
-            // Giữ nguyên đúng vị trí người dùng đặt, làm tròn pixel nguyên để hiển thị sắc nét, không bị nhảy
+            // Giữ nguyên đúng vị trí người dùng đặt, làm tròn pixel nguyên để hiển thị sắc nét, không bị nhòe
             node.Location = new Point(
                 Math.Round(node.Location.X),
                 Math.Round(node.Location.Y)
@@ -1949,14 +2256,23 @@ public partial class LogicEditorViewModel : ObservableObject
                 }
             }
 
-            foreach (var node in nodesToDelete)
+            _isSyncingSelection = true;
+            try
             {
-                node.IsSelected = false;
-                SelectedNodes.Remove(node);
-                Nodes.Remove(node);
-            }
+                foreach (var node in nodesToDelete)
+                {
+                    node.PropertyChanged -= OnNodeSelectionPropertyChanged;
+                    node.IsSelected = false;
+                    SelectedNodes.Remove(node);
+                    Nodes.Remove(node);
+                }
 
-            SelectedNode = SelectedNodes.LastOrDefault() ?? Nodes.LastOrDefault();
+                SelectedNode = SelectedNodes.LastOrDefault() ?? Nodes.LastOrDefault();
+            }
+            finally
+            {
+                _isSyncingSelection = false;
+            }
         }
 
         CompileAndSaveRules(true);
@@ -1986,11 +2302,25 @@ public partial class LogicEditorViewModel : ObservableObject
         if (Nodes.Count == 0 && Connections.Count == 0) return;
         RecordSnapshot("Clear Canvas");
 
-        Connections.Clear();
-        SelectedNodes.Clear();
-        Nodes.Clear();
-        SelectedNode = null;
-        EditingRuleId = null;
+        _isSyncingSelection = true;
+        try
+        {
+            foreach (var node in Nodes)
+            {
+                node.PropertyChanged -= OnNodeSelectionPropertyChanged;
+                node.IsSelected = false;
+            }
+            Connections.Clear();
+            SelectedNodes.Clear();
+            Nodes.Clear();
+            SelectedNode = null;
+            EditingRuleId = null;
+        }
+        finally
+        {
+            _isSyncingSelection = false;
+        }
+
         CompileAndSaveRules(true);
         OnPropertyChanged(nameof(HasSelection));
     }
@@ -2062,6 +2392,35 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.ClampMax = scl.ClampMax;
             pNode.TagName = scl.InputTag?.Name ?? string.Empty;
             pNode.OutputTagName = scl.OutputTag?.Name ?? string.Empty;
+        }
+        else if (node is ComparatorNodeViewModel cmp)
+        {
+            pNode.Type = "Comparator";
+            pNode.CompareOp = cmp.CompareOp;
+            pNode.ThresholdLo = cmp.ThresholdLo;
+            pNode.ThresholdHi = cmp.ThresholdHi;
+            pNode.TagName = cmp.InputTag?.Name ?? string.Empty;
+        }
+        else if (node is MqttPublishNodeViewModel mqtt)
+        {
+            pNode.Type = "MqttPublish";
+            pNode.MqttTopic = mqtt.Topic;
+            pNode.MqttPayloadMode = mqtt.PayloadMode;
+            pNode.MqttCustomTemplate = mqtt.CustomTemplate;
+            pNode.MqttQos = mqtt.Qos;
+            pNode.MqttRetain = mqtt.Retain;
+            pNode.MqttPublishMode = mqtt.PublishMode;
+            pNode.MqttDeadband = mqtt.Deadband;
+            pNode.MqttUnit = mqtt.Unit;
+            pNode.MqttIncludeDevice = mqtt.IncludeDevice;
+            pNode.MqttIncludeTimestamp = mqtt.IncludeTimestamp;
+            pNode.MqttFields = mqtt.Fields.Select(f => new MqttPayloadFieldData
+            {
+                Key = f.Key,
+                TagName = f.Tag?.Name ?? string.Empty,
+                Unit = f.Unit
+            }).ToList();
+            pNode.TagName = mqtt.DataTag?.Name ?? string.Empty;
         }
 
         return pNode;
@@ -2157,6 +2516,45 @@ public partial class LogicEditorViewModel : ObservableObject
                 ClampMin = pNode.ClampMin,
                 ClampMax = pNode.ClampMax
             };
+        }
+        else if (string.Equals(type, "Comparator", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "CMP", StringComparison.OrdinalIgnoreCase))
+        {
+            var inTag = !string.IsNullOrWhiteSpace(pNode.TagName)
+                ? TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase))
+                : null;
+            node = new ComparatorNodeViewModel(inTag, pNode.CompareOp, pNode.ThresholdLo, pNode.ThresholdHi);
+        }
+        else if (string.Equals(type, "MqttPublish", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MQTT", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MqttPub", StringComparison.OrdinalIgnoreCase))
+        {
+            var dataTag = !string.IsNullOrWhiteSpace(pNode.TagName)
+                ? TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase))
+                : TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput || t.Kind == TagKind.DiscreteInput);
+
+            var mqtt = new MqttPublishNodeViewModel(dataTag, string.IsNullOrWhiteSpace(pNode.MqttTopic) ? "synaptix/telemetry/data" : pNode.MqttTopic)
+            {
+                PayloadMode = string.IsNullOrWhiteSpace(pNode.MqttPayloadMode) ? "JSON" : pNode.MqttPayloadMode,
+                CustomTemplate = string.IsNullOrWhiteSpace(pNode.MqttCustomTemplate) ? "{\n  \"device\": \"{device}\",\n  \"tag\": \"{tag}\",\n  \"value\": {val},\n  \"unit\": \"{unit}\",\n  \"ts\": {ts}\n}" : pNode.MqttCustomTemplate,
+                Qos = pNode.MqttQos,
+                Retain = pNode.MqttRetain,
+                PublishMode = string.IsNullOrWhiteSpace(pNode.MqttPublishMode) ? "Event" : pNode.MqttPublishMode,
+                Deadband = pNode.MqttDeadband,
+                Unit = string.IsNullOrWhiteSpace(pNode.MqttUnit) ? "bar" : pNode.MqttUnit,
+                IncludeDevice = pNode.MqttIncludeDevice,
+                IncludeTimestamp = pNode.MqttIncludeTimestamp
+            };
+
+            if (pNode.MqttFields != null && pNode.MqttFields.Count > 0)
+            {
+                foreach (var fieldData in pNode.MqttFields)
+                {
+                    var fTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, fieldData.TagName, StringComparison.OrdinalIgnoreCase));
+                    mqtt.AddFieldWithDetails(fieldData.Key, fTag, fieldData.Unit);
+                }
+            }
+
+            node = mqtt;
         }
 
         if (node != null)
@@ -2296,14 +2694,18 @@ public partial class LogicEditorViewModel : ObservableObject
     {
         if (rule == null) return;
 
+        RecordSnapshot("Reconstruct Graph From Rule");
+
         var nodesData = new List<ProjectNodeData>();
         var connsData = new List<ProjectConnectionData>();
 
         double x = 60;
-        double y = 100;
+        double y = Nodes.Count > 0 ? (Nodes.Max(n => n.Location.Y) + 160) : 100;
+
+        string suffix = Guid.NewGuid().ToString("N")[..8];
 
         // 1. Khối Input cho Trigger
-        string inputId = "reconstruct_in_trg";
+        string inputId = $"reconstruct_in_trg_{suffix}";
         if (rule.TriggerTag != null)
         {
             nodesData.Add(new ProjectNodeData
@@ -2317,7 +2719,7 @@ public partial class LogicEditorViewModel : ObservableObject
         }
 
         // 2. Khối Trigger (hỗ trợ cả so sánh ngưỡng cảm biến Analog/Register)
-        string triggerId = "reconstruct_trg";
+        string triggerId = $"reconstruct_trg_{suffix}";
         nodesData.Add(new ProjectNodeData
         {
             Id = triggerId,
@@ -2352,7 +2754,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (hasValidGuard && rule.GuardTag != null)
         {
-            string guardId = "reconstruct_grd";
+            string guardId = $"reconstruct_grd_{suffix}";
             nodesData.Add(new ProjectNodeData
             {
                 Id = guardId,
@@ -2379,7 +2781,7 @@ public partial class LogicEditorViewModel : ObservableObject
         // 4. Khối Action
         if (rule.ActionTag != null && rule.ActionTag.Kind != TagKind.None)
         {
-            string actionId = "reconstruct_act";
+            string actionId = $"reconstruct_act_{suffix}";
             double actionX = hasValidGuard ? (x + 720) : (x + 480);
             nodesData.Add(new ProjectNodeData
             {
@@ -2401,7 +2803,51 @@ public partial class LogicEditorViewModel : ObservableObject
             });
         }
 
-        LoadGraphData(nodesData, connsData);
+        // Tái tạo không phá hủy (Non-destructive): Thêm node vào canvas hiện có thay vì xóa sạch Nodes.Clear()
+        var nodeMap = new Dictionary<string, GraphNodeViewModel>();
+        foreach (var pNode in nodesData)
+        {
+            var node = CreateNodeFromData(pNode);
+            if (node != null)
+            {
+                Nodes.Add(node);
+                nodeMap[node.Id] = node;
+            }
+        }
+
+        foreach (var pConn in connsData)
+        {
+            if (nodeMap.TryGetValue(pConn.SourceNodeId, out var srcNode) &&
+                nodeMap.TryGetValue(pConn.TargetNodeId, out var tgtNode))
+            {
+                ConnectorViewModel? srcConn = null;
+                if (pConn.SourceConnectorIndex >= 0 && pConn.SourceConnectorIndex < srcNode.OutputConnectors.Count)
+                {
+                    srcConn = srcNode.OutputConnectors[pConn.SourceConnectorIndex];
+                }
+                else
+                {
+                    srcConn = srcNode.OutputConnectors.FirstOrDefault(c => c.Title == pConn.SourceConnectorTitle) ?? srcNode.OutputConnectors.FirstOrDefault();
+                }
+
+                ConnectorViewModel? tgtConn = null;
+                if (pConn.TargetConnectorIndex >= 0 && pConn.TargetConnectorIndex < tgtNode.InputConnectors.Count)
+                {
+                    tgtConn = tgtNode.InputConnectors[pConn.TargetConnectorIndex];
+                }
+                else
+                {
+                    tgtConn = tgtNode.InputConnectors.FirstOrDefault(c => c.Title == pConn.TargetConnectorTitle) ?? tgtNode.InputConnectors.FirstOrDefault();
+                }
+
+                if (srcConn != null && tgtConn != null)
+                {
+                    Connect(srcConn, tgtConn);
+                }
+            }
+        }
+
+        CompileAndSaveRules(true);
     }
 
     /// <summary>
@@ -2441,14 +2887,52 @@ public partial class LogicEditorViewModel : ObservableObject
                 PresetValue = dn.PresetValue,
                 CvTagName = dn.CvTagName,
                 ResetTagName = dn.ResetTagName,
-                OutputTagName = dn.OutputTagName
+                OutputTagName = dn.OutputTagName,
+                Gain = dn.Gain,
+                Offset = dn.Offset,
+                Unit = string.IsNullOrWhiteSpace(dn.Unit) ? "bar" : dn.Unit,
+                DecimalPlaces = dn.DecimalPlaces,
+                IsClamped = dn.IsClamped,
+                ClampMin = dn.ClampMin,
+                ClampMax = dn.ClampMax
             };
+
+            // Fix Macro Binding:
+            // For Timer and Counter nodes, check if TagName == "NONE" or empty; if so, assign dn.InputTagName so the node has a valid input tag
+            bool isTimerOrCounter = string.Equals(dn.NodeType, "TIMER", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(dn.NodeType, "COUNTER", StringComparison.OrdinalIgnoreCase);
+            if (isTimerOrCounter && (string.IsNullOrEmpty(pNode.TagName) || pNode.TagName == "NONE") &&
+                !string.IsNullOrEmpty(dn.InputTagName) && dn.InputTagName != "NONE")
+            {
+                pNode.TagName = dn.InputTagName;
+            }
+
+            // For Scale nodes, also ensure valid InputTagName if TagName was NONE or empty
+            bool isScale = string.Equals(dn.NodeType, "SCALE", StringComparison.OrdinalIgnoreCase);
+            if (isScale && (string.IsNullOrEmpty(pNode.TagName) || pNode.TagName == "NONE") &&
+                !string.IsNullOrEmpty(dn.InputTagName) && dn.InputTagName != "NONE")
+            {
+                pNode.TagName = dn.InputTagName;
+            }
 
             var node = CreateNodeFromData(pNode);
             if (node != null)
             {
                 node.IsGhost = true;
                 node.DiffStatus = DiffState.Added;
+
+                // Explicitly map Scale properties to ScaleNodeViewModel
+                if (node is ScaleNodeViewModel scaleVm)
+                {
+                    scaleVm.Gain = dn.Gain;
+                    scaleVm.Offset = dn.Offset;
+                    scaleVm.Unit = string.IsNullOrWhiteSpace(dn.Unit) ? "bar" : dn.Unit;
+                    scaleVm.DecimalPlaces = dn.DecimalPlaces;
+                    scaleVm.IsClamped = dn.IsClamped;
+                    scaleVm.ClampMin = dn.ClampMin;
+                    scaleVm.ClampMax = dn.ClampMax;
+                }
+
                 Nodes.Add(node);
                 nodeMap[node.Id] = node;
             }
@@ -2893,19 +3377,30 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (isAutoSync)
         {
+            UpdateNetworkNumbersOnNodes();
+
+            int totalDeployable = result.Rules.Count + 
+                (result.Program?.FunctionBlockTimers.Count ?? 0) + 
+                (result.Program?.FunctionBlockCounters.Count ?? 0) + 
+                (result.Program?.MqttTelemetryConfigs.Count ?? 0);
+
             // Trong chế độ tự động đồng bộ khi vẽ (Authoring / Editing mode theo chuẩn TIA Portal / CODESYS):
             // Nếu toàn bộ mạch đã hoàn chỉnh và hợp lệ: tự động cập nhật Program để sẵn sàng
-            if (result.IsValid && result.Rules.Count > 0)
+            if (result.IsValid && totalDeployable > 0)
             {
                 Diagnostics = Array.Empty<Diagnostic>();
                 OnPropertyChanged(nameof(Diagnostics));
                 CompileState = CompileState.Valid;
                 CurrentProgram = result.Program;
                 LastSuccessfulProgram = result.Program;
-                ValidRuleCount = result.Rules.Count;
+                ValidRuleCount = result.Rules.Count > 0 ? result.Rules.Count : totalDeployable;
                 SimGateWarning = string.Empty;
                 IsSaved = true;
-                SaveStatusMessage = string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count);
+                SaveStatusMessage = result.Rules.Count > 0
+                    ? string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count)
+                    : (LocalizationService.Instance.IsVietnamese 
+                        ? $"✓ {totalDeployable} khối chức năng (FBs/MQTT) sẵn sàng nạp" 
+                        : $"✓ {totalDeployable} function/MQTT blocks ready");
                 return;
             }
 
@@ -2983,7 +3478,12 @@ public partial class LogicEditorViewModel : ObservableObject
             return;
         }
 
-        if (result.Rules.Count == 0)
+        int totalDeployableExplicit = result.Rules.Count + 
+            (result.Program?.FunctionBlockTimers.Count ?? 0) + 
+            (result.Program?.FunctionBlockCounters.Count ?? 0) + 
+            (result.Program?.MqttTelemetryConfigs.Count ?? 0);
+
+        if (totalDeployableExplicit == 0)
         {
             CompileState = CompileState.NotCompiled;
             CurrentProgram = null;
@@ -2996,7 +3496,7 @@ public partial class LogicEditorViewModel : ObservableObject
         CompileState = CompileState.Valid;
         CurrentProgram = result.Program;
         LastSuccessfulProgram = result.Program;
-        ValidRuleCount = result.Rules.Count;
+        ValidRuleCount = result.Rules.Count > 0 ? result.Rules.Count : totalDeployableExplicit;
         SimGateWarning = string.Empty;
 
         // Chỉ thêm/cập nhật vào Bảng Rule khi người dùng chủ động bấm Compile / Save & Compile
@@ -3011,6 +3511,8 @@ public partial class LogicEditorViewModel : ObservableObject
                     : string.Join(", ", updated.Select(r => r.Id));
             }
         }
+
+        UpdateNetworkNumbersOnNodes();
 
         IsSaved = true;
         SaveStatusMessage = string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count);
@@ -3041,6 +3543,34 @@ public partial class LogicEditorViewModel : ObservableObject
                 }
                 catch (TaskCanceledException) { }
             });
+        }
+    }
+
+    /// <summary>
+    /// Tự động phát hiện và đánh số thứ tự Network (Rule #1, #2, #3...) chuẩn Siemens TIA Portal
+    /// cho các khối đứng đầu chuỗi logic (Input/Trigger/Timer/Counter/Scale không có upstream)
+    /// sắp xếp theo thứ tự quét chu kỳ PLC từ trên xuống dưới (Location.Y).
+    /// </summary>
+    public void UpdateNetworkNumbersOnNodes()
+    {
+        // 1. Xóa số Network cũ trên toàn bộ node
+        foreach (var node in Nodes)
+        {
+            node.NetworkNumber = 0;
+        }
+
+        // 2. Tìm tất cả các khối đầu chuỗi (không có dây nối vào InputConnectors của nó)
+        var headNodes = Nodes.Where(n => !n.IsGhost &&
+            (n.InputConnectors.Count == 0 || !Connections.Any(c => c.Target?.Node == n)))
+            .OrderBy(n => n.Location.Y)
+            .ThenBy(n => n.Location.X)
+            .ToList();
+
+        // 3. Đánh số Network thứ tự 1, 2, 3... cho các khối đầu chuỗi
+        int currentNetwork = 1;
+        foreach (var headNode in headNodes)
+        {
+            headNode.NetworkNumber = currentNetwork++;
         }
     }
 
@@ -3695,6 +4225,31 @@ public partial class LogicEditorViewModel : ObservableObject
                 }
             }
         }
+
+        // Kích hoạt Input và dây nối trực tiếp sang Comparator
+        foreach (var cmpNode in Nodes.OfType<ComparatorNodeViewModel>())
+        {
+            var cmpConn = Connections.FirstOrDefault(c => c.Target?.Node == cmpNode);
+            if (cmpConn?.Source?.Node is InputNodeViewModel inp && inp.Tag != null)
+            {
+                cmpNode.InputTag = inp.Tag;
+                cmpConn.IsActive = inp.Tag.Value != 0;
+            }
+            else if (cmpConn?.Source?.Node is ScaleNodeViewModel scl && (scl.OutputTag != null || scl.InputTag != null))
+            {
+                cmpNode.InputTag = scl.OutputTag ?? scl.InputTag;
+                cmpConn.IsActive = scl.IsLiveActive;
+            }
+
+            if (cmpNode.InputTag != null)
+            {
+                cmpNode.IsConditionMet = cmpNode.Evaluate(cmpNode.InputTag.Value);
+                foreach (var outConn in Connections.Where(c => c.Source?.Node == cmpNode))
+                {
+                    outConn.IsActive = cmpNode.IsConditionMet;
+                }
+            }
+        }
     }
 
     private void ApplyPropagationStage2(RuntimeSnapshot snapshot)
@@ -4027,6 +4582,11 @@ public partial class LogicEditorViewModel : ObservableObject
                 scl.IsLiveActive = false;
                 scl.LiveRawInput = 0;
                 scl.Calculate(0);
+            }
+            else if (node is MqttPublishNodeViewModel mqtt)
+            {
+                mqtt.IsLiveActive = false;
+                mqtt.HasPublishError = false;
             }
         }
     }

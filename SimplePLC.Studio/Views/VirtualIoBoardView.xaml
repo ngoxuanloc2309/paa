@@ -31,7 +31,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#0284C7" />
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="BtnBorder" Property="Background" Value="#E2E8F0" />
@@ -159,7 +159,7 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="BtnBdr" Property="BorderBrush" Value="#0284C7" />
+                                                                        <Setter TargetName="BtnBdr" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -248,7 +248,7 @@
                         <StackPanel>
                             <DockPanel LastChildFill="True" Margin="0,0,0,6">
                                 <TextBlock Text="{Binding [VirtualIoAnalogTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="10" FontWeight="Bold" Foreground="#006487" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                                           FontSize="10" FontWeight="Bold" Foreground="#334155" FontFamily="Segoe UI" VerticalAlignment="Center" />
                                 <TextBlock Text="0 - 10000 mV" FontSize="8.5" FontWeight="Bold" Foreground="#94A3B8" FontFamily="Consolas"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </DockPanel>
@@ -260,7 +260,7 @@
                                             <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F172A"
                                                        Width="32" VerticalAlignment="Center" DockPanel.Dock="Left" />
                                             <TextBlock Text="{Binding Value, StringFormat='{}{0} mV'}" FontSize="9.5" FontWeight="SemiBold" FontFamily="Consolas"
-                                                       Foreground="#006487" Width="55" TextAlignment="Right" VerticalAlignment="Center" DockPanel.Dock="Right" />
+                                                       Foreground="#334155" Width="55" TextAlignment="Right" VerticalAlignment="Center" DockPanel.Dock="Right" />
                                             <Slider Value="{Binding Value, Mode=TwoWay}" Minimum="0" Maximum="10000" SmallChange="100" LargeChange="1000"
                                                     VerticalAlignment="Center" Margin="6,0" />
                                         </DockPanel>

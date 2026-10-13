@@ -179,7 +179,7 @@ public partial class MainViewModel : ObservableObject
         RuleTableVM.OnNewRuleRequested = () => LogicEditorVM.NewRuleCanvas();
         RuleTableVM.OnUploadFromDeviceRequested = () => UploadFromDeviceAsync();
         BlueprintsVM = new BlueprintsViewModel(LogicEditorVM, () => SelectTab(0));
-        DeployVM = new DeployViewModel(deployUseCase: null, RuleTableVM, LogicEditorVM, (tabIndex) => SelectTab(tabIndex));
+        DeployVM = new DeployViewModel(deployUseCase: null, RuleTableVM, LogicEditorVM, (tabIndex) => SelectTab(tabIndex), () => CurrentProjectMetadata);
         SimulatorVM = new SimulatorViewModel(TagCatalogVM, RuleTableVM, LogicEditorVM);
         LiveWatchVM = new LiveWatchViewModel(AppServices.Instance.StateStore);
         AiChatVM = new AiChatViewModel(
@@ -580,7 +580,11 @@ public partial class MainViewModel : ObservableObject
     {
         if (session?.Product != null)
         {
-            void Sync() => TagCatalogVM.SyncWithProductDefinition(session.Product);
+            void Sync()
+            {
+                AppServices.Instance.CurrentProduct = session.Product;
+                TagCatalogVM.SyncWithProductDefinition(session.Product);
+            }
 
             if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
             {
@@ -663,6 +667,7 @@ public partial class MainViewModel : ObservableObject
                     }
                     if (activeSession?.Product != null)
                     {
+                        AppServices.Instance.CurrentProduct = activeSession.Product;
                         TagCatalogVM.SyncWithProductDefinition(activeSession.Product);
                     }
                     _ = AutoSyncMcuClockAsync();
@@ -795,8 +800,9 @@ public partial class MainViewModel : ObservableObject
             ConnectActionText = isSim 
                 ? (isVi ? "🔌 Ngắt kết nối thiết bị ảo" : "🔌 Disconnect Virtual Device")
                 : (isVi ? "🔌 Ngắt kết nối thiết bị" : "🔌 Disconnect Device");
-            ConnectButtonBackground = "#B91C1C"; // Red
-            ConnectButtonBorderBrush = "#991B1B";
+            // IEC 60073 / IEC 60204-1 Clause 10.2: Dual-function toggle buttons must have neutral body, not alarm red
+            ConnectButtonBackground = "#334155"; // Neutral Industrial Slate
+            ConnectButtonBorderBrush = "#1E293B";
         }
         else
         {
@@ -816,8 +822,8 @@ public partial class MainViewModel : ObservableObject
 
                 case ConnectionLifecycleState.Connecting:
                     ConnectActionText = isVi ? "◌ Đang kết nối..." : "◌ Connecting...";
-                    ConnectButtonBackground = "#006487"; // Blue/Teal
-                    ConnectButtonBorderBrush = "#004D68";
+                    ConnectButtonBackground = "#475569"; // Neutral Slate Blue
+                    ConnectButtonBorderBrush = "#334155";
                     break;
 
                 case ConnectionLifecycleState.Disconnected:
@@ -825,7 +831,7 @@ public partial class MainViewModel : ObservableObject
                     ConnectActionText = isSim
                         ? (isVi ? "⚡ Kết nối thiết bị ảo" : "⚡ Connect Virtual Device")
                         : (isVi ? "⚡ Kết nối thiết bị" : "⚡ Connect Device");
-                    ConnectButtonBackground = "#107C41"; // Green
+                    ConnectButtonBackground = "#107C41"; // Forest Green (Safe Initiate)
                     ConnectButtonBorderBrush = "#0E6B37";
                     break;
             }
@@ -1045,6 +1051,20 @@ public partial class MainViewModel : ObservableObject
         dialog.ShowDialog();
     }
 
+    [RelayCommand]
+    private void OpenMqttBrokerConfig()
+    {
+        var vm = new MqttBrokerConfigViewModel(CurrentProjectMetadata);
+        var dialog = new Views.MqttBrokerConfigDialogView(vm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            IsProjectDirty = true;
+        }
+    }
+
     private void UpdateLanguageTexts()
     {
         bool isVi = Loc.IsVietnamese;
@@ -1154,7 +1174,7 @@ public partial class MainViewModel : ObservableObject
         var sfd = new Microsoft.Win32.SaveFileDialog
         {
             Filter = ProjectFileService.ProjectFilter,
-            FileName = $"{CurrentProjectName}.splc",
+            FileName = $"{CurrentProjectName}.synx",
             Title = Loc["MenuSaveProject"]
         };
         if (sfd.ShowDialog() == true)
@@ -1308,6 +1328,7 @@ public partial class MainViewModel : ObservableObject
         CurrentProjectName = wizardVm.ProjectName;
         CurrentProjectPath = System.IO.Path.Combine(wizardVm.ProjectLocation, wizardVm.ProjectName + ProjectFileService.ProjectExtension);
 
+        AppServices.Instance.CurrentProduct = product;
         TagCatalogVM.SyncWithProductDefinition(product);
         TagCatalogVM.ResetAllAliases();
 
@@ -1369,12 +1390,14 @@ public partial class MainViewModel : ObservableObject
                 runtimeTagCount: (ushort)resources.TotalTags,
                 resources: resources,
                 out var product,
-                out _))
+                out _) && product != null)
             {
+                AppServices.Instance.CurrentProduct = product;
                 TagCatalogVM.SyncWithProductDefinition(product);
             }
 
             TagCatalogVM.LoadFromProjectData(project.Tags);
+            AppServices.Instance.CurrentProduct = TagCatalogVM.CurrentProduct;
 
             // 1. Phục hồi toàn bộ Bảng Rule trước
             if (project.Rules != null && project.Rules.Count > 0)
@@ -1529,7 +1552,7 @@ public partial class MainViewModel : ObservableObject
         var ofd = new Microsoft.Win32.OpenFileDialog
         {
             Filter = "Binary Rule Table (*.bin)|*.bin|All Files (*.*)|*.*",
-            Title = Loc.IsVietnamese ? "Nhập cấu hình tệp nhị phân MCU (*.bin)" : "Import MCU Binary Config (*.bin)"
+            Title = Loc.IsVietnamese ? "Nhập cấu hình tệp nhị phân Firmware (*.bin)" : "Import Firmware Binary Config (*.bin)"
         };
         if (ofd.ShowDialog() == true)
         {
@@ -1871,6 +1894,12 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void ToggleGrid()
+    {
+        LogicEditorVM.ToggleGrid();
+    }
+
+    [RelayCommand]
     public void LoadDefaultDemo()
     {
         if (PromptSaveIfDirty() == false) return;
@@ -2173,26 +2202,27 @@ public partial class MainViewModel : ObservableObject
         IsRtcBatteryLow = rtc.IsBatteryLow;
 
         string hwText = rtc.HasHardwareRtc
-            ? (Loc.IsVietnamese ? "Có IC RTC phần cứng (DS3231/LSE)" : "Hardware RTC chip present (DS3231/LSE)")
+            ? (Loc.IsVietnamese ? "Có IC RTC phần cứng (Duy trì giờ khi tắt nguồn)" : "Hardware RTC present (Retains time on power-off)")
             : (Loc.IsVietnamese ? "Đồng hồ phần mềm (SysTick)" : "Software clock (SysTick)");
-
-        string batText = rtc.IsBatteryLow
-            ? (Loc.IsVietnamese ? "⚠ PIN RTC YẾU / HẾT PIN - Cần thay pin CR2032!" : "⚠ BATTERY LOW - Replace CR2032 battery!")
-            : (Loc.IsVietnamese ? "Pin nuôi RTC: Tốt" : "RTC Battery: OK");
 
         string syncText = rtc.IsSynced
             ? (Loc.IsVietnamese ? "Đã đồng bộ tin cậy" : "Synchronized")
             : (Loc.IsVietnamese ? "Chưa đồng bộ" : "Not synchronized");
 
-        RtcStatusTooltip = $"{hwText}\n{batText}\nTrạng thái: {syncText}\nGiờ MCU: {rtc.LocalDateTime:HH:mm:ss dd/MM/yyyy}";
+        string warningText = rtc.IsBatteryLow
+            ? (Loc.IsVietnamese ? "\n⚠ Cảnh báo: Đồng hồ vừa bị gián đoạn nguồn nuôi!" : "\n⚠ Warning: Clock was halted due to power interruption!")
+            : string.Empty;
+
+        RtcStatusTooltip = $"{hwText}\nTrạng thái: {syncText}{warningText}\nGiờ thiết bị: {rtc.LocalDateTime:HH:mm:ss dd/MM/yyyy}";
     }
 
     private async Task AutoSyncMcuClockAsync()
     {
         try
         {
-            // Thực hiện Read-Before-Write: Chỉ đồng bộ khi chưa khớp, bảo toàn cờ HW_PRESENT và BATTERY_LOW
-            var rtc = await AppServices.Instance.RtcClockClient.SyncSmartAsync().ConfigureAwait(false);
+            // Khi vừa kết nối: Chỉ ĐỌC thời gian và thông tin phần cứng từ MCU lên để cập nhật Status Bar,
+            // TUYỆT ĐỐI KHÔNG tự động ghi đè múi giờ PC xuống MCU (tránh phá hỏng múi giờ quốc tế đã cấu hình của thiết bị).
+            var rtc = await AppServices.Instance.RtcClockClient.ReadRtcClockAsync().ConfigureAwait(false);
             if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
             {
                 dispatcher.Invoke(() =>
@@ -2203,28 +2233,48 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            // Bỏ qua lỗi trong quá trình tự động đồng bộ khi vừa kết nối
+            // Bỏ qua lỗi trong quá trình đọc thời gian khi vừa kết nối
         }
     }
 
+    /// <summary>
+    /// Cho phép can thiệp mở dialog trong kiểm thử tự động.
+    /// </summary>
+    public Func<RtcSyncViewModel, bool?>? RtcSyncDialogHandler { get; set; }
+
     [RelayCommand]
-    public async Task SyncMcuClock()
+    public void SyncMcuClock()
     {
         if (!IsConnected)
             return;
 
         try
         {
-            var rtc = await AppServices.Instance.RtcClockClient.SyncToNowAsync().ConfigureAwait(false);
-            if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+            var vm = new RtcSyncViewModel(AppServices.Instance.RtcClockClient);
+
+            bool? result;
+            if (RtcSyncDialogHandler != null)
             {
-                dispatcher.Invoke(() =>
+                result = RtcSyncDialogHandler(vm);
+            }
+            else
+            {
+                var dialog = new Views.RtcSyncDialogView(vm);
+                if (System.Windows.Application.Current?.MainWindow is { } owner && owner.IsVisible)
                 {
-                    UpdateRtcState(rtc);
-                    RuntimeStatusText = Loc.IsVietnamese
-                        ? $"Đã đồng bộ giờ máy tính xuống MCU: {rtc.LocalDateTime:HH:mm:ss dd/MM/yyyy}"
-                        : $"Synchronized PC time to MCU: {rtc.LocalDateTime:HH:mm:ss yyyy-MM-dd}";
-                });
+                    dialog.Owner = owner;
+                }
+                result = dialog.ShowDialog();
+            }
+
+            if (result == true && vm.SyncedResult is { } rtc)
+            {
+                UpdateRtcState(rtc);
+                string tzSign = rtc.TimezoneOffsetMinutes >= 0 ? "+" : "";
+                int tzHours = rtc.TimezoneOffsetMinutes / 60;
+                RuntimeStatusText = Loc.IsVietnamese
+                    ? $"Đã đồng bộ thời gian thực xuống thiết bị: {rtc.LocalDateTime:HH:mm:ss dd/MM/yyyy} (UTC{tzSign}{tzHours})"
+                    : $"Synchronized Real-Time Clock to Controller: {rtc.LocalDateTime:HH:mm:ss yyyy-MM-dd} (UTC{tzSign}{tzHours})";
             }
         }
         catch (Exception ex)

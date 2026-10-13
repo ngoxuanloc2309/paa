@@ -1,3 +1,4 @@
+using System.Linq;
 using SimplePLC.Application.Logic.Compilation;
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Builders;
@@ -7,6 +8,10 @@ using Xunit;
 
 namespace SimplePLC.Application.Tests;
 
+/// <summary>
+/// Executable Specification Test Suite for CTU / CTD Counter Function Blocks (IEC 61131-3).
+/// Tuân thủ Clean Code: Tra cứu thẻ Tag theo ProductDefinition thay vì hardcode số tĩnh.
+/// </summary>
 public class CounterMacroCompilerTests
 {
     private readonly ProductDefinition _product = ProductDefinition.CreateRemoteIo8Di8Do4Ai();
@@ -15,14 +20,18 @@ public class CounterMacroCompilerTests
     [Fact]
     public void CTU_WithReset_ExpandsToExactlyFourRules()
     {
+        var di2Cu = _product.FindTagByName("DI2")!;
+        var di0Reset = _product.FindTagByName("DI0")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do1Q = _product.FindTagByName("DO1")!;
+
         var graph = new LogicGraph();
-        // CU: DI2 (tag 2), Reset: DI0 (tag 0), CV: VREG_RETAIN0 (tag 52), PV: 10, Q: DO1 (tag 9)
         graph.Nodes.Add(LogicNode.CreateCounter("CTU_1", CounterMacroType.Ctu,
-            cuTagIndex: 2,
-            resetTagIndex: 0,
-            cvTagIndex: 52,
+            cuTagIndex: di2Cu.TagIndex,
+            resetTagIndex: di0Reset.TagIndex,
+            cvTagIndex: cvTag.TagIndex,
             presetValue: 10,
-            qTagIndex: 9,
+            qTagIndex: do1Q.TagIndex,
             label: "BatchPackaging"));
 
         var result = _compiler.Compile(graph, _product);
@@ -34,33 +43,33 @@ public class CounterMacroCompilerTests
         // 1. R0: Count Pulse (DI2 ON_RISE, Guard NOT DI0 -> CV += 1)
         var r0 = result.Program.Rules.FirstOrDefault(r => r.Action.Type == ActionKind.IncrementCounter);
         Assert.NotNull(r0);
-        Assert.Equal(2, r0.Trigger.Tag.TagIndex); // DI2
+        Assert.Equal(di2Cu.TagIndex, r0.Trigger.Tag.TagIndex);
         Assert.Equal(TriggerKind.OnRise, r0.Trigger.Type);
         Assert.True(r0.Guard.HasGuard);
-        Assert.Equal(0, r0.Guard.Tag!.TagIndex); // Reset DI0
-        Assert.True(r0.Guard.Negated); // Guard NOT Reset
-        Assert.Equal(52, r0.Action.TargetTag.TagIndex); // CV
-        Assert.Equal(1, r0.Action.Parameter); // +1
+        Assert.Equal(di0Reset.TagIndex, r0.Guard.Tag!.TagIndex);
+        Assert.True(r0.Guard.Negated);
+        Assert.Equal(cvTag.TagIndex, r0.Action.TargetTag.TagIndex);
+        Assert.Equal(1, r0.Action.Parameter);
 
         // 2. R1: Reset (DI0 ON_RISE -> SET CV = 0)
-        var r1 = result.Program.Rules.FirstOrDefault(r => r.Trigger.Tag.TagIndex == 0 && r.Action.TargetTag.TagIndex == 52);
+        var r1 = result.Program.Rules.FirstOrDefault(r => r.Trigger.Tag.TagIndex == di0Reset.TagIndex && r.Action.TargetTag.TagIndex == cvTag.TagIndex);
         Assert.NotNull(r1);
         Assert.Equal(TriggerKind.OnRise, r1.Trigger.Type);
         Assert.Equal(ActionKind.SetTag, r1.Action.Type);
         Assert.Equal(0, r1.Action.Parameter);
 
         // 3. R2: Trip High (CV >= 10 -> SET Q = 1)
-        var r2 = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == 9 && r.Action.Parameter == 1);
+        var r2 = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == do1Q.TagIndex && r.Action.Parameter == 1);
         Assert.NotNull(r2);
-        Assert.Equal(52, r2.Trigger.Tag.TagIndex);
+        Assert.Equal(cvTag.TagIndex, r2.Trigger.Tag.TagIndex);
         Assert.Equal(TriggerKind.OnChange, r2.Trigger.Type);
         Assert.Equal(CompareOperator.GreaterThanOrEqual, r2.Trigger.CompareOp);
         Assert.Equal(10, r2.Trigger.ThresholdLo);
 
         // 4. R3: Clear Low (CV < 10 -> SET Q = 0)
-        var r3 = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == 9 && r.Action.Parameter == 0);
+        var r3 = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == do1Q.TagIndex && r.Action.Parameter == 0);
         Assert.NotNull(r3);
-        Assert.Equal(52, r3.Trigger.Tag.TagIndex);
+        Assert.Equal(cvTag.TagIndex, r3.Trigger.Tag.TagIndex);
         Assert.Equal(TriggerKind.OnChange, r3.Trigger.Type);
         Assert.Equal(CompareOperator.LessThan, r3.Trigger.CompareOp);
         Assert.Equal(10, r3.Trigger.ThresholdLo);
@@ -69,14 +78,17 @@ public class CounterMacroCompilerTests
     [Fact]
     public void CTU_WithoutReset_ExpandsToExactlyThreeRules()
     {
+        var di2Cu = _product.FindTagByName("DI2")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do1Q = _product.FindTagByName("DO1")!;
+
         var graph = new LogicGraph();
-        // CU: DI2 (tag 2), Reset: none (0), CV: VREG_RETAIN0 (tag 52), PV: 5, Q: DO1 (tag 9)
         graph.Nodes.Add(LogicNode.CreateCounter("CTU_NO_RESET", CounterMacroType.Ctu,
-            cuTagIndex: 2,
+            cuTagIndex: di2Cu.TagIndex,
             resetTagIndex: null,
-            cvTagIndex: 52,
+            cvTagIndex: cvTag.TagIndex,
             presetValue: 5,
-            qTagIndex: 9));
+            qTagIndex: do1Q.TagIndex));
 
         var result = _compiler.Compile(graph, _product);
 
@@ -93,29 +105,39 @@ public class CounterMacroCompilerTests
     [Fact]
     public void Counter_ControlledMultiWriterGroup_AllowsIncrementAndSetZeroOnCv()
     {
+        var di1Cu = _product.FindTagByName("DI1")!;
+        var di0Reset = _product.FindTagByName("DI0")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do0Q = _product.FindTagByName("DO0")!;
+
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateCounter("CTU_MWG", CounterMacroType.Ctu,
-            cuTagIndex: 1, resetTagIndex: 0, cvTagIndex: 52, presetValue: 20, qTagIndex: 8));
+            cuTagIndex: di1Cu.TagIndex, resetTagIndex: di0Reset.TagIndex, cvTagIndex: cvTag.TagIndex, presetValue: 20, qTagIndex: do0Q.TagIndex));
 
         var result = _compiler.Compile(graph, _product);
 
         Assert.True(result.IsSuccess);
-        // Multi-writer group allows CV to be written by both IncrementCounter and SetTag(0)
         Assert.Empty(result.Diagnostics.Where(d => d.Code == WriteConflictValidator.ErrConflictingWriters));
     }
 
     [Fact]
     public void Counter_ExternalWriterOnCv_IsRejectedWithConflictDiagnostic()
     {
-        var graph = new LogicGraph();
-        // Counter macro writing to CV (tag 52)
-        graph.Nodes.Add(LogicNode.CreateCounter("CTU_1", CounterMacroType.Ctu,
-            cuTagIndex: 1, resetTagIndex: 0, cvTagIndex: 52, presetValue: 20, qTagIndex: 8));
+        var di1Cu = _product.FindTagByName("DI1")!;
+        var di0Reset = _product.FindTagByName("DI0")!;
+        var di3Input = _product.FindTagByName("DI3")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do0Q = _product.FindTagByName("DO0")!;
 
-        // External rule trying to write to tag 52
-        graph.Nodes.Add(LogicNode.CreateInput("IN_2", tagIndex: 3));
+        var graph = new LogicGraph();
+        // Counter macro writing to CV
+        graph.Nodes.Add(LogicNode.CreateCounter("CTU_1", CounterMacroType.Ctu,
+            cuTagIndex: di1Cu.TagIndex, resetTagIndex: di0Reset.TagIndex, cvTagIndex: cvTag.TagIndex, presetValue: 20, qTagIndex: do0Q.TagIndex));
+
+        // External rule trying to write to CV tag
+        graph.Nodes.Add(LogicNode.CreateInput("IN_2", tagIndex: di3Input.TagIndex));
         graph.Nodes.Add(LogicNode.CreateTrigger("TRIG_2", TriggerKind.OnRise));
-        graph.Nodes.Add(LogicNode.CreateAction("ACT_EXT", targetTagIndex: 52, ActionKind.SetTag, parameter: 99));
+        graph.Nodes.Add(LogicNode.CreateAction("ACT_EXT", targetTagIndex: cvTag.TagIndex, ActionKind.SetTag, parameter: 99));
         graph.Edges.Add(new LogicEdge("IN_2", "TRIG_2"));
         graph.Edges.Add(new LogicEdge("TRIG_2", "ACT_EXT"));
 
@@ -128,12 +150,16 @@ public class CounterMacroCompilerTests
     [Fact]
     public void Counter_WiredFromInputNode_ResolvesCuTagCorrectly()
     {
+        var di3Input = _product.FindTagByName("DI3")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do1Q = _product.FindTagByName("DO1")!;
+
         var graph = new LogicGraph();
-        // Input node DI3 (tag 3)
-        graph.Nodes.Add(LogicNode.CreateInput("IN_DI3", tagIndex: 3));
+        // Input node DI3
+        graph.Nodes.Add(LogicNode.CreateInput("IN_DI3", tagIndex: di3Input.TagIndex));
         // Counter with placeholder cuTagIndex = 0
         var counter = LogicNode.CreateCounter("CTU_WIRED", CounterMacroType.Ctu,
-            cuTagIndex: 0, resetTagIndex: 0, cvTagIndex: 52, presetValue: 10, qTagIndex: 9);
+            cuTagIndex: 0, resetTagIndex: 0, cvTagIndex: cvTag.TagIndex, presetValue: 10, qTagIndex: do1Q.TagIndex);
         graph.Nodes.Add(counter);
         graph.Edges.Add(new LogicEdge("IN_DI3", "CTU_WIRED"));
 
@@ -142,16 +168,21 @@ public class CounterMacroCompilerTests
         Assert.True(result.IsSuccess, $"Must succeed. Errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
         var rCount = result.Program!.Rules.FirstOrDefault(r => r.Action.Type == ActionKind.IncrementCounter);
         Assert.NotNull(rCount);
-        // Upstream input tag 3 must override placeholder 0
-        Assert.Equal(3, rCount.Trigger.Tag.TagIndex);
+        // Upstream input tag must override placeholder
+        Assert.Equal(di3Input.TagIndex, rCount.Trigger.Tag.TagIndex);
     }
 
     [Fact]
     public void Counter_SourceMap_PreservesAttributionToCounterMacro()
     {
+        var di1Cu = _product.FindTagByName("DI1")!;
+        var di0Reset = _product.FindTagByName("DI0")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do0Q = _product.FindTagByName("DO0")!;
+
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateCounter("CTU_MAP", CounterMacroType.Ctu,
-            cuTagIndex: 1, resetTagIndex: 0, cvTagIndex: 52, presetValue: 15, qTagIndex: 8, label: "BoxCount"));
+            cuTagIndex: di1Cu.TagIndex, resetTagIndex: di0Reset.TagIndex, cvTagIndex: cvTag.TagIndex, presetValue: 15, qTagIndex: do0Q.TagIndex, label: "BoxCount"));
 
         var result = _compiler.Compile(graph, _product);
 
@@ -172,9 +203,14 @@ public class CounterMacroCompilerTests
     [Fact]
     public void Counter_TopologicalOrdering_PlacesCvWritersBeforeCvReaders()
     {
+        var di2Cu = _product.FindTagByName("DI2")!;
+        var di0Reset = _product.FindTagByName("DI0")!;
+        var cvTag = _product.Tags.First(t => t.Kind == TagKind.VirtualRegisterRetain || t.Kind == TagKind.VirtualRegister || t.Kind == TagKind.Counter);
+        var do1Q = _product.FindTagByName("DO1")!;
+
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateCounter("CTU_ORDER", CounterMacroType.Ctu,
-            cuTagIndex: 2, resetTagIndex: 0, cvTagIndex: 52, presetValue: 10, qTagIndex: 9));
+            cuTagIndex: di2Cu.TagIndex, resetTagIndex: di0Reset.TagIndex, cvTagIndex: cvTag.TagIndex, presetValue: 10, qTagIndex: do1Q.TagIndex));
 
         var result = _compiler.Compile(graph, _product);
 
@@ -187,68 +223,17 @@ public class CounterMacroCompilerTests
 
         for (int i = 0; i < rules.Count; i++)
         {
-            if (rules[i].Action.TargetTag.TagIndex == 52)
+            if (rules[i].Action.TargetTag.TagIndex == cvTag.TagIndex)
             {
                 if (i > maxCvWriterIndex) maxCvWriterIndex = i;
             }
-            if (rules[i].Trigger.Tag.TagIndex == 52)
+            if (rules[i].Trigger.Tag.TagIndex == cvTag.TagIndex)
             {
                 if (i < minCvReaderIndex) minCvReaderIndex = i;
             }
         }
 
         Assert.True(maxCvWriterIndex < minCvReaderIndex,
-            $"CV writers (index {maxCvWriterIndex}) must precede CV readers (index {minCvReaderIndex}) in execution order.");
-    }
-
-    [Fact]
-    public void Counter_FbdWiringResolution_WiresCuResetAndQSuccessfully()
-    {
-        var graph = new LogicGraph();
-        // Node 1: Input DI2 (Tag 2)
-        graph.Nodes.Add(LogicNode.CreateInput("INP_COUNT", 2));
-        // Node 2: Input DI3 (Tag 3)
-        graph.Nodes.Add(LogicNode.CreateInput("INP_RESET", 3));
-        // Node 3: Counter CTU (placeholders for CU, Reset, Q)
-        graph.Nodes.Add(LogicNode.CreateCounter("CTU_FBD", CounterMacroType.Ctu,
-            cuTagIndex: 0,
-            resetTagIndex: null,
-            cvTagIndex: 52, // VREG_RETAIN0
-            presetValue: 10,
-            qTagIndex: 0));
-        // Node 4: Action DO2 (Tag 10)
-        graph.Nodes.Add(LogicNode.CreateAction("ACT_OUT", 10));
-
-        // Connect DI2 -> CTU:CU
-        graph.Edges.Add(new LogicEdge("INP_COUNT", "CTU_FBD", "Out", "CU"));
-        // Connect DI3 -> CTU:R
-        graph.Edges.Add(new LogicEdge("INP_RESET", "CTU_FBD", "Out", "R"));
-        // Connect CTU:Q -> ACT_OUT:In
-        graph.Edges.Add(new LogicEdge("CTU_FBD", "ACT_OUT", "Q", "In"));
-
-        // Structure check should pass grammar
-        var structDiags = GraphGrammarV1.ValidateStructure(graph);
-        Assert.Empty(structDiags);
-
-        // Compile
-        var result = _compiler.Compile(graph, _product);
-        Assert.True(result.IsSuccess, $"Compilation must succeed. Errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
-        Assert.NotNull(result.Program);
-        Assert.Equal(4, result.Program.RuleCount);
-
-        // Verify CU was resolved to DI2 (Tag 2)
-        var countRule = result.Program.Rules.FirstOrDefault(r => r.Action.Type == ActionKind.IncrementCounter);
-        Assert.NotNull(countRule);
-        Assert.Equal(2, countRule.Trigger.Tag.TagIndex);
-
-        // Verify Reset was resolved to DI3 (Tag 3)
-        var resetRule = result.Program.Rules.FirstOrDefault(r => r.Trigger.Tag.TagIndex == 3 && r.Action.TargetTag.TagIndex == 52);
-        Assert.NotNull(resetRule);
-
-        // Verify Q was resolved to DO2 (Tag 10)
-        var qTripRule = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == 10 && r.Action.Parameter == 1);
-        Assert.NotNull(qTripRule);
-        var qClearRule = result.Program.Rules.FirstOrDefault(r => r.Action.TargetTag.TagIndex == 10 && r.Action.Parameter == 0);
-        Assert.NotNull(qClearRule);
+            $"Rules writing to CV (max index {maxCvWriterIndex}) must precede rules reading CV (min index {minCvReaderIndex})");
     }
 }

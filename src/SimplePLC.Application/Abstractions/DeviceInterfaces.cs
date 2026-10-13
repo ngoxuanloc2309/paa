@@ -46,7 +46,26 @@ public interface IRuleTableWriter
         IReadOnlyList<FbTimerRecordDto>? timers,
         IReadOnlyList<FbCounterRecordDto>? counters,
         CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, null, cancellationToken);
+
+    Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        CancellationToken cancellationToken = default) =>
         DeployRulesAsync(slaveId, rules, cancellationToken);
+
+    Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, cancellationToken);
 }
 
 /// <summary>
@@ -89,6 +108,11 @@ public interface IRtcClockClient
     Task WriteRtcClockAsync(RtcClockDto rtc, byte slaveId = 1, CancellationToken cancellationToken = default);
     Task<RtcClockDto> SyncToNowAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
     Task<RtcClockDto> SyncSmartAsync(byte slaveId = 1, uint maxDriftSeconds = 2, CancellationToken cancellationToken = default);
+    Task<RtcClockDto> SyncToCustomTimezoneAsync(
+        TimeZoneInfo targetTimezone,
+        DateTimeOffset? customLocalDateTime = null,
+        byte slaveId = 1,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

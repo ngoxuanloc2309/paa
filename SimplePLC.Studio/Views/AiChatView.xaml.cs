@@ -1,4 +1,6 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using SimplePLC.Studio.ViewModels;
@@ -13,16 +15,29 @@ public partial class AiChatView : UserControl
         DataContextChanged += OnDataContextChanged;
     }
 
-    private void OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (e.OldValue is AiChatViewModel oldVm)
         {
             oldVm.Messages.CollectionChanged -= OnMessagesCollectionChanged;
+            oldVm.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
         if (e.NewValue is AiChatViewModel newVm)
         {
             newVm.Messages.CollectionChanged += OnMessagesCollectionChanged;
+            newVm.PropertyChanged += OnViewModelPropertyChanged;
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AiChatViewModel.IsBusy))
+        {
+            if (DataContext is AiChatViewModel vm && !vm.IsBusy)
+            {
+                ReturnFocusToPrompt();
+            }
         }
     }
 
@@ -41,11 +56,26 @@ public partial class AiChatView : UserControl
     {
         if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
         {
-            e.Handled = true;
-            if (DataContext is AiChatViewModel vm && vm.SendMessageCommand.CanExecute(null))
+            if (DataContext is AiChatViewModel vm && !string.IsNullOrWhiteSpace(vm.InputText) && vm.SendMessageCommand.CanExecute(null))
             {
+                e.Handled = true;
                 vm.SendMessageCommand.Execute(null);
+                ReturnFocusToPrompt();
             }
         }
+    }
+
+    private void SendButton_Click(object sender, RoutedEventArgs e)
+    {
+        ReturnFocusToPrompt();
+    }
+
+    public void ReturnFocusToPrompt()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            PromptTextBox.Focus();
+            Keyboard.Focus(PromptTextBox);
+        }, System.Windows.Threading.DispatcherPriority.Input);
     }
 }

@@ -34,8 +34,10 @@ public static class FunctionBlockCodec
         // +4..+5: ET (uint32, High Word -> Low Word)
         RegisterCodec.EncodeUInt32(timer.ElapsedMs, destination.Slice(4, 2));
 
-        // +6..+7: RESERVED (Sender luôn ghi 0)
-        destination[6] = 0;
+        // +6: RULE_REF (1-based index của rule đếm giờ, 0 nếu không dùng)
+        destination[6] = timer.RuleRef;
+
+        // +7: RESERVED (Sender luôn ghi 0)
         destination[7] = 0;
     }
 
@@ -52,7 +54,8 @@ public static class FunctionBlockCodec
             StatusBits = source[0],
             Mode = (SPLC_TimerMode)source[1],
             PresetMs = RegisterCodec.DecodeUInt32(source.Slice(2, 2)),
-            ElapsedMs = RegisterCodec.DecodeUInt32(source.Slice(4, 2))
+            ElapsedMs = RegisterCodec.DecodeUInt32(source.Slice(4, 2)),
+            RuleRef = source[6]
         };
     }
 

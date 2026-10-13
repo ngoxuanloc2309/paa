@@ -7,8 +7,8 @@ namespace SimplePLC.Studio.Services;
 
 public static class ProjectFileService
 {
-    public const string ProjectExtension = ".splc";
-    public const string ProjectFilter = "SimplePLC Project (*.splc)|*.splc|JSON File (*.json)|*.json|All Files (*.*)|*.*";
+    public const string ProjectExtension = ".synx";
+    public const string ProjectFilter = "SynaptiX Project (*.synx)|*.synx|JSON File (*.json)|*.json|All Files (*.*)|*.*";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -20,7 +20,7 @@ public static class ProjectFileService
 
     private static readonly string RecentProjectsFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SimplePLC",
+        "SynaptiX",
         "recent_projects.json");
 
     public static void SaveProject(string filePath, ProjectModel project)

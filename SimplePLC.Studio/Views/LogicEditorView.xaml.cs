@@ -311,6 +311,18 @@ public partial class LogicEditorView : UserControl
         }
     }
 
+    private void ToolboxItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is FrameworkElement fe && fe.Tag is string tag)
+        {
+            if (DataContext is LogicEditorViewModel vm)
+            {
+                vm.InsertNextConnectedNode(tag);
+                e.Handled = true;
+            }
+        }
+    }
+
     private void ToolboxItem_MouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed && sender is FrameworkElement fe && fe.Tag is string tag)
@@ -439,14 +451,11 @@ public partial class LogicEditorView : UserControl
                     {
                         // Chuyển đổi tọa độ thả chuột chính xác theo không gian của NodifyEditor (đã tính độ trượt Panning và Tỉ lệ Zoom)
                         position = editor.GetLocationInsideEditor(e);
-                        uint cellSize = editor.GridCellSize;
-                        if (cellSize > 0)
-                        {
-                            position = new Point(
-                                Math.Round(position.X / cellSize) * cellSize,
-                                Math.Round(position.Y / cellSize) * cellSize
-                            );
-                        }
+                        uint cellSize = editor.GridCellSize > 0 ? editor.GridCellSize : 20;
+                        position = new Point(
+                            Math.Round(position.X / cellSize) * cellSize,
+                            Math.Round(position.Y / cellSize) * cellSize
+                        );
                     }
                     else
                     {
@@ -470,6 +479,28 @@ public partial class LogicEditorView : UserControl
             if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == 0)
             {
                 vm.DeselectAllConnections();
+            }
+
+            // Nhấp đúp (Double Click) vào khối: Chọn khối an toàn và dừng sự kiện, ngăn crash do xung đột selection của Nodify
+            if (e.ClickCount >= 2)
+            {
+                if (!node.IsSelected)
+                {
+                    vm.SelectExclusive(node);
+                }
+                else
+                {
+                    vm.SelectedNode = node;
+                }
+
+                if (node is MqttPublishNodeViewModel mqttNode)
+                {
+                    vm.OpenMqttConfigCommand.Execute(mqttNode);
+                }
+
+                fe.Focus();
+                e.Handled = true;
+                return;
             }
 
             // Nhấp chuột phải vào khối đang nằm trong nhóm quét chọn: giữ nguyên toàn bộ nhóm để thao tác context menu

@@ -3,11 +3,52 @@
                     xmlns:nodify="clr-namespace:Nodify;assembly=Nodify"
                     xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
                     xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+                    xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
                     xmlns:services="clr-namespace:SimplePLC.Studio.Services">
 
     <converters:NodeLiveBadgeBackgroundConverter x:Key="NodeLiveBadgeBackgroundConverter" />
     <converters:NodeLiveBadgeBorderConverter x:Key="NodeLiveBadgeBorderConverter" />
     <converters:NodeLiveBadgeForegroundConverter x:Key="NodeLiveBadgeForegroundConverter" />
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+    <!-- =================== Industrial Block Icon Geometries (16x16 WPF Vector Path) =================== -->
+    <!-- Single-color, scalable, crisp at all DPI — replaces non-rendering Unicode Emoji -->
+    <!-- Input Signal: Arrow pointing right with inlet mark -->
+    <Geometry x:Key="IconInputSignal">M2,8 L12,8 M8,4 L12,8 L8,12</Geometry>
+    <!-- Trigger / Lightning bolt: FBD sharp angular bolt -->
+    <Geometry x:Key="IconTriggerLightning">M10,1 L5,8.5 L8.5,8.5 L6,15 L11,7.5 L7.5,7.5 Z</Geometry>
+    <!-- Guard / Shield: standard IEC safety shield silhouette -->
+    <Geometry x:Key="IconGuardShield">M8,1.5 L13.5,4 L13.5,9.5 Q13.5,13.5 8,15 Q2.5,13.5 2.5,9.5 L2.5,4 Z</Geometry>
+    <!-- Action / Coil: IEC 61131-3 coil symbol ( )— -->
+    <Geometry x:Key="IconActionCoil">M2,8 L4,8 M12,8 L14,8 M4,4.5 A3.5,3.5 0 1 1 4,11.5</Geometry>
+    <!-- Timer / Clock: partial arc + hour/minute hands -->
+    <Geometry x:Key="IconTimerClock">M8,1.5 A6.5,6.5 0 1 1 1.5,8 M8,1.5 L8,8 L11,10</Geometry>
+    <!-- Counter / Tally grid: horizontal and vertical count lines -->
+    <Geometry x:Key="IconCounterHash">M5.5,3 L5.5,13 M10.5,3 L10.5,13 M2,6.5 L14,6.5 M2,10 L14,10</Geometry>
+    <!-- Scale / Linear Ramp: step-up ramp representing y=kx+b analog scale -->
+    <Geometry x:Key="IconScaleRamp">M2,13 L5,13 L5,9.5 L8,9.5 L8,6 L11,6 L11,3 L14,3</Geometry>
+    <!-- Comparator / Relational Operator: two horizontal bars + chevron -->
+    <Geometry x:Key="IconComparatorOp">M3.5,6 L8,9 L3.5,12 M9.5,7 L13,7 M9.5,10.5 L13,10.5</Geometry>
+    <!-- MQTT / IIoT Broadcast: Antenna tower with radiating waves -->
+    <Geometry x:Key="IconMqttBroadcast">M8,14 L8,8 M5,10 A4,4 0 0 1 11,10 M3,7.5 A7,7 0 0 1 13,7.5 M1.5,5 A9.5,9.5 0 0 1 14.5,5</Geometry>
+
+    <!-- Shared style for all block header icons: 11×11 viewport, single-color Slate stroke -->
+    <Style x:Key="NodeHeaderIconStyle" TargetType="Path">
+        <Setter Property="Width" Value="11"/>
+        <Setter Property="Height" Value="11"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Fill" Value="Transparent"/>
+        <Setter Property="Stroke" Value="#475569"/>
+        <Setter Property="StrokeThickness" Value="1.5"/>
+        <Setter Property="StrokeLineJoin" Value="Round"/>
+        <Setter Property="StrokeStartLineCap" Value="Round"/>
+        <Setter Property="StrokeEndLineCap" Value="Round"/>
+        <Setter Property="Margin" Value="0,0,5,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="UseLayoutRounding" Value="True"/>
+    </Style>
+    <!-- =================== End Icon Geometries =================== -->
 
     <!-- Industrial Typography Standard Tokens -->
     <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="IndustrialFontSizePin">9.5</sys:Double>
@@ -17,7 +58,7 @@
 
     <!-- ControlTemplate for Industrial Port Pins: Crisp circular dot without background overlay on labels -->
     <ControlTemplate x:Key="IndustrialPortPinTemplate" TargetType="{x:Type Control}">
-        <Grid Width="11" Height="11" Background="Transparent" VerticalAlignment="Center">
+        <Grid Width="10" Height="10" Background="Transparent" VerticalAlignment="Center">
             <Ellipse x:Name="PinBg"
                      Fill="#FFFFFF"
                      Stroke="{TemplateBinding BorderBrush}"
@@ -90,12 +131,12 @@
                             UseLayoutRounding="True">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <!-- Row 0: Top Accent Stripe (3px) -->
-                                <RowDefinition Height="3" />
-                                <!-- Row 1: Header (26px Fixed) -->
+                                <!-- Row 0: Top Accent Stripe (4px Chẵn) -->
+                                <RowDefinition Height="4" />
+                                <!-- Row 1: Header (26px Chẵn) -->
                                 <RowDefinition Height="26" />
-                                <!-- Row 2: Central Body (57px Fixed) -->
-                                <RowDefinition Height="*" />
+                                <!-- Row 2: Central Body (56px Cố định chẵn) -->
+                                <RowDefinition Height="56" />
                             </Grid.RowDefinitions>
 
                             <!-- 0. Top Accent Stripe -->
@@ -110,29 +151,43 @@
                                     BorderBrush="#E5E7EB"
                                     BorderThickness="0,0,0,1"
                                     Padding="8,0">
-                                <Grid>
-                                    <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                                <DockPanel LastChildFill="True">
+                                    <!-- In-Place Industrial Network # Badge (Leftmost) -->
+                                    <Border DockPanel.Dock="Left" VerticalAlignment="Center"
+                                            Background="#E2E8F0" BorderBrush="#94A3B8" BorderThickness="1"
+                                            CornerRadius="2" Padding="4,1" Margin="0,0,6,0"
+                                            Visibility="{Binding HasNetworkNumber, Converter={StaticResource BoolToVis}}"
+                                            ToolTip="{Binding NetworkBadgeText}">
+                                        <TextBlock Text="{Binding NetworkBadgeText}" FontSize="9" FontWeight="Bold"
+                                                   FontFamily="Consolas" Foreground="#0F172A"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
 
-                                    <!-- In-Place Industrial Diagnostic Glyph Badge (Compact, non-intrusive, tooltipped) -->
-                                    <Border x:Name="DiagErrorBadge" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Background="#DC2626" BorderBrush="#991B1B" BorderThickness="1"
-                                            CornerRadius="7" Width="14" Height="14" Margin="0,0,2,0" Visibility="Collapsed"
-                                            Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                        <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
-                                    </Border>
-                                    <Border x:Name="DiagWarningBadge" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Background="#D97706" BorderBrush="#92400E" BorderThickness="1"
-                                            CornerRadius="7" Width="14" Height="14" Margin="0,0,2,0" Visibility="Collapsed"
-                                            Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                        <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
-                                    </Border>
-                                </Grid>
+                                    <!-- In-Place Industrial Diagnostic Glyph Badges (Rightmost) -->
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border x:Name="DiagErrorBadge"
+                                                Background="#DC2626" BorderBrush="#991B1B" BorderThickness="1"
+                                                CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
+                                                Cursor="Help" ToolTip="{Binding ErrorMessage}">
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
+                                        </Border>
+                                        <Border x:Name="DiagWarningBadge"
+                                                Background="#D97706" BorderBrush="#92400E" BorderThickness="1"
+                                                CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
+                                                Cursor="Help" ToolTip="{Binding ErrorMessage}">
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Node Header Content (Fills center) -->
+                                    <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                                </DockPanel>
                             </Border>
 
                             <!-- 2. Integrated Body with Left & Right Ports -->
-                            <Grid Grid.Row="2">
+                            <Grid Grid.Row="2" Height="56">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -163,38 +218,46 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Priority 1 (lowest): Selection — informational only -->
                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#006487" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                         </DataTrigger>
+                        <!-- Priority 2: Ghost state — editing placeholder -->
                         <DataTrigger Binding="{Binding IsGhost}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#00A389" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#475569" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Opacity" Value="0.85" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#00A389" />
+                            <Setter TargetName="NodeBorder" Property="Opacity" Value="0.65" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="#475569" />
+                            <Setter TargetName="PART_Input" Property="IsHitTestVisible" Value="False" />
+                            <Setter TargetName="PART_Output" Property="IsHitTestVisible" Value="False" />
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding HasWarning}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#D97706" />
-                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Visible" />
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding HasError}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#DC2626" />
-                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="DiagErrorBadge" Property="Visibility" Value="Visible" />
-                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Collapsed" />
-                        </DataTrigger>
+                        <!-- Priority 3: Simulation Active — runtime OK state (IEC green) -->
                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
                         </DataTrigger>
+                        <!-- Priority 4: Simulation Blocked — runtime fault state (IEC red) -->
                         <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#B91C1C" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="NodeBorder" Property="Background" Value="#FEE2E2" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#B91C1C" />
+                        </DataTrigger>
+                        <!-- Priority 5: Warning — static compile warning; must override sim states -->
+                        <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#D97706" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <!-- Priority 6 (highest): Error — critical fault; must override everything -->
+                        <DataTrigger Binding="{Binding HasError}" Value="True">
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#DC2626" />
+                            <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="DiagErrorBadge" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -210,7 +273,7 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="🔌" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconInputSignal}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="100" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
@@ -286,7 +349,7 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="⚡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconTriggerLightning}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
@@ -369,7 +432,7 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="🛡️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconGuardShield}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
@@ -442,7 +505,7 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="⚙️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconActionCoil}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
@@ -524,7 +587,7 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="{Binding ModeGlyph}" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconTimerClock}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
@@ -647,11 +710,11 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="{Binding ModeGlyph}" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconCounterHash}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding CounterMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#059669" />
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding CounterMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F766E" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -734,18 +797,17 @@
     <!-- 7. Scale Node Template (Analog Scaler / Amplifier, Industrial Steel Blue Card) -->
     <DataTemplate DataType="{x:Type vm:ScaleNodeViewModel}">
         <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
-                     Width="195"
                      HeaderBrush="{StaticResource NodeScaleBrush}"
                      Input="{Binding InputConnectors}"
                      Output="{Binding OutputConnectors}">
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="📈" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconScaleRamp}"/>
                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#E0F2FE" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="SCALE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="SCALE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -862,26 +924,193 @@
         </nodify:Node>
     </DataTemplate>
 
+    <!-- 8. Comparator Node Template (IEC 61131-3 CMP Relational Operator Card) -->
+    <DataTemplate DataType="{x:Type vm:ComparatorNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     Width="180"
+                     HeaderBrush="{StaticResource NodeComparatorBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconComparatorOp}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="CMP" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding FormulaExpression}" FontWeight="Bold" FontSize="12" FontFamily="Consolas" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsConditionMet}" Value="True">
+                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#64748B" />
+                                <Setter Property="Text" Value="{Binding ConditionPassedText}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConditionMet}" Value="True">
+                                        <Setter Property="Foreground" Value="#107C41" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 9. MQTT Publish Node Template (Industrial IIoT Telemetry & Cloud Messaging Block) -->
+    <DataTemplate DataType="{x:Type vm:MqttPublishNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialNodeStyle}"
+                     Width="180"
+                     HeaderBrush="{StaticResource NodeMqttBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconMqttBroadcast}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130" />
+                    </StackPanel>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding Title}" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <!-- Topic Display (Clean & Compact) -->
+                <TextBlock Text="{Binding Topic}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding Topic}" />
+
+                <!-- Status Pill (Live / Simulation) -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F8FAFC" />
+                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasPublishError}" Value="True">
+                                    <Setter Property="Background" Value="#FEF2F2" />
+                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                    <Setter Property="Background" Value="#ECFDF5" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                    <Setter Property="Background" Value="#F0F4F8" />
+                                    <Setter Property="BorderBrush" Value="#006487" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPublishError}" Value="True">
+                                            <Setter Property="Fill" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Fill" Value="#006487" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding TelemetryStatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="85">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPublishError}" Value="True">
+                                            <Setter Property="Foreground" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSimActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#006487" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
     <!-- Connection Line Template: Straight or Orthogonal PLC Ladder Wire from Pin to Pin -->
     <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
         <Grid Background="Transparent">
             <!-- Vùng hit-test vô hình dày 12px để click chuột mượt mà -->
-            <nodify:StepConnection Source="{Binding Source.Anchor}"
-                                   Target="{Binding Target.Anchor}"
-                                   SourceOffset="0,0"
-                                   TargetOffset="0,0"
-                                   ArrowEnds="None"
-                                   Stroke="Transparent"
-                                   StrokeThickness="12" />
+            <controls:IndustrialStepConnection Source="{Binding Source.Anchor}"
+                                               Target="{Binding Target.Anchor}"
+                                               SourceOffset="0,0"
+                                               TargetOffset="0,0"
+                                               ArrowEnds="None"
+                                               Stroke="Transparent"
+                                               StrokeThickness="12" />
             
             <!-- Dây hiển thị thực tế: nét liền phẳng chuẩn công nghiệp, đường thẳng hoặc vuông góc 90 độ -->
-            <nodify:StepConnection Source="{Binding Source.Anchor}"
-                                   Target="{Binding Target.Anchor}"
-                                   SourceOffset="0,0"
-                                   TargetOffset="0,0"
-                                   IsHitTestVisible="False">
-                <nodify:StepConnection.Style>
-                    <Style TargetType="{x:Type nodify:StepConnection}">
+            <controls:IndustrialStepConnection Source="{Binding Source.Anchor}"
+                                               Target="{Binding Target.Anchor}"
+                                               SourceOffset="0,0"
+                                               TargetOffset="0,0"
+                                               IsHitTestVisible="False">
+                <controls:IndustrialStepConnection.Style>
+                    <Style TargetType="{x:Type controls:IndustrialStepConnection}">
                         <Setter Property="Stroke" Value="#64748B" />
                         <Setter Property="StrokeThickness" Value="2" />
                         <Setter Property="ArrowEnds" Value="None" />
@@ -898,8 +1127,8 @@
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </nodify:StepConnection.Style>
-            </nodify:StepConnection>
+                </controls:IndustrialStepConnection.Style>
+            </controls:IndustrialStepConnection>
         </Grid>
     </DataTemplate>
 

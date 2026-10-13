@@ -169,6 +169,48 @@ public static class ModbusRegisterMap
     public const ushort FbCounterRetainNone = 0xFFFF;
 
     // ==========================================
+    // 2.2 PHÂN VÙNG MQTT TELEMETRY V2 (0x0C00 - 0x0D7F)
+    // SPLC-SPEC-MQTT-001: 4 Blocks x 96 Registers = 384 Registers (768 Bytes)
+    // ==========================================
+    public const ushort MqttTelemetryTableBaseAddress = 0x0C00;
+    public const int MqttRegistersPerBlock = 96;
+    public const int MqttBytesPerBlock = 192;
+    public const int MqttMaxBlocks = 4;
+    public const int MqttHeaderRegisters = 32;
+    public const int MqttTemplateRegisters = 64;
+    public const int MqttTopicMaxChars = 32;
+    public const int MqttTemplateMaxChars = 128;
+    public const int MqttMaxTagsPerBlock = 8;
+    public const ushort MqttTableTotalLength = MqttMaxBlocks * MqttRegistersPerBlock; // 384 registers
+
+    // Bitmasks cho CONTROL_FLAGS của MQTT Block (Offset +0)
+    public const ushort MqttControlBitEnabled = 0x0001;        // Bit 0: Enable
+    public const ushort MqttControlModeMask = 0x0006;          // Bit 1..2: Publish Mode (0=Event, 1=COV, 2=Periodic)
+    public const ushort MqttControlModeShift = 1;
+    public const ushort MqttControlQosMask = 0x0018;           // Bit 3..4: QoS (0, 1, 2)
+    public const ushort MqttControlQosShift = 3;
+    public const ushort MqttControlBitRetain = 0x0020;         // Bit 5: Retain
+    public const ushort MqttControlPayloadModeMask = 0x00C0;   // Bit 6..7: Payload Mode (0=JSON, 1=Raw, 2=Custom)
+    public const ushort MqttControlPayloadModeShift = 6;
+
+    // ==========================================
+    // 2.3 PHÂN VÙNG MQTT BROKER CONFIGURATION (0x0E00 - 0x0E5F)
+    // SPLC-SPEC-MQTT-001: 96 Registers = 192 Bytes
+    // ==========================================
+    public const ushort MqttBrokerConfigBaseAddress = 0x0E00;
+    public const int MqttBrokerConfigRegisters = 96;
+    public const int MqttBrokerConfigBytes = 192;
+    public const int MqttBrokerHostMaxChars = 64;
+    public const int MqttBrokerCredentialsMaxChars = 32;
+
+    // Bitmasks cho BROKER_CONTROL (Offset +0)
+    public const ushort MqttBrokerControlBitEnabled = 0x0001;        // Bit 0: Enable
+    public const ushort MqttBrokerControlBitUseTls = 0x0002;         // Bit 1: TLS 8883
+    public const ushort MqttBrokerControlBitCleanSession = 0x0004;   // Bit 2: Clean Session
+    public const ushort MqttBrokerControlVersionMask = 0x0018;       // Bit 3..4: Version (0=3.1.1, 1=5.0)
+    public const ushort MqttBrokerControlVersionShift = 3;
+
+    // ==========================================
     // 3. PHÂN VÙNG RULE TRANSFER & COMMIT (0x9000 - 0xA001)
     // ==========================================
     public const ushort ConfigStatusAddress = 0x9000;
@@ -263,5 +305,17 @@ public static class ModbusRegisterMap
             throw new ArgumentOutOfRangeException(nameof(counterIndex), $"Counter index must be between 0 and {FbMaxCounters - 1}.");
 
         return (ushort)(FbCounterTableBaseAddress + (counterIndex << 3));
+    }
+
+    /// <summary>
+    /// Tính địa chỉ bắt đầu của MQTT Telemetry block thứ blockIndex (0..3) trong bảng MqttTelemetryTable.
+    /// Ví dụ: index 0 -> 0x0C00; index 1 -> 0x0C60.
+    /// </summary>
+    public static ushort GetMqttBlockAddress(int blockIndex)
+    {
+        if (blockIndex < 0 || blockIndex >= MqttMaxBlocks)
+            throw new ArgumentOutOfRangeException(nameof(blockIndex), $"MQTT block index must be between 0 and {MqttMaxBlocks - 1}.");
+
+        return (ushort)(MqttTelemetryTableBaseAddress + blockIndex * MqttRegistersPerBlock);
     }
 }

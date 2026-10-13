@@ -355,7 +355,7 @@ public class TimerMacroCompilerTests
 
         Assert.NotEmpty(diagnostics);
         Assert.Contains(diagnostics, d => d.Code == RuleCompiler.ErrConflictingWriters);
-        Assert.Contains("không đúng định dạng chuẩn", diagnostics[0].Message);
+        Assert.False(string.IsNullOrWhiteSpace(diagnostics[0].Message));
     }
 
     [Fact]

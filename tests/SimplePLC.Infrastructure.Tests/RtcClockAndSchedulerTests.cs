@@ -205,4 +205,38 @@ public class RtcClockAndSchedulerTests
         var readBack = await rtcClient.ReadRtcClockAsync();
         Assert.True(readBack.HasHardwareRtc);
     }
+
+    [Fact]
+    public async Task RtcClockClient_SyncToCustomTimezone_CalculatesOffsetsAndPreservesFlags()
+    {
+        var simulator = new McuReferenceSimulator(wireProfile: 1);
+        simulator.Control.SetHardwareRtcState(hasHardwareRtc: true, batteryLow: true);
+
+        var client = new FakeModbusClient(simulator, isConnected: true);
+        var rtcClient = new RtcClockClient(client);
+
+        // Giả lập chọn Eastern Standard Time (New York, UTC-5)
+        var nyTimezone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        // 1. Đồng bộ tự động theo thời điểm hiện tại của thế giới sang New York
+        var syncedNow = await rtcClient.SyncToCustomTimezoneAsync(nyTimezone);
+
+        Assert.True(syncedNow.IsSynced);
+        Assert.True(syncedNow.HasHardwareRtc);
+        Assert.True(syncedNow.IsBatteryLow);
+        // New York là UTC-5 (-300 phút) hoặc UTC-4 (-240 phút trong giờ mùa hè)
+        Assert.True(syncedNow.TimezoneOffsetMinutes == -300 || syncedNow.TimezoneOffsetMinutes == -240);
+
+        // 2. Đồng bộ thủ công thời gian chỉ định: 08:30 sáng tại New York
+        var customLocal = new DateTimeOffset(2026, 10, 12, 8, 30, 0, TimeSpan.FromHours(-5));
+        var syncedManual = await rtcClient.SyncToCustomTimezoneAsync(nyTimezone, customLocal);
+
+        Assert.True(syncedManual.IsSynced);
+        var readBack = await rtcClient.ReadRtcClockAsync();
+        Assert.Equal(8, readBack.LocalDateTime.Hour);
+        Assert.Equal(30, readBack.LocalDateTime.Minute);
+        Assert.Equal(830, readBack.LocalHhmm);
+        Assert.True(readBack.HasHardwareRtc);
+        Assert.True(readBack.IsBatteryLow);
+    }
 }

@@ -105,4 +105,75 @@ public class FunctionBlockGatewayTests
         Assert.Equal(100, (counterRegs[2] << 16) | counterRegs[3]); // PV = 100
         Assert.Equal(85, counterRegs[6]); // RetainTagIndex = 85
     }
+
+    [Fact]
+    public async Task DeployRulesUseCase_WithMqttConfigsAndBroker_DeploysMqttAndRulesToMCU()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        var writer = new RuleTableWriter(fakeClient);
+        var useCase = new DeployRulesUseCase(writer);
+
+        var table = new RuleTable();
+        var di0 = _product.FindTagByName("DI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+        table.AddRule(new Rule(0, "R1", new TriggerModel(di0, TriggerKind.OnRise), new ActionModel(do0, ActionKind.SetTag, 1)));
+
+        var mqttConfigs = new List<MqttTelemetryConfigDto>
+        {
+            new()
+            {
+                Topic = "plant/furnace/telemetry",
+                PublishMode = "COV",
+                IntervalMs = 2500,
+                Deadband = 1.25,
+                Qos = 1,
+                Retain = true,
+                PayloadMode = "JSON",
+                Fields = new List<MqttPayloadFieldDto>
+                {
+                    new() { Key = "di0", TagIndex = di0.TagIndex }
+                }
+            }
+        };
+
+        var brokerConfig = new MqttBrokerConfigDto
+        {
+            Enabled = true,
+            Host = "192.168.1.150",
+            Port = 1883,
+            UseTls = false,
+            ClientId = "SPLC-UNIT-01",
+            Username = "operator",
+            Password = "secret"
+        };
+
+        // Act
+        var result = await useCase.ExecuteAsync(table, timers: null, counters: null, mqttConfigs, brokerConfig, slaveId: 1);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.DeployedRuleCount);
+
+        // Verify MQTT Telemetry Block 0 written at 0x0C00 (96 registers)
+        var telemetryRegs = await fakeClient.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttRegistersPerBlock);
+        var decodedBlock = SimplePLC.Protocol.Codec.MqttTelemetryCodec.DecodeBlock(telemetryRegs);
+        Assert.Equal("plant/furnace/telemetry", decodedBlock.Topic);
+        Assert.Equal(2500u, decodedBlock.IntervalMs);
+        Assert.Equal(1.25, decodedBlock.Deadband, precision: 2);
+        Assert.Equal(1, decodedBlock.Qos);
+        Assert.True(decodedBlock.Retain);
+        Assert.Equal("COV", decodedBlock.PublishMode);
+
+        // Verify MQTT Broker Config written at 0x0E00 (96 registers)
+        var brokerRegs = await fakeClient.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters);
+        var decodedBroker = SimplePLC.Protocol.Codec.MqttBrokerConfigCodec.Decode(brokerRegs);
+        Assert.True(decodedBroker.Enabled);
+        Assert.Equal("192.168.1.150", decodedBroker.Host);
+        Assert.Equal(1883, decodedBroker.Port);
+        Assert.Equal("SPLC-UNIT-01", decodedBroker.ClientId);
+        Assert.Equal("operator", decodedBroker.Username);
+        Assert.Equal("secret", decodedBroker.Password);
+    }
 }

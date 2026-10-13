@@ -587,7 +587,8 @@ Wire Profile V2 defines the **Dedicated Function Block Subsystem**, dedicating h
 | **`+1`** | `MODE` | **R/W** | `uint16` | **Timer Operating Mode**:<br>• `0` = `DISABLED`<br>• `1` = `TON` (Timer On-Delay)<br>• `2` = `TOF` (Timer Off-Delay)<br>• `3` = `TP` (Timer Pulse) |
 | **`+2..3`**| `PT` | **R/W** | `uint32` | **Preset Time (ms)**: 32-bit Big-Endian (High Word at `+2`, Low Word at `+3`). |
 | **`+4..5`**| `ET` | **RO** | `uint32` | **Elapsed Time (ms)**: 32-bit Big-Endian (Real-time timing accumulator). |
-| **`+6..7`**| `RESERVED` | **RO** | 2 regs | Reserved for future expansion (0x0000). |
+| **`+6`** | `RULE_REF` | **R/W** | `uint16` | **Rule Reference Index**: 1-based index của rule đếm giờ của Timer đó trong bảng rule gửi xuống (`1..100`). Ghi `0` nếu không dùng / unlinked. Firmware dùng `RULE_REF` để trích xuất `ET`, `RUNNING`, `Q`. |
+| **`+7`** | `RESERVED` | **RO** | `uint16` | Reserved for future expansion (0x0000). |
 
 ---
 
@@ -664,7 +665,8 @@ typedef struct {
     uint16_t mode;        /* SPLC_TimerMode_t: DISABLED (0), TON (1), TOF (2), TP (3) */
     uint32_t pt_ms;       /* Preset Time (milliseconds, Big-Endian) */
     uint32_t et_ms;       /* Elapsed Time (milliseconds, Big-Endian, Volatile RAM) */
-    uint16_t reserved[2]; /* Sender writes 0; receiver ignores */
+    uint16_t rule_ref;    /* Rule Reference Index (1-based: 1..100, 0: unlinked) */
+    uint16_t reserved;    /* Sender writes 0; receiver ignores */
 } SPLC_PlcTimer_t;
 
 /* ========================================================================= */

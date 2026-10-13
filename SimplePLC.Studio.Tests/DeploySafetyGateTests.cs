@@ -24,6 +24,7 @@ public class DeploySafetyGateTests : IDisposable
 
     private async Task<(DeployViewModel deployVM, LogicEditorViewModel logicVM, FakeModbusClient client)> CreateFixtureAsync()
     {
+        AppServices.Instance.CurrentProduct = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai();
         var fakeClient = new FakeModbusClient();
         await fakeClient.ConnectAsync("COM1", 115200);
         AppServices.Instance.SetModbusClient(fakeClient);
@@ -117,8 +118,9 @@ public class DeploySafetyGateTests : IDisposable
     public void Deploy_DeviceInfoBadge_UsesIndustrialBranding_NoChipName()
     {
         var deployVM = new DeployViewModel();
-        Assert.Contains("SimplePLC", deployVM.DeviceInfoBadge);
-        Assert.Contains("USB CDC", deployVM.DeviceInfoBadge);
+        Assert.Contains("SynaptiX", deployVM.DeviceInfoBadge);
+        Assert.Contains("RS-485/USB", deployVM.DeviceInfoBadge);
+        Assert.DoesNotContain("SimplePLC", deployVM.DeviceInfoBadge);
         Assert.DoesNotContain("STM32", deployVM.DeviceInfoBadge);
         Assert.DoesNotContain("ARM", deployVM.DeviceInfoBadge);
     }

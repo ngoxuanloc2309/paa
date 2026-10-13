@@ -22,6 +22,39 @@ public partial class TagCatalogViewModel : ObservableObject
     private ProductResourceProfile? _currentResources;
     public ProductResourceProfile? CurrentResources => _currentResources;
 
+    private ProductDefinition? _currentProduct;
+    public ProductDefinition CurrentProduct => _currentProduct ??= BuildProductFromCurrentTags();
+
+    public ProductDefinition BuildProductFromCurrentTags()
+    {
+        var tags = AllTags.Where(t => t.Kind != TagKind.None).Select(t => new TagDefinition(
+            (ushort)t.Index,
+            t.Name,
+            t.Kind,
+            t.IsDigital ? TagDataType.Boolean : TagDataType.Int32,
+            isReadOnly: t.IsReadOnly,
+            t.DisplayName
+        )).ToList();
+
+        var resources = _currentResources ?? new ProductResourceProfile(
+            DigitalInputs: (ushort)AllTags.Count(t => t.Kind == TagKind.DiscreteInput),
+            DigitalOutputs: (ushort)AllTags.Count(t => t.Kind == TagKind.DiscreteOutput),
+            AnalogInputs: (ushort)AllTags.Count(t => t.Kind == TagKind.AnalogInput),
+            VirtualFlags: (ushort)AllTags.Count(t => t.Kind == TagKind.VirtualFlag),
+            VirtualRegisters: (ushort)AllTags.Count(t => t.Kind == TagKind.VirtualRegister),
+            RetentiveRegisters: (ushort)AllTags.Count(t => t.Kind == TagKind.VirtualRegisterRetain),
+            Counters: (ushort)AllTags.Count(t => t.Kind == TagKind.Counter)
+        );
+
+        return new ProductDefinition(
+            $"Dynamic Profile ({tags.Count} Tags)",
+            deviceClass: 1,
+            productVariant: 1,
+            maxRules: 100,
+            resources: resources,
+            tags: tags);
+    }
+
     public ObservableCollection<TagModel> AllTags { get; } = new();
     public ObservableCollection<TagModel> DigitalTags { get; } = new();
     public ObservableCollection<TagModel> OutputDigitalTags { get; } = new();
@@ -109,7 +142,7 @@ public partial class TagCatalogViewModel : ObservableObject
         var dlg = new SaveFileDialog
         {
             Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*",
-            FileName = $"SimplePLC_Tags_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+            FileName = $"SynaptiX_Tags_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
             DefaultExt = ".csv"
         };
 
@@ -168,6 +201,7 @@ public partial class TagCatalogViewModel : ObservableObject
             AllTags.Add(new TagModel { Index = (ushort)(layout.CounterBase + i), Kind = TagKind.Counter, Name = $"COUNTER{i}", Channel = i + 1, Group = "COUNTER", Value = 0 });
 
         RebuildDerivedCollections();
+        _currentProduct = BuildProductFromCurrentTags();
     }
 
     /// <summary>
@@ -378,6 +412,8 @@ public partial class TagCatalogViewModel : ObservableObject
 
         // 6. Cập nhật bộ lọc và thông tin UI
         ApplyFilter();
+        _currentProduct = product;
+        OnPropertyChanged(nameof(CurrentProduct));
         OnPropertyChanged(nameof(TotalTagCount));
         OnPropertyChanged(nameof(TitleText));
         CurrentGroupInfo = GetGroupInfo(SelectedGroup);
@@ -511,8 +547,8 @@ public partial class TagCatalogViewModel : ObservableObject
                     ? "Làm biến trung gian truyền trạng thái giữa các Rule độc lập (ví dụ cờ 'in_shift' báo trong ca làm việc, cờ 'machine_ready' máy sẵn sàng, cờ lỗi dừng chuyền)."
                     : "Transfers logic state between independent rules (e.g., 'in_shift' shift flag, 'machine_ready' ready flag, line trip flag).",
                 HardwareSpec = isVi
-                    ? $"{vflagCount} Cờ nội bộ (VFLAG0 – VFLAG{Math.Max(0, vflagCount - 1)}) · Lưu trong RAM vi điều khiển (Tự động xóa về 0 khi mất nguồn điện)"
-                    : $"{vflagCount} Internal Flags (VFLAG0 – VFLAG{Math.Max(0, vflagCount - 1)}) · Stored in MCU RAM (Cleared on power loss)",
+                    ? $"{vflagCount} Cờ nội bộ (VFLAG0 – VFLAG{Math.Max(0, vflagCount - 1)}) · Lưu trong bộ nhớ RAM (Tự động xóa về 0 khi mất nguồn điện)"
+                    : $"{vflagCount} Internal Flags (VFLAG0 – VFLAG{Math.Max(0, vflagCount - 1)}) · Stored in Volatile RAM (Cleared on power loss)",
                 Icon = "🚩",
                 BadgeColor = "#4C1D95"
             },
@@ -527,8 +563,8 @@ public partial class TagCatalogViewModel : ObservableObject
                     ? "Lưu giá trị ngưỡng động, tham số tính toán số học cho các phép so sánh trong khối GUARD hoặc làm đối số tăng/giảm trong khối ACTION."
                     : "Holds setpoints for GUARD comparisons or increment/decrement operands in ACTION blocks.",
                 HardwareSpec = isVi
-                    ? $"{vregCount} Thanh ghi (VREG0 – VREG{Math.Max(0, vregCount - 1)}) · Kiểu Int16 Signed · Lưu trong RAM vi điều khiển"
-                    : $"{vregCount} Registers (VREG0 – VREG{Math.Max(0, vregCount - 1)}) · Signed Int16 · Stored in MCU RAM",
+                    ? $"{vregCount} Thanh ghi (VREG0 – VREG{Math.Max(0, vregCount - 1)}) · Kiểu Int16 Signed · Lưu trong bộ nhớ RAM của thiết bị"
+                    : $"{vregCount} Registers (VREG0 – VREG{Math.Max(0, vregCount - 1)}) · Signed Int16 · Stored in Controller RAM",
                 Icon = "🔢",
                 BadgeColor = "#0D9488"
             },
@@ -537,7 +573,7 @@ public partial class TagCatalogViewModel : ObservableObject
                 GroupCode = "VREG_R",
                 GroupName = isVi ? "Virtual Register Retain — Thanh Ghi Lưu Bộ Nhớ Vĩnh Viễn (Non-Volatile)" : "Virtual Register Retain — Non-Volatile Retentive Registers (Flash)",
                 Description = isVi
-                    ? "Vùng nhớ vĩnh viễn lưu vào chip Flash/EEPROM, KHÔNG BỊ MẤT DỮ LIỆU khi tủ điện mất nguồn đột ngột. Lưu trữ các chỉ số sống còn: Tổng sản lượng ca/ngày, bộ đếm chu kỳ máy dập, số giờ vận hành bảo trì."
+                    ? "Vùng nhớ vĩnh viễn lưu vào bộ nhớ Flash/EEPROM, KHÔNG BỊ MẤT DỮ LIỆU khi tủ điện mất nguồn đột ngột. Lưu trữ các chỉ số sống còn: Tổng sản lượng ca/ngày, bộ đếm chu kỳ máy dập, số giờ vận hành bảo trì."
                     : "Retentive memory preserved in Flash/EEPROM across power cycles. Retains production counts, machine cycles, maintenance hours, and recipes.",
                 RoleInPLC = isVi
                     ? "Lưu trữ bộ đếm cộng dồn trong khối ACTION (Increment Counter) hoặc công thức sản xuất (Recipe) cần bảo toàn vĩnh viễn khi tắt bật máy."
@@ -559,8 +595,8 @@ public partial class TagCatalogViewModel : ObservableObject
                     ? "Lưu trữ giá trị đếm trong khối GUARD để so sánh ngưỡng hoặc làm đối số tăng/giảm trong khối ACTION."
                     : "Stores count values for GUARD threshold comparisons or target for ACTION counter increments.",
                 HardwareSpec = isVi
-                    ? $"{counterCount} Bộ đếm (COUNTER0 – COUNTER{Math.Max(0, counterCount - 1)}) · Kiểu Int32 · Lưu trong RAM vi điều khiển"
-                    : $"{counterCount} Counters (COUNTER0 – COUNTER{Math.Max(0, counterCount - 1)}) · Type Int32 · Stored in MCU RAM",
+                    ? $"{counterCount} Bộ đếm (COUNTER0 – COUNTER{Math.Max(0, counterCount - 1)}) · Kiểu Int32 · Lưu trong bộ nhớ RAM của thiết bị"
+                    : $"{counterCount} Counters (COUNTER0 – COUNTER{Math.Max(0, counterCount - 1)}) · Type Int32 · Stored in Controller RAM",
                 Icon = "⏱️",
                 BadgeColor = "#E11D48"
             },
@@ -569,14 +605,14 @@ public partial class TagCatalogViewModel : ObservableObject
                 GroupCode = "ALL",
                 GroupName = isVi ? $"Toàn Bộ Không Gian Tag Hệ Thống ({totalTags} Tags)" : $"All System Tag Space ({totalTags} Tags)",
                 Description = isVi
-                    ? $"Quản lý tập trung toàn bộ {totalTags} địa chỉ Tag trên SimplePLC bao gồm I/O vật lý (DI, DO, AI) và các biến nhớ logic/số học nội bộ."
-                    : $"Centralized management of all {totalTags} tag addresses on SimplePLC including physical I/O (DI, DO, AI) and internal memory registers.",
+                    ? $"Quản lý tập trung toàn bộ {totalTags} địa chỉ Tag trên hệ thống SynaptiX bao gồm I/O vật lý (DI, DO, AI) và các biến nhớ logic/số học nội bộ."
+                    : $"Centralized management of all {totalTags} tag addresses on SynaptiX System including physical I/O (DI, DO, AI) and internal memory registers.",
                 RoleInPLC = isVi
                     ? "Mọi Tag đều có thể gán tên gợi nhớ (Alias), đọc trạng thái và liên kết trực tiếp làm đầu vào cho Trigger, Guard hoặc đầu ra cho Action."
                     : "All tags can have descriptive aliases assigned, live monitored, and bound directly to Trigger, Guard, or Action nodes.",
                 HardwareSpec = isVi
-                    ? $"{totalTags} Tags · Ánh xạ trực tiếp sang Modbus FC03/FC16 và RAM/Flash vi điều khiển"
-                    : $"{totalTags} Tags · Direct mapping to Modbus FC03/FC16 and MCU memory",
+                    ? $"{totalTags} Tags · Ánh xạ trực tiếp sang Modbus FC03/FC16 và bộ nhớ thiết bị SynaptiX"
+                    : $"{totalTags} Tags · Direct mapping to Modbus FC03/FC16 and SynaptiX Controller memory",
                 Icon = "📋",
                 BadgeColor = "#475569"
             }
@@ -626,6 +662,8 @@ public partial class TagCatalogViewModel : ObservableObject
             }
         }
         ApplyFilter();
+        _currentProduct = BuildProductFromCurrentTags();
+        OnPropertyChanged(nameof(CurrentProduct));
         OnPropertyChanged(nameof(TotalTagCount));
         OnPropertyChanged(nameof(TitleText));
         UpdateGroupButtons();

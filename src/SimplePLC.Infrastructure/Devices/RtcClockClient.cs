@@ -113,4 +113,58 @@ public sealed class RtcClockClient : IRtcClockClient
         await WriteRtcClockAsync(updatedDto, slaveId, cancellationToken);
         return updatedDto;
     }
+
+    public async Task<RtcClockDto> SyncToCustomTimezoneAsync(
+        TimeZoneInfo targetTimezone,
+        DateTimeOffset? customLocalDateTime = null,
+        byte slaveId = 1,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Đọc trước trạng thái RTC từ MCU để bảo toàn các cờ phần cứng HW_PRESENT và BATTERY_LOW
+        bool hasHwRtc = false;
+        bool isBatteryLow = false;
+        try
+        {
+            var current = await ReadRtcClockAsync(slaveId, cancellationToken);
+            hasHwRtc = current.HasHardwareRtc;
+            isBatteryLow = current.IsBatteryLow;
+        }
+        catch
+        {
+            // Bỏ qua nếu thiết bị không hỗ trợ đọc trước
+        }
+
+        uint epochUtcSeconds;
+        short tzOffsetMinutes;
+
+        if (customLocalDateTime.HasValue)
+        {
+            // Kỹ sư tự nhập giờ địa phương tùy chỉnh
+            var localDto = customLocalDateTime.Value;
+            var offset = targetTimezone.GetUtcOffset(localDto.DateTime);
+            var customWithTz = new DateTimeOffset(localDto.DateTime, offset);
+            epochUtcSeconds = (uint)customWithTz.ToUnixTimeSeconds();
+            tzOffsetMinutes = (short)offset.TotalMinutes;
+        }
+        else
+        {
+            // Lấy thời điểm hiện tại của thế giới và quy đổi sang múi giờ đích
+            var utcNow = DateTimeOffset.UtcNow;
+            var offset = targetTimezone.GetUtcOffset(utcNow);
+            epochUtcSeconds = (uint)utcNow.ToUnixTimeSeconds();
+            tzOffsetMinutes = (short)offset.TotalMinutes;
+        }
+
+        var targetDto = new RtcClockDto
+        {
+            EpochUtcSeconds = epochUtcSeconds,
+            TimezoneOffsetMinutes = tzOffsetMinutes,
+            IsSynced = true,
+            HasHardwareRtc = hasHwRtc,
+            IsBatteryLow = isBatteryLow
+        };
+
+        await WriteRtcClockAsync(targetDto, slaveId, cancellationToken);
+        return targetDto;
+    }
 }

@@ -212,7 +212,14 @@ public sealed class LifecycleRecoveryStressTests
 
         // Gắn lại session mới phục hồi vào monitor
         await monitor.AttachSessionAsync(sessionManager.CurrentSession!, product);
-        await Task.Delay(60);
+        for (int retry = 0; retry < 25; retry++)
+        {
+            if (store.CurrentSnapshot.Tags.Count > 0 && store.CurrentSnapshot.Tags.All(t => t.Quality == TagQuality.Good))
+            {
+                break;
+            }
+            await Task.Delay(20);
+        }
 
         // Bất biến: Duy trì đúng 1 monitor loop đang chạy, trạng thái Connected, Tags phục hồi Good
         Assert.True(monitor.IsRunning);

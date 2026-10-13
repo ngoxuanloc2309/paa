@@ -143,7 +143,39 @@ extern "C" {
 
 #define SPLC_FB_COUNTER_RETAIN_NONE       0xFFFF  /* Sentinel: Counter not bound to retain tag */
 
-/* --- 2.7 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
+/* --- 2.7 MQTT IIoT Telemetry & Broker Subsystem V2 (0x0C00 - 0x0E5F) --- */
+#define SPLC_ADDR_MQTT_TELEMETRY          0x0C00  /* 384 regs: 4 Blocks * 96 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MQTT_TELEMETRY_TOTAL     384
+#define SPLC_MQTT_MAX_TELEMETRY_BLOCKS    4
+#define SPLC_MQTT_REGS_PER_BLOCK          96      /* 96 regs = 192 bytes per block */
+#define SPLC_MQTT_BYTES_PER_BLOCK         192
+#define SPLC_MQTT_MAX_TOPIC_CHARS         32
+#define SPLC_MQTT_MAX_TEMPLATE_CHARS      128
+#define SPLC_MQTT_MAX_TAGS_PER_BLOCK      8
+
+/* Telemetry Control Flags Bitmask (Offset +0 in Block) */
+#define SPLC_MQTT_CTRL_ENABLED_BIT        0x0001
+#define SPLC_MQTT_CTRL_MODE_MASK          0x0006
+#define SPLC_MQTT_CTRL_MODE_SHIFT         1
+#define SPLC_MQTT_CTRL_QOS_MASK           0x0018
+#define SPLC_MQTT_CTRL_QOS_SHIFT          3
+#define SPLC_MQTT_CTRL_RETAIN_BIT         0x0020
+#define SPLC_MQTT_CTRL_PAYLOAD_MASK       0x00C0
+#define SPLC_MQTT_CTRL_PAYLOAD_SHIFT      6
+
+#define SPLC_ADDR_MQTT_BROKER             0x0E00  /* 96 regs (192 B): SPLC_MqttBrokerConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_MQTT_BROKER              96
+#define SPLC_MQTT_BROKER_HOST_MAX_CHARS   64
+#define SPLC_MQTT_BROKER_CRED_MAX_CHARS   32
+
+/* Broker Control Flags Bitmask (Offset +0 at 0x0E00) */
+#define SPLC_BROKER_CTRL_ENABLED_BIT      0x0001
+#define SPLC_BROKER_CTRL_USE_TLS_BIT      0x0002
+#define SPLC_BROKER_CTRL_CLEAN_SESSION_BIT 0x0004
+#define SPLC_BROKER_CTRL_VERSION_MASK     0x0018
+#define SPLC_BROKER_CTRL_VERSION_SHIFT    3
+
+/* --- 2.8 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
 #define SPLC_ADDR_CONFIG_STATUS           0x9000  /* 1 reg: SPLC_CommandStatus_t (FC03, RO) */
 #define SPLC_ADDR_CONFIG_ERROR_CODE       0x9001  /* 1 reg: SPLC_ErrorCode_t (FC03, RO) */
 #define SPLC_ADDR_RULE_COUNT_STAGED       0x9002  /* 1 reg: Number of rules staged (FC03/FC16, RW) */
@@ -386,6 +418,33 @@ typedef enum {
     SPLC_COUNTER_MODE_CTD         = 2  /* Count Down */
 } SPLC_CounterMode_t;
 
+/* MQTT IIoT Subsystem Enums (0x0C00..0x0E5F) */
+typedef enum {
+    SPLC_MQTT_MODE_ON_CHANGE      = 0, /* Event driven on tag value change */
+    SPLC_MQTT_MODE_COV            = 1, /* Change of Value with Deadband */
+    SPLC_MQTT_MODE_PERIODIC       = 2  /* Periodic cyclic interval */
+} SPLC_MqttPublishMode_t;
+
+typedef enum {
+    SPLC_MQTT_QOS_0               = 0, /* At most once */
+    SPLC_MQTT_QOS_1               = 1, /* At least once */
+    SPLC_MQTT_QOS_2               = 2  /* Exactly once */
+} SPLC_MqttQos_t;
+
+typedef enum {
+    SPLC_MQTT_PAYLOAD_COMPACT_JSON = 0, /* Auto-compact JSON: {"tag":x,"val":y,"ts":z} */
+    SPLC_MQTT_PAYLOAD_RAW_VALUE    = 1, /* Raw numerical string */
+    SPLC_MQTT_PAYLOAD_CUSTOM       = 2  /* 128B custom template with token substitution */
+} SPLC_MqttPayloadMode_t;
+
+typedef enum {
+    SPLC_MQTT_ERR_NONE            = 0,
+    SPLC_MQTT_ERR_DNS_FAIL        = 1,
+    SPLC_MQTT_ERR_TCP_RESET       = 2,
+    SPLC_MQTT_ERR_AUTH_FAIL       = 3,
+    SPLC_MQTT_ERR_TIMEOUT         = 4
+} SPLC_MqttBrokerErrorCode_t;
+
 /* ========================================================================= */
 /* 5. PROTOCOL BINARY STRUCTURES (Strict Byte-Exact Wire Layouts)            */
 /* ========================================================================= */
@@ -469,7 +528,8 @@ typedef struct SPLC_PACKED {
     uint16_t mode;                /* SPLC_TimerMode_t (1: TON, 2: TOF, 3: TP) */
     uint32_t pt_ms;               /* Preset Time in ms (High Word first) */
     uint32_t et_ms;               /* Elapsed Time in ms (High Word first) */
-    uint16_t reserved[2];         /* Reserved, always 0 */
+    uint16_t rule_ref;            /* Rule Reference Index (1-based: 1..100, 0: unlinked) */
+    uint16_t reserved;            /* Reserved, always 0 */
 } SPLC_FbTimerRecord_t;
 
 /**
@@ -504,18 +564,91 @@ typedef struct SPLC_PACKED {
     uint8_t  reserved[6];         /* [13..15] Reserved, sender writes 0x00 */
 } SPLC_RuleRecord_t;
 
+/**
+ * @brief MQTT Telemetry Block Wire Record (96 registers = 192 bytes at 0x0C00 + (idx * 96)).
+ * Defines independent MQTT publication stream, topic, timing, COV deadband, tags and JSON template.
+ */
+typedef struct SPLC_PACKED {
+    /* Offset +0: Control Flags (Bits: Enabled, Mode, QoS, Retain, PayloadMode) */
+    uint16_t control_flags;
+
+    /* Offset +1: Enable Tag Index (0xFFFF = Always enabled) */
+    uint16_t en_tag_index;
+
+    /* Offset +2..3: Periodic Interval in ms (32-bit Big-Endian, High Word first) */
+    uint32_t interval_ms;
+
+    /* Offset +4..5: COV Deadband (Float32 IEEE 754, High Word first) */
+    float    deadband;
+
+    /* Offset +6: Tag count bound to this block (1..8) */
+    uint16_t tag_count;
+
+    /* Offset +7..14: Array of 8 Tag Indices (0xFFFF if slot unused) */
+    uint16_t bound_tags[SPLC_MQTT_MAX_TAGS_PER_BLOCK];
+
+    /* Offset +15: Reserved for alignment / diagnostics */
+    uint16_t reserved_header;
+
+    /* Offset +16..31: MQTT Topic (32 bytes ASCII null-padded, 2 chars/reg Big-Endian) */
+    char     topic[SPLC_MQTT_MAX_TOPIC_CHARS];
+
+    /* Offset +32..95: Custom JSON Payload Template (128 bytes ASCII null-padded) */
+    char     payload_template[SPLC_MQTT_MAX_TEMPLATE_CHARS];
+} SPLC_MqttTelemetryBlock_t;
+
+/**
+ * @brief MQTT System Broker Configuration Record (96 registers = 192 bytes at 0x0E00).
+ * System-wide Broker endpoint, credentials, connection parameters and MCU live status feedback.
+ */
+typedef struct SPLC_PACKED {
+    /* Offset +0: Broker Control Flags (Bits: Enabled, TLS, CleanSession, Version) */
+    uint16_t broker_control;
+
+    /* Offset +1: Broker Port (1883 for Plain TCP, 8883 for MQTTS TLS) */
+    uint16_t broker_port;
+
+    /* Offset +2: Keep-Alive interval in seconds (default 60) */
+    uint16_t keepalive_sec;
+
+    /* Offset +3: Reserved (Always 0x0000) */
+    uint16_t reserved_0;
+
+    /* Offset +4..35: Broker Hostname or IPv4/IPv6 (64 bytes ASCII null-padded) */
+    char     broker_host[SPLC_MQTT_BROKER_HOST_MAX_CHARS];
+
+    /* Offset +36..51: MQTT Client Identifier (32 bytes ASCII null-padded) */
+    char     client_id[SPLC_MQTT_BROKER_CRED_MAX_CHARS];
+
+    /* Offset +52..67: MQTT Username (32 bytes ASCII null-padded) */
+    char     username[SPLC_MQTT_BROKER_CRED_MAX_CHARS];
+
+    /* Offset +68..83: MQTT Password (32 bytes ASCII null-padded) */
+    char     password[SPLC_MQTT_BROKER_CRED_MAX_CHARS];
+
+    /* Offset +84..95: Live Diagnostic & Status Reflection (Read-Only updated by MCU) */
+    uint16_t status_flags;        /* +84: Bit 0: Connected, Bit 1: TLS Active, Bit 2: Auth OK */
+    uint16_t connection_latency;  /* +85: Round-trip Ping in ms */
+    uint32_t tx_message_count;    /* +86..87: Total telemetry messages sent (High Word first) */
+    uint32_t tx_byte_count;       /* +88..89: Total payload bytes transmitted (High Word first) */
+    uint16_t last_error_code;     /* +90: SPLC_MqttBrokerErrorCode_t */
+    uint16_t reserved_status[5];  /* +91..95: Reserved */
+} SPLC_MqttBrokerConfig_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(sizeof(SPLC_DeviceDescriptor_t)   == 20, "Descriptor must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_DeviceResourceInfo_t) == 20, "ResourceInfo must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_DeviceHealth_t)       == 20, "Health must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_RtcClock_t)           == 8,  "RTC must be 8 bytes (4 regs)");
-_Static_assert(sizeof(SPLC_DiagBlock_t)          == 10, "DiagBlock must be 10 bytes (5 regs)");
-_Static_assert(sizeof(SPLC_FbTimerRecord_t)      == 16, "FbTimer must be 16 bytes (8 regs)");
-_Static_assert(sizeof(SPLC_FbCounterRecord_t)    == 16, "FbCounter must be 16 bytes (8 regs)");
-_Static_assert(sizeof(SPLC_RuleRecord_t)         == 32, "RuleRecord must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_DeviceDescriptor_t)   == 20,  "Descriptor must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_DeviceResourceInfo_t) == 20,  "ResourceInfo must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_DeviceHealth_t)       == 20,  "Health must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_RtcClock_t)           == 8,   "RTC must be 8 bytes (4 regs)");
+_Static_assert(sizeof(SPLC_DiagBlock_t)          == 10,  "DiagBlock must be 10 bytes (5 regs)");
+_Static_assert(sizeof(SPLC_FbTimerRecord_t)      == 16,  "FbTimer must be 16 bytes (8 regs)");
+_Static_assert(sizeof(SPLC_FbCounterRecord_t)    == 16,  "FbCounter must be 16 bytes (8 regs)");
+_Static_assert(sizeof(SPLC_RuleRecord_t)         == 32,  "RuleRecord must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_MqttTelemetryBlock_t) == 192, "MqttTelemetryBlock must be 192 bytes (96 regs)");
+_Static_assert(sizeof(SPLC_MqttBrokerConfig_t)   == 192, "MqttBrokerConfig must be 192 bytes (96 regs)");
 #endif
 
 /* ========================================================================= */

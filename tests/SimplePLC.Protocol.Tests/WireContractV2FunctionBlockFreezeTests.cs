@@ -101,8 +101,9 @@ public class WireContractV2FunctionBlockFreezeTests
         Assert.Equal(0x0000, regs[4]);
         Assert.Equal(0x09C4, regs[5]);
 
-        // Offset 6..7: RESERVED
+        // Offset 6: RULE_REF (mặc định 0)
         Assert.Equal(0x0000, regs[6]);
+        // Offset 7: RESERVED
         Assert.Equal(0x0000, regs[7]);
 
         // Decode roundtrip
@@ -114,6 +115,27 @@ public class WireContractV2FunctionBlockFreezeTests
         Assert.Equal(SPLC_TimerMode.TON, decoded.Mode);
         Assert.Equal(5000u, decoded.PresetMs);
         Assert.Equal(2500u, decoded.ElapsedMs);
+        Assert.Equal(0, decoded.RuleRef);
+    }
+
+    [Fact]
+    public void FunctionBlockCodec_Timer_WithRuleRef_Roundtrip()
+    {
+        var timer = new FbTimerRecordDto
+        {
+            Mode = SPLC_TimerMode.TON,
+            PresetMs = 3000,
+            RuleRef = 5 // 1-based index
+        };
+
+        Span<ushort> regs = stackalloc ushort[8];
+        FunctionBlockCodec.EncodeTimer(timer, regs);
+
+        Assert.Equal(5, regs[6]);
+        Assert.Equal(0, regs[7]);
+
+        var decoded = FunctionBlockCodec.DecodeTimer(regs);
+        Assert.Equal(5, decoded.RuleRef);
     }
 
     [Fact]

@@ -44,13 +44,93 @@ public sealed class RuleCompiler : IRuleCompiler
         var timerNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Timer).ToList();
         var counterNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Counter).ToList();
         var scaleNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Scale).ToList();
+        var mqttNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttPublish).ToList();
 
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0)
+        // Extract MQTT Telemetry Configs
+        var compiledMqttConfigs = new List<MqttTelemetryConfigDto>();
+        foreach (var mqttNode in mqttNodes)
+        {
+            var mData = mqttNode.MqttPublishData ?? new MqttPublishNodeData();
+            var inEdges = graph.GetIncomingEdges(mqttNode.Id).ToList();
+            var telemetryFields = new List<MqttPayloadFieldDto>();
+
+            foreach (var inEdge in inEdges)
+            {
+                if (nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode))
+                {
+                    ushort tagIdx = 0;
+                    string fieldKey = "val";
+                    string unit = "";
+
+                    if (srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
+                    {
+                        tagIdx = srcNode.InputData.TagIndex;
+                        var t = product.FindTagByIndex(tagIdx);
+                        if (t != null)
+                        {
+                            fieldKey = t.Name.ToLowerInvariant();
+                        }
+                    }
+                    else if (srcNode.Kind == LogicNodeKind.Scale && srcNode.ScaleData != null)
+                    {
+                        tagIdx = srcNode.ScaleData.InTagIndex;
+                        var t = product.FindTagByIndex(tagIdx);
+                        if (t != null)
+                        {
+                            fieldKey = $"{t.Name.ToLowerInvariant()}_scaled";
+                            unit = srcNode.ScaleData.Unit;
+                        }
+                    }
+                    else if (srcNode.Kind == LogicNodeKind.Timer && srcNode.TimerData != null)
+                    {
+                        tagIdx = srcNode.TimerData.QTagIndex;
+                        fieldKey = "timer_q";
+                    }
+                    else if (srcNode.Kind == LogicNodeKind.Counter && srcNode.CounterData != null)
+                    {
+                        tagIdx = srcNode.CounterData.CvTagIndex;
+                        fieldKey = "counter_cv";
+                    }
+
+                    telemetryFields.Add(new MqttPayloadFieldDto
+                    {
+                        Key = fieldKey,
+                        TagIndex = tagIdx,
+                        Unit = unit
+                    });
+                }
+            }
+
+            if (telemetryFields.Count == 0 && mData.Fields.Count > 0)
+            {
+                telemetryFields.AddRange(mData.Fields);
+            }
+
+            compiledMqttConfigs.Add(new MqttTelemetryConfigDto
+            {
+                NodeId = mqttNode.Id,
+                Topic = mData.Topic,
+                PublishMode = mData.PublishMode,
+                Deadband = mData.Deadband,
+                IntervalMs = mData.IntervalMs,
+                Qos = mData.Qos,
+                Retain = mData.Retain,
+                PayloadMode = mData.PayloadMode,
+                EnTagIndex = mData.EnTagIndex,
+                DataTagIndex = mData.DataTagIndex,
+                CustomTemplate = mData.CustomTemplate,
+                IncludeDevice = mData.IncludeDevice,
+                IncludeTimestamp = mData.IncludeTimestamp,
+                Fields = telemetryFields
+            });
+        }
+
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0)
         {
             diagnostics.Add(new CompileDiagnostic(
                 WarnNoActions,
                 DiagnosticSeverity.Warning,
-                "Graph does not contain any Action, Timer, Counter or Scale nodes. 0 rules produced."));
+                "Graph does not contain any Action, Timer, Counter, Scale, or MQTT Publish nodes. 0 rules produced."));
 
             var emptyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -58,6 +138,20 @@ public sealed class RuleCompiler : IRuleCompiler
                 DateTimeOffset.UtcNow);
 
             return CompileResult.Success(emptyProgram, diagnostics);
+        }
+
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0)
+        {
+            var telemetryOnlyProgram = new CompiledProgram(
+                programId ?? Guid.NewGuid().ToString("N"),
+                Array.Empty<Rule>(),
+                DateTimeOffset.UtcNow,
+                null,
+                null,
+                null,
+                compiledMqttConfigs);
+
+            return CompileResult.Success(telemetryOnlyProgram, diagnostics);
         }
 
         var candidateRules = new List<(LogicNode ActionNode, TriggerModel Trigger, ActionModel Action, GuardModel Guard, string RuleName, GeneratedRuleOrigin? Origin)>();
@@ -68,10 +162,11 @@ public sealed class RuleCompiler : IRuleCompiler
             var actionIncoming = graph.GetIncomingEdges(actionNode.Id).FirstOrDefault();
             if (actionIncoming == null || !nodeMap.TryGetValue(actionIncoming.SourceNodeId, out var directSource))
             {
+                var actionLabel = GetNodeLabel(actionNode, "Action");
                 diagnostics.Add(new CompileDiagnostic(
                     ErrActionNoIncoming,
                     DiagnosticSeverity.Error,
-                    $"Action node '{actionNode.Id}' is not connected to a Trigger or Guard.",
+                    $"Action node '{actionLabel}' is not connected to a Trigger or Guard.",
                     NodeId: actionNode.Id));
                 continue;
             }
@@ -85,60 +180,116 @@ public sealed class RuleCompiler : IRuleCompiler
 
             LogicNode? triggerNode = null;
             LogicNode? guardNode = null;
+            LogicNode? directComparatorNode = null;
 
             if (directSource.Kind == LogicNodeKind.Trigger)
             {
                 triggerNode = directSource;
             }
+            else if (directSource.Kind == LogicNodeKind.Comparator)
+            {
+                directComparatorNode = directSource;
+            }
             else if (directSource.Kind == LogicNodeKind.Guard)
             {
                 guardNode = directSource;
                 var guardIncoming = graph.GetIncomingEdges(guardNode.Id).FirstOrDefault();
-                if (guardIncoming == null || !nodeMap.TryGetValue(guardIncoming.SourceNodeId, out var guardSource) || guardSource.Kind != LogicNodeKind.Trigger)
+                if (guardIncoming == null || !nodeMap.TryGetValue(guardIncoming.SourceNodeId, out var guardSource))
                 {
+                    var guardLabel = GetNodeLabel(guardNode, "Guard");
                     diagnostics.Add(new CompileDiagnostic(
                         ErrGuardNoTrigger,
                         DiagnosticSeverity.Error,
-                        $"Guard node '{guardNode.Id}' is not connected to an upstream Trigger.",
+                        $"Guard node '{guardLabel}' is not connected to an upstream Trigger or Comparator.",
                         NodeId: guardNode.Id));
                     continue;
                 }
-                triggerNode = guardSource;
+
+                if (guardSource.Kind == LogicNodeKind.Trigger)
+                {
+                    triggerNode = guardSource;
+                }
+                else if (guardSource.Kind == LogicNodeKind.Comparator)
+                {
+                    directComparatorNode = guardSource;
+                }
+                else
+                {
+                    var guardLabel2 = GetNodeLabel(guardNode, "Guard");
+                    diagnostics.Add(new CompileDiagnostic(
+                        ErrGuardNoTrigger,
+                        DiagnosticSeverity.Error,
+                        $"Guard node '{guardLabel2}' must be connected to an upstream Trigger or Comparator.",
+                        NodeId: guardNode.Id));
+                    continue;
+                }
             }
             else
             {
+                var actionLabel2 = GetNodeLabel(actionNode, "Action");
                 diagnostics.Add(new CompileDiagnostic(
                     ErrActionNoIncoming,
                     DiagnosticSeverity.Error,
-                    $"Action node '{actionNode.Id}' must be fed by Trigger or Guard, but got {directSource.Kind}.",
+                    $"Action node '{actionLabel2}' must be fed by Trigger, Comparator, or Guard, but got {directSource.Kind}.",
                     NodeId: actionNode.Id));
                 continue;
             }
 
-            // Trace Trigger upstream input
+            // Trace Trigger upstream input (or via Comparator)
             LogicNode? inputNode = null;
-            var triggerIncoming = graph.GetIncomingEdges(triggerNode.Id).FirstOrDefault();
-            if (triggerIncoming != null && nodeMap.TryGetValue(triggerIncoming.SourceNodeId, out var inpCandidate) && inpCandidate.Kind == LogicNodeKind.Input)
+            LogicNode? comparatorNode = directComparatorNode;
+
+            if (triggerNode != null)
             {
-                inputNode = inpCandidate;
+                var triggerIncoming = graph.GetIncomingEdges(triggerNode.Id).FirstOrDefault();
+                if (triggerIncoming != null && nodeMap.TryGetValue(triggerIncoming.SourceNodeId, out var candidateSrc))
+                {
+                    if (candidateSrc.Kind == LogicNodeKind.Input)
+                    {
+                        inputNode = candidateSrc;
+                    }
+                    else if (candidateSrc.Kind == LogicNodeKind.Comparator)
+                    {
+                        comparatorNode = candidateSrc;
+                        var compIncoming = graph.GetIncomingEdges(comparatorNode.Id).FirstOrDefault();
+                        if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc) && compSrc.Kind == LogicNodeKind.Input)
+                        {
+                            inputNode = compSrc;
+                        }
+                    }
+                }
+            }
+            else if (directComparatorNode != null)
+            {
+                var compIncoming = graph.GetIncomingEdges(directComparatorNode.Id).FirstOrDefault();
+                if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc) && compSrc.Kind == LogicNodeKind.Input)
+                {
+                    inputNode = compSrc;
+                }
             }
 
-            var triggerData = triggerNode.TriggerData ?? new TriggerNodeData();
+            var triggerData = triggerNode?.TriggerData ?? new TriggerNodeData { Type = TriggerKind.OnChange };
             bool requiresInput = triggerData.Type is not (TriggerKind.Interval or TriggerKind.TimeWindow);
 
             if (requiresInput && inputNode == null)
             {
+                string missingNodeId = triggerNode?.Id ?? directComparatorNode?.Id ?? actionNode.Id;
+                string missingNodeLabel = GetNodeLabel(triggerNode, GetNodeLabel(directComparatorNode, "Trigger"));
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTriggerNoInput,
                     DiagnosticSeverity.Error,
-                    $"Trigger node '{triggerNode.Id}' requires an upstream Input Tag.",
-                    NodeId: triggerNode.Id,
+                    $"Trigger/Comparator node '{missingNodeLabel}' requires an upstream Input Tag.",
+                    NodeId: missingNodeId,
                     FieldName: "InputTag"));
                 continue;
             }
 
             // Resolve Trigger Tag
             ushort triggerTagIndex = inputNode?.InputData?.TagIndex ?? 0;
+            if (comparatorNode?.ComparatorData != null)
+            {
+                triggerTagIndex = comparatorNode.ComparatorData.InTagIndex;
+            }
             var triggerTag = product.FindTagByIndex(triggerTagIndex);
             if (triggerTag == null)
             {
@@ -148,18 +299,23 @@ public sealed class RuleCompiler : IRuleCompiler
                         ErrTagNotFound,
                         DiagnosticSeverity.Error,
                         $"Trigger Tag index {triggerTagIndex} not found in device profile.",
-                        NodeId: inputNode?.Id ?? triggerNode.Id));
+                        NodeId: inputNode?.Id ?? comparatorNode?.Id ?? triggerNode?.Id ?? actionNode.Id));
                     continue;
                 }
                 // Fallback virtual/placeholder for interval/timewindow
                 triggerTag = new TagDefinition(0, "NONE", TagKind.None, TagDataType.Boolean, isReadOnly: true);
             }
 
+            // Fuse Comparator parameters into TriggerModel if present
+            var compareOp = comparatorNode?.ComparatorData?.Operator ?? triggerData.CompareOp;
+            var thresholdLo = comparatorNode?.ComparatorData != null ? comparatorNode.ComparatorData.ThresholdLo : triggerData.ThresholdLo;
+            var thresholdHi = comparatorNode?.ComparatorData != null ? comparatorNode.ComparatorData.ThresholdHi : triggerData.ThresholdHi;
+
             var triggerModel = new TriggerModel(triggerTag, triggerData.Type)
             {
-                CompareOp = triggerData.CompareOp,
-                ThresholdLo = triggerData.ThresholdLo,
-                ThresholdHi = triggerData.ThresholdHi,
+                CompareOp = compareOp,
+                ThresholdLo = thresholdLo,
+                ThresholdHi = thresholdHi,
                 ForMs = triggerData.ForMs
             };
 
@@ -355,12 +511,13 @@ public sealed class RuleCompiler : IRuleCompiler
             var inTag = product.FindTagByIndex(resolvedInTagIndex);
             var qTag = product.FindTagByIndex(resolvedQTagIndex);
 
+            var timerLabel = GetNodeLabel(timerNode, "Timer");
             if (inTag == null)
             {
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
-                    $"Timer node '{timerNode.Id}' references unknown Input Tag {resolvedInTagIndex}.",
+                    $"Timer node '{timerLabel}' references unknown Input Tag {resolvedInTagIndex}.",
                     NodeId: timerNode.Id));
                 continue;
             }
@@ -370,7 +527,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
-                    $"Timer node '{timerNode.Id}' references unknown Output Tag {tData.QTagIndex}.",
+                    $"Timer node '{timerLabel}' references unknown Output Tag {tData.QTagIndex}.",
                     NodeId: timerNode.Id));
                 continue;
             }
@@ -590,12 +747,13 @@ public sealed class RuleCompiler : IRuleCompiler
             var qTag = product.FindTagByIndex(resolvedQTagIndex);
             TagDefinition? resetTag = resolvedResetTagIndex.HasValue ? product.FindTagByIndex(resolvedResetTagIndex.Value) : null;
 
+            var counterLabel = GetNodeLabel(counterNode, "Counter");
             if (cuTag == null)
             {
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
-                    $"Counter node '{counterNode.Id}' references unknown Count Input Tag {resolvedCuTagIndex}.",
+                    $"Counter node '{counterLabel}' references unknown Count Input Tag {resolvedCuTagIndex}.",
                     NodeId: counterNode.Id));
                 continue;
             }
@@ -605,7 +763,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
-                    $"Counter node '{counterNode.Id}' references unknown CV Register Tag {cData.CvTagIndex}.",
+                    $"Counter node '{counterLabel}' references unknown CV Register Tag {cData.CvTagIndex}.",
                     NodeId: counterNode.Id));
                 continue;
             }
@@ -615,7 +773,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 diagnostics.Add(new CompileDiagnostic(
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
-                    $"Counter node '{counterNode.Id}' references unknown Output Tag {cData.QTagIndex}.",
+                    $"Counter node '{counterLabel}' references unknown Output Tag {cData.QTagIndex}.",
                     NodeId: counterNode.Id));
                 continue;
             }
@@ -711,12 +869,14 @@ public sealed class RuleCompiler : IRuleCompiler
             var inTag = product.FindTagByIndex(resolvedInTagIndex);
             var outTag = resolvedOutTagIndex.HasValue ? product.FindTagByIndex(resolvedOutTagIndex.Value) : null;
 
+            var scaleLabel = GetNodeLabel(scaleNode, "Scale");
+
             if (inTag == null)
             {
                 diagnostics.Add(new CompileDiagnostic(
                     ErrScaleNoInput,
                     DiagnosticSeverity.Error,
-                    $"Scale node '{scaleNode.Id}' references unknown Input Tag {resolvedInTagIndex}.",
+                    $"Scale node '{scaleLabel}' references unknown Input Tag {resolvedInTagIndex}.",
                     NodeId: scaleNode.Id));
                 continue;
             }
@@ -726,7 +886,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 diagnostics.Add(new CompileDiagnostic(
                     ErrScaleNoOutput,
                     DiagnosticSeverity.Error,
-                    $"Scale node '{scaleNode.Id}' requires an Output Tag (connect OUT to an Action node).",
+                    $"Scale node '{scaleLabel}' requires an Output Tag (connect OUT to an Action node).",
                     NodeId: scaleNode.Id));
                 continue;
             }
@@ -848,13 +1008,48 @@ public sealed class RuleCompiler : IRuleCompiler
             }
         }
 
+        // Step 5: Cập nhật RuleRef cho các Timer blocks dựa trên thứ tự cuối cùng của các rules
+        // rule_ref = (vị trí của rule đếm giờ của Timer đó trong bảng rule gửi xuống, tính từ 0) + 1
+        // - TON: Rule có expansion index = 0 (IN ON_RISE for PT -> SET Q = 1)
+        // - TOF: Rule có expansion index = 1 (IN ON_FALL for PT, Guard Q == 1 -> SET Q = 0)
+        // - TP:  Rule có expansion index = 1 (Q ON_RISE for PT -> SET Q = 0)
+        for (int t = 0; t < timerNodes.Count && t < compiledFbTimers.Count; t++)
+        {
+            var tNode = timerNodes[t];
+            var tData = tNode.TimerData ?? new TimerNodeData();
+            int timingExpIndex = (tData.Type == TimerMacroType.Ton) ? 0 : 1;
+
+            int ruleIdx = -1;
+            for (int r = 0; r < sortedCandidates.Count; r++)
+            {
+                var cand = sortedCandidates[r];
+                if (cand.Origin != null &&
+                    cand.Origin.SourceNodeId == tNode.Id &&
+                    cand.Origin.ExpansionIndex == timingExpIndex)
+                {
+                    ruleIdx = r;
+                    break;
+                }
+            }
+
+            if (ruleIdx >= 0)
+            {
+                compiledFbTimers[t].RuleRef = (ushort)(ruleIdx + 1);
+            }
+            else
+            {
+                compiledFbTimers[t].RuleRef = 0;
+            }
+        }
+
         var program = new CompiledProgram(
             programId ?? Guid.NewGuid().ToString("N"),
             rules,
             DateTimeOffset.UtcNow,
             sourceMap,
             compiledFbTimers,
-            compiledFbCounters);
+            compiledFbCounters,
+            compiledMqttConfigs);
 
         return CompileResult.Success(program, diagnostics);
     }
@@ -869,4 +1064,7 @@ public sealed class RuleCompiler : IRuleCompiler
         CompareOperator.NotEqual => CompareOperator.Equal,
         _ => CompareOperator.None
     };
+
+    private static string GetNodeLabel(LogicNode? node, string fallback = "Node") =>
+        !string.IsNullOrWhiteSpace(node?.Label) ? node.Label : fallback;
 }

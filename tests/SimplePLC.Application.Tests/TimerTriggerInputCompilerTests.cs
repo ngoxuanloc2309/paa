@@ -14,9 +14,12 @@ public class TimerTriggerInputCompilerTests
     [Fact]
     public void AnalogInput_To_Trigger_To_TimerTon_GeneratesThresholdTimedRules()
     {
-        // Sơ đồ: AI0 (tag 16) -> Trigger (GT 80) -> Timer (TON 5000ms, Q -> DO0 tag 8)
+        // Sơ đồ: AI0 -> Trigger (GT 80) -> Timer (TON 5000ms, Q -> DO0)
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", 16));
+        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", ai0.TagIndex));
         
         var trig = LogicNode.CreateTrigger(
             "TR1",
@@ -25,7 +28,7 @@ public class TimerTriggerInputCompilerTests
             thresholdLo: 80);
         graph.Nodes.Add(trig);
 
-        var timer = LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: 16, presetMs: 5000, qTagIndex: 8);
+        var timer = LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: ai0.TagIndex, presetMs: 5000, qTagIndex: do0.TagIndex);
         graph.Nodes.Add(timer);
 
         graph.Edges.Add(new LogicEdge("IN_AI0", "TR1"));
@@ -39,23 +42,23 @@ public class TimerTriggerInputCompilerTests
 
         // Rule 0: Trip rule (AI0 > 80, for_ms = 5000 -> DO0 = 1)
         var r0 = result.Program.Rules[0];
-        Assert.Equal(16, r0.Trigger.Tag.TagIndex);
+        Assert.Equal(ai0.TagIndex, r0.Trigger.Tag.TagIndex);
         Assert.Equal(TriggerKind.OnChange, r0.Trigger.Type);
         Assert.Equal(CompareOperator.GreaterThan, r0.Trigger.CompareOp);
         Assert.Equal(80, r0.Trigger.ThresholdLo);
         Assert.Equal(5000u, r0.Trigger.ForMs);
-        Assert.Equal(8, r0.Action.TargetTag.TagIndex);
+        Assert.Equal(do0.TagIndex, r0.Action.TargetTag.TagIndex);
         Assert.Equal(ActionKind.SetTag, r0.Action.Type);
         Assert.Equal(1, r0.Action.Parameter);
 
         // Rule 1: Clear rule (AI0 <= 80, for_ms = 0 -> DO0 = 0)
         var r1 = result.Program.Rules[1];
-        Assert.Equal(16, r1.Trigger.Tag.TagIndex);
+        Assert.Equal(ai0.TagIndex, r1.Trigger.Tag.TagIndex);
         Assert.Equal(TriggerKind.OnChange, r1.Trigger.Type);
         Assert.Equal(CompareOperator.LessThanOrEqual, r1.Trigger.CompareOp); // Inverted GT is LE
         Assert.Equal(80, r1.Trigger.ThresholdLo);
         Assert.Equal(0u, r1.Trigger.ForMs);
-        Assert.Equal(8, r1.Action.TargetTag.TagIndex);
+        Assert.Equal(do0.TagIndex, r1.Action.TargetTag.TagIndex);
         Assert.Equal(ActionKind.SetTag, r1.Action.Type);
         Assert.Equal(0, r1.Action.Parameter);
     }
@@ -63,9 +66,13 @@ public class TimerTriggerInputCompilerTests
     [Fact]
     public void Trigger_With_Guard_To_TimerTon_CarriesGuardInterlock()
     {
-        // Sơ đồ: AI0 -> Trigger(GT 50) -> Guard(VFLAG0 = 1, tag 32) -> Timer(TON 3000ms, Q -> DO1 tag 9)
+        // Sơ đồ: AI0 -> Trigger(GT 50) -> Guard(VFLAG0 = 1) -> Timer(TON 3000ms, Q -> DO1)
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do1 = _product.FindTagByName("DO1")!;
+        var vflag0 = _product.FindTagByName("VFLAG0")!;
+
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", 16));
+        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", ai0.TagIndex));
 
         var trig = LogicNode.CreateTrigger(
             "TR1",
@@ -74,10 +81,10 @@ public class TimerTriggerInputCompilerTests
             thresholdLo: 50);
         graph.Nodes.Add(trig);
 
-        var guard = LogicNode.CreateGuard("G1", 32);
+        var guard = LogicNode.CreateGuard("G1", vflag0.TagIndex);
         graph.Nodes.Add(guard);
 
-        var timer = LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: 16, presetMs: 3000, qTagIndex: 9);
+        var timer = LogicNode.CreateTimer("T1", TimerMacroType.Ton, inTagIndex: ai0.TagIndex, presetMs: 3000, qTagIndex: do1.TagIndex);
         graph.Nodes.Add(timer);
 
         graph.Edges.Add(new LogicEdge("IN_AI0", "TR1"));
@@ -91,31 +98,35 @@ public class TimerTriggerInputCompilerTests
         Assert.Equal(2, result.Program.RuleCount);
 
         var r0 = result.Program.Rules[0];
-        Assert.Equal(16, r0.Trigger.Tag.TagIndex);
+        Assert.Equal(ai0.TagIndex, r0.Trigger.Tag.TagIndex);
         Assert.Equal(CompareOperator.GreaterThan, r0.Trigger.CompareOp);
         Assert.Equal(50, r0.Trigger.ThresholdLo);
         Assert.Equal(3000u, r0.Trigger.ForMs);
-        Assert.Equal(9, r0.Action.TargetTag.TagIndex);
+        Assert.Equal(do1.TagIndex, r0.Action.TargetTag.TagIndex);
         Assert.Equal(1, r0.Action.Parameter);
         // Kiểm tra Guard được mang theo
         Assert.True(r0.Guard.HasGuard);
-        Assert.Equal(32, r0.Guard.Tag!.TagIndex);
+        Assert.Equal(vflag0.TagIndex, r0.Guard.Tag!.TagIndex);
 
         var r1 = result.Program.Rules[1];
-        Assert.Equal(16, r1.Trigger.Tag.TagIndex);
+        Assert.Equal(ai0.TagIndex, r1.Trigger.Tag.TagIndex);
         Assert.Equal(CompareOperator.LessThanOrEqual, r1.Trigger.CompareOp);
         Assert.Equal(50, r1.Trigger.ThresholdLo);
         Assert.Equal(0u, r1.Trigger.ForMs);
-        Assert.Equal(9, r1.Action.TargetTag.TagIndex);
+        Assert.Equal(do1.TagIndex, r1.Action.TargetTag.TagIndex);
         Assert.Equal(0, r1.Action.Parameter);
     }
 
     [Fact]
     public void Trigger_To_CounterCU_UsesTriggerConditionForCountPulse()
     {
-        // Sơ đồ: AI0 -> Trigger(GT 100) -> Counter(CTU, preset 10, Q -> DO2 tag 10)
+        // Sơ đồ: AI0 -> Trigger(GT 100) -> Counter(CTU, preset 10, Q -> DO2)
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do2 = _product.FindTagByName("DO2")!;
+        var retain0 = _product.FindTagByName("VREG_RETAIN0")!;
+
         var graph = new LogicGraph();
-        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", 16));
+        graph.Nodes.Add(LogicNode.CreateInput("IN_AI0", ai0.TagIndex));
 
         var trig = LogicNode.CreateTrigger(
             "TR1",
@@ -124,7 +135,7 @@ public class TimerTriggerInputCompilerTests
             thresholdLo: 100);
         graph.Nodes.Add(trig);
 
-        var counter = LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: 16, resetTagIndex: null, cvTagIndex: 84, presetValue: 10, qTagIndex: 10);
+        var counter = LogicNode.CreateCounter("C1", CounterMacroType.Ctu, cuTagIndex: ai0.TagIndex, resetTagIndex: null, cvTagIndex: retain0.TagIndex, presetValue: 10, qTagIndex: do2.TagIndex);
         graph.Nodes.Add(counter);
 
         graph.Edges.Add(new LogicEdge("IN_AI0", "TR1"));
@@ -141,7 +152,7 @@ public class TimerTriggerInputCompilerTests
         // Rule đếm xung CU phải dựa trên Trigger condition (AI0 > 100) thay vì mức logic bit thuần
         var cuRule = result.Program.Rules.FirstOrDefault(r => r.Action.Type == ActionKind.IncrementCounter);
         Assert.NotNull(cuRule);
-        Assert.Equal(16, cuRule.Trigger.Tag.TagIndex);
+        Assert.Equal(ai0.TagIndex, cuRule.Trigger.Tag.TagIndex);
         Assert.Equal(CompareOperator.GreaterThan, cuRule.Trigger.CompareOp);
         Assert.Equal(100, cuRule.Trigger.ThresholdLo);
     }

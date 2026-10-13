@@ -16,23 +16,53 @@ public static class AiSafetyGate
     public static SafetyValidationResult Validate(DraftGraphTransaction tx, IEnumerable<TagModel> availableTags)
     {
         var tagList = availableTags.ToList();
-        var nodeMap = tx.AddedNodes.ToDictionary(n => n.Id, n => n);
-
-        // 1. Kiểm tra Read-Only Invariant: Action không được ghi vào ngõ vào vật lý DI / AI
-        foreach (var node in tx.AddedNodes.Where(n => n.NodeType == "ACTION"))
+        var nodeMap = new Dictionary<string, DraftNode>();
+        foreach (var n in tx.AddedNodes)
         {
-            if (string.Equals(node.TagName, "NONE", StringComparison.OrdinalIgnoreCase)) continue;
+            nodeMap[n.Id] = n;
+        }
 
-            var targetTag = tagList.FirstOrDefault(t => string.Equals(t.Name, node.TagName, StringComparison.OrdinalIgnoreCase));
-            if (targetTag != null)
+        // 1. Kiểm tra Read-Only Invariant: Action hoặc Macro output/accumulator không được ghi vào ngõ vào vật lý DI / AI
+        foreach (var node in tx.AddedNodes)
+        {
+            var targetTagsToCheck = new List<string>();
+
+            if (string.Equals(node.NodeType, "ACTION", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(node.TagName) &&
+                !string.Equals(node.TagName, "NONE", StringComparison.OrdinalIgnoreCase))
             {
-                if (targetTag.Kind == TagKind.DiscreteInput || targetTag.Kind == TagKind.AnalogInput)
+                targetTagsToCheck.Add(node.TagName);
+            }
+            else if ((string.Equals(node.NodeType, "TIMER", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(node.NodeType, "COUNTER", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(node.NodeType, "SCALE", StringComparison.OrdinalIgnoreCase)) &&
+                     !string.IsNullOrWhiteSpace(node.OutputTagName) &&
+                     !string.Equals(node.OutputTagName, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                targetTagsToCheck.Add(node.OutputTagName);
+            }
+
+            // Counter còn có thanh ghi tích lũy giá trị đếm hiện tại CvTagName (được biến đổi mỗi xung đếm)
+            if (string.Equals(node.NodeType, "COUNTER", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(node.CvTagName) &&
+                !string.Equals(node.CvTagName, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                targetTagsToCheck.Add(node.CvTagName);
+            }
+
+            foreach (var outTag in targetTagsToCheck)
+            {
+                var targetTag = tagList.FirstOrDefault(t => string.Equals(t.Name, outTag, StringComparison.OrdinalIgnoreCase));
+                if (targetTag != null)
                 {
-                    return new SafetyValidationResult(
-                        false,
-                        "SPLC-TAG-ERR-READONLY",
-                        $"Vi phạm an toàn phần cứng: Khối Action '{node.Label}' không được phép ghi vào ngõ vào vật lý '{node.TagName}'.",
-                        "Các ngõ vào DI/AI chỉ đọc tín hiệu cảm biến từ bên ngoài. Hãy dùng biến cờ trung gian VFLAG hoặc cuộn ngõ ra DO.");
+                    if (targetTag.Kind == TagKind.DiscreteInput || targetTag.Kind == TagKind.AnalogInput)
+                    {
+                        return new SafetyValidationResult(
+                            false,
+                            "SPLC-TAG-ERR-READONLY",
+                            $"Vi phạm an toàn phần cứng: Khối '{node.Label ?? node.Id}' không được phép ghi vào ngõ vào vật lý '{outTag}'.",
+                            "Các ngõ vào DI/AI chỉ đọc tín hiệu cảm biến từ bên ngoài. Hãy dùng biến cờ trung gian VFLAG, thanh ghi VREG hoặc cuộn ngõ ra DO.");
+                    }
                 }
             }
         }
@@ -42,7 +72,7 @@ public static class AiSafetyGate
         {
             if (nodeMap.TryGetValue(wire.SourceNodeId, out var srcNode))
             {
-                if (srcNode.NodeType == "ACTION")
+                if (string.Equals(srcNode.NodeType, "ACTION", StringComparison.OrdinalIgnoreCase))
                 {
                     return new SafetyValidationResult(
                         false,
@@ -59,7 +89,8 @@ public static class AiSafetyGate
             if (nodeMap.TryGetValue(wire.SourceNodeId, out var srcNode) &&
                 nodeMap.TryGetValue(wire.TargetNodeId, out var tgtNode))
             {
-                if (srcNode.NodeType == "GUARD" && tgtNode.NodeType == "GUARD")
+                if (string.Equals(srcNode.NodeType, "GUARD", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(tgtNode.NodeType, "GUARD", StringComparison.OrdinalIgnoreCase))
                 {
                     return new SafetyValidationResult(
                         false,
@@ -84,20 +115,83 @@ public static class AiSafetyGate
             }
         }
 
-        // 5. Kiểm tra Write Conflict: Không tạo nhiều Action cùng ghi vào 1 Tag ngõ ra (trừ khi là khối Macro)
-        var actionTags = tx.AddedNodes
-            .Where(n => n.NodeType == "ACTION" && !string.Equals(n.TagName, "NONE", StringComparison.OrdinalIgnoreCase))
-            .GroupBy(n => n.TagName, StringComparer.OrdinalIgnoreCase);
+        // 5. Kiểm tra Write Conflict: Không tạo nhiều Action hoặc Macro cùng ghi vào 1 Tag ngõ ra (SPLC-COMP-DEP-002)
+        var writers = new List<(DraftNode Node, string TagName, bool IsMacro)>();
+        foreach (var node in tx.AddedNodes)
+        {
+            if (string.Equals(node.NodeType, "ACTION", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(node.TagName) &&
+                !string.Equals(node.TagName, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                writers.Add((node, node.TagName, false));
+            }
+            else if ((string.Equals(node.NodeType, "TIMER", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(node.NodeType, "COUNTER", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(node.NodeType, "SCALE", StringComparison.OrdinalIgnoreCase)) &&
+                     !string.IsNullOrWhiteSpace(node.OutputTagName) &&
+                     !string.Equals(node.OutputTagName, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                writers.Add((node, node.OutputTagName, true));
+            }
+        }
+
+        var tagGroups = writers.GroupBy(w => w.TagName, StringComparer.OrdinalIgnoreCase);
+        foreach (var tagGroup in tagGroups)
+        {
+            bool hasMacro = tagGroup.Any(w => w.IsMacro);
+            int count = tagGroup.Count();
+
+            // Nếu có Macro tham gia điều khiển Tag này, Macro yêu cầu độc quyền ngõ ra (không chấp nhận > 1 writer)
+            // Nếu thuần túy là Action thông thường, cho phép tối đa 2 khối (mô hình đối xứng SET / RESET)
+            if ((hasMacro && count > 1) || count > 2)
+            {
+                return new SafetyValidationResult(
+                    false,
+                    "SPLC-COMP-DEP-002",
+                    $"Phát hiện xung đột cuộn hút (Write Conflict / Double Coiling): Có {count} khối (Action/Macro) cùng ghi vào Tag '{tagGroup.Key}'.",
+                    "Trong PLC, việc nhiều logic cùng ghi vào 1 ngõ ra trong một chu kỳ quét gây hiện tượng bất định. Khối Macro yêu cầu quyền điều khiển độc quyền ngõ ra. Hãy tách thành các cờ trung gian hoặc dùng logic liên động.");
+            }
+        }
+
+        return new SafetyValidationResult(true, null, null, null);
+    }
+
+    /// <summary>
+    /// Thẩm định danh sách luật JSON từ LLM trước khi nạp vào hệ thống.
+    /// </summary>
+    public static SafetyValidationResult Validate(IEnumerable<AiRuleSpecModel> rules, IEnumerable<TagModel> availableTags)
+    {
+        var tagList = availableTags.ToList();
+        var ruleList = rules?.ToList() ?? new List<AiRuleSpecModel>();
+
+        foreach (var rule in ruleList)
+        {
+            if (string.IsNullOrWhiteSpace(rule.ActionTag) || string.Equals(rule.ActionTag, "NONE", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var targetTag = tagList.FirstOrDefault(t => string.Equals(t.Name, rule.ActionTag, StringComparison.OrdinalIgnoreCase));
+            if (targetTag != null && (targetTag.Kind == TagKind.DiscreteInput || targetTag.Kind == TagKind.AnalogInput))
+            {
+                return new SafetyValidationResult(
+                    false,
+                    "SPLC-TAG-ERR-READONLY",
+                    $"Vi phạm an toàn phần cứng: Luật '{rule.Narrative}' không được phép ghi vào ngõ vào vật lý '{rule.ActionTag}'.",
+                    "Các ngõ vào DI/AI chỉ đọc tín hiệu cảm biến từ bên ngoài. Hãy dùng biến cờ trung gian VFLAG hoặc cuộn ngõ ra DO.");
+            }
+        }
+
+        var actionTags = ruleList
+            .Where(r => !string.IsNullOrWhiteSpace(r.ActionTag) && !string.Equals(r.ActionTag, "NONE", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(r => r.ActionTag, StringComparer.OrdinalIgnoreCase);
 
         foreach (var tagGroup in actionTags)
         {
-            // Nếu có nhiều hơn 1 Action ghi vào cùng Tag mà không phải SET/RESET đối xứng
             if (tagGroup.Count() > 2)
             {
                 return new SafetyValidationResult(
                     false,
                     "SPLC-COMP-DEP-002",
-                    $"Phát hiện xung đột cuộn hút (Write Conflict / Double Coiling): Có {tagGroup.Count()} khối Action cùng ghi vào Tag '{tagGroup.Key}'.",
+                    $"Phát hiện xung đột cuộn hút (Write Conflict / Double Coiling): Có {tagGroup.Count()} luật cùng ghi vào Tag '{tagGroup.Key}'.",
                     "Trong PLC, việc nhiều logic cùng ghi vào 1 ngõ ra trong một chu kỳ quét gây hiện tượng bất định. Hãy tách thành các cờ trung gian hoặc dùng logic liên động.");
             }
         }

@@ -10,7 +10,9 @@ public enum LogicNodeKind
     Action = 3,
     Timer = 4,
     Counter = 5,
-    Scale = 6
+    Scale = 6,
+    Comparator = 7,
+    MqttPublish = 8
 }
 
 public sealed class ScaleNodeData
@@ -77,11 +79,37 @@ public sealed class GuardNodeData
     public bool Negated { get; set; }
 }
 
+public sealed class ComparatorNodeData
+{
+    public ushort InTagIndex { get; set; }
+    public CompareOperator Operator { get; set; } = CompareOperator.GreaterThan;
+    public int ThresholdLo { get; set; } = 50;
+    public int ThresholdHi { get; set; } = 100;
+}
+
 public sealed class ActionNodeData
 {
     public ushort TargetTagIndex { get; set; }
     public ActionKind Type { get; set; } = ActionKind.SetTag;
     public int Parameter { get; set; } = 1;
+}
+
+public sealed class MqttPublishNodeData
+{
+    public ushort? EnTagIndex { get; set; }
+    public ushort? DataTagIndex { get; set; }
+    public string Topic { get; set; } = "synaptix/telemetry/data";
+    public string PayloadMode { get; set; } = "JSON";
+    public string PublishMode { get; set; } = "Event";
+    public double Deadband { get; set; } = 0.5;
+    public uint IntervalMs { get; set; } = 1000;
+    public int Qos { get; set; } = 0;
+    public bool Retain { get; set; } = false;
+    public string Unit { get; set; } = "bar";
+    public bool IncludeDevice { get; set; } = true;
+    public bool IncludeTimestamp { get; set; } = true;
+    public List<SimplePLC.Protocol.Dto.MqttPayloadFieldDto> Fields { get; set; } = new();
+    public string CustomTemplate { get; set; } = string.Empty;
 }
 
 public sealed class LogicNode
@@ -98,6 +126,8 @@ public sealed class LogicNode
     public TimerNodeData? TimerData { get; set; }
     public CounterNodeData? CounterData { get; set; }
     public ScaleNodeData? ScaleData { get; set; }
+    public ComparatorNodeData? ComparatorData { get; set; }
+    public MqttPublishNodeData? MqttPublishData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };
@@ -235,6 +265,72 @@ public sealed class LogicNode
                 ClampMax = clampMax,
                 DecimalPlaces = decimalPlaces,
                 Unit = unit
+            }
+        };
+
+    public static LogicNode CreateComparator(
+        string id,
+        ushort inTagIndex,
+        CompareOperator op = CompareOperator.GreaterThan,
+        int thresholdLo = 50,
+        int thresholdHi = 100,
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.Comparator,
+            Label = label,
+            ExecutionOrder = executionOrder,
+            ComparatorData = new ComparatorNodeData
+            {
+                InTagIndex = inTagIndex,
+                Operator = op,
+                ThresholdLo = thresholdLo,
+                ThresholdHi = thresholdHi
+            }
+        };
+
+    public static LogicNode CreateMqttPublish(
+        string id,
+        ushort? enTagIndex,
+        ushort? dataTagIndex,
+        string topic = "synaptix/telemetry/data",
+        string publishMode = "Event",
+        double deadband = 0.5,
+        uint intervalMs = 1000,
+        int qos = 0,
+        bool retain = false,
+        string payloadMode = "JSON",
+        string unit = "bar",
+        bool includeDevice = true,
+        bool includeTimestamp = true,
+        IEnumerable<SimplePLC.Protocol.Dto.MqttPayloadFieldDto>? fields = null,
+        string customTemplate = "",
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.MqttPublish,
+            Label = label,
+            ExecutionOrder = executionOrder,
+            MqttPublishData = new MqttPublishNodeData
+            {
+                EnTagIndex = enTagIndex,
+                DataTagIndex = dataTagIndex,
+                Topic = topic,
+                PublishMode = publishMode,
+                Deadband = deadband,
+                IntervalMs = intervalMs,
+                Qos = qos,
+                Retain = retain,
+                PayloadMode = payloadMode,
+                Unit = unit,
+                IncludeDevice = includeDevice,
+                IncludeTimestamp = includeTimestamp,
+                Fields = fields != null ? new List<SimplePLC.Protocol.Dto.MqttPayloadFieldDto>(fields) : new(),
+                CustomTemplate = customTemplate
             }
         };
 }

@@ -11,7 +11,7 @@ public class ProjectFileServiceTests
     public void SaveAndLoadProject_Roundtrip_PreservesAllData()
     {
         // Arrange
-        string tempFile = Path.Combine(Path.GetTempPath(), $"test_proj_{Guid.NewGuid():N}.splc");
+        string tempFile = Path.Combine(Path.GetTempPath(), $"test_proj_{Guid.NewGuid():N}.synx");
         try
         {
             var project = new ProjectModel
@@ -21,7 +21,7 @@ public class ProjectFileServiceTests
                     ProjectName = "Tram_Bom_Tu_Dong",
                     Author = "HoaNV",
                     Description = "Dự án điều khiển trạm bơm tự động 2 bơm luân phiên",
-                    TargetDevice = "STM32F401CCU6",
+                    TargetDevice = "SynaptiX SYNX-RIO-884",
                     SchemaVersion = 1
                 },
                 Tags = new List<ProjectTagData>
@@ -55,7 +55,7 @@ public class ProjectFileServiceTests
             Assert.NotNull(loaded);
             Assert.Equal("Tram_Bom_Tu_Dong", loaded.Metadata.ProjectName);
             Assert.Equal("HoaNV", loaded.Metadata.Author);
-            Assert.Equal("STM32F401CCU6", loaded.Metadata.TargetDevice);
+            Assert.Equal("SynaptiX SYNX-RIO-884", loaded.Metadata.TargetDevice);
             Assert.Equal(1, loaded.Metadata.SchemaVersion);
 
             // Assert: Tags
@@ -103,14 +103,14 @@ public class ProjectFileServiceTests
     {
         Assert.Throws<FileNotFoundException>(() =>
         {
-            ProjectFileService.LoadProject("G:\\non_existent_path_12345.splc");
+            ProjectFileService.LoadProject("G:\\non_existent_path_12345.synx");
         });
     }
 
     [Fact]
     public void RecentProjects_AddAndRetrieve_WorksCorrectly()
     {
-        string tempFile = Path.Combine(Path.GetTempPath(), $"recent_test_{Guid.NewGuid():N}.splc");
+        string tempFile = Path.Combine(Path.GetTempPath(), $"recent_test_{Guid.NewGuid():N}.synx");
         try
         {
             File.WriteAllText(tempFile, "{}");
