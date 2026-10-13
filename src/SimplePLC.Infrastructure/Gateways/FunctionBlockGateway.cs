@@ -66,18 +66,36 @@ public sealed class FunctionBlockGateway : IFunctionBlockGateway
         byte slaveId = 1,
         CancellationToken cancellationToken = default)
     {
-        // Đọc trọn vẹn 128 thanh ghi phân vùng Function Block (0x0B00..0x0B7F) trong 1 request duy nhất
-        var rawRegisters = await _client.ReadHoldingRegistersAsync(
+        // Đọc 2 chunk tuần tự (64 thanh ghi mỗi chunk) để tuân thủ giới hạn Modbus RTU FC03 <= 125 thanh ghi:
+        // Chunk 1: 64 thanh ghi Timers (0x0B00..0x0B3F)
+        var timerRegs = await _client.ReadHoldingRegistersAsync(
             slaveId,
             ModbusRegisterMap.FbTimerTableBaseAddress,
-            ModbusRegisterMap.FbTableTotalLength,
+            ModbusRegisterMap.FbTimerTableLength,
             cancellationToken).ConfigureAwait(false);
 
-        if (rawRegisters.Length < ModbusRegisterMap.FbTableTotalLength)
+        if (timerRegs.Length < ModbusRegisterMap.FbTimerTableLength)
         {
             throw new InvalidOperationException(
-                $"Expected {ModbusRegisterMap.FbTableTotalLength} registers from 0x0B00, but received {rawRegisters.Length}.");
+                $"Expected {ModbusRegisterMap.FbTimerTableLength} registers from 0x0B00, but received {timerRegs.Length}.");
         }
+
+        // Chunk 2: 64 thanh ghi Counters (0x0B40..0x0B7F)
+        var counterRegs = await _client.ReadHoldingRegistersAsync(
+            slaveId,
+            ModbusRegisterMap.FbCounterTableBaseAddress,
+            ModbusRegisterMap.FbCounterTableLength,
+            cancellationToken).ConfigureAwait(false);
+
+        if (counterRegs.Length < ModbusRegisterMap.FbCounterTableLength)
+        {
+            throw new InvalidOperationException(
+                $"Expected {ModbusRegisterMap.FbCounterTableLength} registers from 0x0B40, but received {counterRegs.Length}.");
+        }
+
+        var rawRegisters = new ushort[ModbusRegisterMap.FbTableTotalLength];
+        Array.Copy(timerRegs, 0, rawRegisters, 0, timerRegs.Length);
+        Array.Copy(counterRegs, 0, rawRegisters, ModbusRegisterMap.FbTimerTableLength, counterRegs.Length);
 
         return DecodeBlocks(rawRegisters);
     }

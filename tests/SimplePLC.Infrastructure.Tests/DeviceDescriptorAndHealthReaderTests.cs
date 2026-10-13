@@ -20,9 +20,9 @@ public class DeviceDescriptorAndHealthReaderTests
         Assert.Equal(SPLC_DeviceClass.REMOTE_IO, descriptor.DeviceClass);
         Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, descriptor.DeviceVariant);
         Assert.Equal("1.0.0", descriptor.HwVersionString);
-        Assert.Equal("1.7.0", descriptor.FwVersionString);
-        Assert.Equal(1, descriptor.ProtocolVersion);
-        Assert.Equal(1, descriptor.RuleFormatVersion);
+        Assert.Equal("2.0.0", descriptor.FwVersionString);
+        Assert.Equal(2, descriptor.ProtocolVersion);
+        Assert.Equal(7, descriptor.RuleFormatVersion);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class DeviceDescriptorAndHealthReaderTests
 
         var resourceInfo = await reader.ReadResourceInfoAsync(1);
 
-        Assert.Equal(1, resourceInfo.WireProfile);
+        Assert.Equal(2, resourceInfo.WireProfile);
         Assert.Equal(100, resourceInfo.MaxRules);
         Assert.Equal(124, resourceInfo.RuntimeTagCount);
         Assert.Equal(8, resourceInfo.DigitalInputCount);

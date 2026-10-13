@@ -45,6 +45,7 @@ public sealed class RuleCompiler : IRuleCompiler
         var counterNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Counter).ToList();
         var scaleNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Scale).ToList();
         var mqttNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttPublish).ToList();
+        var mqttSubNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttSubscribe).ToList();
 
         // Extract MQTT Telemetry Configs
         var compiledMqttConfigs = new List<MqttTelemetryConfigDto>();
@@ -125,12 +126,31 @@ public sealed class RuleCompiler : IRuleCompiler
             });
         }
 
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0)
+        // Extract MQTT Subscription Configs
+        var compiledMqttSubConfigs = new List<MqttSubscriptionConfigDto>();
+        foreach (var subNode in mqttSubNodes)
+        {
+            var sData = subNode.MqttSubscribeData ?? new MqttSubscribeNodeData();
+            compiledMqttSubConfigs.Add(new MqttSubscriptionConfigDto
+            {
+                NodeId = subNode.Id,
+                Topic = sData.Topic,
+                Qos = sData.Qos,
+                QueueMode = sData.QueueMode,
+                QueueCapacity = sData.QueueCapacity,
+                IgnoreRetainedOnBoot = sData.IgnoreRetained,
+                TimeoutMs = sData.TimeoutMs,
+                FailSafeAction = sData.FailSafeAction,
+                Pins = new List<MqttPinBindingDto>(sData.Pins)
+            });
+        }
+
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0 && mqttSubNodes.Count == 0)
         {
             diagnostics.Add(new CompileDiagnostic(
                 WarnNoActions,
                 DiagnosticSeverity.Warning,
-                "Graph does not contain any Action, Timer, Counter, Scale, or MQTT Publish nodes. 0 rules produced."));
+                "Graph does not contain any Action, Timer, Counter, Scale, or MQTT nodes. 0 rules produced."));
 
             var emptyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -149,7 +169,8 @@ public sealed class RuleCompiler : IRuleCompiler
                 null,
                 null,
                 null,
-                compiledMqttConfigs);
+                compiledMqttConfigs,
+                compiledMqttSubConfigs);
 
             return CompileResult.Success(telemetryOnlyProgram, diagnostics);
         }
@@ -171,10 +192,10 @@ public sealed class RuleCompiler : IRuleCompiler
                 continue;
             }
 
-            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale)
+            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.MqttSubscribe)
             {
-                // Action node connects from Counter, Timer or Scale port as visual destination.
-                // The rules are fully expanded in Step 2b / 2c / 2d (Macro Expansion).
+                // Action node connects from Counter, Timer, Scale or MQTT port as visual destination.
+                // The rules are fully expanded in Step 2b / 2c / 2d (Macro Expansion) or handled by MQTT subsystem.
                 continue;
             }
 
@@ -1049,7 +1070,8 @@ public sealed class RuleCompiler : IRuleCompiler
             sourceMap,
             compiledFbTimers,
             compiledFbCounters,
-            compiledMqttConfigs);
+            compiledMqttConfigs,
+            compiledMqttSubConfigs);
 
         return CompileResult.Success(program, diagnostics);
     }

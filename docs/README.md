@@ -17,11 +17,13 @@ Tài liệu phân tầng Clean Architecture, các ranh giới phụ thuộc và 
 ### 2. [Quy Chuẩn Firmware STM32 (`docs/firmware/`)](firmware/)
 Tài liệu định hướng và đặc tả kỹ thuật dành riêng cho team phát triển Firmware Vi điều khiển:
 * [`MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md): **[CHUẨN CỐT LÕI]** Đặc tả kiểm thử sự phù hợp của Firmware MCU STM32 với Wire Profile V2.0, Function Block TON/TOF/TP/CTU/CTD, RTC Clock, và hệ thống Chẩn đoán `0x0A20` (Watchdog Lease 3000ms, Failsafe DO, Retain Memory).
+* [`SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md`](firmware/SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md): **[MQTT ICD]** Đặc tả giao diện truyền thông nhị phân MQTT Broker (`0x0E00`) và Khối Telemetry (`0x0C00`) cho MCU STM32/ESP32.
 
 ---
 
 ### 3. [Khế Ước Giao Thức & Cấu Trúc Dữ Liệu (`docs/platform/`)](platform/)
 Đặc tả chi tiết giao thức truyền thông Modbus RTU và khế ước dữ liệu qua đường dây (Wire Contracts):
+* [`SimplePLC_App_MCU_Structs_MQTT_IIoT_Profile.md`](platform/SimplePLC_App_MCU_Structs_MQTT_IIoT_Profile.md): **[CHUẨN IIOT]** Đặc tả nhị phân cấp thấp phân hệ MQTT Gateway V2.0: Cấu hình Broker (`0x0E00`), 4 Khối Telemetry Pub (`0x0C00`), Bộ giải mã Inbound Subscribe & Bóc tách Dữ liệu Động Atomic All-or-Nothing, và Chuẩn hóa Giao diện IEC Studio.
 * [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[CHUẨN CỐT LÕI]** Cấu trúc hồ sơ thiết bị tự mô tả Self-Describing Device Profile V2.0 (Wire Profile 2, RTC Clock Read-Before-Write, Dedicated Function Blocks).
 * [`SimplePLC_Wire_Contract_V2_Draft.md`](platform/SimplePLC_Wire_Contract_V2_Draft.md): Đặc tả phân hệ Chẩn đoán Diag & Commissioning Control V2.0 (`0x0A20`).
 * [`SimplePLC_Modbus_Register_Map_V1.md`](platform/SimplePLC_Modbus_Register_Map_V1.md): Bản đồ phân bổ thanh ghi Modbus chuẩn hóa Platform V2.0 (`0x0000..0xA001`).

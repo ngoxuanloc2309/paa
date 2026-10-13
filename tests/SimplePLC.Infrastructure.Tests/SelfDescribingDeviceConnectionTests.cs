@@ -103,7 +103,7 @@ public class SelfDescribingDeviceConnectionTests
         Assert.NotNull(result.Session);
 
         var session = result.Session!;
-        Assert.Equal(1, session.ResourceInfo.WireProfile);
+        Assert.Equal(2, session.ResourceInfo.WireProfile);
         Assert.Equal(100, session.ResourceInfo.MaxRules);
         Assert.Equal(124, session.ResourceInfo.RuntimeTagCount);
         Assert.Equal(124, session.Product.Tags.Count);
@@ -356,5 +356,63 @@ public class SelfDescribingDeviceConnectionTests
         Assert.Equal("COUNTER3", product.FindTagByIndex((ushort)(layout17.CounterBase + 3))?.Name);
 
         Assert.Null(product.FindTagByIndex(54));
+    }
+
+    [Fact]
+    public async Task ConnectAsync_DeviceClassGateway_0x0003_ConnectSucceeds()
+    {
+        // Arrange: Simulator mô phỏng thiết bị Gateway V2.0 (Device Class 0x0003)
+        var sim = new McuReferenceSimulator(wireProfile: 2);
+        sim.Control.Faults.OverrideDeviceClass = (ushort)SPLC_DeviceClass.GATEWAY;
+
+        var factory = new SimulatorTestConnectionFactory(sim);
+
+        // Act: Kết nối
+        var result = await factory.ConnectAsync(new SimulatorEndpoint());
+
+        // Assert: Kết nối thành công, nhận diện đúng DeviceClass = 3 (Gateway)
+        Assert.True(result.IsSuccess, $"Connection failed: {result.FailureReason} - {result.Compatibility.Reason}");
+        Assert.NotNull(result.Session);
+        Assert.Equal(SPLC_DeviceClass.GATEWAY, result.Session!.Descriptor.DeviceClass);
+        Assert.Equal((ushort)3, result.Session.Product.DeviceClass);
+        Assert.Contains("Gateway", result.Session.Product.ProductName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_DeviceClassDatalogger_0x0002_ConnectSucceeds()
+    {
+        // Arrange: Simulator mô phỏng thiết bị Datalogger V2.0 (Device Class 0x0002)
+        var sim = new McuReferenceSimulator(wireProfile: 2);
+        sim.Control.Faults.OverrideDeviceClass = (ushort)SPLC_DeviceClass.DATALOGGER;
+
+        var factory = new SimulatorTestConnectionFactory(sim);
+
+        // Act: Kết nối
+        var result = await factory.ConnectAsync(new SimulatorEndpoint());
+
+        // Assert: Kết nối thành công, nhận diện đúng DeviceClass = 2 (Datalogger)
+        Assert.True(result.IsSuccess, $"Connection failed: {result.FailureReason} - {result.Compatibility.Reason}");
+        Assert.NotNull(result.Session);
+        Assert.Equal(SPLC_DeviceClass.DATALOGGER, result.Session!.Descriptor.DeviceClass);
+        Assert.Equal((ushort)2, result.Session.Product.DeviceClass);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_DeviceClassController_0x0004_ConnectSucceeds()
+    {
+        // Arrange: Simulator mô phỏng thiết bị Controller V2.0 (Device Class 0x0004)
+        var sim = new McuReferenceSimulator(wireProfile: 2);
+        sim.Control.Faults.OverrideDeviceClass = (ushort)SPLC_DeviceClass.CONTROLLER;
+
+        var factory = new SimulatorTestConnectionFactory(sim);
+
+        // Act: Kết nối
+        var result = await factory.ConnectAsync(new SimulatorEndpoint());
+
+        // Assert: Kết nối thành công, nhận diện đúng DeviceClass = 4 (Controller)
+        Assert.True(result.IsSuccess, $"Connection failed: {result.FailureReason} - {result.Compatibility.Reason}");
+        Assert.NotNull(result.Session);
+        Assert.Equal(SPLC_DeviceClass.CONTROLLER, result.Session!.Descriptor.DeviceClass);
+        Assert.Equal((ushort)4, result.Session.Product.DeviceClass);
     }
 }

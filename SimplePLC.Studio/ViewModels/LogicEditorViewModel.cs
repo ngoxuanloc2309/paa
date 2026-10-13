@@ -11,6 +11,7 @@ using SimplePLC.Application.Models;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 using SimplePLC.Studio.Services.Ai;
+using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Studio.ViewModels;
 
@@ -66,6 +67,21 @@ public partial class LogicEditorViewModel : ObservableObject
         NotifyGraphModified();
     }
 
+    [RelayCommand]
+    public void OpenMqttSubConfig(MqttSubscribeNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedMqttSubNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new MqttSubConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.MqttSubConfigDialogView(dialogVm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        NotifyGraphModified();
+    }
+
     [ObservableProperty]
     private string _aiProposalSummaryText = string.Empty;
 
@@ -81,6 +97,7 @@ public partial class LogicEditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedCounterNode))]
     [NotifyPropertyChangedFor(nameof(SelectedScaleNode))]
     [NotifyPropertyChangedFor(nameof(SelectedMqttNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedMqttSubNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
@@ -94,6 +111,7 @@ public partial class LogicEditorViewModel : ObservableObject
     public CounterNodeViewModel? SelectedCounterNode => SelectedNode as CounterNodeViewModel;
     public ScaleNodeViewModel? SelectedScaleNode => SelectedNode as ScaleNodeViewModel;
     public MqttPublishNodeViewModel? SelectedMqttNode => SelectedNode as MqttPublishNodeViewModel;
+    public MqttSubscribeNodeViewModel? SelectedMqttSubNode => SelectedNode as MqttSubscribeNodeViewModel;
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -496,6 +514,15 @@ public partial class LogicEditorViewModel : ObservableObject
     private bool _isSaved = true;
 
     [ObservableProperty]
+    private bool _isGraphDeployed = false;
+
+    public void MarkGraphDeployed()
+    {
+        IsGraphDeployed = true;
+        SimGateWarning = string.Empty;
+    }
+
+    [ObservableProperty]
     private int _validRuleCount;
 
     [ObservableProperty]
@@ -788,7 +815,7 @@ public partial class LogicEditorViewModel : ObservableObject
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
             if (dispatcher != null && !dispatcher.HasShutdownStarted)
             {
-                dispatcher.BeginInvoke(DispatcherPriority.DataBind, action);
+                dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, action);
             }
             else
             {
@@ -958,6 +985,120 @@ public partial class LogicEditorViewModel : ObservableObject
     [ObservableProperty]
     private bool _isOnlineDebugEnabled;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LiveDebugStatusText))]
+    [NotifyPropertyChangedFor(nameof(LiveDebugBannerSubText))]
+    [NotifyPropertyChangedFor(nameof(LiveDebugTooltip))]
+    private bool _isLiveDebugActive;
+
+    public bool IsDeviceConnected => _stateStore?.CurrentSnapshot?.ConnectionStatus == ConnectionStatus.Connected;
+
+    public string LiveDebugStatusText => IsLiveDebugActive
+        ? (LocalizationService.Instance.IsVietnamese ? "Đang giám sát trực tiếp" : "Live Monitoring Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Chế độ giám sát tắt" : "Live Monitor Inactive");
+
+    public string LiveDebugTooltip => IsLiveDebugActive
+        ? LocalizationService.Tr("LiveDebugActiveTooltip")
+        : LocalizationService.Tr("LiveDebugInactiveTooltip");
+
+    public string LiveDebugBannerSubText
+    {
+        get
+        {
+            if (!IsDeviceConnected)
+            {
+                return LocalizationService.Tr("LiveDebugHudDisconnected");
+            }
+
+            int activeBlockCount = ValidRuleCount;
+            if (activeBlockCount <= 0 && Nodes.Count > 0)
+            {
+                activeBlockCount = Nodes.Count;
+            }
+
+            if (activeBlockCount > 0)
+            {
+                return string.Format(LocalizationService.Tr("LiveDebugHudConnectedWithCount"), activeBlockCount);
+            }
+
+            return LocalizationService.Tr("LiveDebugHudConnected");
+        }
+    }
+
+    [RelayCommand]
+    public void ToggleLiveDebug()
+    {
+        if (!IsLiveDebugActive)
+        {
+            // Lớp 1: Khóa an toàn kết nối thiết bị
+            if (!IsDeviceConnected)
+            {
+                SimGateWarning = LocalizationService.Tr("LiveDebugConnectRequired");
+                return;
+            }
+
+            // Lớp 2: Khóa an toàn khung vẽ trống rỗng
+            if (Nodes.Count == 0)
+            {
+                SimGateWarning = LocalizationService.Tr("LiveDebugEmptyGraphWarning");
+                return;
+            }
+
+            // Lớp 3: Tự động biên dịch kiểm tra tính toàn vẹn (tương tự StartSimulation)
+            if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
+            {
+                CompileAndSaveRules(isAutoSync: false);
+            }
+
+            // Lớp 4: Kiểm tra kết quả biên dịch
+            if (CompileState == CompileState.Invalid)
+            {
+                SimGateWarning = LocalizationService.Tr("LiveDebugCompileErrorWarning");
+                return;
+            }
+
+            if (ValidRuleCount == 0 || CurrentProgram == null)
+            {
+                SimGateWarning = LocalizationService.Tr("LiveDebugNoRulesWarning");
+                return;
+            }
+
+            // Lớp 5: Khóa an toàn đồng bộ nạp cấu hình xuống thiết bị (Strict Deployment Safety Gate)
+            if (!IsGraphDeployed)
+            {
+                SimGateWarning = LocalizationService.Tr("LiveDebugDeployRequiredWarning");
+                return;
+            }
+
+            SimGateWarning = string.Empty;
+        }
+
+        IsLiveDebugActive = !IsLiveDebugActive;
+    }
+
+    partial void OnIsLiveDebugActiveChanged(bool value)
+    {
+        OnPropertyChanged(nameof(LiveDebugBannerSubText));
+        if (value)
+        {
+            if (_stateStore?.CurrentSnapshot != null)
+            {
+                ApplySnapshotDiff(_stateStore.CurrentSnapshot);
+            }
+            else
+            {
+                ApplyLiveOnlinePropagation();
+            }
+        }
+        else
+        {
+            if (!IsSimulationMode)
+            {
+                ClearSimVisuals();
+            }
+        }
+    }
+
     private readonly IRuntimeStateStore? _stateStore;
     private readonly Action<Action> _uiDispatcher;
     private readonly Dictionary<ushort, List<ILiveTagBoundNode>> _tagToNodesIndex = new();
@@ -965,6 +1106,8 @@ public partial class LogicEditorViewModel : ObservableObject
     private bool _lastOnlineState;
     private RuntimeDeviceSnapshot? _latestSnapshot;
     private int _isUpdateScheduled;
+    private readonly Dictionary<string, DateTime> _liveTimerStartTimes = new();
+    private readonly Dictionary<string, bool> _liveTimerPrevIn = new();
 
     public IReadOnlyDictionary<ushort, List<ILiveTagBoundNode>> TagToNodesIndex => _tagToNodesIndex;
 
@@ -1017,18 +1160,14 @@ public partial class LogicEditorViewModel : ObservableObject
         if (IsSimulationMode) return;
 
         bool isOnline = snapshot.ConnectionStatus == ConnectionStatus.Connected;
-
-        if (isOnline && !IsOnlineDebugEnabled)
-        {
-            IsOnlineDebugEnabled = true;
-        }
-
         bool connectionChanged = (isOnline != _lastOnlineState);
 
         if (connectionChanged)
         {
             _lastOnlineState = isOnline;
             _lastAppliedTagState.Clear();
+            OnPropertyChanged(nameof(IsDeviceConnected));
+            OnPropertyChanged(nameof(LiveDebugBannerSubText));
 
             if (!isOnline)
             {
@@ -1039,6 +1178,12 @@ public partial class LogicEditorViewModel : ObservableObject
                         node.SetOffline();
                     }
                 }
+
+                if (IsLiveDebugActive)
+                {
+                    IsLiveDebugActive = false;
+                }
+                ClearSimVisuals();
                 return;
             }
         }
@@ -1076,13 +1221,14 @@ public partial class LogicEditorViewModel : ObservableObject
                 var tmNode = timerNodes[i];
                 var tmDto = snapshot.Timers[i];
 
-                tmNode.ElapsedMs = tmDto.ElapsedMs;
-                tmNode.ProgressPercent = tmNode.PresetMs > 0
+                if (tmNode.ElapsedMs != tmDto.ElapsedMs) tmNode.ElapsedMs = tmDto.ElapsedMs;
+                double newProgress = tmNode.PresetMs > 0
                     ? Math.Min(100.0, ((double)tmDto.ElapsedMs / tmNode.PresetMs) * 100.0)
                     : 0.0;
-                tmNode.IsTiming = tmDto.Running;
-                tmNode.IsLiveActive = tmDto.Q;
-                tmNode.IsLiveOnline = isOnline;
+                if (Math.Abs(tmNode.ProgressPercent - newProgress) > 0.01) tmNode.ProgressPercent = newProgress;
+                if (tmNode.IsTiming != tmDto.Running) tmNode.IsTiming = tmDto.Running;
+                if (tmNode.IsLiveActive != tmDto.Q) tmNode.IsLiveActive = tmDto.Q;
+                if (tmNode.IsLiveOnline != isOnline) tmNode.IsLiveOnline = isOnline;
             }
         }
 
@@ -1094,9 +1240,476 @@ public partial class LogicEditorViewModel : ObservableObject
                 var cntNode = counterNodes[i];
                 var cntDto = snapshot.Counters[i];
 
-                cntNode.CurrentCount = cntDto.CurrentValue;
-                cntNode.IsLiveActive = cntDto.Q;
-                cntNode.IsLiveOnline = isOnline;
+                if (cntNode.CurrentCount != cntDto.CurrentValue) cntNode.CurrentCount = cntDto.CurrentValue;
+                if (cntNode.IsLiveActive != cntDto.Q) cntNode.IsLiveActive = cntDto.Q;
+                if (cntNode.IsLiveOnline != isOnline) cntNode.IsLiveOnline = isOnline;
+            }
+        }
+
+        // CHỈ lan truyền đồ họa khi chế độ Live Debug được người dùng BẬT chủ động!
+        if (IsLiveDebugActive)
+        {
+            ApplyLiveOnlinePropagation();
+        }
+    }
+
+    /// <summary>
+    /// Lan truyền trạng thái thực thi thời gian thực trên đồ thị FBD khi chạy chế độ Live Debug hoặc Online Monitor.
+    /// Bơm trực tiếp dữ liệu từ Device Snapshot / TagCatalog vào các chân cắm và dây dẫn.
+    /// TỐI ƯU HÓA: Áp dụng Dirty Checking tuyệt đối trên mọi thuộc tính nhằm triệt tiêu tối đa các thông báo PropertyChanged thừa.
+    /// </summary>
+    public void ApplyLiveOnlinePropagation()
+    {
+        // 1. Inputs: Cập nhật chân ra và dây nối trực tiếp từ Input tags
+        foreach (var inp in Nodes.OfType<InputNodeViewModel>())
+        {
+            if (inp.IsLiveOnline && inp.Tag != null)
+            {
+                if (inp.Tag.Value != inp.LiveRawValue)
+                {
+                    inp.Tag.Value = inp.LiveRawValue;
+                }
+            }
+
+            bool isBoolean = (inp.Tag?.IsDigital == true) ||
+                             (inp.Tag?.Kind is TagKind.DiscreteInput or TagKind.DiscreteOutput or TagKind.VirtualFlag);
+
+            int val = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+            bool inActive = isBoolean && (val != 0);
+
+            if (inp.IsLiveActive != inActive) inp.IsLiveActive = inActive;
+            if (inp.IsSimActive != inActive) inp.IsSimActive = inActive;
+
+            bool connTargetState = isBoolean ? inActive : (val != 0);
+            foreach (var conn in Connections.Where(c => c.Source?.Node == inp))
+            {
+                if (conn.IsActive != connTargetState)
+                {
+                    conn.IsActive = connTargetState;
+                }
+            }
+        }
+
+        // 2. Scale Nodes: Chuyển đổi tuyến tính giá trị Analog
+        foreach (var scaleNode in Nodes.OfType<ScaleNodeViewModel>())
+        {
+            var scaleConn = Connections.FirstOrDefault(c => c.Target?.Node == scaleNode);
+            if (scaleConn?.Source?.Node is InputNodeViewModel inp)
+            {
+                int rawIn = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+                if (inp.Tag != null && scaleNode.InputTag != inp.Tag)
+                {
+                    scaleNode.InputTag = inp.Tag;
+                }
+                double scaled = scaleNode.Calculate(rawIn);
+                bool isActive = Math.Abs(scaled) > 1e-6 || rawIn != 0;
+                if (scaleNode.IsSimActive != isActive) scaleNode.IsSimActive = isActive;
+                if (scaleNode.IsLiveActive != isActive) scaleNode.IsLiveActive = isActive;
+                bool scaleConnActive = rawIn != 0;
+                if (scaleConn.IsActive != scaleConnActive) scaleConn.IsActive = scaleConnActive;
+
+                if (scaleNode.OutputTag != null)
+                {
+                    int scaledVal = (int)Math.Round(scaled);
+                    if (scaleNode.OutputTag.Value != scaledVal)
+                    {
+                        scaleNode.OutputTag.Value = scaledVal;
+                    }
+                }
+
+                foreach (var outConn in Connections.Where(c => c.Source?.Node == scaleNode))
+                {
+                    if (outConn.IsActive != isActive) outConn.IsActive = isActive;
+                    if (outConn.Target?.Node is ActionNodeViewModel act)
+                    {
+                        if (act.IsSimActive != isActive) act.IsSimActive = isActive;
+                        if (act.IsSimFired != isActive) act.IsSimFired = isActive;
+                        string liveText = scaleNode.LiveFormattedValue;
+                        if (act.SimTargetLiveText != liveText) act.SimTargetLiveText = liveText;
+                    }
+                }
+            }
+        }
+
+        // 3. Comparator Nodes: Đánh giá điều kiện so sánh
+        foreach (var cmpNode in Nodes.OfType<ComparatorNodeViewModel>())
+        {
+            var cmpConn = Connections.FirstOrDefault(c => c.Target?.Node == cmpNode);
+            int cmpVal = 0;
+            if (cmpConn?.Source?.Node is InputNodeViewModel inp)
+            {
+                cmpVal = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+                if (inp.Tag != null && cmpNode.InputTag != inp.Tag) cmpNode.InputTag = inp.Tag;
+                bool cmpConnActive = cmpVal != 0;
+                if (cmpConn.IsActive != cmpConnActive) cmpConn.IsActive = cmpConnActive;
+            }
+            else if (cmpConn?.Source?.Node is ScaleNodeViewModel scl && (scl.OutputTag != null || scl.InputTag != null))
+            {
+                var targetTag = scl.OutputTag ?? scl.InputTag;
+                if (cmpNode.InputTag != targetTag) cmpNode.InputTag = targetTag;
+                cmpVal = cmpNode.InputTag != null ? cmpNode.InputTag.Value : 0;
+                if (cmpConn.IsActive != scl.IsLiveActive) cmpConn.IsActive = scl.IsLiveActive;
+            }
+
+            if (cmpNode.InputTag != null)
+            {
+                bool condMet = cmpNode.Evaluate(cmpVal);
+                if (cmpNode.IsConditionMet != condMet) cmpNode.IsConditionMet = condMet;
+                foreach (var outConn in Connections.Where(c => c.Source?.Node == cmpNode))
+                {
+                    if (outConn.IsActive != condMet) outConn.IsActive = condMet;
+                }
+            }
+        }
+
+        // 4. Trigger Nodes: Đánh giá điều kiện Trigger (ngưỡng so sánh hoặc mức tín hiệu)
+        foreach (var trigNode in Nodes.OfType<TriggerNodeViewModel>())
+        {
+            var trigConn = Connections.FirstOrDefault(c => c.Target?.Node == trigNode);
+            bool trigMet = false;
+            if (trigConn?.Source?.Node is InputNodeViewModel inp)
+            {
+                int inpVal = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+                bool inpActive = inpVal != 0;
+                if (trigConn.IsActive != inpActive) trigConn.IsActive = inpActive;
+                trigMet = trigNode.EvaluateCondition(inpVal);
+            }
+            else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmp)
+            {
+                if (trigConn.IsActive != cmp.IsConditionMet) trigConn.IsActive = cmp.IsConditionMet;
+                trigMet = cmp.IsConditionMet;
+            }
+
+            if (trigNode.IsSimTriggered != trigMet) trigNode.IsSimTriggered = trigMet;
+            if (trigNode.IsSimActive != trigMet) trigNode.IsSimActive = trigMet;
+            if (!trigNode.IsSimEvaluated) trigNode.IsSimEvaluated = true;
+
+            string expectedDiag = trigMet
+                ? LocalizationService.Instance.Get("SimStatusTrue")
+                : LocalizationService.Instance.Get("SimDiagFalse");
+            if (trigNode.SimDiagText != expectedDiag) trigNode.SimDiagText = expectedDiag;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == trigNode))
+            {
+                if (outConn.IsActive != trigMet) outConn.IsActive = trigMet;
+            }
+        }
+
+        // 5. Guard Nodes: Đánh giá điều kiện khóa liên động an toàn
+        foreach (var guardNode in Nodes.OfType<GuardNodeViewModel>())
+        {
+            var guardConn = Connections.FirstOrDefault(c => c.Target?.Node == guardNode);
+            bool upstreamActive = guardConn != null && guardConn.IsActive;
+            bool guardPassed = false;
+            bool guardBlocked = false;
+
+            int guardVal = guardNode.IsLiveOnline ? guardNode.LiveRawValue : (guardNode.GuardTag?.Value ?? 0);
+            if (guardNode.GuardTag != null || guardNode.IsLiveOnline)
+            {
+                bool tagVal = guardVal != 0;
+                bool condition = guardNode.Negate ? !tagVal : tagVal;
+                if (upstreamActive)
+                {
+                    guardPassed = condition;
+                    guardBlocked = !condition;
+                }
+            }
+            else
+            {
+                guardPassed = upstreamActive;
+            }
+
+            if (guardNode.IsSimPassed != guardPassed) guardNode.IsSimPassed = guardPassed;
+            if (guardNode.IsSimBlocked != guardBlocked) guardNode.IsSimBlocked = guardBlocked;
+            if (guardNode.IsSimActive != guardPassed) guardNode.IsSimActive = guardPassed;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == guardNode))
+            {
+                if (outConn.IsActive != guardPassed) outConn.IsActive = guardPassed;
+            }
+        }
+
+        // 6. Timers: Cập nhật dây vào, tính toán đếm giờ Live và cập nhật dây ra Q
+        foreach (var timerNode in Nodes.OfType<TimerNodeViewModel>())
+        {
+            var timerConn = Connections.FirstOrDefault(c => c.Target?.Node == timerNode);
+            bool inActive = false;
+            if (timerConn?.Source?.Node is InputNodeViewModel inNode)
+            {
+                int val = inNode.IsLiveOnline ? inNode.LiveRawValue : (inNode.Tag?.Value ?? 0);
+                inActive = val != 0;
+                if (timerConn.IsActive != inActive) timerConn.IsActive = inActive;
+            }
+            else if (timerConn?.Source?.Node is TriggerNodeViewModel trg)
+            {
+                inActive = trg.IsSimTriggered;
+                if (timerConn.IsActive != inActive) timerConn.IsActive = inActive;
+            }
+            else if (timerConn?.Source?.Node is GuardNodeViewModel grd)
+            {
+                inActive = grd.IsSimPassed;
+                if (timerConn.IsActive != inActive) timerConn.IsActive = inActive;
+            }
+
+            // Đọc trạng thái ngõ ra Q từ live TagCatalog nếu có output tag
+            bool qActive = false;
+            if (timerNode.OutputTag != null)
+            {
+                var qTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == timerNode.OutputTag.Index);
+                if (qTag != null)
+                {
+                    qActive = qTag.Value != 0;
+                }
+            }
+            if (!qActive && timerNode.IsLiveActive)
+            {
+                qActive = timerNode.IsLiveActive;
+            }
+
+            // Bộ đếm Live Timer Client-side nội suy mượt mà
+            bool hasPrev = _liveTimerPrevIn.TryGetValue(timerNode.Id, out bool prevIn);
+            string mode = timerNode.TimerMode?.ToUpperInvariant() ?? "TON";
+            uint preset = timerNode.PresetMs > 0 ? timerNode.PresetMs : 1000;
+
+            switch (mode)
+            {
+                case "TON":
+                    if (inActive)
+                    {
+                        if (!hasPrev || !prevIn)
+                        {
+                            _liveTimerStartTimes[timerNode.Id] = DateTime.UtcNow;
+                        }
+
+                        if (qActive)
+                        {
+                            if (timerNode.IsTiming) timerNode.IsTiming = false;
+                            if (timerNode.ElapsedMs != preset) timerNode.ElapsedMs = preset;
+                            if (Math.Abs(timerNode.ProgressPercent - 100.0) > 0.01) timerNode.ProgressPercent = 100.0;
+                        }
+                        else
+                        {
+                            var startTime = _liveTimerStartTimes.TryGetValue(timerNode.Id, out var st) ? st : DateTime.UtcNow;
+                            double elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                            if (elapsed < preset)
+                            {
+                                if (!timerNode.IsTiming) timerNode.IsTiming = true;
+                                uint elMs = (uint)elapsed;
+                                if (timerNode.ElapsedMs != elMs) timerNode.ElapsedMs = elMs;
+                                double prog = Math.Min(100.0, (elapsed / preset) * 100.0);
+                                if (Math.Abs(timerNode.ProgressPercent - prog) > 0.01) timerNode.ProgressPercent = prog;
+                            }
+                            else
+                            {
+                                if (timerNode.IsTiming) timerNode.IsTiming = false;
+                                if (timerNode.ElapsedMs != preset) timerNode.ElapsedMs = preset;
+                                if (Math.Abs(timerNode.ProgressPercent - 100.0) > 0.01) timerNode.ProgressPercent = 100.0;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (timerNode.IsTiming) timerNode.IsTiming = false;
+                        if (timerNode.ElapsedMs != 0) timerNode.ElapsedMs = 0;
+                        if (timerNode.ProgressPercent != 0.0) timerNode.ProgressPercent = 0.0;
+                        _liveTimerStartTimes.Remove(timerNode.Id);
+                    }
+                    break;
+
+                case "TOF":
+                    if (inActive)
+                    {
+                        if (timerNode.IsTiming) timerNode.IsTiming = false;
+                        if (timerNode.ElapsedMs != 0) timerNode.ElapsedMs = 0;
+                        if (timerNode.ProgressPercent != 0.0) timerNode.ProgressPercent = 0.0;
+                        _liveTimerStartTimes.Remove(timerNode.Id);
+                        qActive = true;
+                    }
+                    else
+                    {
+                        if (hasPrev && prevIn)
+                        {
+                            _liveTimerStartTimes[timerNode.Id] = DateTime.UtcNow;
+                        }
+
+                        if (qActive)
+                        {
+                            var startTime = _liveTimerStartTimes.TryGetValue(timerNode.Id, out var st) ? st : DateTime.UtcNow;
+                            double elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                            if (elapsed < preset)
+                            {
+                                if (!timerNode.IsTiming) timerNode.IsTiming = true;
+                                uint elMs = (uint)elapsed;
+                                if (timerNode.ElapsedMs != elMs) timerNode.ElapsedMs = elMs;
+                                double prog = Math.Min(100.0, (elapsed / preset) * 100.0);
+                                if (Math.Abs(timerNode.ProgressPercent - prog) > 0.01) timerNode.ProgressPercent = prog;
+                            }
+                            else
+                            {
+                                if (timerNode.IsTiming) timerNode.IsTiming = false;
+                                if (timerNode.ElapsedMs != preset) timerNode.ElapsedMs = preset;
+                                if (Math.Abs(timerNode.ProgressPercent - 100.0) > 0.01) timerNode.ProgressPercent = 100.0;
+                            }
+                        }
+                        else
+                        {
+                            if (timerNode.IsTiming) timerNode.IsTiming = false;
+                            if (timerNode.ElapsedMs != 0) timerNode.ElapsedMs = 0;
+                            if (timerNode.ProgressPercent != 0.0) timerNode.ProgressPercent = 0.0;
+                            _liveTimerStartTimes.Remove(timerNode.Id);
+                        }
+                    }
+                    break;
+
+                case "TP":
+                    if (inActive && (!hasPrev || !prevIn))
+                    {
+                        _liveTimerStartTimes[timerNode.Id] = DateTime.UtcNow;
+                    }
+
+                    if (_liveTimerStartTimes.TryGetValue(timerNode.Id, out var pulseStart))
+                    {
+                        double elapsed = (DateTime.UtcNow - pulseStart).TotalMilliseconds;
+                        if (elapsed < preset && qActive)
+                        {
+                            if (!timerNode.IsTiming) timerNode.IsTiming = true;
+                            uint elMs = (uint)elapsed;
+                            if (timerNode.ElapsedMs != elMs) timerNode.ElapsedMs = elMs;
+                            double prog = Math.Min(100.0, (elapsed / preset) * 100.0);
+                            if (Math.Abs(timerNode.ProgressPercent - prog) > 0.01) timerNode.ProgressPercent = prog;
+                        }
+                        else
+                        {
+                            if (timerNode.IsTiming) timerNode.IsTiming = false;
+                            if (timerNode.ElapsedMs != 0) timerNode.ElapsedMs = 0;
+                            if (timerNode.ProgressPercent != 0.0) timerNode.ProgressPercent = 0.0;
+                            _liveTimerStartTimes.Remove(timerNode.Id);
+                        }
+                    }
+                    else
+                    {
+                        if (timerNode.IsTiming) timerNode.IsTiming = false;
+                        if (timerNode.ElapsedMs != 0) timerNode.ElapsedMs = 0;
+                        if (timerNode.ProgressPercent != 0.0) timerNode.ProgressPercent = 0.0;
+                    }
+                    break;
+            }
+
+            _liveTimerPrevIn[timerNode.Id] = inActive;
+            if (timerNode.IsLiveActive != qActive) timerNode.IsLiveActive = qActive;
+            bool timerActive = qActive || timerNode.IsTiming;
+            if (timerNode.IsSimActive != timerActive) timerNode.IsSimActive = timerActive;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == timerNode))
+            {
+                if (outConn.IsActive != qActive) outConn.IsActive = qActive;
+                if (outConn.Target?.Node is ActionNodeViewModel act)
+                {
+                    if (act.IsSimActive != qActive) act.IsSimActive = qActive;
+                    if (act.IsSimTargetOn != qActive) act.IsSimTargetOn = qActive;
+                }
+            }
+        }
+
+        // 7. Counters: Cập nhật dây vào, giá trị CV từ live TagCatalog và dây ra Q
+        foreach (var counterNode in Nodes.OfType<CounterNodeViewModel>())
+        {
+            foreach (var counterConn in Connections.Where(c => c.Target?.Node == counterNode))
+            {
+                if (counterConn.Source?.Node is InputNodeViewModel inNode)
+                {
+                    int val = inNode.IsLiveOnline ? inNode.LiveRawValue : (inNode.Tag?.Value ?? 0);
+                    bool valActive = val != 0;
+                    if (counterConn.IsActive != valActive) counterConn.IsActive = valActive;
+                }
+                else if (counterConn.Source?.Node is TriggerNodeViewModel trg)
+                {
+                    if (counterConn.IsActive != trg.IsSimTriggered) counterConn.IsActive = trg.IsSimTriggered;
+                }
+                else if (counterConn.Source?.Node is GuardNodeViewModel grd)
+                {
+                    if (counterConn.IsActive != grd.IsSimPassed) counterConn.IsActive = grd.IsSimPassed;
+                }
+            }
+
+            // Đọc giá trị CV từ live TagCatalog (ví dụ COUNTER0, VREG...)
+            if (counterNode.CvTag != null)
+            {
+                var cvTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == counterNode.CvTag.Index);
+                if (cvTag != null && counterNode.CurrentCount != cvTag.Value)
+                {
+                    counterNode.CurrentCount = cvTag.Value;
+                }
+            }
+
+            // Đọc trạng thái ngõ ra Q từ live TagCatalog
+            bool qActive = false;
+            if (counterNode.OutputTag != null)
+            {
+                var qTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == counterNode.OutputTag.Index);
+                if (qTag != null)
+                {
+                    qActive = qTag.Value != 0;
+                }
+            }
+            else
+            {
+                qActive = counterNode.CounterMode == "CTD"
+                    ? counterNode.CurrentCount <= 0
+                    : counterNode.CurrentCount >= counterNode.PresetValue;
+            }
+
+            if (counterNode.IsLiveActive != qActive) counterNode.IsLiveActive = qActive;
+            if (counterNode.IsSimActive != qActive) counterNode.IsSimActive = qActive;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == counterNode))
+            {
+                if (outConn.IsActive != qActive) outConn.IsActive = qActive;
+                if (outConn.Target?.Node is ActionNodeViewModel act)
+                {
+                    if (act.IsSimActive != qActive) act.IsSimActive = qActive;
+                    if (act.IsSimTargetOn != qActive) act.IsSimTargetOn = qActive;
+                }
+            }
+        }
+
+        // 8. Action Nodes: Nhận tín hiệu kích hoạt từ upstream
+        foreach (var actionNode in Nodes.OfType<ActionNodeViewModel>())
+        {
+            var actConn = Connections.FirstOrDefault(c => c.Target?.Node == actionNode);
+            bool actActive = actConn != null && actConn.IsActive;
+            if (actionNode.IsSimActive != actActive) actionNode.IsSimActive = actActive;
+            if (actionNode.IsSimFired != actActive) actionNode.IsSimFired = actActive;
+
+            int targetVal = actionNode.IsLiveOnline ? actionNode.LiveRawValue : (actionNode.TargetTag?.Value ?? 0);
+            bool targetOn = targetVal != 0;
+            if (actionNode.IsSimTargetOn != targetOn) actionNode.IsSimTargetOn = targetOn;
+            if (actionNode.TargetTag != null)
+            {
+                string targetLiveText = $"{actionNode.TargetTag.Name}: {targetVal}";
+                if (actionNode.SimTargetLiveText != targetLiveText)
+                {
+                    actionNode.SimTargetLiveText = targetLiveText;
+                }
+            }
+        }
+
+        // 9. MQTT Publish Nodes: Nhận tín hiệu kích hoạt từ upstream và hiển thị giá trị live
+        foreach (var mqttNode in Nodes.OfType<MqttPublishNodeViewModel>())
+        {
+            var mqttConn = Connections.FirstOrDefault(c => c.Target?.Node == mqttNode);
+            bool mqttActive = mqttConn != null && mqttConn.IsActive;
+            if (mqttNode.IsSimActive != mqttActive) mqttNode.IsSimActive = mqttActive;
+            if (mqttNode.IsLiveActive != mqttActive) mqttNode.IsLiveActive = mqttActive;
+
+            if (mqttNode.DataTag != null)
+            {
+                var currentTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == mqttNode.DataTag.Index);
+                if (currentTag != null)
+                {
+                    mqttNode.LiveValue = currentTag.Value;
+                    mqttNode.LiveValueText = currentTag.Value.ToString();
+                }
             }
         }
     }
@@ -1187,6 +1800,12 @@ public partial class LogicEditorViewModel : ObservableObject
         nameof(MqttPublishNodeViewModel.DataTag),
         nameof(MqttPublishNodeViewModel.IncludeDevice),
         nameof(MqttPublishNodeViewModel.IncludeTimestamp),
+        nameof(MqttSubscribeNodeViewModel.Topic),
+        nameof(MqttSubscribeNodeViewModel.Qos),
+        nameof(MqttSubscribeNodeViewModel.QueueMode),
+        nameof(MqttSubscribeNodeViewModel.IgnoreRetained),
+        nameof(MqttSubscribeNodeViewModel.FailSafeAction),
+        nameof(MqttSubscribeNodeViewModel.FailSafeTimeoutMs),
         nameof(GraphNodeViewModel.CustomLabel)
     };
 
@@ -1345,6 +1964,7 @@ public partial class LogicEditorViewModel : ObservableObject
         GuardNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Guard,
         ActionNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
         MqttPublishNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        MqttSubscribeNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
         TimerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Timer,
         CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
         ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
@@ -1626,6 +2246,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 null),
             "MqttPublish" or "MQTT" or "MqttPub" => new MqttPublishNodeViewModel(
                 tag ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput || t.Kind == TagKind.DiscreteInput)),
+            "MqttSubscribe" or "MqttSub" => new MqttSubscribeNodeViewModel(),
             "Comparator" or "CMP" => new ComparatorNodeViewModel(
                 tag,
                 CompareOp.GT,
@@ -2422,6 +3043,27 @@ public partial class LogicEditorViewModel : ObservableObject
             }).ToList();
             pNode.TagName = mqtt.DataTag?.Name ?? string.Empty;
         }
+        else if (node is MqttSubscribeNodeViewModel sub)
+        {
+            pNode.Type = "MqttSubscribe";
+            pNode.MqttTopic = sub.Topic;
+            pNode.MqttQos = sub.Qos;
+            pNode.MqttSubQueueMode = sub.QueueMode.ToString();
+            pNode.MqttSubIgnoreRetained = sub.IgnoreRetained;
+            pNode.MqttSubFailSafeAction = sub.FailSafeAction.ToString();
+            pNode.MqttSubTimeoutMs = sub.FailSafeTimeoutMs;
+            pNode.MqttSubPins = sub.Pins.Select(p => new MqttSubPinData
+            {
+                Id = p.Id,
+                Label = p.Label,
+                JsonPath = p.JsonPath,
+                DataType = p.DataType.ToString(),
+                TargetTagIndex = p.TargetTagIndex,
+                MinValue = p.MinValue,
+                MaxValue = p.MaxValue,
+                DefaultValue = p.DefaultValue
+            }).ToList();
+        }
 
         return pNode;
     }
@@ -2555,6 +3197,36 @@ public partial class LogicEditorViewModel : ObservableObject
             }
 
             node = mqtt;
+        }
+        else if (string.Equals(type, "MqttSubscribe", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MqttSub", StringComparison.OrdinalIgnoreCase))
+        {
+            var sub = new MqttSubscribeNodeViewModel(string.IsNullOrWhiteSpace(pNode.MqttTopic) ? "spx/station/+/cmd" : pNode.MqttTopic)
+            {
+                Qos = pNode.MqttQos,
+                IgnoreRetained = pNode.MqttSubIgnoreRetained,
+                FailSafeTimeoutMs = pNode.MqttSubTimeoutMs
+            };
+            if (Enum.TryParse<MqttQueueMode>(pNode.MqttSubQueueMode, true, out var qm))
+                sub.QueueMode = qm;
+            if (Enum.TryParse<MqttFailSafeAction>(pNode.MqttSubFailSafeAction, true, out var fsa))
+                sub.FailSafeAction = fsa;
+
+            if (pNode.MqttSubPins != null && pNode.MqttSubPins.Count > 0)
+            {
+                sub.Pins.Clear();
+                foreach (var p in pNode.MqttSubPins)
+                {
+                    var dt = Enum.TryParse<MqttDataType>(p.DataType, true, out var parsedDt) ? parsedDt : MqttDataType.Int16;
+                    var binding = new MqttPinBindingViewModel(p.Label, p.JsonPath, dt, p.TargetTagIndex, p.MinValue, p.MaxValue, p.DefaultValue)
+                    {
+                        Id = p.Id
+                    };
+                    sub.Pins.Add(binding);
+                }
+            }
+
+            node = sub;
         }
 
         if (node != null)
@@ -3311,7 +3983,15 @@ public partial class LogicEditorViewModel : ObservableObject
         CompileState = CompileState.Stale;
         CurrentProgram = null;
         IsSaved = false;
+        IsGraphDeployed = false;
         SaveStatusMessage = LocalizationService.Tr("SaveStatusStale");
+
+        if (IsLiveDebugActive)
+        {
+            IsLiveDebugActive = false;
+            ClearSimVisuals();
+            SimGateWarning = LocalizationService.Tr("LiveDebugDeployRequiredWarning");
+        }
 
         if (IsSimulationMode)
         {
@@ -3382,7 +4062,8 @@ public partial class LogicEditorViewModel : ObservableObject
             int totalDeployable = result.Rules.Count + 
                 (result.Program?.FunctionBlockTimers.Count ?? 0) + 
                 (result.Program?.FunctionBlockCounters.Count ?? 0) + 
-                (result.Program?.MqttTelemetryConfigs.Count ?? 0);
+                (result.Program?.MqttTelemetryConfigs.Count ?? 0) +
+                (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
 
             // Trong chế độ tự động đồng bộ khi vẽ (Authoring / Editing mode theo chuẩn TIA Portal / CODESYS):
             // Nếu toàn bộ mạch đã hoàn chỉnh và hợp lệ: tự động cập nhật Program để sẵn sàng
@@ -3481,7 +4162,8 @@ public partial class LogicEditorViewModel : ObservableObject
         int totalDeployableExplicit = result.Rules.Count + 
             (result.Program?.FunctionBlockTimers.Count ?? 0) + 
             (result.Program?.FunctionBlockCounters.Count ?? 0) + 
-            (result.Program?.MqttTelemetryConfigs.Count ?? 0);
+            (result.Program?.MqttTelemetryConfigs.Count ?? 0) +
+            (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
 
         if (totalDeployableExplicit == 0)
         {
@@ -3579,12 +4261,12 @@ public partial class LogicEditorViewModel : ObservableObject
     [RelayCommand]
     public void StartSimulation()
     {
-        if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+        if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
         {
             CompileAndSaveRules(isAutoSync: false);
         }
 
-        if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+        if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
         {
             SimGateWarning = LocalizationService.Instance.Get("SimBarGateWarning");
             return;
@@ -3644,12 +4326,12 @@ public partial class LogicEditorViewModel : ObservableObject
         }
         else
         {
-            if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+            if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
             {
                 CompileAndSaveRules(isAutoSync: false);
             }
 
-            if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+            if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
             {
                 SimGateWarning = LocalizationService.Instance.Get("SimBarGateWarning");
                 return;
@@ -3699,12 +4381,12 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (!IsSimulationMode)
         {
-            if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+            if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
             {
                 CompileAndSaveRules(isAutoSync: false);
             }
 
-            if (CompileState != CompileState.Valid || CurrentProgram == null || CurrentProgram.RuleCount == 0)
+            if (CompileState != CompileState.Valid || CurrentProgram == null || ValidRuleCount == 0)
             {
                 SimGateWarning = LocalizationService.Instance.Get("SimBarGateWarning");
                 return;
@@ -3796,6 +4478,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 node.IsSimPassed = tag.Value != 0;
             }
         }
+        if (IsLiveDebugActive)
+        {
+            ApplyLiveOnlinePropagation();
+        }
     }
 
     [RelayCommand]
@@ -3810,6 +4496,11 @@ public partial class LogicEditorViewModel : ObservableObject
             foreach (var conn in Connections.Where(c => c.Source?.Node == inp))
             {
                 conn.IsActive = inp.IsSimActive;
+            }
+
+            if (IsLiveDebugActive)
+            {
+                ApplyLiveOnlinePropagation();
             }
         }
     }
@@ -4425,6 +5116,8 @@ public partial class LogicEditorViewModel : ObservableObject
                     timerNode.ProgressPercent = 0.0;
                 }
             }
+
+            timerNode.IsSimActive = timerNode.IsLiveActive || timerNode.IsTiming;
         }
     }
 
@@ -4481,6 +5174,8 @@ public partial class LogicEditorViewModel : ObservableObject
                     act.IsSimActive = qActive;
                 }
             }
+
+            counterNode.IsSimActive = qActive;
         }
     }
 
@@ -4539,6 +5234,9 @@ public partial class LogicEditorViewModel : ObservableObject
         _simAnimationCts?.Dispose();
         _simAnimationCts = null;
 
+        _liveTimerStartTimes.Clear();
+        _liveTimerPrevIn.Clear();
+
         foreach (var conn in Connections)
         {
             conn.IsActive = false;
@@ -4587,6 +5285,12 @@ public partial class LogicEditorViewModel : ObservableObject
             {
                 mqtt.IsLiveActive = false;
                 mqtt.HasPublishError = false;
+            }
+            else if (node is MqttSubscribeNodeViewModel sub)
+            {
+                sub.IsLiveActive = false;
+                sub.IsValidActive = false;
+                sub.HasSubscribeError = false;
             }
         }
     }

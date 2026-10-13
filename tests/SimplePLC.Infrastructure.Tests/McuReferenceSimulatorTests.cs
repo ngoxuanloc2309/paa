@@ -325,8 +325,8 @@ public class McuReferenceSimulatorTests
         Assert.Equal((ushort)SPLC_DeviceClass.REMOTE_IO, descriptor[0]);
         Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, descriptor[1]);
         Assert.Equal(1, descriptor[2]); // HW Major
-        Assert.Equal(1, descriptor[5]); // FW Major
-        Assert.Equal(7, descriptor[6]); // FW Minor
+        Assert.Equal(2, descriptor[5]); // FW Major
+        Assert.Equal(0, descriptor[6]); // FW Minor
     }
 
     [Fact]

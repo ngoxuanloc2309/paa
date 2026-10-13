@@ -46,6 +46,13 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
     public int HealthCheckDivisor { get; set; } = 5;
 
     /// <summary>
+    /// Cho biết việc quét liên tục mảng Runtime Tags (0x0900..0x09FF) và Function Blocks (0x0B00) có đang được bật hay không.
+    /// Mặc định là true (để tương thích kiểm thử và giám sát tiêu chuẩn).
+    /// Studio MainViewModel sẽ điều phối bật/tắt theo nhu cầu (chỉ kích hoạt khi tab Diag hoặc Live Debug bật).
+    /// </summary>
+    public bool IsTagPollingEnabled { get; set; } = true;
+
+    /// <summary>
     /// Tỷ lệ chu kỳ đọc RTC Clock (mặc định 25 chu kỳ @ 200ms = 5 giây/lần).
     /// </summary>
     public int RtcCheckDivisor { get; set; } = 25;
@@ -244,58 +251,61 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
 
                 await using (lease)
                 {
-                    // 1. Đọc Runtime Tags (R6)
-                    var rawValues = await _tagReader.ReadRuntimeTagValuesAsync(slaveId, tagCount, ct).ConfigureAwait(false);
-                    var timestamp = DateTime.UtcNow;
-
-                    List<RuntimeTagValue> tagValues;
-                    if (product.Tags.Count > 0)
+                    // 1. Chỉ đọc Runtime Tags (0x0900) & Function Blocks (0x0B00) khi được yêu cầu (Live Debug Active hoặc Tab Diag)
+                    if (IsTagPollingEnabled)
                     {
-                        tagValues = new List<RuntimeTagValue>(product.Tags.Count);
-                        foreach (var def in product.Tags)
+                        var rawValues = await _tagReader.ReadRuntimeTagValuesAsync(slaveId, tagCount, ct).ConfigureAwait(false);
+                        var timestamp = DateTime.UtcNow;
+
+                        List<RuntimeTagValue> tagValues;
+                        if (product.Tags.Count > 0)
                         {
-                            int val = (def.TagIndex < rawValues.Length) ? rawValues[def.TagIndex] : 0;
-                            tagValues.Add(new RuntimeTagValue
+                            tagValues = new List<RuntimeTagValue>(product.Tags.Count);
+                            foreach (var def in product.Tags)
                             {
-                                TagIndex = def.TagIndex,
-                                TagName = def.Name,
-                                Value = val,
-                                Quality = 0,
-                                Timestamp = timestamp
-                            });
+                                int val = (def.TagIndex < rawValues.Length) ? rawValues[def.TagIndex] : 0;
+                                tagValues.Add(new RuntimeTagValue
+                                {
+                                    TagIndex = def.TagIndex,
+                                    TagName = def.Name,
+                                    Value = val,
+                                    Quality = 0,
+                                    Timestamp = timestamp
+                                });
+                            }
                         }
-                    }
-                    else
-                    {
-                        tagValues = new List<RuntimeTagValue>(rawValues.Length);
-                        for (ushort i = 0; i < rawValues.Length; i++)
+                        else
                         {
-                            ushort tagIdx = i;
-                            tagValues.Add(new RuntimeTagValue
+                            tagValues = new List<RuntimeTagValue>(rawValues.Length);
+                            for (ushort i = 0; i < rawValues.Length; i++)
                             {
-                                TagIndex = tagIdx,
-                                TagName = $"TAG_{tagIdx}",
-                                Value = rawValues[i],
-                                Quality = 0,
-                                Timestamp = timestamp
-                            });
+                                ushort tagIdx = i;
+                                tagValues.Add(new RuntimeTagValue
+                                {
+                                    TagIndex = tagIdx,
+                                    TagName = $"TAG_{tagIdx}",
+                                    Value = rawValues[i],
+                                    Quality = 0,
+                                    Timestamp = timestamp
+                                });
+                            }
                         }
-                    }
 
-                    TagsUpdated?.Invoke(tagValues);
-                    _stateStore?.UpdateTags(tagValues, product);
+                        TagsUpdated?.Invoke(tagValues);
+                        _stateStore?.UpdateTags(tagValues, product);
 
-                    // 1b. Đọc Function Block subsystem nếu thiết bị hỗ trợ Wire Profile V2
-                    if (product.SupportsDedicatedFunctionBlocks && _fbGateway != null)
-                    {
-                        try
+                        // 1b. Đọc Function Block subsystem nếu thiết bị hỗ trợ Wire Profile V2
+                        if (product.SupportsDedicatedFunctionBlocks && _fbGateway != null)
                         {
-                            var (fbTimers, fbCounters) = await _fbGateway.ReadFunctionBlocksAsync(slaveId, ct).ConfigureAwait(false);
-                            _stateStore?.UpdateFunctionBlocks(fbTimers, fbCounters);
-                        }
-                        catch
-                        {
-                            // Bỏ qua lỗi đọc FB tạm thời nếu thiết bị đang bận hoặc scan boundary
+                            try
+                            {
+                                var (fbTimers, fbCounters) = await _fbGateway.ReadFunctionBlocksAsync(slaveId, ct).ConfigureAwait(false);
+                                _stateStore?.UpdateFunctionBlocks(fbTimers, fbCounters);
+                            }
+                            catch
+                            {
+                                // Bỏ qua lỗi đọc FB tạm thời nếu thiết bị đang bận hoặc scan boundary
+                            }
                         }
                     }
 

@@ -78,8 +78,8 @@ public class McuCommunicationComprehensiveTests
             Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, descriptor.DeviceVariant);
             Assert.Equal(1, descriptor.HwVersionMajor);
             Assert.Equal(0, descriptor.HwVersionMinor);
-            Assert.Equal(1, descriptor.FwVersionMajor);
-            Assert.Equal(7, descriptor.FwVersionMinor);
+            Assert.Equal(2, descriptor.FwVersionMajor);
+            Assert.Equal(0, descriptor.FwVersionMinor);
 
             // 2. Đọc Resource Info (0x0020..0x0029)
             Assert.NotNull(session.ResourceInfo);

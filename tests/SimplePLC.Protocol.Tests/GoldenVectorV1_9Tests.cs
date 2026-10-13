@@ -137,6 +137,7 @@ public class GoldenVectorV1_9Tests
     {
         // 10 registers at 0x0020 (Contract V1.9): WireProfile=1, MaxRules=100, Tags=124, 8DI/8DO/4AI/32VFLAG/32VREG/32RETAIN/8COUNTER
         var res = DeviceResourceInfoDto.CreateRemoteIo8Di8Do4Ai();
+        res.WireProfile = 1;
 
         Span<ushort> regs = stackalloc ushort[10];
         RegisterCodec.EncodeDeviceResourceInfo(res, regs);
@@ -422,7 +423,9 @@ public class GoldenVectorV1_9Tests
         }, descRegs);
 
         Span<ushort> resRegs = stackalloc ushort[10];
-        RegisterCodec.EncodeDeviceResourceInfo(DeviceResourceInfoDto.CreateRemoteIo8Di8Do4Ai(), resRegs);
+        var v19Res = DeviceResourceInfoDto.CreateRemoteIo8Di8Do4Ai();
+        v19Res.WireProfile = 1;
+        RegisterCodec.EncodeDeviceResourceInfo(v19Res, resRegs);
 
         Span<ushort> healthRegs = stackalloc ushort[10];
         RegisterCodec.EncodeDeviceHealth(new DeviceHealthDto

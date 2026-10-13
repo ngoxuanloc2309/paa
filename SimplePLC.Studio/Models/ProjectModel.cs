@@ -116,6 +116,16 @@ public class ProjectNodeData
     public bool MqttIncludeDevice { get; set; } = true;
     public bool MqttIncludeTimestamp { get; set; } = true;
     public List<MqttPayloadFieldData> MqttFields { get; set; } = new();
+
+    // MQTT Subscribe node properties
+    public string MqttSubTopic { get; set; } = "synaptix/commands/inbound";
+    public int MqttSubQos { get; set; } = 1;
+    public string MqttSubQueueMode { get; set; } = "Fifo"; // "Fifo", "LatestWins"
+    public int MqttSubQueueCapacity { get; set; } = 16;
+    public bool MqttSubIgnoreRetained { get; set; } = true;
+    public uint MqttSubTimeoutMs { get; set; } = 0;
+    public string MqttSubFailSafeAction { get; set; } = "KeepLastValue";
+    public List<MqttSubPinData> MqttSubPins { get; set; } = new();
 }
 
 public class MqttPayloadFieldData
@@ -123,6 +133,19 @@ public class MqttPayloadFieldData
     public string Key { get; set; } = string.Empty;
     public string TagName { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
+}
+
+public class MqttSubPinData
+{
+    public string Id { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string JsonPath { get; set; } = string.Empty;
+    public string DataType { get; set; } = "Int16";
+    public string TargetTagName { get; set; } = string.Empty;
+    public ushort? TargetTagIndex { get; set; }
+    public double? MinValue { get; set; }
+    public double? MaxValue { get; set; }
+    public double DefaultValue { get; set; } = 0.0;
 }
 
 public class ProjectConnectionData

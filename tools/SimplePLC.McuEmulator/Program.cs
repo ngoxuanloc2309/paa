@@ -84,8 +84,12 @@ internal class Program
         Console.WriteLine($"Profile:      DI={diCount}, DO={doCount}, AI={aiCount}");
         Console.WriteLine("------------------------------------------------------------------");
         Console.WriteLine("Controls:");
-        Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs");
+        Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs (DI0..DI7)");
         Console.WriteLine("  [+/-]   Increase/Decrease Analog Input AI0 (step 200mV)");
+        Console.WriteLine("  [</>]   Increase/Decrease Analog Input AI1 (step 200mV)");
+        Console.WriteLine("  [A]     Toggle Auto Waveform Generator (All 23 App Blueprints)");
+        Console.WriteLine("  [V]     Toggle VFLAG0 (Production Shift / Security Arm)");
+        Console.WriteLine("  [S]     Sync RTC Clock with host computer");
         Console.WriteLine("  [R]     Trigger Software Reboot");
         Console.WriteLine("  [F]     Trigger Factory Reset");
         Console.WriteLine("  [Q]     Quit");
@@ -114,6 +118,25 @@ internal class Program
                 CounterCount = counterCount
             };
         }
+
+        var layout = simulator.GetTagLayout();
+
+        // Khởi tạo baseline sẵn sàng cho toàn bộ 23 ví dụ (Blueprints):
+        // 1. Kích hoạt VFLAG0 = 1 (Ca sản xuất / Arm mode) cho Andon Alert & Night Security
+        if (layout.VflagCount > 0)
+        {
+            simulator.Control.SetTagValue(layout.VflagBase, 1);
+        }
+
+        // 2. Khởi tạo VREG_RETAIN1 = 5 (cho CTD Countdown nạp sẵn 5 phôi)
+        if (layout.VregRetainCount > 1)
+        {
+            simulator.Control.SetTagValue((ushort)(layout.VregRetainBase + 1), 5);
+        }
+
+        // 3. Khởi tạo RTC clock theo giờ thực tế của máy tính
+        var initNow = DateTimeOffset.Now;
+        simulator.Control.SyncRtcClock((uint)initNow.ToUnixTimeSeconds(), (short)initNow.Offset.TotalMinutes);
 
         var server = new McuModbusRtuServer(simulator, slaveId);
 
@@ -176,9 +199,9 @@ internal class Program
             Console.ResetColor();
         }
 
-        // Vòng lặp nhận phím điều khiển tương tác
-        var layout = simulator.GetTagLayout();
+        // Vòng lặp nhận phím điều khiển tương tác & tạo sóng tín hiệu
         int ai0Value = 1000;
+        int ai1Value = 2000;
         bool[] diStates = new bool[Math.Max(8, (int)layout.DiCount)];
 
         while (!cts.IsCancellationRequested)
@@ -189,6 +212,30 @@ internal class Program
                 if (key.Key == ConsoleKey.Q)
                 {
                     break;
+                }
+                else if (key.Key == ConsoleKey.A)
+                {
+                    autoSignals = !autoSignals;
+                    Console.ForegroundColor = autoSignals ? ConsoleColor.Green : ConsoleColor.Yellow;
+                    Console.WriteLine($"[MODE] Auto Waveform Generator: {(autoSignals ? "ACTIVE (Tự động giả lập 23 ví dụ)" : "PAUSED (Điều khiển thủ công)")}");
+                    Console.ResetColor();
+                }
+                else if (key.Key == ConsoleKey.V && layout.VflagCount > 0)
+                {
+                    int curV = simulator.Control.GetTagValue(layout.VflagBase);
+                    int newV = curV == 0 ? 1 : 0;
+                    simulator.Control.SetTagValue(layout.VflagBase, newV);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"[FLAG] VFLAG0 (Shift / Arm) toggled -> {(newV == 1 ? "HIGH (1) [Ca sản xuất / Arm BẬT]" : "LOW (0) [Hết ca / Arm TẮT]")}");
+                    Console.ResetColor();
+                }
+                else if (key.Key == ConsoleKey.S)
+                {
+                    var hostNow = DateTimeOffset.Now;
+                    simulator.Control.SyncRtcClock((uint)hostNow.ToUnixTimeSeconds(), (short)hostNow.Offset.TotalMinutes);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"[RTC] Synced RTC Clock -> {hostNow:yyyy-MM-dd HH:mm:ss} (UTC+{hostNow.Offset.TotalHours})");
+                    Console.ResetColor();
                 }
 
                 int maxDiKey = Math.Min(8, (int)layout.DiCount);
@@ -217,6 +264,22 @@ internal class Program
                     Console.WriteLine($"[INPUT] AI0 changed -> {ai0Value} mV");
                     Console.ResetColor();
                 }
+                else if (layout.AiCount > 1 && (key.Key == ConsoleKey.OemPeriod))
+                {
+                    ai1Value = Math.Min(10000, ai1Value + 200);
+                    simulator.Control.SetTagValue((ushort)(layout.AiBase + 1), ai1Value);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"[INPUT] AI1 changed -> {ai1Value} mV");
+                    Console.ResetColor();
+                }
+                else if (layout.AiCount > 1 && (key.Key == ConsoleKey.OemComma))
+                {
+                    ai1Value = Math.Max(0, ai1Value - 200);
+                    simulator.Control.SetTagValue((ushort)(layout.AiBase + 1), ai1Value);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"[INPUT] AI1 changed -> {ai1Value} mV");
+                    Console.ResetColor();
+                }
                 else if (key.Key == ConsoleKey.R)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -235,14 +298,19 @@ internal class Program
                 }
             }
 
-            // Nếu bật chế độ auto-signals: Tự động giả lập sóng tín hiệu công nghiệp
+            // Nếu bật chế độ auto-signals: Tự động giả lập sóng tín hiệu cho TOÀN BỘ 23 ví dụ (Blueprints)
             if (autoSignals)
             {
                 long nowMs = Environment.TickCount64;
+
+                // 1. DI0: Máy chạy (Machine Run) / TON On-Delay / Tower Light / CTD Reload
+                // Chu kỳ 16 giây:
+                // 0..7000ms: HIGH (1) [7 giây] -> Đủ thời gian cho TON 5,000ms đếm đủ và bật DO0!
+                // 7000..16000ms: LOW (0) [9 giây] -> Reset TON về 0. Đồng thời tạo sườn xuống ON_FALL cho Andon Alert!
                 if (layout.DiCount > 0)
                 {
-                    // DI0: Chu kỳ 2 giây (1s ON, 1s OFF)
-                    bool autoDi0 = (nowMs % 2000) < 1000;
+                    int t16 = (int)(nowMs % 16000);
+                    bool autoDi0 = t16 < 7000;
                     if (autoDi0 != diStates[0])
                     {
                         diStates[0] = autoDi0;
@@ -250,10 +318,14 @@ internal class Program
                     }
                 }
 
+                // 2. DI1: Cấp liệu (Feed Button) / TOF Off-Delay / CTD Countdown
+                // Chu kỳ 20 giây:
+                // 0..5000ms: HIGH (1) [5 giây] -> Bật quạt DO1.
+                // 5000..20000ms: LOW (0) [15 giây] -> Tắt tín hiệu; người dùng quan sát TOF 10s duy trì DO1 đến 15s rồi ngắt!
                 if (layout.DiCount > 1)
                 {
-                    // DI1: Chu kỳ 4 giây (2s ON, 2s OFF)
-                    bool autoDi1 = (nowMs % 4000) < 2000;
+                    int t20 = (int)(nowMs % 20000);
+                    bool autoDi1 = t20 < 5000;
                     if (autoDi1 != diStates[1])
                     {
                         diStates[1] = autoDi1;
@@ -261,19 +333,117 @@ internal class Program
                     }
                 }
 
+                // 3. DI2: Cảm biến sản lượng Line 1 & CTU Batch Counter (Mỗi 2.0 giây phát 1 xung)
+                // Xung nhịp: HIGH 350ms, LOW 1650ms -> Cứ 2s tăng 1 đơn vị vào VREG_RETAIN0 và CTU!
+                if (layout.DiCount > 2)
+                {
+                    int t2 = (int)(nowMs % 2000);
+                    bool autoDi2 = t2 < 350;
+                    if (autoDi2 != diStates[2])
+                    {
+                        diStates[2] = autoDi2;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 2), autoDi2 ? 1 : 0);
+                    }
+                }
+
+                // 4. DI3: Cảm biến phôi TP Pulse & CTU Reset (Chu kỳ 24 giây)
+                // Tại 20.0s..20.6s: Phát xung HIGH 600ms -> Kích hoạt TP Pulse 1.5s và Reset CTU về 0!
+                if (layout.DiCount > 3)
+                {
+                    int t24 = (int)(nowMs % 24000);
+                    bool autoDi3 = t24 >= 20000 && t24 < 20600;
+                    if (autoDi3 != diStates[3])
+                    {
+                        diStates[3] = autoDi3;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 3), autoDi3 ? 1 : 0);
+                    }
+                }
+
+                // 5. DI4: Dừng khẩn E-Stop & Cảm biến chuyển động ca đêm (Chu kỳ 30 giây)
+                // Tại 26.0s..28.5s: Phát xung HIGH 2.5 giây -> Hú còi E-Stop DO3 và bật đèn an ninh DO7!
+                if (layout.DiCount > 4)
+                {
+                    int t30 = (int)(nowMs % 30000);
+                    bool autoDi4 = t30 >= 26000 && t30 < 28500;
+                    if (autoDi4 != diStates[4])
+                    {
+                        diStates[4] = autoDi4;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 4), autoDi4 ? 1 : 0);
+                    }
+                }
+
+                // 6. DI5: Cảm biến phao mức cao Sump Pump (Chu kỳ 15 giây)
+                // 0..4000ms: HIGH (1) [Nước dâng cao] -> Bơm thoát nước DO4 chạy
+                // 4000..15000ms: LOW (0) [Nước rút] -> Bơm ngắt
+                if (layout.DiCount > 5)
+                {
+                    int t15 = (int)(nowMs % 15000);
+                    bool autoDi5 = t15 < 4000;
+                    if (autoDi5 != diStates[5])
+                    {
+                        diStates[5] = autoDi5;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 5), autoDi5 ? 1 : 0);
+                    }
+                }
+
+                // 7. DI6: Cửa an toàn Safety Door (Bình thường 0 = ĐÓNG để Guard cho phép chạy)
+                // Mỗi 25 giây, cửa mở ra (HIGH 1) trong 3.5 giây (20s đến 23.5s) -> Safety Interlock ngắt DO7!
+                if (layout.DiCount > 6)
+                {
+                    int t25 = (int)(nowMs % 25000);
+                    bool autoDi6 = t25 >= 20000 && t25 < 23500;
+                    if (autoDi6 != diStates[6])
+                    {
+                        diStates[6] = autoDi6;
+                        simulator.Control.SetTagValue((ushort)(layout.DiBase + 6), autoDi6 ? 1 : 0);
+                    }
+
+                    // 8. DI7: Nút khởi động băng tải khi cửa đóng (Phát xung lúc 6.0s..6.8s khi DI6 đang đóng = 0)
+                    if (layout.DiCount > 7)
+                    {
+                        bool autoDi7 = t25 >= 6000 && t25 < 6800;
+                        if (autoDi7 != diStates[7])
+                        {
+                            diStates[7] = autoDi7;
+                            simulator.Control.SetTagValue((ushort)(layout.DiBase + 7), autoDi7 ? 1 : 0);
+                        }
+                    }
+                }
+
+                // 9. AI0: Cảm biến Áp suất khí nén / Mức nước / Báo động khẩn (Chu kỳ 24 giây)
+                // Quét mượt mà hình sin dải toàn phần 1,200 mV đến 9,500 mV:
+                // - < 2,000 mV: Kích hoạt Alarm Code #101
+                // - < 4,000 mV: Hú còi áp suất thấp DO3
+                // - 4,000 .. 8,000 mV: Nằm trong Cửa sổ áp suất danh định [40..80 bar] -> Van nạp DO6 đóng
+                // - Toàn dải 0..10V: Khối SCALE đổi sang 0..16 bar và 0..5.0m nước
                 if (layout.AiCount > 0)
                 {
-                    // AI0: Dải 0..5000 mV tăng giảm hình sin chu kỳ 10 giây
-                    double radians = (nowMs % 10000) / 10000.0 * 2.0 * Math.PI;
-                    int waveAi0 = (int)(2500 + 2000 * Math.Sin(radians));
+                    double rad0 = (nowMs % 24000) / 24000.0 * 2.0 * Math.PI;
+                    int waveAi0 = (int)(5350 + 4150 * Math.Sin(rad0)); // Dải: [1200 .. 9500] mV
                     simulator.Control.SetTagValue(layout.AiBase, waveAi0);
                 }
 
+                // 10. AI1: Cảm biến Nhiệt độ bể dầu 4..20mA (Chu kỳ 18 giây)
+                // Quét dải 2,200 mV đến 9,200 mV:
+                // - > 8,500 mV (> 85°C): Kích hoạt quạt làm mát quá nhiệt DO2!
+                // - Toàn dải: Khối SCALE đổi sang -20°C .. 100°C trên VREG1
                 if (layout.AiCount > 1)
                 {
-                    // AI1: Dải 0..10000 mV ramp tuyến tính chu kỳ 8 giây
-                    int waveAi1 = (int)((nowMs % 8000) * 10000 / 8000);
+                    double rad1 = (nowMs % 18000) / 18000.0 * 2.0 * Math.PI;
+                    int waveAi1 = (int)(5700 + 3500 * Math.Sin(rad1)); // Dải: [2200 .. 9200] mV
                     simulator.Control.SetTagValue((ushort)(layout.AiBase + 1), waveAi1);
+                }
+
+                // 11. AI2 & AI3: Kênh tương tự phụ
+                if (layout.AiCount > 2)
+                {
+                    int waveAi2 = (int)((nowMs % 10000) * 10000 / 10000);
+                    simulator.Control.SetTagValue((ushort)(layout.AiBase + 2), waveAi2);
+                }
+                if (layout.AiCount > 3)
+                {
+                    int waveAi3 = (int)(5000 + 3000 * Math.Cos((nowMs % 12000) / 12000.0 * 2.0 * Math.PI));
+                    simulator.Control.SetTagValue((ushort)(layout.AiBase + 3), waveAi3);
                 }
             }
 

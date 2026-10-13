@@ -54,6 +54,11 @@ public sealed class SimulatorControl
     public void SetHardwareRtcState(bool hasHardwareRtc, bool batteryLow) => _simulator.SetHardwareRtcState(hasHardwareRtc, batteryLow);
 
     /// <summary>
+    /// Đồng bộ đồng hồ thời gian thực RTC (Unix Epoch UTC và Timezone Offset).
+    /// </summary>
+    public void SyncRtcClock(uint epochUtcSeconds, short timezoneOffsetMinutes) => _simulator.SyncRtcClock(epochUtcSeconds, timezoneOffsetMinutes);
+
+    /// <summary>
     /// Giả lập ngắt nguồn vật lý và bật lại (Power Cycle).
     /// </summary>
     public void PowerCycle() => _simulator.PowerCycle();

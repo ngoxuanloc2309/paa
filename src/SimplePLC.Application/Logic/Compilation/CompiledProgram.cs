@@ -14,6 +14,7 @@ public sealed class CompiledProgram
     public IReadOnlyList<FbTimerRecordDto> FunctionBlockTimers { get; }
     public IReadOnlyList<FbCounterRecordDto> FunctionBlockCounters { get; }
     public IReadOnlyList<MqttTelemetryConfigDto> MqttTelemetryConfigs { get; }
+    public IReadOnlyList<MqttSubscriptionConfigDto> MqttSubscriptionConfigs { get; }
 
     public CompiledProgram(
         string programId,
@@ -22,7 +23,8 @@ public sealed class CompiledProgram
         IReadOnlyDictionary<int, GeneratedRuleOrigin>? sourceMap = null,
         IReadOnlyList<FbTimerRecordDto>? fbTimers = null,
         IReadOnlyList<FbCounterRecordDto>? fbCounters = null,
-        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null)
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null)
     {
         ProgramId = programId ?? Guid.NewGuid().ToString("N");
         Rules = rules ?? Array.Empty<Rule>();
@@ -31,6 +33,7 @@ public sealed class CompiledProgram
         FunctionBlockTimers = fbTimers ?? Array.Empty<FbTimerRecordDto>();
         FunctionBlockCounters = fbCounters ?? Array.Empty<FbCounterRecordDto>();
         MqttTelemetryConfigs = mqttConfigs ?? Array.Empty<MqttTelemetryConfigDto>();
+        MqttSubscriptionConfigs = mqttSubConfigs ?? Array.Empty<MqttSubscriptionConfigDto>();
     }
 
     public RuleTable ToRuleTable()

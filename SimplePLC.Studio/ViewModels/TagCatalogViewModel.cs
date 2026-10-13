@@ -85,9 +85,22 @@ public partial class TagCatalogViewModel : ObservableObject
     public int TotalTagCount => AllTags.Count(t => t.Kind != TagKind.None);
     public string TitleText => string.Format(LocalizationService.Tr("TagCatalogTitleDynamic"), TotalTagCount);
 
+    private readonly Dictionary<int, TagModel> _tagsByIndex = new();
+
+    public void RebuildTagIndex()
+    {
+        _tagsByIndex.Clear();
+        foreach (var tag in AllTags)
+        {
+            _tagsByIndex[tag.Index] = tag;
+        }
+    }
+
     public TagCatalogViewModel()
     {
+        AllTags.CollectionChanged += (s, e) => RebuildTagIndex();
         InitializeTagsFromLayout(TagLayoutMap.Default);
+        RebuildTagIndex();
         UpdateGroupButtons();
         _currentGroupInfo = GetGroupInfo("ALL");
         ApplyFilter();
@@ -421,6 +434,7 @@ public partial class TagCatalogViewModel : ObservableObject
 
     /// <summary>
     /// Đồng bộ giá trị sống (Live runtime values) nhận từ MonitorService.TagsUpdated.
+    /// Tối ưu hóa: Tra cứu O(1) qua _tagsByIndex, Dirty Checking giá trị, điều phối qua DispatcherPriority.Background.
     /// </summary>
     public void UpdateTagValues(IReadOnlyList<RuntimeTagValue> values)
     {
@@ -430,17 +444,19 @@ public partial class TagCatalogViewModel : ObservableObject
         {
             foreach (var val in values)
             {
-                var tag = AllTags.FirstOrDefault(t => t.Index == val.TagIndex);
-                if (tag != null && tag.Value != val.Value)
+                if (_tagsByIndex.TryGetValue(val.TagIndex, out var tag))
                 {
-                    tag.Value = val.Value;
+                    if (tag.Value != val.Value)
+                    {
+                        tag.Value = val.Value;
+                    }
                 }
             }
         }
 
         if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
         {
-            dispatcher.BeginInvoke(new Action(Apply));
+            dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(Apply));
         }
         else
         {

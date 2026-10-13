@@ -358,6 +358,62 @@ public sealed class RuleCompiler : IRuleCompiler
                         label: mqtt.DisplayTitle));
                     break;
 
+                case MqttSubscribeNodeViewModel sub:
+                    ushort? subEnTag = null;
+                    var subEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == sub &&
+                        (string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == sub.EnableConnector ||
+                         c.Target == sub.InputConnectors.FirstOrDefault()));
+                    if (subEnConn?.Source?.Node is InputNodeViewModel enInVm && enInVm.Tag != null)
+                    {
+                        subEnTag = ResolveTagIndex(enInVm.Tag, targetProduct);
+                    }
+                    else if (subEnConn?.Source?.Node is TriggerNodeViewModel trigSub)
+                    {
+                        var trigIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigSub);
+                        if (trigIn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            subEnTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
+                        }
+                    }
+
+                    var pinDtos = new List<SimplePLC.Protocol.Dto.MqttPinBindingDto>();
+                    foreach (var pin in sub.Pins)
+                    {
+                        var dto = pin.ToDto();
+                        if (pin.TargetTag != null && pin.TargetTag.Kind != TagKind.None)
+                        {
+                            dto.TargetTagIndex = ResolveTagIndex(pin.TargetTag, targetProduct);
+                        }
+                        else
+                        {
+                            var pinConn = connectionList.FirstOrDefault(c => c.Source?.Node == sub &&
+                                (c.Source == pin.Connector ||
+                                 string.Equals(c.Source.Title, pin.Label, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(c.Source.Id, pin.Id, StringComparison.OrdinalIgnoreCase)));
+                            if (pinConn?.Target?.Node is ActionNodeViewModel subActNode && subActNode.TargetTag != null)
+                            {
+                                dto.TargetTagIndex = ResolveTagIndex(subActNode.TargetTag, targetProduct);
+                            }
+                        }
+                        pinDtos.Add(dto);
+                    }
+
+                    graph.Nodes.Add(LogicNode.CreateMqttSubscribe(
+                        sub.Id,
+                        subEnTag,
+                        sub.Topic,
+                        sub.Qos,
+                        sub.QueueMode,
+                        sub.QueueCapacity,
+                        sub.IgnoreRetained,
+                        sub.TimeoutMs,
+                        sub.FailSafeAction,
+                        pinDtos,
+                        executionOrder: actionOrder++,
+                        label: sub.DisplayTitle));
+                    break;
+
                 default:
                     studioDiagnostics.Add(new(SimplePLC.Studio.Models.DiagnosticSeverity.Error, LocalizationService.Tr("DiagUnsupportedNode"), NodeId: node.Id));
                     break;

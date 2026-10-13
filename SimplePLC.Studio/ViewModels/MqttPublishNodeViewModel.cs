@@ -38,9 +38,17 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     [NotifyPropertyChangedFor(nameof(PreviewPayloadText))]
     [NotifyPropertyChangedFor(nameof(IsCustomTemplateVisible))]
+    [NotifyPropertyChangedFor(nameof(IsJsonMode))]
+    [NotifyPropertyChangedFor(nameof(IsRawMode))]
     private string _payloadMode = "JSON"; // "JSON", "Raw", "Custom"
 
     public bool IsCustomTemplateVisible => string.Equals(PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase);
+    public bool IsJsonMode => string.Equals(PayloadMode, "JSON", StringComparison.OrdinalIgnoreCase);
+    public bool IsRawMode => string.Equals(PayloadMode, "Raw", StringComparison.OrdinalIgnoreCase);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewPayloadText))]
+    private bool _wrapValues = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -52,8 +60,8 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     private string _customTemplate = "{\n  \"device\": \"{device}\",\n  \"ts\": {ts},\n  \"values\": {\n    \"{tag}\": {val}\n  }\n}";
 
     public int CustomTemplateLength => CustomTemplate?.Length ?? 0;
-    public string CustomTemplateCounterText => $"{CustomTemplateLength} / 128 chars";
-    public bool IsCustomTemplateExceeded => CustomTemplateLength > 128;
+    public string CustomTemplateCounterText => $"{CustomTemplateLength} ký tự";
+    public bool IsCustomTemplateExceeded => CustomTemplateLength > 512;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -77,6 +85,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
+    [NotifyPropertyChangedFor(nameof(PublishModeSummaryText))]
     [NotifyPropertyChangedFor(nameof(IsEventMode))]
     [NotifyPropertyChangedFor(nameof(IsCovMode))]
     [NotifyPropertyChangedFor(nameof(IsPeriodicMode))]
@@ -86,14 +95,18 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     public bool IsCovMode => string.Equals(PublishMode, "COV", StringComparison.OrdinalIgnoreCase);
     public bool IsPeriodicMode => string.Equals(PublishMode, "Cyclic", StringComparison.OrdinalIgnoreCase) || string.Equals(PublishMode, "Periodic", StringComparison.OrdinalIgnoreCase);
 
+    public string PublishModeSummaryText => IsPeriodicMode ? $"{IntervalMs}ms" : (IsCovMode ? $"COV (Δ{Deadband})" : "On Trig");
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
+    [NotifyPropertyChangedFor(nameof(PublishModeSummaryText))]
     private double _deadband = 0.5;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
+    [NotifyPropertyChangedFor(nameof(PublishModeSummaryText))]
     private uint _intervalMs = 1000;
 
     [ObservableProperty]
@@ -279,16 +292,55 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
 
     /// <summary>
     /// Sinh nội dung payload dựa trên cấu hình:
-    /// - Nếu có danh sách Fields trong Field Builder: sinh JSON đa biến { key1: val1, key2: val2, ... }
-    /// - Nếu không: sinh theo PayloadMode (JSON, Raw hoặc Custom).
+    /// - Custom: Dùng mẫu tùy biến do người dùng tự gõ, thay thế các biến {val}, {tag}, {device}, {ts}, hoặc {field_name}
+    /// - Raw: Trả về giá trị thô trực tiếp
+    /// - JSON: Tự động gom nhóm các trường (có tùy chọn bọc "values", kèm "device", kèm "ts")
     /// </summary>
     public string GeneratePayload(double value, string deviceName = "SynaptiX_Controller")
     {
         string tagName = DataTag?.Name ?? "TAG";
         long nowMillis = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        // 1. Chế độ Visual Field Builder (Nhiều trường gom nhóm)
-        if (Fields.Count > 0 && PayloadMode == "JSON")
+        // 1. Chế độ Tùy biến mẫu tự do (Custom Template)
+        if (string.Equals(PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(CustomTemplate))
+            {
+                return value.ToString("0.##");
+            }
+
+            string result = CustomTemplate
+                .Replace("{val}", value.ToString("0.##"))
+                .Replace("{tag}", tagName)
+                .Replace("{device}", deviceName)
+                .Replace("{unit}", Unit ?? string.Empty)
+                .Replace("{ts}", nowMillis.ToString());
+
+            // Thay thế cả các biến theo tên trường trong Fields (nếu có)
+            foreach (var field in Fields)
+            {
+                if (!string.IsNullOrWhiteSpace(field.Key))
+                {
+                    string fVal = field.Tag != null ? field.Tag.Value.ToString("0.##") : "0";
+                    result = result.Replace("{" + field.Key + "}", fVal);
+                }
+                if (field.Tag != null && !string.IsNullOrWhiteSpace(field.Tag.Name))
+                {
+                    result = result.Replace("{" + field.Tag.Name + "}", field.Tag.Value.ToString("0.##"));
+                }
+            }
+
+            return result;
+        }
+
+        // 2. Chế độ Giá trị thô (Raw Value)
+        if (string.Equals(PayloadMode, "Raw", StringComparison.OrdinalIgnoreCase))
+        {
+            return value.ToString("0.##");
+        }
+
+        // 3. Chế độ Visual Field Builder (Nhiều trường gom nhóm)
+        if (Fields.Count > 0)
         {
             var valuesDict = new System.Collections.Generic.Dictionary<string, object>();
             foreach (var field in Fields)
@@ -297,8 +349,8 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
                     ? (field.Tag?.Name.ToLowerInvariant() ?? "field")
                     : field.Key;
 
-                double fieldVal = field.Tag != null ? field.Tag.Value : value;
-                valuesDict[key] = Math.Round(fieldVal, 2);
+                object fieldVal = field.Tag != null ? Math.Round(Convert.ToDouble(field.Tag.Value), 2) : 0;
+                valuesDict[key] = fieldVal;
             }
 
             var envelope = new System.Collections.Generic.Dictionary<string, object>();
@@ -310,42 +362,40 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
             {
                 envelope["ts"] = nowMillis;
             }
-            envelope["values"] = valuesDict;
+
+            if (WrapValues)
+            {
+                envelope["values"] = valuesDict;
+            }
+            else
+            {
+                foreach (var kvp in valuesDict)
+                {
+                    envelope[kvp.Key] = kvp.Value;
+                }
+            }
 
             return JsonSerializer.Serialize(envelope, new JsonSerializerOptions { WriteIndented = true });
         }
 
-        // 2. Chế độ đơn biến truyền thống
-        switch (PayloadMode)
+        // 4. Mặc định đơn biến (Single Tag)
+        var defaultObj = new System.Collections.Generic.Dictionary<string, object>();
+        if (IncludeDevice) defaultObj["device"] = deviceName;
+        if (IncludeTimestamp) defaultObj["ts"] = nowMillis;
+
+        if (WrapValues)
         {
-            case "Raw":
-                return value.ToString("0.##");
-
-            case "Custom":
-                if (string.IsNullOrWhiteSpace(CustomTemplate))
-                {
-                    return value.ToString("0.##");
-                }
-                return CustomTemplate
-                    .Replace("{val}", value.ToString("0.##"))
-                    .Replace("{tag}", tagName)
-                    .Replace("{device}", deviceName)
-                    .Replace("{unit}", Unit ?? string.Empty)
-                    .Replace("{ts}", nowMillis.ToString());
-
-            case "JSON":
-            default:
-                var payloadObj = new
-                {
-                    device = deviceName,
-                    ts = nowMillis,
-                    values = new System.Collections.Generic.Dictionary<string, object>
-                    {
-                        { tagName.ToLowerInvariant(), Math.Round(value, 2) }
-                    }
-                };
-                return JsonSerializer.Serialize(payloadObj, new JsonSerializerOptions { WriteIndented = true });
+            defaultObj["values"] = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { tagName.ToLowerInvariant(), Math.Round(value, 2) }
+            };
         }
+        else
+        {
+            defaultObj[tagName.ToLowerInvariant()] = Math.Round(value, 2);
+        }
+
+        return JsonSerializer.Serialize(defaultObj, new JsonSerializerOptions { WriteIndented = true });
     }
 
     /// <summary>
@@ -440,5 +490,11 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     {
         Topic = "synaptix/{device}/status";
         Retain = true; // Status ưu tiên Retain
+    }
+
+    [RelayCommand]
+    public void ResetCustomTemplate()
+    {
+        CustomTemplate = "{\n  \"device\": \"{device}\",\n  \"ts\": {ts},\n  \"values\": {\n    \"{tag}\": {val}\n  }\n}";
     }
 }

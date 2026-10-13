@@ -698,6 +698,28 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(SimStatusText));
     }
+
+    /// <summary>
+    /// Đánh giá điều kiện Trigger dựa trên giá trị thời gian thực (cho Live Debug / Online Monitor).
+    /// </summary>
+    public bool EvaluateCondition(int value)
+    {
+        if (HasComparison)
+        {
+            return CompareOp switch
+            {
+                CompareOp.EQ => value == ThresholdLo,
+                CompareOp.NEQ => value != ThresholdLo,
+                CompareOp.GT => value > ThresholdLo,
+                CompareOp.LT => value < ThresholdLo,
+                CompareOp.GTE => value >= ThresholdLo,
+                CompareOp.LTE => value <= ThresholdLo,
+                CompareOp.BETWEEN => value >= ThresholdLo && value <= ThresholdHi,
+                _ => value != 0
+            };
+        }
+        return value != 0;
+    }
 }
 
 public partial class GuardNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode

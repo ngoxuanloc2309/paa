@@ -44,7 +44,7 @@ public sealed class HardwareDevicePreset
         return DeviceProfileBuilder.Build(
             (ushort)DeviceClass,
             DeviceVariant,
-            protocolVersion: DeviceProfileBuilder.ProtocolVersionV1,
+            protocolVersion: DeviceProfileBuilder.ProtocolVersionV2,
             wireProfile: DeviceProfileBuilder.WireProfileV2,
             maxRules: MaxRules,
             runtimeTagCount: (ushort)resources.TotalTags,

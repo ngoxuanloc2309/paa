@@ -266,6 +266,23 @@ public partial class MainViewModel : ObservableObject
             or nameof(LogicEditorViewModel.ValidRuleCount)
             or nameof(LogicEditorViewModel.Diagnostics))
             UpdateLanguageTexts();
+
+        if (e.PropertyName == nameof(LogicEditorViewModel.IsLiveDebugActive))
+            UpdateTagPollingState();
+    }
+
+    public void UpdateTagPollingState()
+    {
+        bool needPolling = (SelectedTabIndex == 5) || (SelectedTabIndex == 0 && LogicEditorVM.IsLiveDebugActive);
+        if (AppServices.Instance.MonitorService != null)
+        {
+            AppServices.Instance.MonitorService.IsTagPollingEnabled = needPolling;
+        }
+    }
+
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        UpdateTagPollingState();
     }
 
     [RelayCommand]
@@ -368,6 +385,11 @@ public partial class MainViewModel : ObservableObject
             IsConnected = false;
             ConnectionState = ConnectionState.Disconnected;
             FirmwareInfo = Loc.IsVietnamese ? "Chưa có thiết bị" : "No device";
+            if (LogicEditorVM.IsLiveDebugActive)
+            {
+                LogicEditorVM.IsLiveDebugActive = false;
+            }
+            LogicEditorVM.ClearSimVisuals();
             UpdateConnectionStatus();
             NotifyAllDeviceCommands();
             return;
@@ -722,6 +744,11 @@ public partial class MainViewModel : ObservableObject
                 default:
                     IsConnected = false;
                     ConnectionState = ConnectionState.Disconnected;
+                    if (LogicEditorVM.IsLiveDebugActive)
+                    {
+                        LogicEditorVM.IsLiveDebugActive = false;
+                    }
+                    LogicEditorVM.ClearSimVisuals();
                     if (e.FailureReason == ConnectionFailureReason.CommunicationLost)
                     {
                         LifecycleStatusText = isVi 
@@ -783,6 +810,7 @@ public partial class MainViewModel : ObservableObject
             RtcStatusTooltip = string.Empty;
         }
         NotifyAllDeviceCommands();
+        UpdateTagPollingState();
     }
 
     private void UpdateConnectionStatus()
@@ -1384,8 +1412,8 @@ public partial class MainViewModel : ObservableObject
             if (DeviceProfileBuilder.TryBuild(
                 CurrentProjectMetadata.DeviceClass,
                 CurrentProjectMetadata.ProductVariant,
-                protocolVersion: DeviceProfileBuilder.ProtocolVersionV1,
-                wireProfile: DeviceProfileBuilder.WireProfileV1,
+                protocolVersion: DeviceProfileBuilder.ProtocolVersionV2,
+                wireProfile: DeviceProfileBuilder.WireProfileV2,
                 maxRules: (ushort)CurrentProjectMetadata.MaxRules,
                 runtimeTagCount: (ushort)resources.TotalTags,
                 resources: resources,
@@ -1647,9 +1675,66 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void DeployToDevice()
+    public async Task DeployToDeviceAsync()
     {
-        SelectTab(4);
+        // 1. Tự động đồng bộ / biên dịch canvas nếu có chỉnh sửa đang dở
+        if (LogicEditorVM.CompileState == CompileState.Stale)
+        {
+            LogicEditorVM.CompileNow();
+        }
+
+        // 2. Nếu chưa kết nối phần cứng, chuyển sang tab Deploy để xem hướng dẫn & cảnh báo
+        if (!IsConnected && !DeployVM.IsDeviceConnected)
+        {
+            SelectTab(4);
+            return;
+        }
+
+        // 3. Nếu đã kết nối, kích hoạt tiến trình nạp Staged & Atomic Commit
+        DeployVM.UpdatePreflightSummary();
+        if (DeployVM.CanDeploy)
+        {
+            var previousMessage = LogicEditorVM.SaveStatusMessage;
+            LogicEditorVM.SaveStatusMessage = Loc.IsVietnamese 
+                ? "⚡ Đang nạp..." 
+                : "⚡ Deploying...";
+
+            await DeployVM.StartDeployAsync();
+            if (DeployVM.IsSuccess)
+            {
+                string successText = Loc.IsVietnamese 
+                    ? "⚡ Đã nạp thành công!" 
+                    : "⚡ Flashed successfully!";
+                LogicEditorVM.SaveStatusMessage = successText;
+
+                // Tự động biến mất sau 3 giây và khôi phục trạng thái bình thường
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3000);
+                    if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+                    {
+                        dispatcher.Invoke(() =>
+                        {
+                            if (LogicEditorVM.SaveStatusMessage == successText)
+                            {
+                                LogicEditorVM.SaveStatusMessage = LogicEditorVM.CompileState == CompileState.Valid
+                                    ? string.Format(LocalizationService.Tr("SaveStatusValid"), LogicEditorVM.ValidRuleCount)
+                                    : previousMessage;
+                            }
+                        });
+                    }
+                });
+            }
+            else
+            {
+                LogicEditorVM.SaveStatusMessage = previousMessage;
+                SelectTab(4);
+            }
+        }
+        else
+        {
+            SelectTab(4);
+        }
     }
 
     public Action<string, string, System.Windows.MessageBoxButton, System.Windows.MessageBoxImage>? MessageBoxHandler { get; set; }

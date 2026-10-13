@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Windows;
 using SimplePLC.Domain.Enums;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
 
 namespace SimplePLC.Studio.ViewModels;
@@ -475,6 +476,48 @@ public partial class BlueprintsViewModel : ObservableObject
             TagsSummaryVi = "DI4 (Cảm biến), RTC (18:00-06:00), VFLAG0 (Chế độ), DO7 (Đèn)",
             TagsSummaryEn = "DI4 (Motion), RTC (18:00-06:00), VFLAG0 (Arm Mode), DO7 (Floodlight)"
         });
+
+        // =========================================================================
+        // NHÓM 6: TRUYỀN THÔNG ĐÁM MÂY & IOT CÔNG NGHIỆP (IIOT & MQTT)
+        // =========================================================================
+
+        // 22. IIoT Telemetry Publish (MQTT Publish)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "mqtt_pub",
+            TitleVi = "Xuất Bản Đo Lường IIoT (MQTT Publish)",
+            TitleEn = "IIoT Telemetry Publisher (MQTT Publish)",
+            SubtitleVi = "Đẩy dữ liệu cảm biến lên Cloud Broker khi có sự kiện",
+            SubtitleEn = "Publish sensor telemetry to Cloud Broker on event trigger",
+            DescriptionVi = "Kích hoạt gửi bản tin JSON lên MQTT Broker tại chủ đề 'synaptix/telemetry/data' (QoS 1) khi phát hiện xung DI0 hoặc dữ liệu AI0 thay đổi, đồng thời bật đèn báo hoàn tất DO0.",
+            DescriptionEn = "Publishes JSON telemetry payload to MQTT Broker under topic 'synaptix/telemetry/data' (QoS 1) upon DI0 trigger or AI0 analog variation, activating DO0 confirmation light.",
+            BadgeVi = "IIoT / MQTT",
+            BadgeEn = "IIoT / MQTT",
+            BadgeColor = "#0284C7",
+            Icon = "📡",
+            RuleCount = 1,
+            TagsSummaryVi = "DI0 (Kích hoạt), AI0 (Dữ liệu), DO0 (Đèn xác nhận)",
+            TagsSummaryEn = "DI0 (Trigger), AI0 (Data), DO0 (Done Indicator)"
+        });
+
+        // 23. Remote Command Dispatcher (MQTT Subscribe)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "mqtt_sub",
+            TitleVi = "Nhận Lệnh Điều Khiển Từ Xa (MQTT Subscribe)",
+            TitleEn = "Remote Command Dispatcher (MQTT Subscribe)",
+            SubtitleVi = "Tiếp nhận bản tin điều khiển từ Cloud xuống thiết bị",
+            SubtitleEn = "Receive remote inbound commands from Cloud to Device",
+            DescriptionVi = "Lắng nghe chủ đề 'synaptix/commands/inbound' (QoS 1) khi được cho phép bởi cờ VFLAG0, giải mã trường JSON 'start' xuất ra cổng DO1 và báo xung hợp lệ lên cổng DO7.",
+            DescriptionEn = "Subscribes to 'synaptix/commands/inbound' (QoS 1) when enabled by VFLAG0, extracts JSON field 'start' to DO1 output and asserts DO7 valid packet pulse.",
+            BadgeVi = "IIoT / MQTT",
+            BadgeEn = "IIoT / MQTT",
+            BadgeColor = "#0D9488",
+            Icon = "📥",
+            RuleCount = 1,
+            TagsSummaryVi = "VFLAG0 (Cho phép), DO1 (Lệnh chạy), DO7 (Báo gói tin)",
+            TagsSummaryEn = "VFLAG0 (Enable), DO1 (Start Command), DO7 (Valid Indicator)"
+        });
     }
 
     [RelayCommand]
@@ -936,6 +979,73 @@ public partial class BlueprintsViewModel : ObservableObject
             _logicEditor.Connect(inp.OutputConnectors[0], trig.InputConnectors[0]);
             _logicEditor.Connect(trig.OutputConnectors[0], grd.InputConnectors[0]);
             _logicEditor.Connect(grd.OutputConnectors[0], act.InputConnectors[0]);
+        }
+        else if (bp.Id == "mqtt_pub")
+        {
+            var di0 = tags.FirstOrDefault(t => t.Name == "DI0") ?? tags[1];
+            var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? tags[0];
+            var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags[9];
+
+            var inpTrig = new InputNodeViewModel(di0) { Location = new Point(80, 120) };
+            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(340, 120) };
+            var actDone = new ActionNodeViewModel(do0) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
+
+            var mqttPub = new MqttPublishNodeViewModel(ai0, "synaptix/telemetry/data")
+            {
+                Qos = 1,
+                PublishMode = "Event",
+                Location = new Point(340, 50)
+            };
+            var inpVal = new InputNodeViewModel(ai0) { Location = new Point(80, 190) };
+
+            _logicEditor.Nodes.Add(inpTrig);
+            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(actDone);
+            _logicEditor.Nodes.Add(mqttPub);
+            _logicEditor.Nodes.Add(inpVal);
+
+            _logicEditor.Connect(inpTrig.OutputConnectors[0], trig.InputConnectors[0]);
+            _logicEditor.Connect(trig.OutputConnectors[0], actDone.InputConnectors[0]);
+            _logicEditor.Connect(trig.OutputConnectors[0], mqttPub.InputConnectors[0]);
+            _logicEditor.Connect(inpVal.OutputConnectors[0], mqttPub.InputConnectors[1]);
+        }
+        else if (bp.Id == "mqtt_sub")
+        {
+            var vflag0 = tags.FirstOrDefault(t => t.Name == "VFLAG0") ?? tags[33];
+            var do1 = tags.FirstOrDefault(t => t.Name == "DO1") ?? tags[10];
+            var do7 = tags.FirstOrDefault(t => t.Name == "DO7") ?? tags[16];
+
+            var inpEn = new InputNodeViewModel(vflag0) { Location = new Point(80, 120) };
+            var trigEn = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(340, 120) };
+            var actValid = new ActionNodeViewModel(do7) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
+
+            var mqttSub = new MqttSubscribeNodeViewModel("synaptix/commands/inbound")
+            {
+                Qos = 1,
+                Location = new Point(340, 50)
+            };
+
+            var pinStart = new MqttPinBindingViewModel("StartCmd", "$.start", MqttDataType.Bool, (ushort)do1.Index)
+            {
+                TargetTag = do1
+            };
+            mqttSub.AddPin(pinStart);
+
+            var actStart = new ActionNodeViewModel(do1) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 190) };
+
+            _logicEditor.Nodes.Add(inpEn);
+            _logicEditor.Nodes.Add(trigEn);
+            _logicEditor.Nodes.Add(actValid);
+            _logicEditor.Nodes.Add(mqttSub);
+            _logicEditor.Nodes.Add(actStart);
+
+            _logicEditor.Connect(inpEn.OutputConnectors[0], trigEn.InputConnectors[0]);
+            _logicEditor.Connect(trigEn.OutputConnectors[0], actValid.InputConnectors[0]);
+            _logicEditor.Connect(inpEn.OutputConnectors[0], mqttSub.EnableConnector);
+            if (pinStart.Connector != null)
+            {
+                _logicEditor.Connect(pinStart.Connector, actStart.InputConnectors[0]);
+            }
         }
 
         // Tự động biên dịch ngay lập tức để đồng bộ sang bảng Rule

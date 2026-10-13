@@ -57,6 +57,7 @@
         <KeyBinding Key="F5" Modifiers="Ctrl" Command="{Binding DeployToDeviceCommand}" />
         <KeyBinding Key="F6" Command="{Binding UploadFromDeviceCommand}" />
         <KeyBinding Key="F7" Command="{Binding CompileRulesCommand}" />
+        <KeyBinding Key="F8" Command="{Binding LogicEditorVM.ToggleLiveDebugCommand}" />
         <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
@@ -179,6 +180,7 @@
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuToggleSimulation]}" Command="{Binding ToggleSimulationCommand}" InputGestureText="F5" />
+                <MenuItem Header="{Binding Loc[MenuLiveDebug]}" Command="{Binding LogicEditorVM.ToggleLiveDebugCommand}" InputGestureText="F8" IsCheckable="True" IsChecked="{Binding LogicEditorVM.IsLiveDebugActive}" />
                 <MenuItem Header="{Binding Loc[MenuToggleGrid]}" Command="{Binding ToggleGridCommand}" IsCheckable="True" IsChecked="{Binding LogicEditorVM.IsGridVisible}" InputGestureText="Alt+G" Icon="▦" />
                 <MenuItem Header="{Binding Loc[MenuFullScreen]}" Command="{Binding ToggleFullScreenCommand}" InputGestureText="F11" />
             </MenuItem>
@@ -469,184 +471,330 @@
                         <!-- Vertical Separator -->
                         <Rectangle Width="1" Height="14" Fill="{StaticResource BorderLightBrush}" Margin="2,0,8,0" VerticalAlignment="Center" />
 
-                        <!-- Action Buttons (VS Code style compact icon buttons with hover explanation) -->
+                        <!-- Action Buttons (Professional VS Code & CAD Flat Segmented Toolbars) -->
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <!-- 1. Bản vẽ mới -->
-                            <Button Command="{Binding LogicEditorVM.NewRuleCanvasCommand}"
-                                    Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                                    Width="28" Height="24" Margin="0,0,5,0" Cursor="Hand"
-                                    ToolTip="Bản vẽ mới: Làm sạch khung vẽ để tạo Rule mới [Ctrl+N]">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
-                                            <TextBlock Text="📄" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#ECEFF1" />
-                                                <Setter TargetName="BtnBdr" Property="BorderBrush" Value="#D1D5DB" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#DFE3E8" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                            <!-- [GROUP 1: RULE AUTHORING & FILE ACTIONS] -->
+                            <Border Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="3" Padding="2,1" Margin="0,0,4,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- 1. Bản vẽ mới (New Canvas) -->
+                                    <Button Command="{Binding LogicEditorVM.NewRuleCanvasCommand}"
+                                            Width="26" Height="22" Cursor="Hand"
+                                            ToolTip="{Binding Loc[TooltipNewRuleCanvas]}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                    <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M3,1 H10 L13.5,4.5 V15 H3 Z" Stroke="#475569" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                            <Path Data="M10,1 V4.5 H13.5" Stroke="#475569" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                            <Path Data="M8.2,7.5 V12 M6,9.8 H10.5" Stroke="#475569" StrokeThickness="1.3" StrokeLineJoin="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#E2E8F0" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
 
-                            <!-- 2. Bảng Rule -->
-                            <Button Command="{Binding LogicEditorVM.ViewRuleTableCommand}"
-                                    Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                                    Width="28" Height="24" Margin="0,0,5,0" Cursor="Hand"
-                                    ToolTip="Bảng Rule: Chuyển sang danh sách toàn bộ các Rule đã lưu [Ctrl+T]">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
-                                            <TextBlock Text="📋" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#ECEFF1" />
-                                                <Setter TargetName="BtnBdr" Property="BorderBrush" Value="#D1D5DB" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#DFE3E8" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                                    <!-- 2. Bảng Rule (Rule Table) -->
+                                    <Button Command="{Binding LogicEditorVM.ViewRuleTableCommand}"
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding Loc[TooltipViewRuleTable]}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                    <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M2,2.5 H14 V13.5 H2 Z" Stroke="#475569" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                            <Path Data="M2,6 H14 M2,9.8 H14 M6,2.5 V13.5" Stroke="#475569" StrokeThickness="1.1" StrokeLineJoin="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#E2E8F0" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
 
-                            <!-- 3. PRIMARY ACTION: Lưu vào Bảng Rule (F7 / Ctrl+S) -->
-                            <Button Command="{Binding LogicEditorVM.CompileNowCommand}"
-                                    Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1"
-                                    Width="32" Height="24" Margin="0,0,5,0" Cursor="Hand"
-                                    ToolTip="Lưu vào Bảng Rule: Biên dịch và lưu Rule vào bảng [Ctrl+S / F7]">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
-                                            <TextBlock Text="⚡" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#0B5A2F" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="#084624" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                                    <!-- 3. Lưu / Cập nhật Rule (Save Rule) -->
+                                    <Button Command="{Binding LogicEditorVM.CompileNowCommand}"
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="ToolTip" Value="{Binding Loc[TooltipSaveRule]}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LogicEditorVM.IsEditingExistingRule}" Value="True">
+                                                        <Setter Property="ToolTip" Value="{Binding Loc[TooltipUpdateRule]}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                    <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M2.5,2 H11.5 L14,4.5 V14 H2.5 Z" Stroke="#475569" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                            <Path Data="M5,2 V5.5 H10 V2" Stroke="#475569" StrokeThickness="1.1" />
+                                                            <Path Data="M5,8.5 H11.5 V14 H5 Z" Stroke="#475569" StrokeThickness="1.1" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#E2E8F0" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
 
-                            <!-- 3b. Save as New Rule (Visible when editing existing rule) -->
-                            <Button Command="{Binding LogicEditorVM.SaveAsNewRuleCommand}"
-                                    Background="{StaticResource IndustrialPrimaryBrush}" BorderBrush="{StaticResource IndustrialPrimaryHoverBrush}" BorderThickness="1"
-                                    Height="24" Padding="6,0" Margin="0,0,5,0" Cursor="Hand"
-                                    ToolTip="{Binding Loc[SaveAsNewRuleTip]}">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding LogicEditorVM.IsEditingExistingRule}" Value="True">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="BtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Loc[SaveAsNewRule]}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="{StaticResource IndustrialPrimaryHoverBrush}" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="BtnBdr" Property="Background" Value="{StaticResource IndustrialPrimaryActiveBrush}" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                                    <!-- 4. Nạp xuống thiết bị (Deploy / Flash to MCU - Ctrl+F5) -->
+                                    <Button Command="{Binding DeployToDeviceCommand}"
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding Loc[TooltipDeployToDevice]}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                    <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Canvas Width="16" Height="16">
+                                                            <!-- Mũi tên nạp đi xuống -->
+                                                            <Path Data="M8,1.5 V9.5 M5,6.5 L8,9.5 L11,6.5" Stroke="#107C41" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                                            <!-- Đế chip/thiết bị PLC -->
+                                                            <Path Data="M2.5,9.5 V13.5 H13.5 V9.5" Stroke="#475569" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                                            <!-- Chân pin chip IC -->
+                                                            <Path Data="M5,13.5 V15 M8,13.5 V15 M11,13.5 V15" Stroke="#475569" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#E2E8F0" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
 
-                            <!-- 4. Quick Run Simulation Button -->
-                            <Button Command="{Binding LogicEditorVM.ToggleSimPlayPauseCommand}"
-                                    Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1"
-                                    Width="28" Height="24" Cursor="Hand"
-                                    ToolTip="Chạy mô phỏng đồ thị logic [F5]">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border x:Name="SimBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
-                                                        <TextBlock Text="▶" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter TargetName="SimBdr" Property="Background" Value="#0B5A2F" />
-                                                        </Trigger>
-                                                        <Trigger Property="IsPressed" Value="True">
-                                                            <Setter TargetName="SimBdr" Property="Background" Value="#084624" />
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Style.Triggers>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
-                                                    <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </MultiDataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                            <!-- Vertical Separator between Rule actions and Canvas/Runtime tools -->
+                            <Rectangle Width="1" Height="14" Fill="{StaticResource BorderLightBrush}" Margin="2,0,4,0" VerticalAlignment="Center" />
 
-                            <!-- 5. Toggle Grid Button (Industrial Toolbar) -->
-                            <Button Command="{Binding ToggleGridCommand}"
-                                    Width="28" Height="24" Margin="5,0,0,0" Cursor="Hand"
-                                    ToolTip="{Binding Loc[TooltipToggleGrid]}">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#FFFFFF" />
-                                        <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding LogicEditorVM.IsGridVisible}" Value="True">
-                                                <Setter Property="Background" Value="#E2E8F0" />
-                                                <Setter Property="BorderBrush" Value="#94A3B8" />
-                                                <Setter Property="Foreground" Value="#0F172A" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="GridBtnBdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
-                                            <TextBlock Text="▦" FontSize="11" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="GridBtnBdr" Property="Background" Value="#DFE3E8" />
-                                                <Setter TargetName="GridBtnBdr" Property="BorderBrush" Value="#CBD5E1" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="GridBtnBdr" Property="Background" Value="#CBD5E1" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                            <!-- [GROUP 2: CANVAS RUNTIME & VIEW CONTROLS] -->
+                            <Border Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="3" Padding="2,1">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- 4. Quick Run Simulation Button (F5) -->
+                                    <Button Command="{Binding LogicEditorVM.ToggleSimPlayPauseCommand}"
+                                            Width="26" Height="22" Cursor="Hand"
+                                            ToolTip="{Binding Loc[TooltipRunSimulation]}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="SimBdr" Background="Transparent" CornerRadius="2">
+                                                                <Viewbox Width="11" Height="11" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <Canvas Width="16" Height="16">
+                                                                        <Path Data="M4.5,2.5 L13.5,8 L4.5,13.5 Z" Fill="#107C41" Stroke="#0B5A2F" StrokeThickness="0.8" StrokeLineJoin="Round" />
+                                                                    </Canvas>
+                                                                </Viewbox>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="SimBdr" Property="Background" Value="#E2E8F0" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="SimBdr" Property="Background" Value="#CBD5E1" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                                            <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+
+                                    <!-- 4b. Live Debug / Online Monitor Button (F8 - VS Code Bug Codicon) -->
+                                    <Button Command="{Binding LogicEditorVM.ToggleLiveDebugCommand}"
+                                            Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding LogicEditorVM.LiveDebugTooltip}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Foreground" Value="#475569" />
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <!-- Inactive State: Flat icon button with VS Code Bug Codicon -->
+                                                            <Border x:Name="DebugBdr" Width="26" Background="Transparent" CornerRadius="2">
+                                                                <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <Canvas Width="16" Height="16">
+                                                                        <Path Data="M3,6 L0.5,5.5 M3,8.5 L0.5,8.5 M3,11.5 L0.5,12 M13,6 L15.5,5.5 M13,8.5 L15.5,8.5 M13,11.5 L15.5,12 M6,2.5 L4.5,1 M10,2.5 L11.5,1"
+                                                                              Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                        <Path Data="M6,3 C6,2.5 10,2.5 10,3 C10,4.2 6,4.2 6,3 Z" Fill="{TemplateBinding Foreground}" />
+                                                                        <Path Data="M4.5,5.5 C4.5,4.5 11.5,4.5 11.5,5.5 V10.5 C11.5,13.2 9.8,14.5 8,14.5 C6.2,14.5 4.5,13.2 4.5,10.5 Z"
+                                                                              Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                                        <Path Data="M8,5.5 V14" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                    </Canvas>
+                                                                </Viewbox>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="DebugBdr" Property="Background" Value="#E2E8F0" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="DebugBdr" Property="Background" Value="#CBD5E1" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                                            <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </MultiDataTrigger>
+                                                    <!-- Active State: Expands into glowing Live Debug Pill with pulsing dot & Bug icon -->
+                                                    <DataTrigger Binding="{Binding LogicEditorVM.IsLiveDebugActive}" Value="True">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border x:Name="DebugBdrActive" Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1" CornerRadius="2" Padding="6,1">
+                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                            <!-- Pulsing indicator dot -->
+                                                                            <Ellipse Width="6" Height="6" Fill="#86EFAC" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                                                <Ellipse.Triggers>
+                                                                                    <EventTrigger RoutedEvent="Loaded">
+                                                                                        <BeginStoryboard>
+                                                                                            <Storyboard RepeatBehavior="Forever">
+                                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                                 From="1.0" To="0.2" Duration="0:0:0.6" AutoReverse="True" />
+                                                                                            </Storyboard>
+                                                                                        </BeginStoryboard>
+                                                                                    </EventTrigger>
+                                                                                </Ellipse.Triggers>
+                                                                            </Ellipse>
+                                                                            <!-- Bug Icon -->
+                                                                            <Viewbox Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,4,0">
+                                                                                <Canvas Width="16" Height="16">
+                                                                                    <Path Data="M3,6 L0.5,5.5 M3,8.5 L0.5,8.5 M3,11.5 L0.5,12 M13,6 L15.5,5.5 M13,8.5 L15.5,8.5 M13,11.5 L15.5,12 M6,2.5 L4.5,1 M10,2.5 L11.5,1"
+                                                                                          Stroke="#FFFFFF" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                                    <Path Data="M6,3 C6,2.5 10,2.5 10,3 C10,4.2 6,4.2 6,3 Z" Fill="#FFFFFF" />
+                                                                                    <Path Data="M4.5,5.5 C4.5,4.5 11.5,4.5 11.5,5.5 V10.5 C11.5,13.2 9.8,14.5 8,14.5 C6.2,14.5 4.5,13.2 4.5,10.5 Z"
+                                                                                          Stroke="#FFFFFF" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                                                    <Path Data="M8,5.5 V14" Stroke="#FFFFFF" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                                </Canvas>
+                                                                            </Viewbox>
+                                                                            <!-- Text -->
+                                                                            <TextBlock Text="LIVE DEBUG" FontWeight="Bold" FontSize="10" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="DebugBdrActive" Property="Background" Value="#0B5A2F" />
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsPressed" Value="True">
+                                                                            <Setter TargetName="DebugBdrActive" Property="Background" Value="#084624" />
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+
+                                    <!-- 5. Toggle Grid Button (Industrial Toolbar) -->
+                                    <Button Command="{Binding ToggleGridCommand}"
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding Loc[TooltipToggleGrid]}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="GridBtnBdr" Width="26" Background="Transparent" CornerRadius="2">
+                                                                <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <Canvas Width="16" Height="16">
+                                                                        <Path Data="M2,2 H14 V14 H2 Z M2,6 H14 M2,10 H14 M6,2 V14 M10,2 V14" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.0" StrokeLineJoin="Round" />
+                                                                    </Canvas>
+                                                                </Viewbox>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="GridBtnBdr" Property="Background" Value="#E2E8F0" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="GridBtnBdr" Property="Background" Value="#CBD5E1" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LogicEditorVM.IsGridVisible}" Value="True">
+                                                        <Setter Property="Foreground" Value="#0F172A" />
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border x:Name="GridActiveBdr" Width="26" Background="#CBD5E1" CornerRadius="2">
+                                                                        <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            <Canvas Width="16" Height="16">
+                                                                                <Path Data="M2,2 H14 V14 H2 Z M2,6 H14 M2,10 H14 M6,2 V14 M10,2 V14" Stroke="#0F172A" StrokeThickness="1.0" StrokeLineJoin="Round" />
+                                                                            </Canvas>
+                                                                        </Viewbox>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="GridActiveBdr" Property="Background" Value="#94A3B8" />
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>

@@ -39,7 +39,7 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 
 | Vùng thanh ghi | Tên phân vùng | Chiều | FC | Kích thước | Mô tả chi tiết |
 | :--- | :--- | :---: | :---: | :--- | :--- |
-| `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Thông tin nhận dạng, Class (=1), Variant (=1), HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
+| `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Nhận dạng phần cứng: Class (1: REMOTE_IO, 2: DATALOGGER, 3: GATEWAY, 4: CONTROLLER), Variant, HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
 | `0x0010` | **Rule Table Info** | R | FC03 | 1 reg (2 B) | Số lượng Rule đang kích hoạt (`active_rule_count`, 0..100). |
 | `0x0020..0x0029` | **Device Resource Info** | R | FC03 | 10 regs (20 B) | Hồ sơ tự mô tả: WireProfile (=2), MaxRules (=100), ActiveTags (=124), DI=8, DO=8, AI=4, VFLAG=32, VREG=32, RETAIN=32, COUNTER=8. |
 | `0x0100..0x073F` | **Active Rule Table** | R | FC03 | Max 1600 regs | Bảng Rule đang chạy thực tế (tối đa 100 rules × 16 thanh ghi = 3200 bytes). |
@@ -347,8 +347,8 @@ Nếu Host gửi yêu cầu không hợp lệ, MCU phản hồi frame ngoại l�
 Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio, firmware MCU bắt buộc phải vượt qua 100% các tiêu chí sau:
 
 - [ ] **CHKL-01: Header Compilation**: Biên dịch firmware với [`simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h) không có cảnh báo padding hoặc alignment trên trình biên dịch GCC / Clang / Keil ARMCC.
-- [ ] **CHKL-02: Device Descriptor Check**: Đọc `0x0000` (10 regs) trả về đúng `Class=1`, `Variant=1`, `ProtocolVersion=2`, `RuleFormatVersion=7`.
-- [ ] **CHKL-03: Device Resource Info Check**: Đọc `0x0020` (10 regs) trả về đúng `WireProfile=2`, `MaxRules=100`, `ActiveTags=124`.
+- [ ] **CHKL-02: Device Descriptor Check**: Đọc `0x0000` (10 regs) trả về đúng Device Class hợp lệ (`1` = Remote I/O, `2` = Datalogger, `3` = Gateway, `4` = Controller), `ProtocolVersion=2`, `RuleFormatVersion=7`.
+- [ ] **CHKL-03: Device Resource Info Check**: Đọc `0x0020` (10 regs) trả về đúng `WireProfile=2`, `MaxRules` và `ActiveTags` khớp với cấu hình profile thiết bị.
 - [ ] **CHKL-04: Deterministic Scan Time**: Đọc `0x0800` (10 regs) trường `scan_time_ms` nằm quanh 10 ms danh định (tuyệt đối không phải microsecond).
 - [ ] **CHKL-05: Real-Time Clock Sync**: Ghi timestamp UTC và múi giờ vào `0x0810..0x0813` bằng FC16 → MCU cập nhật đúng giờ và tính toán chính xác `current_hhmm`.
 - [ ] **CHKL-06: Time Window Cross-Midnight**: Nạp rule kích hoạt từ 22:00 (2200) đến 04:00 (400) → Rule kích hoạt chính xác lúc 23:00 và 02:00, không kích hoạt lúc 12:00.

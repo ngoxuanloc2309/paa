@@ -179,3 +179,18 @@ Tránh trộn refactor lớn, feature mới và formatting toàn solution trong 
 - [ ] Không leak transport DTO lên UI.
 - [ ] Benchmark cập nhật nếu chạm hot path.
 - [ ] Documentation cập nhật nếu thay contract/architecture.
+- [ ] Quy trình phát hành tuân thủ chuẩn [STANDARD_RELEASE_PROCEDURE_SOP.md](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md).
+
+---
+
+## 14. Standard Release Procedure (SOP)
+
+Mọi hoạt động phát hành phiên bản mới (Release) bắt buộc tuân theo tài liệu:  
+👉 [`docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md) (Mã quy trình: `SPLC-SOP-REL-001`).
+
+Bao gồm 5 bước tiêu chuẩn:
+1. **Kiểm thử toàn giải pháp (Pre-flight validation)**: `dotnet test SimplePLC.sln`
+2. **Cập nhật phiên bản & tài liệu**: `SimplePLC.Studio.csproj`, `README.md`, `SimplePLC_Contract_Changelog.md`, `MCU_CONFORMANCE_SPECIFICATION_V2_0.md`.
+3. **Chạy Local CI/CD Pipeline**: `powershell -ExecutionPolicy Bypass -File scripts\cicd_local.ps1 -Version X.Y.Z`
+4. **Commit & Gắn thẻ Git Tag trên nhánh `dev`**: `git commit -am "..."`, `git tag -a vX.Y.Z -m "..."`, `git push origin dev`
+5. **Đồng bộ nhánh `main` & Đẩy Tags lên GitHub**: `git checkout main`, `git merge dev --ff-only`, `git push origin main --tags`, `git checkout dev`.

@@ -30,14 +30,21 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.MqttPublish)
         {
+            if (targetKind == LogicNodeKind.Action)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
             errorCode = "SPLC-GRAPH-MQTT-OUT";
-            errorReason = "MQTT Publish node has no output connectors.";
+            errorReason = "MQTT Publish output connectors (Done/Err) can only connect to an Action node.";
             return false;
         }
 
         if (targetKind == LogicNodeKind.MqttPublish)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -45,7 +52,35 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MQTT-IN";
-            errorReason = "MQTT Publish node can only receive an upstream connection from Input, Scale, Trigger, Guard, Comparator, Timer, or Counter.";
+            errorReason = "MQTT Publish node can only receive an upstream connection from Input, Scale, Trigger, Guard, Comparator, Timer, Counter, or MQTT Subscribe.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.MqttSubscribe)
+        {
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MQTTSUB-OUT";
+            errorReason = "MQTT Subscribe output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, or MQTT Publish.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.MqttSubscribe)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MQTTSUB-IN";
+            errorReason = "MQTT Subscribe EN input can only receive upstream connection from Input, Trigger, or Guard.";
             return false;
         }
 

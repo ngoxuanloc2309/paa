@@ -1,4 +1,4 @@
-﻿namespace SimplePLC.Protocol.Dto;
+namespace SimplePLC.Protocol.Dto;
 
 /// <summary>
 /// DTO biểu diễn 10 thanh ghi (20 bytes) của SPLC_DeviceResourceInfo đọc tại địa chỉ 0x0020 theo Contract V1.9.
@@ -43,7 +43,7 @@ public sealed class DeviceResourceInfoDto
     /// </summary>
     public static DeviceResourceInfoDto CreateRemoteIo8Di8Do4Ai() => new()
     {
-        WireProfile = 1,
+        WireProfile = 2,
         MaxRules = 100,
         RuntimeTagCount = 124,
         DigitalInputCount = 8,

@@ -25,7 +25,7 @@ public class MainViewModelIntegrationTests
         Assert.True(mainVM.IsConnected);
         Assert.Equal(ConnectionState.Connected, mainVM.ConnectionState);
         Assert.Contains("HW 1.0.0", mainVM.FirmwareInfo);
-        Assert.Contains("FW 1.7.0", mainVM.FirmwareInfo);
+        Assert.Contains("FW 2.0.0", mainVM.FirmwareInfo);
 
         // Act 2: Disconnect
         await mainVM.ToggleConnect();

@@ -10,20 +10,26 @@
 * Authoritative C/C++ Header: [`docs/firmware/splc_mqtt_wire.h`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/splc_mqtt_wire.h)
 * Conformance Specification: [`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md)
 * Firmware ICD: [`docs/firmware/SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md)
-* Host C# Codecs & DTOs:
+* Host C# Codecs, Parsers & DTOs:
   - [`src/SimplePLC.Protocol/Codec/MqttBrokerConfigCodec.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Codec/MqttBrokerConfigCodec.cs)
   - [`src/SimplePLC.Protocol/Codec/MqttTelemetryCodec.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Codec/MqttTelemetryCodec.cs)
+  - [`src/SimplePLC.Protocol/Codec/MqttSubscriptionParser.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Codec/MqttSubscriptionParser.cs)
+  - [`src/SimplePLC.Protocol/Dto/MqttPinBindingDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/MqttPinBindingDto.cs)
   - [`src/SimplePLC.Protocol/Dto/MqttBrokerConfigDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/MqttBrokerConfigDto.cs)
   - [`src/SimplePLC.Protocol/Dto/MqttTelemetryConfigDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/MqttTelemetryConfigDto.cs)
 * Studio UI Implementation:
   - [`SimplePLC.Studio/Views/MqttBrokerConfigDialogView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/MqttBrokerConfigDialogView.xaml)
   - [`SimplePLC.Studio/Views/MqttConfigDialogView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/MqttConfigDialogView.xaml)
+  - [`SimplePLC.Studio/Views/MqttSubConfigDialogView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/MqttSubConfigDialogView.xaml)
   - [`SimplePLC.Studio/ViewModels/MqttBrokerConfigViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttBrokerConfigViewModel.cs)
   - [`SimplePLC.Studio/ViewModels/MqttPublishNodeViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttPublishNodeViewModel.cs)
+  - [`SimplePLC.Studio/ViewModels/MqttSubscribeNodeViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttSubscribeNodeViewModel.cs)
 * Unit Test Suites:
   - [`tests/SimplePLC.Protocol.Tests/MqttBrokerConfigCodecTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/MqttBrokerConfigCodecTests.cs)
   - [`tests/SimplePLC.Protocol.Tests/MqttTelemetryCodecTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/MqttTelemetryCodecTests.cs)
+  - [`tests/SimplePLC.Protocol.Tests/MqttSubscriptionParserTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/MqttSubscriptionParserTests.cs)
   - [`SimplePLC.Studio.Tests/MqttBrokerConfigViewModelTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio.Tests/MqttBrokerConfigViewModelTests.cs)
+  - [`SimplePLC.Studio.Tests/MqttSubscribeNodeViewModelTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio.Tests/MqttSubscribeNodeViewModelTests.cs)
 * Hardware Integration & Automation:
   - Virtual UART Hardware Automation: `COM7` $\leftrightarrow$ `COM9` (10/10 Test Cases Passed 100%)
 
@@ -432,7 +438,64 @@ Mọi bộ giải mã Codec và Firmware MCU phải vượt qua chính xác các
 
 ---
 
-## 8. Báo cáo Nghiệm thu Kiểm thử Phần cứng Tự động (Hardware Verification)
+## 8. Phân Hệ MQTT Subscribe & Trích Xuất Dữ Liệu Động (Inbound Data Ingestion & Dynamic Extraction)
+
+### 8.1. Kiến trúc Khối MQTT SUB & Nguyên lý Giao dịch Nguyên tử (Atomic All-or-Nothing)
+Khối `MQTT SUBSCRIBE` (`MqttSubscribeNodeViewModel`, `MqttSubConfigDialogView`) cung cấp khả năng đón nhận các bản tin Inbound từ Broker và bóc tách các trường dữ liệu số/chuỗi thành tín hiệu logic đưa ra các chân Output Pins trên FBD Canvas.
+
+Để bảo đảm an toàn thời gian thực tuyệt đối cho tầng điều khiển PLC, bộ phân tích cú pháp `MqttSubscriptionParser` tuân thủ nguyên tắc **Giao dịch Nguyên tử Toàn vẹn (Atomic Transaction - All-or-Nothing)**:
+* **Định mức Đạt chuẩn (Pass Criteria)**: Mọi trường cấu hình trong danh sách Pins phải được tìm thấy trong JSON, chuyển đổi kiểu dữ liệu thành công (`BOOL`, `INT16`, `INT32`, `FLOAT`, `STRING`) và nằm trong dải giới hạn an toàn (`MinValue .. MaxValue`). Khi thỏa mãn, toàn bộ các chân đầu ra được cập nhật đồng thời trong cùng một chu kỳ quét scan pass, đồng thời kích hoạt chân `Valid = TRUE` và `Err = FALSE`.
+* **Cơ chế Khóa Lỗi An toàn (Fail-Safe Lock)**: Nếu **BẤT KỲ** một trường nào bị thiếu, sai kiểu hoặc vượt ngưỡng:
+  - Toàn bộ gói tin bị **từ chối 100%**.
+  - Không có bất kỳ chân đầu ra nào bị gán giá trị rác hoặc trạng thái trung gian chưa xác định.
+  - Chân `Err` bật `TRUE`, chân `Valid` hạ `FALSE`, ghi nhận mã lỗi chẩn đoán `LastErrorCode` (`MissingField`, `TypeMismatch`, `OutOfRange`, `JsonSyntaxError`).
+
+```text
+       MQTT Broker Inbound Packet
+                  │
+                  ▼
+   ┌──────────────────────────────┐
+   │    MqttSubscriptionParser    │
+   └──────────────┬───────────────┘
+                  │
+        Atomic Evaluation Pass?
+       ┌──────────┴──────────┐
+      YES                   NO
+       │                     │
+       ▼                     ▼
+┌──────────────┐     ┌──────────────┐
+│ Output Pins  │     │ Output Pins  │
+│ Updated All  │     │ Untouched    │
+│ Valid = TRUE │     │ Valid = FALSE│
+│ Err = FALSE  │     │ Err = TRUE   │
+└──────────────┘     └──────────────┘
+```
+
+### 8.2. Khả năng Tương thích Đa Dạng Định dạng Payload
+Trình phân tích hỗ trợ 4 cấp độ định dạng bản tin mà không bắt buộc cấu hình phức tạp:
+1. **Dạng phẳng tự do (Custom Flat JSON)**: `{ "grid": 5, "color": 1, "pressure": 4.2 }` $\rightarrow$ Trích xuất trực tiếp theo tên Key tương ứng với Pin Name.
+2. **Dạng đóng gói IIoT Chuẩn (Standard Industrial Envelope)**: Tự động quét vào các đối tượng wrapper chuẩn như `values`, `data`, `payload`, `params` (ví dụ `{"device": "PLC", "values": {"temp": 25.4}}`).
+3. **Đường dẫn phân cấp (Nested Dot-Notation Path)**: Hỗ trợ cấu hình đường dẫn trường lồng nhau nhiều cấp `sensors.line1.speed`.
+4. **Giá trị chuỗi thô (Single Raw Value)**: Tự động ép kiểu chuỗi số hoặc giá trị logic `"ON"` / `"OFF"` vào chân đầu ra đơn.
+
+### 8.3. Chuẩn hóa Công thái học FBD Canvas & Thanh thuộc tính Inspector
+Tuân thủ nghiêm ngặt tiêu chuẩn thiết kế tự động hóa công nghiệp (IEC 60073 & ISA-101):
+1. **Khối đồ họa trên FBD Canvas**:
+   - Khóa chiều rộng chuẩn **`185px`** cho cả khối `MQTT PUB` và `MQTT SUB`, đồng bộ tỷ lệ với các khối `TON`, `CTU`, `Math`.
+   - Header có Badge định danh phân loại **`[PUB]`** và **`[SUB]`** ở góc trên bên phải.
+   - Thân giữa: Tuyệt đối không nhồi nhét chuỗi Topic dài bị cắt cụt `...`; thay thế bằng thông số kỹ thuật ngắn gọn (`PublishModeSummaryText` hoặc `PinsCountSummary`) và **Status Pill** thời gian thực (`● READY`, `● 3 msgs`).
+   - Khoảng cách chân kết nối (Pin Pitch) thu gọn `Margin="0,1"` giúp khối giữ được tỷ lệ thanh thoát khi mở rộng nhiều chân ngõ ra.
+2. **Thanh thuộc tính Inspector (Node Properties)**:
+   - Đồng bộ Banner màu Slate Gray `#F1F5F9` viền `#CBD5E1`.
+   - Bổ sung đầy đủ cụm nút chọn **`Quality of Service (QoS): [QoS 0] [QoS 1] [QoS 2]`** cho cả hai chiều.
+   - Thẻ cấu hình chuyên sâu dùng phong cách nút xúc giác có viền **`TiaTactileBtnStyle`**, không lấn át nút biên dịch chính `[💾 Save & Compile (Ctrl+S)]`.
+3. **Hộp thoại Cấu hình (Dialogs)**:
+   - Loại bỏ các Checkbox vụn vặt và nút Reset thừa thãi.
+   - Hỗ trợ 100% bản địa hóa song ngữ (i18n Vi/En qua `LocalizationService`).
+
+---
+
+## 9. Báo cáo Nghiệm thu Kiểm thử Phần cứng Tự động (Hardware Verification)
 
 Hệ thống truyền thông nhị phân MQTT V2.0 đã được thẩm định tự động thông qua bộ kiểm thử phần cứng ảo hai cổng UART vật lý nối chéo (`COM7` $\leftrightarrow$ `COM9`), đạt kết quả **10/10 Test Cases Vượt qua 100%**:
 
@@ -451,7 +514,7 @@ Hệ thống truyền thông nhị phân MQTT V2.0 đã được thẩm định 
 
 ---
 
-## 9. Tham chiếu Tài liệu & Mã nguồn Liên kết
+## 10. Tham chiếu Tài liệu & Mã nguồn Liên kết
 
 1. **Header Firmware C/C++ Chuẩn:** [`docs/firmware/splc_mqtt_wire.h`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/splc_mqtt_wire.h)
 2. **Quy chuẩn Tự mô tả Nền tảng V2.0:** [`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md)

@@ -87,7 +87,7 @@ public sealed class McuReferenceSimulator
             res.CounterCount);
     }
 
-    public McuReferenceSimulator(ushort wireProfile = 1)
+    public McuReferenceSimulator(ushort wireProfile = 2)
     {
         _wireProfile = wireProfile;
         _tagGenerator = new RuntimeTagGenerator(_memory);
@@ -105,11 +105,23 @@ public sealed class McuReferenceSimulator
         _memory.InternalWrite(2, 1); // HW Major
         _memory.InternalWrite(3, 0); // HW Minor
         _memory.InternalWrite(4, 0); // HW Patch
-        _memory.InternalWrite(5, 1); // FW Major
-        _memory.InternalWrite(6, 7); // FW Minor
-        _memory.InternalWrite(7, 0); // FW Patch
-        _memory.InternalWrite(8, 1); // Protocol Version (0x0107 / v1.7)
-        _memory.InternalWrite(9, 1); // Rule Format Version (v1.7)
+
+        if (_wireProfile >= 2)
+        {
+            _memory.InternalWrite(5, 2); // FW Major
+            _memory.InternalWrite(6, 0); // FW Minor
+            _memory.InternalWrite(7, 0); // FW Patch
+            _memory.InternalWrite(8, 2); // Protocol Version (V2.0)
+            _memory.InternalWrite(9, 7); // Rule Format Version (V2.0 32-byte rules)
+        }
+        else
+        {
+            _memory.InternalWrite(5, 1); // FW Major
+            _memory.InternalWrite(6, 7); // FW Minor
+            _memory.InternalWrite(7, 0); // FW Patch
+            _memory.InternalWrite(8, 1); // Protocol Version (v1.7)
+            _memory.InternalWrite(9, 1); // Rule Format Version (v1.7)
+        }
 
         // 0x0020 - 0x0029: Device Resource Info (Wire Profile V1 / Contract V1.9)
         var defaultResourceInfo = DeviceResourceInfoDto.CreateRemoteIo8Di8Do4Ai();
@@ -188,6 +200,16 @@ public sealed class McuReferenceSimulator
     {
         _hasHardwareRtc = hasHardwareRtc;
         _batteryLow = batteryLow;
+        UpdateRtcRegisters();
+    }
+
+    internal void SyncRtcClock(uint epochUtcSeconds, short timezoneOffsetMinutes)
+    {
+        _epochUtcSeconds = epochUtcSeconds;
+        _tzOffsetMinutes = timezoneOffsetMinutes;
+        _rtcSynced = true;
+        _hasHardwareRtc = true;
+        _batteryLow = false;
         UpdateRtcRegisters();
     }
 

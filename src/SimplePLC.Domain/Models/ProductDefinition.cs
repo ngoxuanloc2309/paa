@@ -111,7 +111,7 @@ public sealed class ProductDefinition
     /// từ metadata thiết bị (0x0000 + 0x0020) thông qua <see cref="DeviceProfileBuilder"/>.
     /// </para>
     /// </summary>
-    public static ProductDefinition CreateRemoteIo8Di8Do4Ai(ushort wireProfile = 1)
+    public static ProductDefinition CreateRemoteIo8Di8Do4Ai(ushort wireProfile = 2)
     {
         var profile = ProductResourceProfile.DefaultRemoteIo;
         var tags = DeviceProfileBuilder.GenerateTags(profile);

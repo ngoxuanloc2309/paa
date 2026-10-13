@@ -137,6 +137,7 @@ The following tables index all **88 tokens** declared in `SimplePLC.Studio\Style
 | `ColorNodeTimer` | `NodeTimerBrush` | `#4C1D95` | Timer | TON, TOF, TP Timers | Deep Indigo timer block stripe | **ACTIVE (NodeTemplates)** |
 | `ColorNodeCounter`| `NodeCounterBrush`| `#0F766E` | Counter | CTU, CTD, CTUD Counters | Deep Teal counter block stripe | **ACTIVE (NodeTemplates)** |
 | `ColorNodeScale` | `NodeScaleBrush` | `#475569` | Signal Scaler | Analog Linear Interpolation | Slate Blue math/scaling block | **ACTIVE (NodeTemplates)** |
+| `ColorNodeMqtt` | `NodeMqttBrush` | `#006487` | MQTT Gateway | IIoT Telemetry Pub & Sub | Deep Petrol Blue communications stripe | **ACTIVE (NodeTemplates)** |
 
 ### Tier 8: Industrial Semantic Structural Tokens (20 Tokens)
 | Color Key | Brush Key | Hex Code | Structural Semantics | Physical Analogy | Architectural Scope | Adoption Status |
@@ -172,6 +173,10 @@ This matrix governs the implementation of design tokens across all 7 functional 
 | **Status Valid Badge**| Inspector Valid | `SuccessBrush` | `#107C41` | Hardcoded `#059669` | 3.61:1 (FAIL) | **UPGRADE TO `#0E6B37` ON `#E6F4EA` (5.45:1)**|
 | **Status Stale Badge**| Inspector Stale | `WarningHoverBrush`| `#9C4221` | Hardcoded `#D97706` | 3.17:1 (FAIL) | **UPGRADE TO `#9C4221` ON `#FFFBEB` (5.80:1)**|
 | **Toolbox Accent** | Category Stripe| `Node*Brush` | Defined | 7 hardcoded stripes | 4.50+:1 | Rebind all stripes to `Node*Brush` |
+| **MQTT PUB Header** | Telemetry Out | `NodeMqttBrush` | `#006487` | Token bound | 7.42:1 | **BENCHMARK EXCELLENCE (Width 185px, [PUB] Badge)** |
+| **MQTT SUB Header** | Telemetry In | `NodeMqttBrush` | `#006487` | Token bound | 7.42:1 | **BENCHMARK EXCELLENCE (Width 185px, [SUB] Badge)** |
+| **MQTT Center Info**| Status Pill | `SelectionHighlightBrush`| `#F8FAFC` | Status Pill + Tech text | 10.30+:1 | **COMPLIANT (Topic suppressed from canvas center)** |
+| **MQTT Inspector** | Subsystem Panel| `IndustrialSurfaceCanvasBrush`| `#F1F5F9` | Slate Gray Header | 14.14:1 | **BENCHMARK EXCELLENCE (QoS 0/1/2 + Tactile Btn)** |
 
 ### Screen 2: Tag Catalog (`TagCatalogView.xaml`)
 | UI Component | Visual Role | Mandated Token Key | Compliant Hex | Current Implementation | WCAG AA Contrast | Compliance Action Required |

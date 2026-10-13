@@ -117,9 +117,16 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Publish failed."
 }
 
-$ExePath = "$PublishDir\SimplePLC.Studio.exe"
+$ExePath = "$PublishDir\SynaptixIDE.exe"
 if (-not (Test-Path $ExePath)) {
-    Write-Error "Published executable not found at: $ExePath"
+    $ExePath = "$PublishDir\SimplePLC.Studio.exe"
+}
+if (-not (Test-Path $ExePath)) {
+    Write-Error "Published executable not found in: $PublishDir"
+}
+# Keep backwards-compatible alias
+if (-not (Test-Path "$PublishDir\SimplePLC.Studio.exe")) {
+    Copy-Item $ExePath -Destination "$PublishDir\SimplePLC.Studio.exe" -Force
 }
 $exeSizeMB = [math]::Round((Get-Item $ExePath).Length / 1MB, 2)
 Write-Host " Successfully generated: $ExePath ($exeSizeMB MB)" -ForegroundColor Green
@@ -136,7 +143,7 @@ $zipHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash
 
 $ChecksumFile = "$ReleasePackageDir\SHA256SUMS.txt"
 @"
-$hash  SimplePLC.Studio.exe
+$hash  $([System.IO.Path]::GetFileName($ExePath))
 $zipHash  $ZipName
 "@ | Set-Content -Path $ChecksumFile -Encoding utf8
 
@@ -147,18 +154,16 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.2.1)
-- **Khởi động sạch mặc định (Clean Canvas Startup)**: Ứng dụng luôn khởi động với không gian làm việc sạch (0 nodes, 0 rules), tối ưu hóa trải nghiệm bắt đầu dự án mới.
-- **Scale Node Function Block (y = k * x + b)**: Chuẩn hóa khối nhân rộng giá trị analog tuyến tính với kiểm toán an toàn chia 0 và clamping.
-- **Tách ranh giới Clean Architecture**: Tái cấu trúc `IComPortDiscoveryService` loại bỏ trực tiếp `System.IO.Ports` khỏi tầng ViewModel.
-- **Tokenize Giao diện Công nghiệp**: Chuẩn hóa toàn bộ Font Size theo hệ Design Token `IndustrialFontSize*`.
-- **0 Warning - 0 Error**: Khắc phục triệt để các cảnh báo null-safety CS8602, sẵn sàng cho quy chuẩn TreatWarningsAsErrors.
-- **IEC 61131-3 Macros & Wire Contract V2.0**: Hỗ trợ đầy đủ các khối TON, TOF, TP, CTU, CTD, RTC và giao thức MCU Conformance Spec V2.0.
+## 🚀 Tính năng nổi bật & Nâng cấp (v2.5.0)
+- **Hỗ trợ Đa chủng loại Thiết bị V2.0 (Multi-Class MCU Capability Profiles)**: Tương thích hoàn chỉnh với IoT Gateway (`0x0003`), Datalogger (`0x0002`), Controller (`0x0004`) và Remote I/O (`0x0001`).
+- **Chuẩn hóa Toàn diện Hệ sinh thái V2.0**: Chuẩn giao tiếp thuần `simpleplc_protocol_v2_0.h` (WireProfile 2, ProtocolVersion 2, RuleFormatVersion 7, Firmware 2.0.0), loại bỏ toàn bộ mã nguồn legacy.
+- **Phân hệ MQTT IIoT Toàn diện (Publish & Subscribe)**: Tích hợp đầy đủ MQTT Pub/Sub với các chế độ đóng gói công nghiệp, giải mã JSON an toàn (Atomic All-or-Nothing), hỗ trợ Dynamic Output Pins và 2 dự án ví dụ mẫu chuyên sâu.
+- **Tương thích & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,116 bài kiểm thử tự động trên toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |
 | :--- | :--- | :--- |
-| `SimplePLC.Studio.exe` | Portable single-file x64 standalone executable | `$hash` |
+| `SynaptixIDE.exe` | Portable single-file x64 standalone executable | `$hash` |
 | `$ZipName` | Toàn bộ gói ứng dụng nén zip | `$zipHash` |
 
 *Yêu cầu hệ điều hành: Windows 10 / Windows 11 (64-bit). Không cần cài đặt thêm .NET Runtime.*
@@ -166,7 +171,8 @@ Phiên bản chính thức của môi trường lập trình và cấu hình thi
 [System.IO.File]::WriteAllText($ReleaseNotesFile, $releaseContent, [System.Text.Encoding]::UTF8)
 
 # Copy standalone exe to release directory for direct access
-Copy-Item $ExePath -Destination "$ReleasePackageDir\SimplePLC.Studio.exe" -Force
+Copy-Item $ExePath -Destination "$ReleasePackageDir\$([System.IO.Path]::GetFileName($ExePath))" -Force
+Copy-Item "$PublishDir\SimplePLC.Studio.exe" -Destination "$ReleasePackageDir\SimplePLC.Studio.exe" -Force
 
 Write-Host ""
 Write-Host "=================================================================" -ForegroundColor Green

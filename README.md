@@ -1,4 +1,4 @@
-﻿# SynaptiX IDE — Industrial PLC Programming & Automation Environment
+# SynaptiX IDE — Industrial PLC Programming & Automation Environment
 
 [![Latest Release](https://img.shields.io/github/v/release/hoanv-synaptix/SynaptiX-IDE-Releases?color=107C41&label=Latest%20Release)](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest)
 [![Platform](https://img.shields.io/badge/.NET-8.0%20WPF%20(x64)-006487?logo=dotnet)](https://dotnet.microsoft.com/)
@@ -19,7 +19,7 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v1.3.1 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+| **v2.5.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
 | **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
 
 ### System Requirements:
@@ -41,7 +41,9 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 - **Integrated Real-Time Simulator:** Test and debug logic offline with virtual DI toggle switches, AI analog sliders, DO output status LEDs, and a real-time event trace log without physical hardware.
 - **Live Watch & Online Diagnostics:** Real-time variable inspection with quality badges (Good / Stale / Bad), live sparkline telemetry graphs, and instant tag override / force write.
 - **Built-in Auto-Updater:** Automatically checks for new versions on GitHub Releases, previews markdown changelogs, and performs zero-hassle hot-swap restart upon update.
-- **Industrial Design System:** High-contrast technical interface adhering to Siemens TIA Portal and Beckhoff TwinCAT ergonomics (Siemens Petrol `#006487`, IEC Green `#107C41`, sharp 2px technical border radii, zero drop-shadow clutter), with instant runtime language switching (English / Vietnamese).
+- **MQTT IIoT Cloud & Edge Gateway (Platform V2.0):** Native MQTT v3.1.1 & v5.0 client over TCP/MQTTS (1883/8883) with two-tier decoupled architecture: System Broker (`0x0E00`), **MQTT PUB** (`0x0C00`, Outbound telemetry supporting Event/COV/Periodic modes and No-Code Visual Fields / Custom JSON), and **MQTT SUB** (Inbound message ingestion with fail-safe Atomic All-or-Nothing parser, supporting Flat JSON, Standard Envelopes, Nested paths, and dynamic FBD canvas pins).
+- **IEC 61131-3 Dedicated Function Blocks:** Hardware-timed TON/TOF/TP Timers with sub-millisecond precision, CTU/CTD Counters with non-volatile retain binding, and Linear Analog Signal Scalers ($y = k \cdot x + b$).
+- **Industrial Design System:** High-contrast technical interface adhering to Siemens TIA Portal and Beckhoff TwinCAT ergonomics (Siemens Petrol `#006487`, IEC Green `#107C41`, standardized 185px node geometry with `[PUB]`/`[SUB]` badges, and instant bilingual English/Vietnamese localization).
 
 ### ⚡ Industrial Controller Rule Engine (Firmware)
 - **Deterministic 10ms Scan Cycle (100Hz Loop):** Predictable fixed-time execution: sample inputs ➔ evaluate 100-rule array ➔ update physical outputs with sub-millisecond overhead.

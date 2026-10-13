@@ -30,6 +30,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
     {
         var editor = new LogicEditorViewModel(catalog, stateStore: store, uiDispatcher: uiDispatcher ?? (a => a()));
         editor.LoadDefaultDemoGraph();
+        editor.MarkGraphDeployed();
         return editor;
     }
 
@@ -513,5 +514,238 @@ public class LogicEditorLiveDebuggingTests : IDisposable
         // Assert: Removed node did not receive runtime update
         Assert.Equal(0, di0Node.LiveRawValue);
         Assert.False(di0Node.IsLiveOnline);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_TogglesStateAndReflectsStatusText()
+    {
+        // Arrange
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = CreateEditor(catalog, store);
+
+        Assert.False(editor.IsLiveDebugActive);
+
+        // Act 1: Toggle ON
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert 1
+        Assert.True(editor.IsLiveDebugActive);
+        Assert.Contains("giám sát", editor.LiveDebugStatusText, StringComparison.OrdinalIgnoreCase);
+
+        // Act 2: Toggle OFF
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert 2
+        Assert.False(editor.IsLiveDebugActive);
+        Assert.Contains("tắt", editor.LiveDebugStatusText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_WhenDisconnected_BlocksActivationAndShowsWarning()
+    {
+        // Arrange
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        var editor = CreateEditor(catalog, store);
+
+        Assert.False(editor.IsDeviceConnected);
+        Assert.False(editor.IsLiveDebugActive);
+
+        // Act: Attempt to toggle ON while disconnected
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert: Activation blocked and safety warning toast populated
+        Assert.False(editor.IsLiveDebugActive);
+        Assert.NotNull(editor.SimGateWarning);
+        Assert.NotEmpty(editor.SimGateWarning);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_WhenCanvasEmpty_BlocksActivationAndShowsWarning()
+    {
+        // Arrange: Connected, but canvas is completely empty
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = new LogicEditorViewModel(catalog, stateStore: store, uiDispatcher: a => a());
+        editor.Nodes.Clear();
+        editor.Connections.Clear();
+
+        Assert.True(editor.IsDeviceConnected);
+        Assert.Empty(editor.Nodes);
+        Assert.False(editor.IsLiveDebugActive);
+
+        // Act
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert: Activation blocked and empty graph warning shown
+        Assert.False(editor.IsLiveDebugActive);
+        Assert.NotEmpty(editor.SimGateWarning);
+        Assert.Equal(LocalizationService.Tr("LiveDebugEmptyGraphWarning"), editor.SimGateWarning);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_WhenCompileErrors_BlocksActivationAndShowsWarning()
+    {
+        // Arrange: Connected, but canvas has an orphan action node without trigger (compile error)
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = new LogicEditorViewModel(catalog, stateStore: store, uiDispatcher: a => a());
+        editor.Nodes.Clear();
+        editor.Connections.Clear();
+        
+        var doTag = catalog.AllTags.First(t => t.Name == "DO0");
+        var actNode = new ActionNodeViewModel(doTag);
+        editor.Nodes.Add(actNode);
+
+        Assert.True(editor.IsDeviceConnected);
+
+        // Act
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert: Activation blocked and compile error warning shown
+        Assert.False(editor.IsLiveDebugActive);
+        Assert.NotEmpty(editor.SimGateWarning);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_WhenValidGraph_ReflectsActiveBlockCountInBanner()
+    {
+        // Arrange: Connected, valid default demo graph
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = CreateEditor(catalog, store);
+
+        // Act
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert: Live debug is active and banner shows active block count
+        Assert.True(editor.IsLiveDebugActive);
+        Assert.Contains("khối logic", editor.LiveDebugBannerSubText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ToggleLiveDebug_WhenGraphNotDeployed_BlocksActivationAndShowsWarning()
+    {
+        // Arrange: Connected, valid graph, but NEVER deployed to device (IsGraphDeployed == false)
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = new LogicEditorViewModel(catalog, stateStore: store, uiDispatcher: a => a());
+        editor.LoadDefaultDemoGraph();
+        // Do NOT call editor.MarkGraphDeployed() -> IsGraphDeployed remains false!
+
+        Assert.True(editor.IsDeviceConnected);
+        Assert.False(editor.IsGraphDeployed);
+        Assert.False(editor.IsLiveDebugActive);
+
+        // Act: Attempt to toggle Live Debug
+        editor.ToggleLiveDebugCommand.Execute(null);
+
+        // Assert: Activation blocked and deploy required warning shown
+        Assert.False(editor.IsLiveDebugActive);
+        Assert.NotEmpty(editor.SimGateWarning);
+        Assert.Equal(LocalizationService.Tr("LiveDebugDeployRequiredWarning"), editor.SimGateWarning);
+    }
+
+    [Fact]
+    public void LiveDebug_WhenInputActive_PropagatesPowerFlowAcrossWiresAndNodes()
+    {
+        // Arrange: Load default graph (DI0 -> Trigger -> Guard -> DO0)
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        var editor = CreateEditor(catalog, store);
+
+        var di0Node = editor.Nodes.OfType<InputNodeViewModel>().First(n => n.Tag?.Name == "DI0");
+        var trigNode = editor.Nodes.OfType<TriggerNodeViewModel>().First();
+        var guardNode = editor.Nodes.OfType<GuardNodeViewModel>().First();
+        var actNode = editor.Nodes.OfType<ActionNodeViewModel>().First();
+
+        // Ensure Guard tag VFLAG0 is ON (1) so guard permits
+        var vflagTag = catalog.AllTags.First(t => t.Name == "VFLAG0");
+        vflagTag.Value = 1;
+
+        // Set DI0 = 1
+        var di0Tag = catalog.AllTags.First(t => t.Name == "DI0");
+        di0Tag.Value = 1;
+
+        // Act: Turn on Live Debug
+        editor.IsLiveDebugActive = true;
+
+        // Assert: DI0 and its wire are active
+        Assert.True(di0Node.IsSimActive);
+        Assert.True(di0Node.IsLiveActive);
+
+        var conn1 = editor.Connections.First(c => c.Source?.Node == di0Node && c.Target?.Node == trigNode);
+        Assert.True(conn1.IsActive);
+
+        // Trigger is met and wire to guard is active
+        Assert.True(trigNode.IsSimTriggered);
+        var conn2 = editor.Connections.First(c => c.Source?.Node == trigNode && c.Target?.Node == guardNode);
+        Assert.True(conn2.IsActive);
+
+        // Guard allows and wire to action is active
+        Assert.True(guardNode.IsSimPassed);
+        Assert.False(guardNode.IsSimBlocked);
+        var conn3 = editor.Connections.First(c => c.Source?.Node == guardNode && c.Target?.Node == actNode);
+        Assert.True(conn3.IsActive);
+
+        // Action is fired
+        Assert.True(actNode.IsSimActive);
+        Assert.True(actNode.IsSimFired);
+    }
+
+    [Fact]
+    public void LiveDebug_WhenGuardBlocks_InterruptsDownstreamWire()
+    {
+        // Arrange
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        var editor = CreateEditor(catalog, store);
+
+        var di0Node = editor.Nodes.OfType<InputNodeViewModel>().First(n => n.Tag?.Name == "DI0");
+        var guardNode = editor.Nodes.OfType<GuardNodeViewModel>().First();
+        var actNode = editor.Nodes.OfType<ActionNodeViewModel>().First();
+
+        // DI0 = 1, but Guard VFLAG0 = 0 (Blocked)
+        catalog.AllTags.First(t => t.Name == "DI0").Value = 1;
+        catalog.AllTags.First(t => t.Name == "VFLAG0").Value = 0;
+
+        // Act
+        editor.IsLiveDebugActive = true;
+
+        // Assert
+        Assert.True(guardNode.IsSimBlocked);
+        Assert.False(guardNode.IsSimPassed);
+
+        var connToAct = editor.Connections.First(c => c.Source?.Node == guardNode && c.Target?.Node == actNode);
+        Assert.False(connToAct.IsActive);
+        Assert.False(actNode.IsSimActive);
+    }
+
+    [Fact]
+    public void LiveDebug_WhenToggledOff_ClearsAllActiveVisuals()
+    {
+        // Arrange
+        var catalog = new TagCatalogViewModel();
+        var store = new RuntimeStateStore();
+        var editor = CreateEditor(catalog, store);
+
+        catalog.AllTags.First(t => t.Name == "DI0").Value = 1;
+        catalog.AllTags.First(t => t.Name == "VFLAG0").Value = 1;
+
+        editor.IsLiveDebugActive = true;
+        Assert.Contains(editor.Connections, c => c.IsActive);
+
+        // Act: Turn off Live Debug
+        editor.IsLiveDebugActive = false;
+
+        // Assert: All connections and nodes reset to non-active state
+        Assert.All(editor.Connections, c => Assert.False(c.IsActive));
+        Assert.All(editor.Nodes, n => Assert.False(n.IsSimActive));
     }
 }

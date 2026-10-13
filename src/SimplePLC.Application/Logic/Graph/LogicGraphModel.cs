@@ -12,7 +12,8 @@ public enum LogicNodeKind
     Counter = 5,
     Scale = 6,
     Comparator = 7,
-    MqttPublish = 8
+    MqttPublish = 8,
+    MqttSubscribe = 9
 }
 
 public sealed class ScaleNodeData
@@ -112,6 +113,19 @@ public sealed class MqttPublishNodeData
     public string CustomTemplate { get; set; } = string.Empty;
 }
 
+public sealed class MqttSubscribeNodeData
+{
+    public ushort? EnTagIndex { get; set; }
+    public string Topic { get; set; } = "synaptix/commands/inbound";
+    public int Qos { get; set; } = 1;
+    public SimplePLC.Protocol.Enums.MqttQueueMode QueueMode { get; set; } = SimplePLC.Protocol.Enums.MqttQueueMode.Fifo;
+    public int QueueCapacity { get; set; } = 16;
+    public bool IgnoreRetained { get; set; } = true;
+    public uint TimeoutMs { get; set; } = 0;
+    public SimplePLC.Protocol.Enums.MqttFailSafeAction FailSafeAction { get; set; } = SimplePLC.Protocol.Enums.MqttFailSafeAction.KeepLastValue;
+    public List<SimplePLC.Protocol.Dto.MqttPinBindingDto> Pins { get; set; } = new();
+}
+
 public sealed class LogicNode
 {
     public string Id { get; set; } = string.Empty;
@@ -128,6 +142,7 @@ public sealed class LogicNode
     public ScaleNodeData? ScaleData { get; set; }
     public ComparatorNodeData? ComparatorData { get; set; }
     public MqttPublishNodeData? MqttPublishData { get; set; }
+    public MqttSubscribeNodeData? MqttSubscribeData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };
@@ -331,6 +346,39 @@ public sealed class LogicNode
                 IncludeTimestamp = includeTimestamp,
                 Fields = fields != null ? new List<SimplePLC.Protocol.Dto.MqttPayloadFieldDto>(fields) : new(),
                 CustomTemplate = customTemplate
+            }
+        };
+
+    public static LogicNode CreateMqttSubscribe(
+        string id,
+        ushort? enTag = null,
+        string topic = "synaptix/commands/inbound",
+        int qos = 1,
+        SimplePLC.Protocol.Enums.MqttQueueMode queueMode = SimplePLC.Protocol.Enums.MqttQueueMode.Fifo,
+        int queueCapacity = 16,
+        bool ignoreRetained = true,
+        uint timeoutMs = 0,
+        SimplePLC.Protocol.Enums.MqttFailSafeAction failSafeAction = SimplePLC.Protocol.Enums.MqttFailSafeAction.KeepLastValue,
+        IEnumerable<SimplePLC.Protocol.Dto.MqttPinBindingDto>? pins = null,
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.MqttSubscribe,
+            ExecutionOrder = executionOrder,
+            Label = label,
+            MqttSubscribeData = new MqttSubscribeNodeData
+            {
+                EnTagIndex = enTag,
+                Topic = topic,
+                Qos = qos,
+                QueueMode = queueMode,
+                QueueCapacity = queueCapacity,
+                IgnoreRetained = ignoreRetained,
+                TimeoutMs = timeoutMs,
+                FailSafeAction = failSafeAction,
+                Pins = pins != null ? new List<SimplePLC.Protocol.Dto.MqttPinBindingDto>(pins) : new()
             }
         };
 }

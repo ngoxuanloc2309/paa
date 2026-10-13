@@ -219,7 +219,8 @@ public partial class DeployViewModel : ObservableObject
         int fbCount = _logicEditorVM?.CurrentProgram != null 
             ? (_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count + _logicEditorVM.CurrentProgram.FunctionBlockCounters.Count) 
             : 0;
-        int mqttCount = _logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0;
+        int mqttCount = (_logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0)
+            + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
 
         if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
         {
@@ -479,7 +480,7 @@ public partial class DeployViewModel : ObservableObject
             }
 
             int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
-            int totalMqtt = mqttConfigs?.Count ?? 0;
+            int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
             if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0)
             {
                 Steps[0].Status = StepStatus.Failed;
@@ -584,6 +585,7 @@ public partial class DeployViewModel : ObservableObject
                 LastDeployDurationMs = sw.ElapsedMilliseconds;
                 IsSuccess = true;
                 DeployState = DeployState.Success;
+                _logicEditorVM?.MarkGraphDeployed();
                 StatusMessage = string.Format(LocalizationService.Tr("DeployLogSuccess"), deployResult.DeployedRuleCount, deployResult.ActiveVersion);
                 string completionSummary = LocalizationService.Instance.IsVietnamese
                     ? $"[HOÀN TẤT] Nạp thành công trong {LastDeployDurationMs}ms · Phiên bản: {deployResult.ActiveVersion} · 100% hợp lệ."

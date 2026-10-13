@@ -1,5 +1,44 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.5.0] - 2026-10-13 (PLATFORM V2.0 STANDARDIZATION & MULTI-CLASS MCU GATEWAY CONNECTIVITY)
+
+### Added
+- **Hỗ trợ Đa chủng loại Thiết bị V2.0 (Multi-Class MCU Capability Profiles)**:
+  - Bổ sung cấu hình nhận dạng và tương thích đầy đủ trong `SupportedDeviceProfile` cho các dòng thiết bị chuẩn V2.0:
+    - **Remote I/O (`DeviceClass = 0x0001`)**: `RemoteIo8Di8Do4AiV2_0`, `RemoteIo16Di16DoV2_0`.
+    - **Datalogger (`DeviceClass = 0x0002`)**: `Datalogger8AiV2_0`.
+    - **IoT Gateway (`DeviceClass = 0x0003`)**: `GatewayRs485EthV2_0` (hỗ trợ đầy đủ kết nối MCU Gateway qua Modbus RTU).
+    - **Controller (`DeviceClass = 0x0004`)**: `ControllerV2_0`.
+  - Bổ sung các bài kiểm thử kết nối thiết bị tự mô tả độc lập trong `SelfDescribingDeviceConnectionTests` cho tất cả các phân lớp thiết bị (Gateway, Datalogger, Controller).
+  - Cung cấp 2 dự án ví dụ mẫu (`examples/`) chuyên sâu cho giao thức IIoT MQTT: `MqttTelemetryPublisherExample.splc` (MQTT Publish định kỳ & theo ngưỡng) và `MqttInboundControlExample.splc` (MQTT Subscribe điều khiển động).
+
+### Changed
+- **Chuẩn hóa Toàn bộ Hệ sinh thái thuần V2.0**:
+  - Loại bỏ hoàn toàn định dạng và file header cũ `simpleplc_protocol_reference_v1_9.h` để làm sạch mã nguồn.
+  - Cập nhật chuẩn giao tiếp: `WireProfile = 2`, `ProtocolVersion = 2`, `RuleFormatVersion = 7`, `FirmwareVersion = 2.0.0`.
+  - Cập nhật đồng bộ `ProductDefinition`, `DeviceResourceInfoDto`, `HardwareDevicePreset`, `MainViewModel`, `NewProjectViewModel` và `McuReferenceSimulator`.
+  - Cập nhật đặc tả kỹ thuật `MCU_CONFORMANCE_SPECIFICATION_V2_0.md` xác nhận sự tương thích với toàn bộ các dải lớp thiết bị `0x0001..0x0004`.
+  - Chuẩn hóa ngôn ngữ thông báo không tiền tố biểu tượng, nhất quán hai ngôn ngữ Tiếng Anh / Tiếng Việt.
+
+## [2.4.0] - 2026-10-13 (MQTT IIOT INBOUND SUBSCRIBE & INDUSTRIAL CANVAS STANDARDIZATION)
+
+### Added
+- **Phân hệ MQTT Subscribe & Dynamic Data Extraction**:
+  - Bổ sung bộ phân tích cú pháp an toàn thời gian thực `MqttSubscriptionParser` áp dụng nguyên lý **Atomic All-or-Nothing Transaction**: Nếu bất kỳ một trường dữ liệu nào bị thiếu, sai kiểu hoặc vượt ngưỡng an toàn, toàn bộ gói tin bị từ chối 100%, bảo vệ an toàn tuyệt đối cho đầu ra PLC khỏi giá trị rác.
+  - Hỗ trợ 4 cấp độ định dạng: Flat JSON tự do, Industrial Standard Envelopes (`values`, `data`, `payload`), Nested dot notation (`sensor.temp`) và Single Raw String.
+  - Hỗ trợ cơ chế sinh chân ngõ ra động (Dynamic Output Pins) gắn kết tức thì trên FBD Canvas (`MqttSubscribeNodeViewModel`, `MqttPinBindingViewModel`, `MqttSubConfigDialogView`).
+  - Hộp thoại cấu hình `MqttSubConfigDialogView`: Khung kiểm thử Sandbox mở rộng, hỗ trợ test payload trực tiếp, loại bỏ trường Topic lặp và nút Reset thừa thãi.
+  - Bổ sung 9 bài kiểm thử đơn vị độc lập tầng Protocol (`MqttSubscriptionParserTests`) và 9 bài kiểm thử ViewModel (`MqttSubscribeNodeViewModelTests`), đạt 100% Pass.
+
+### Changed
+- **Chuẩn hóa Toàn diện Công thái học Giao diện FBD Canvas & Inspector cho cả MQTT PUB và SUB**:
+  - **Khóa chiều rộng cố định chuẩn công nghiệp `185px`**: Đồng bộ hoàn toàn với các khối chuẩn `[TON]`, `[CTU]`, `[Math]`, loại bỏ triệt để hiện tượng vỡ khổ ngang hoặc lệch khối.
+  - **Badge Định Danh Phân Loại**: Bổ sung badge góc trên bên phải `[PUB]` và `[SUB]` với tone màu chuẩn `NodeMqttBrush` (`#006487`).
+  - **Thân giữa khối (Center Body)**: Loại bỏ hoàn toàn chuỗi Topic dài bị cắt cụt `...`; thay bằng thông số kỹ thuật ngắn gọn (`PublishModeSummaryText`, `PinsCountSummary`) và **Status Pill** thời gian thực (`● READY`, `● 3 msgs`). Chuỗi Topic được xem trọn vẹn tại Inspector và Tooltip.
+  - **Thanh thuộc tính Inspector (Node Properties)**: Đồng bộ Header Banner chuẩn Industrial Slate Gray (`#F1F5F9`), tích hợp cụm nút chọn **Quality of Service (QoS): [QoS 0] [QoS 1] [QoS 2]** cho cả hai chiều, và chuẩn hóa nút mở popup sang `TiaTactileBtnStyle`.
+  - **Hộp thoại Cấu hình Publish (`MqttConfigDialogView`)**: Loại bỏ 3 checkbox vụn vặt và nút Reset template gây rủi ro mất dữ liệu, mặc định đóng gói chuẩn IIoT quốc tế (`device`, `ts`, `values`).
+  - Toàn bộ 47/47 bài test tự động chuyên sâu liên quan đến MQTT đều vượt qua (100% PASS).
+
 ## [2.3.2] - 2026-10-12 (RTC CLOCK & GLOBAL TIMEZONE SYNCHRONIZATION)
 
 ### Added / Changed

@@ -497,6 +497,10 @@ public partial class LogicEditorView : UserControl
                 {
                     vm.OpenMqttConfigCommand.Execute(mqttNode);
                 }
+                else if (node is MqttSubscribeNodeViewModel mqttSubNode)
+                {
+                    vm.OpenMqttSubConfigCommand.Execute(mqttSubNode);
+                }
 
                 fe.Focus();
                 e.Handled = true;

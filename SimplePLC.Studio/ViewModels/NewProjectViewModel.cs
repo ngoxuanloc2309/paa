@@ -303,8 +303,8 @@ public partial class NewProjectViewModel : ObservableObject
             return DeviceProfileBuilder.Build(
                 deviceClass: 1, // REMOTE_IO
                 productVariant: 255, // CUSTOM
-                protocolVersion: DeviceProfileBuilder.ProtocolVersionV1,
-                wireProfile: DeviceProfileBuilder.WireProfileV1,
+                protocolVersion: DeviceProfileBuilder.ProtocolVersionV2,
+                wireProfile: DeviceProfileBuilder.WireProfileV2,
                 maxRules: CustomMaxRules,
                 runtimeTagCount: (ushort)res.TotalTags,
                 resources: res);
