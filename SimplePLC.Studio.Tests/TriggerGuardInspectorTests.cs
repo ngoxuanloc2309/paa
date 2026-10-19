@@ -94,6 +94,31 @@ public class TriggerGuardInspectorTests
     }
 
     [Fact]
+    public void TriggerNodeViewModel_SeparatesIntervalAndEdgeModes_CleanArchitecture()
+    {
+        var node = new TriggerNodeViewModel();
+
+        // Default: ON_RISE
+        Assert.True(node.IsStandardEdgeTrigger);
+        Assert.False(node.IsIntervalTrigger);
+        Assert.False(node.IsTimeTrigger);
+
+        // Switch to INTERVAL (Periodic)
+        node.TriggerType = TriggerType.INTERVAL;
+        node.ForMs = 1000;
+        Assert.False(node.IsStandardEdgeTrigger);
+        Assert.True(node.IsIntervalTrigger);
+        Assert.False(node.IsTimeTrigger);
+        Assert.Equal("1000ms Loop", node.CompactBadgeText);
+
+        // Switch to TIME_WINDOW (RTC)
+        node.TriggerType = TriggerType.TIME_WINDOW;
+        Assert.False(node.IsStandardEdgeTrigger);
+        Assert.False(node.IsIntervalTrigger);
+        Assert.True(node.IsTimeTrigger);
+    }
+
+    [Fact]
     public void RuleItemModel_SeparatesTriggerComparison_FromGuardBooleanState()
     {
         var tagCatalog = new TagCatalogViewModel();

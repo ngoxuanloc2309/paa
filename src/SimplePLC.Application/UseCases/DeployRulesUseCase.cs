@@ -49,12 +49,25 @@ public sealed class DeployRulesUseCase
         return ExecuteAsync(ruleTable, timers, counters, mqttConfigs, null, slaveId, ct);
     }
 
+    public Task<DeployRulesResult> ExecuteAsync(
+        RuleTable ruleTable,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        byte slaveId = 1,
+        CancellationToken ct = default)
+    {
+        return ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, null, slaveId, ct);
+    }
+
     public async Task<DeployRulesResult> ExecuteAsync(
         RuleTable ruleTable,
         IReadOnlyList<FbTimerRecordDto>? timers,
         IReadOnlyList<FbCounterRecordDto>? counters,
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         byte slaveId = 1,
         CancellationToken ct = default)
     {
@@ -80,7 +93,7 @@ public sealed class DeployRulesUseCase
         RuleDeployResult deployResult;
         try
         {
-            deployResult = await _ruleTableWriter.DeployRulesAsync(slaveId, dtos, timers, counters, mqttConfigs, brokerConfig, ct).ConfigureAwait(false);
+            deployResult = await _ruleTableWriter.DeployRulesAsync(slaveId, dtos, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, ct).ConfigureAwait(false);
         }
         finally
         {

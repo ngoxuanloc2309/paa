@@ -55,42 +55,56 @@ public sealed class RuleCompiler : IRuleCompiler
             var inEdges = graph.GetIncomingEdges(mqttNode.Id).ToList();
             var telemetryFields = new List<MqttPayloadFieldDto>();
 
+            ushort? enTag = mData.EnTagIndex;
             foreach (var inEdge in inEdges)
             {
                 if (nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode))
                 {
                     ushort tagIdx = 0;
-                    string fieldKey = "val";
+                    string fieldKey = !string.IsNullOrEmpty(inEdge.TargetPort) ? inEdge.TargetPort : "val";
                     string unit = "";
 
                     if (srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
                     {
                         tagIdx = srcNode.InputData.TagIndex;
-                        var t = product.FindTagByIndex(tagIdx);
-                        if (t != null)
+                        if (string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase))
                         {
-                            fieldKey = t.Name.ToLowerInvariant();
+                            var t = product.FindTagByIndex(tagIdx);
+                            if (t != null)
+                            {
+                                fieldKey = t.Name.ToLowerInvariant();
+                            }
                         }
                     }
                     else if (srcNode.Kind == LogicNodeKind.Scale && srcNode.ScaleData != null)
                     {
                         tagIdx = srcNode.ScaleData.InTagIndex;
                         var t = product.FindTagByIndex(tagIdx);
-                        if (t != null)
+                        if (t != null && string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase))
                         {
                             fieldKey = $"{t.Name.ToLowerInvariant()}_scaled";
-                            unit = srcNode.ScaleData.Unit;
                         }
+                        unit = srcNode.ScaleData.Unit;
                     }
                     else if (srcNode.Kind == LogicNodeKind.Timer && srcNode.TimerData != null)
                     {
                         tagIdx = srcNode.TimerData.QTagIndex;
-                        fieldKey = "timer_q";
+                        if (string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase)) fieldKey = "timer_q";
                     }
                     else if (srcNode.Kind == LogicNodeKind.Counter && srcNode.CounterData != null)
                     {
                         tagIdx = srcNode.CounterData.CvTagIndex;
-                        fieldKey = "counter_cv";
+                        if (string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase)) fieldKey = "counter_cv";
+                    }
+
+                    if (string.Equals(inEdge.TargetPort, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(inEdge.TargetPort, "EN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (string.Equals(mData.PublishMode, "Event", StringComparison.OrdinalIgnoreCase))
+                        {
+                            enTag = tagIdx;
+                        }
+                        continue;
                     }
 
                     telemetryFields.Add(new MqttPayloadFieldDto
@@ -117,7 +131,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 Qos = mData.Qos,
                 Retain = mData.Retain,
                 PayloadMode = mData.PayloadMode,
-                EnTagIndex = mData.EnTagIndex,
+                EnTagIndex = enTag,
                 DataTagIndex = mData.DataTagIndex,
                 CustomTemplate = mData.CustomTemplate,
                 IncludeDevice = mData.IncludeDevice,
@@ -337,6 +351,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 CompareOp = compareOp,
                 ThresholdLo = thresholdLo,
                 ThresholdHi = thresholdHi,
+                IsFloat = IsFloatThreshold(thresholdLo, thresholdHi, triggerTag),
                 ForMs = triggerData.ForMs
             };
 
@@ -562,6 +577,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 {
                     if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
                     {
+                        bool cIsFloat = IsFloatThreshold(customTrigData.ThresholdLo, customTrigData.ThresholdHi, inTag);
                         // TON với Comparator Trigger (ví dụ AI0 > 80 duy trì liên tục trong PresetMs -> Q = 1)
                         // R0: Điều kiện đúng duy trì đủ PresetMs -> SET Q = 1
                         var trig0 = new TriggerModel(inTag, customTrigData.Type)
@@ -569,6 +585,7 @@ public sealed class RuleCompiler : IRuleCompiler
                             CompareOp = customTrigData.CompareOp,
                             ThresholdLo = customTrigData.ThresholdLo,
                             ThresholdHi = customTrigData.ThresholdHi,
+                            IsFloat = cIsFloat,
                             ForMs = tData.PresetMs
                         };
                         var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
@@ -582,6 +599,7 @@ public sealed class RuleCompiler : IRuleCompiler
                             CompareOp = invertedOp,
                             ThresholdLo = customTrigData.ThresholdLo,
                             ThresholdHi = customTrigData.ThresholdHi,
+                            IsFloat = cIsFloat,
                             ForMs = 0
                         };
                         var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
@@ -610,12 +628,14 @@ public sealed class RuleCompiler : IRuleCompiler
                 {
                     if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
                     {
+                        bool cIsFloat = IsFloatThreshold(customTrigData.ThresholdLo, customTrigData.ThresholdHi, inTag);
                         // R0: Điều kiện đúng -> SET Q = 1
                         var trig0 = new TriggerModel(inTag, customTrigData.Type)
                         {
                             CompareOp = customTrigData.CompareOp,
                             ThresholdLo = customTrigData.ThresholdLo,
                             ThresholdHi = customTrigData.ThresholdHi,
+                            IsFloat = cIsFloat,
                             ForMs = 0
                         };
                         var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
@@ -629,6 +649,7 @@ public sealed class RuleCompiler : IRuleCompiler
                             CompareOp = invertedOp,
                             ThresholdLo = customTrigData.ThresholdLo,
                             ThresholdHi = customTrigData.ThresholdHi,
+                            IsFloat = cIsFloat,
                             ForMs = tData.PresetMs
                         };
                         var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
@@ -658,12 +679,14 @@ public sealed class RuleCompiler : IRuleCompiler
                 {
                     if (customTrigData != null && customTrigData.CompareOp != CompareOperator.None)
                     {
+                        bool cIsFloat = IsFloatThreshold(customTrigData.ThresholdLo, customTrigData.ThresholdHi, inTag);
                         // R0: Điều kiện đúng, Guard Q == 0 -> SET Q = 1
                         var trig0 = new TriggerModel(inTag, customTrigData.Type)
                         {
                             CompareOp = customTrigData.CompareOp,
                             ThresholdLo = customTrigData.ThresholdLo,
                             ThresholdHi = customTrigData.ThresholdHi,
+                            IsFloat = cIsFloat,
                             ForMs = 0
                         };
                         var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
@@ -812,11 +835,13 @@ public sealed class RuleCompiler : IRuleCompiler
             TriggerModel trigCount;
             if (customCuTrigData != null && customCuTrigData.CompareOp != CompareOperator.None)
             {
+                bool cIsFloat = IsFloatThreshold(customCuTrigData.ThresholdLo, customCuTrigData.ThresholdHi, cuTag);
                 trigCount = new TriggerModel(cuTag, customCuTrigData.Type)
                 {
                     CompareOp = customCuTrigData.CompareOp,
                     ThresholdLo = customCuTrigData.ThresholdLo,
                     ThresholdHi = customCuTrigData.ThresholdHi,
+                    IsFloat = cIsFloat,
                     ForMs = 0
                 };
             }
@@ -1086,6 +1111,11 @@ public sealed class RuleCompiler : IRuleCompiler
         CompareOperator.NotEqual => CompareOperator.Equal,
         _ => CompareOperator.None
     };
+
+    private static bool IsFloatThreshold(double lo, double hi, TagDefinition tag) =>
+        Math.Abs(lo - Math.Round(lo)) > 1e-6 ||
+        Math.Abs(hi - Math.Round(hi)) > 1e-6 ||
+        tag.DataType == TagDataType.Float32;
 
     private static string GetNodeLabel(LogicNode? node, string fallback = "Node") =>
         !string.IsNullOrWhiteSpace(node?.Label) ? node.Label : fallback;

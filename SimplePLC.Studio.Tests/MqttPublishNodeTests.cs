@@ -295,4 +295,153 @@ public class MqttPublishNodeTests
         Assert.Equal("test/topic", result.Program.MqttTelemetryConfigs[0].Topic);
         Assert.Equal(2000u, result.Program.MqttTelemetryConfigs[0].IntervalMs);
     }
+
+    [Fact]
+    public void MqttPublishNode_GeneratePayload_WithFloat_UsesInvariantDotEvenInCommaCulture()
+    {
+        var prevCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            // Simulate Vietnamese or French culture which uses comma ',' as decimal separator
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("vi-VN");
+
+            var node = new MqttPublishNodeViewModel
+            {
+                PayloadMode = "Raw"
+            };
+
+            string rawPayload = node.GeneratePayload(12.75);
+            Assert.Equal("12.75", rawPayload);
+            Assert.DoesNotContain(",", rawPayload);
+
+            node.PayloadMode = "Custom";
+            node.CustomTemplate = "{\"pressure\":{val}}";
+            string customPayload = node.GeneratePayload(34.56);
+            Assert.Equal("{\"pressure\":34.56}", customPayload);
+            Assert.DoesNotContain(",", customPayload);
+        }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = prevCulture;
+        }
+    }
+
+    [Fact]
+    public void MqttPublishNode_PublishModeChange_ShowsOrHidesTriggerConnector()
+    {
+        var node = new MqttPublishNodeViewModel();
+
+        // 1. Default is Event mode: Trig at 0, Val at 1
+        Assert.True(node.IsEventMode);
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Val", node.InputConnectors[1].Title);
+
+        // 2. Switch to COV mode: Trig should be hidden
+        node.PublishMode = "COV";
+        Assert.True(node.IsCovMode);
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("Val", node.InputConnectors[0].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Trig");
+
+        // 3. Switch to Cyclic/Periodic mode: Trig should remain hidden
+        node.PublishMode = "Periodic";
+        Assert.True(node.IsPeriodicMode);
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("Val", node.InputConnectors[0].Title);
+
+        // 4. Switch back to Event mode: Trig restored at index 0
+        node.PublishMode = "Event";
+        Assert.True(node.IsEventMode);
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Val", node.InputConnectors[1].Title);
+    }
+
+    [Fact]
+    public void MqttPublishNode_FieldsAdditionAndRemoval_DynamicallyUpdatesValueConnectors()
+    {
+        var node = new MqttPublishNodeViewModel();
+        Assert.Equal("Val", node.InputConnectors[1].Title);
+
+        // Add 1st field "pressure"
+        node.AddFieldWithDetails("pressure", null, "bar");
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("pressure", node.InputConnectors[1].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Val");
+
+        // Add 2nd field "temp"
+        node.AddFieldWithDetails("temp", null, "°C");
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("pressure", node.InputConnectors[1].Title);
+        Assert.Equal("temp", node.InputConnectors[2].Title);
+
+        // Rename 2nd field "temp" -> "temperature"
+        node.Fields[1].Key = "temperature";
+        Assert.Equal("temperature", node.InputConnectors[2].Title);
+
+        // Remove 2nd field
+        node.RemoveField(node.Fields[1]);
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("pressure", node.InputConnectors[1].Title);
+
+        // Remove 1st field (Fields empty): Default Val restored
+        node.RemoveField(node.Fields[0]);
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Val", node.InputConnectors[1].Title);
+    }
+
+    [Fact]
+    public void LogicEditor_ModeSwitch_RemovesConnectionToTrig_WhenTrigIsHidden()
+    {
+        var catalog = new TagCatalogViewModel();
+        var diTag = new TagModel { Name = "DI0", Kind = TagKind.DiscreteInput, Index = 0 };
+        catalog.AllTags.Add(diTag);
+
+        var logicEditor = new LogicEditorViewModel(catalog, uiDispatcher: act => act());
+        var inpNode = new InputNodeViewModel(diTag);
+        var mqttNode = new MqttPublishNodeViewModel { PublishMode = "Event" };
+
+        logicEditor.Nodes.Add(inpNode);
+        logicEditor.Nodes.Add(mqttNode);
+
+        // Connect Input -> Trig
+        logicEditor.Connect(inpNode.OutputConnectors[0], mqttNode.TriggerConnector);
+        Assert.Single(logicEditor.Connections);
+        Assert.True(mqttNode.TriggerConnector.IsConnected);
+
+        // Change mode to COV: Trig connector is removed from node, connection should be cleanly removed
+        mqttNode.PublishMode = "COV";
+        Assert.DoesNotContain(mqttNode.InputConnectors, c => c.Title == "Trig");
+        Assert.Empty(logicEditor.Connections);
+        Assert.False(inpNode.OutputConnectors[0].IsConnected);
+    }
+
+    [Fact]
+    public void LogicEditor_ConnectToDynamicFieldConnector_MapsTagCorrectly()
+    {
+        var catalog = new TagCatalogViewModel();
+        var aiTag = new TagModel { Name = "AI0_FLOW", Kind = TagKind.AnalogInput, Index = 1 };
+        catalog.AllTags.Add(aiTag);
+
+        var logicEditor = new LogicEditorViewModel(catalog, uiDispatcher: act => act());
+        var inpNode = new InputNodeViewModel(aiTag);
+        var mqttNode = new MqttPublishNodeViewModel { PublishMode = "Event" };
+        mqttNode.AddFieldWithDetails("flow", null, "m3/h");
+
+        logicEditor.Nodes.Add(inpNode);
+        logicEditor.Nodes.Add(mqttNode);
+
+        var fieldConn = mqttNode.Fields[0].Connector;
+        Assert.NotNull(fieldConn);
+
+        // Connect Input -> flow field connector
+        logicEditor.Connect(inpNode.OutputConnectors[0], fieldConn);
+        Assert.Single(logicEditor.Connections);
+        Assert.Same(aiTag, mqttNode.Fields[0].Tag);
+    }
 }

@@ -110,6 +110,9 @@ extern "C" {
 #define SPLC_ADDR_SYSCOMMAND_RESULT       0x0A01  /* 2 regs: [0]=Status, [1]=ErrorCode (FC03, RO) */
 #define SPLC_LEN_SYSCOMMAND_RESULT        2
 
+#define SPLC_ADDR_HW_CAPABILITIES         0x0A08  /* 2 regs (4 B): SPLC_HardwareCapabilities_t (32-bit uint32, FC03, RO) */
+#define SPLC_LEN_HW_CAPABILITIES          2
+
 #define SPLC_ADDR_DIAG_COMMAND            0x0A20  /* 1 reg: SPLC_DiagCommand_t (FC06/FC16, WO) */
 #define SPLC_ADDR_DIAG_STATE              0x0A21  /* 1 reg: SPLC_DiagState_t (FC03, RO) */
 #define SPLC_ADDR_DIAG_FLAGS              0x0A22  /* 1 reg: SPLC_DiagFlags_t (FC03, RO) */
@@ -162,6 +165,23 @@ extern "C" {
 #define SPLC_MQTT_CTRL_RETAIN_BIT         0x0020
 #define SPLC_MQTT_CTRL_PAYLOAD_MASK       0x00C0
 #define SPLC_MQTT_CTRL_PAYLOAD_SHIFT      6
+
+#define SPLC_ADDR_MQTT_SUBSCRIBE          0x0D80  /* 128 regs: 2 Blocks * 64 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MQTT_SUBSCRIBE_TOTAL     128
+#define SPLC_MQTT_MAX_SUBSCRIBE_BLOCKS    2
+#define SPLC_MQTT_REGS_PER_SUB_BLOCK      64
+#define SPLC_MQTT_BYTES_PER_SUB_BLOCK     128
+#define SPLC_MQTT_MAX_PINS_PER_SUB_BLOCK  4
+#define SPLC_MQTT_MAX_JSON_KEY_CHARS      12
+
+/* Subscribe Control Flags Bitmask (Offset +0 in Block) */
+#define SPLC_MQTT_SUB_CTRL_ENABLED_BIT       0x0001
+#define SPLC_MQTT_SUB_CTRL_QOS_MASK          0x0006
+#define SPLC_MQTT_SUB_CTRL_QOS_SHIFT         1
+#define SPLC_MQTT_SUB_CTRL_QUEUE_FIFO_BIT    0x0008
+#define SPLC_MQTT_SUB_CTRL_IGNORE_RETAIN_BIT 0x0010
+#define SPLC_MQTT_SUB_CTRL_FAILSAFE_MASK     0x0060
+#define SPLC_MQTT_SUB_CTRL_FAILSAFE_SHIFT    5
 
 #define SPLC_ADDR_MQTT_BROKER             0x0E00  /* 96 regs (192 B): SPLC_MqttBrokerConfig_t (FC03/FC16, RW) */
 #define SPLC_LEN_MQTT_BROKER              96
@@ -283,6 +303,47 @@ typedef enum {
     SPLC_TAG_KIND_VREG_RETAIN     = 8,
     SPLC_TAG_KIND_COUNTER         = 9
 } SPLC_TagKind_t;
+
+/**
+ * @brief IEC 61131-3 Tag Data Types Contract
+ */
+typedef enum {
+    SPLC_DATA_TYPE_NONE           = 0,
+    SPLC_DATA_TYPE_BOOL           = 1, /* IEC 61131-3 BOOL: 1-bit boolean flag (stored as 0 or 1 in 32-bit register) */
+    SPLC_DATA_TYPE_INT32          = 2, /* IEC 61131-3 DINT: 32-bit signed two's complement integer (int32_t) */
+    SPLC_DATA_TYPE_REAL           = 3  /* IEC 61131-3 REAL: 32-bit IEEE-754 single-precision float (float) */
+} SPLC_TagDataType_t;
+
+/**
+ * @brief Universal 32-Bit Tag Value Union (IEEE-754 / Two's Complement Coexistence)
+ * Each tag in the runtime Tag Store (0x0900..0x09FF) occupies exactly 4 bytes (2 Modbus holding registers).
+ * Big-Endian on wire: High Word (bits 31..16) in Reg0, Low Word (bits 15..0) in Reg1.
+ */
+typedef union SPLC_PACKED {
+    int32_t   as_int32;  /* IEC 61131-3 DINT / INT32 signed integer */
+    int32_t   as_dint;   /* Alias for as_int32 */
+    float     as_real;   /* IEC 61131-3 REAL / IEEE-754 32-bit float */
+    uint32_t  as_raw32;  /* Raw 32-bit binary representation */
+    struct {
+        uint16_t high_word; /* Register N   (Bits 31..16) */
+        uint16_t low_word;  /* Register N+1 (Bits 15..0) */
+    } words;
+} SPLC_TagValue_t;
+
+/**
+ * @brief Bitmask định nghĩa các năng lực phần cứng thực tế của MCU.
+ * Đọc tại địa chỉ Holding Register 0x0A08 (32-bit uint32, Big-Endian).
+ */
+typedef enum {
+    SPLC_CAP_NONE         = 0x0000,
+    SPLC_CAP_BASE_LOGIC   = 0x0001, /* Bit 0: Hỗ trợ Logic Engine FBD cơ bản (Rule Engine) */
+    SPLC_CAP_RETENTIVE    = 0x0002, /* Bit 1: Hỗ trợ lưu trữ Retentive Memory (Flash/NVRAM/FRAM) */
+    SPLC_CAP_RTC          = 0x0004, /* Bit 2: Hỗ trợ phần cứng Real-Time Clock (DS3231/LSE) */
+    SPLC_CAP_ETHERNET     = 0x0008, /* Bit 3: Có cổng truyền thông mạng vật lý (Ethernet/WiFi) */
+    SPLC_CAP_MQTT_PUB     = 0x0010, /* Bit 4: Hỗ trợ phân hệ xuất bản viễn trắc MQTT PUB (0x0C00) */
+    SPLC_CAP_MQTT_SUB     = 0x0020, /* Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB */
+    SPLC_CAP_SD_DATALOG   = 0x0040  /* Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD */
+} SPLC_HardwareCapabilities_t;
 
 typedef enum {
     SPLC_DEV_CLASS_UNKNOWN        = 0,
@@ -545,23 +606,38 @@ typedef struct SPLC_PACKED {
     uint16_t reserved;            /* Reserved, always 0 */
 } SPLC_FbCounterRecord_t;
 
+typedef enum {
+    SPLC_RULE_FLAG_NONE       = 0x00,
+    SPLC_RULE_FLAG_FLOAT_DATA = 0x01   /* Bit 0: 1 = Thresholds & ActionParam are IEEE-754 Float32 */
+} SPLC_RuleFlags_t;
+
 /**
- * @brief Canonical 32-Byte Rule Record V1.7 (16 registers = 32 bytes).
+ * @brief Canonical 32-Byte Rule Record V2.0 (16 registers = 32 bytes).
  * Byte-exact layout for Active Table (0x0100) and Staging Buffer (0x9010).
  */
 typedef struct SPLC_PACKED {
-    int32_t  threshold_lo;        /* [0..1] Lower threshold (High Word first) */
-    int32_t  threshold_hi;        /* [2..3] Upper threshold (High Word first) */
-    uint32_t for_ms;              /* [4..5] Dwell delay / interval duration in ms */
-    int32_t  action_param;        /* [6..7] Action parameter value */
-    uint16_t trigger_tag;         /* [8]    Trigger Tag Index (0..127) */
-    uint16_t action_tag;          /* [9]    Action Tag Index (0..127) */
-    uint16_t guard_tag;           /* [10]   Bit 15: NEGATE, Bits 0..14: Tag Index (0x7FFF=None) */
-    uint8_t  enabled;             /* [11H]  1 = Enabled, 0 = Disabled */
-    uint8_t  trigger_type;        /* [11L]  SPLC_TriggerType_t */
-    uint8_t  compare_op;          /* [12H]  SPLC_CompareOp_t */
-    uint8_t  action_type;         /* [12L]  SPLC_ActionType_t */
-    uint8_t  reserved[6];         /* [13..15] Reserved, sender writes 0x00 */
+    union {
+        int32_t  threshold_lo;        /* [0..1] Lower threshold (Int32 when flags=0) */
+        float    threshold_lo_f;      /* [0..1] Lower threshold (Float32 when flags=1) */
+    };
+    union {
+        int32_t  threshold_hi;        /* [2..3] Upper threshold (Int32 when flags=0) */
+        float    threshold_hi_f;      /* [2..3] Upper threshold (Float32 when flags=1) */
+    };
+    uint32_t for_ms;                  /* [4..5] Dwell delay / interval duration in ms */
+    union {
+        int32_t  action_param;        /* [6..7] Action parameter value (Int32 when flags=0) */
+        float    action_param_f;      /* [6..7] Action parameter value (Float32 when flags=1) */
+    };
+    uint16_t trigger_tag;             /* [8]    Trigger Tag Index (0..127) */
+    uint16_t action_tag;              /* [9]    Action Tag Index (0..127) */
+    uint16_t guard_tag;               /* [10]   Bit 15: NEGATE, Bits 0..14: Tag Index (0x7FFF=None) */
+    uint8_t  enabled;                 /* [11H]  1 = Enabled, 0 = Disabled */
+    uint8_t  trigger_type;            /* [11L]  SPLC_TriggerType_t */
+    uint8_t  compare_op;              /* [12H]  SPLC_CompareOp_t */
+    uint8_t  action_type;             /* [12L]  SPLC_ActionType_t */
+    uint8_t  flags;                   /* [13H]  SPLC_RuleFlags_t (Bit 0: FLOAT_DATA) */
+    uint8_t  reserved[5];             /* [13L..15] Reserved, sender writes 0x00 */
 } SPLC_RuleRecord_t;
 
 /**
@@ -635,20 +711,51 @@ typedef struct SPLC_PACKED {
     uint16_t reserved_status[5];  /* +91..95: Reserved */
 } SPLC_MqttBrokerConfig_t;
 
+/**
+ * @brief MQTT Subscription Pin Binding Record (10 registers = 20 bytes).
+ * Defines target tag index, data type, default/failsafe value, and JSON key string.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t target_tag_index;
+    uint16_t data_type;         /* 1=BOOL, 2=INT32, 3=REAL */
+    union {
+        uint32_t default_val_raw;
+        int32_t  default_val_int;
+        float    default_val_real;
+    };
+    char     json_key[SPLC_MQTT_MAX_JSON_KEY_CHARS]; /* 12 bytes null-padded */
+} SPLC_MqttSubPinBinding_t;
+
+/**
+ * @brief MQTT Subscription Block Wire Record (64 registers = 128 bytes at 0x0D80 + (idx * 64)).
+ * Defines inbound MQTT topic subscription, QoS, fail-safe timeout, and up to 4 pin bindings.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;
+    uint16_t reserved;
+    uint32_t failsafe_timeout_ms;
+    uint16_t pin_count;
+    uint16_t reserved_pins[3];
+    char     topic[SPLC_MQTT_MAX_TOPIC_CHARS]; /* 32 bytes null-padded */
+    SPLC_MqttSubPinBinding_t pins[SPLC_MQTT_MAX_PINS_PER_SUB_BLOCK]; /* 4 pins * 20 bytes = 80 bytes */
+} SPLC_MqttSubscriptionBlock_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(sizeof(SPLC_DeviceDescriptor_t)   == 20,  "Descriptor must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_DeviceResourceInfo_t) == 20,  "ResourceInfo must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_DeviceHealth_t)       == 20,  "Health must be 20 bytes (10 regs)");
-_Static_assert(sizeof(SPLC_RtcClock_t)           == 8,   "RTC must be 8 bytes (4 regs)");
-_Static_assert(sizeof(SPLC_DiagBlock_t)          == 10,  "DiagBlock must be 10 bytes (5 regs)");
-_Static_assert(sizeof(SPLC_FbTimerRecord_t)      == 16,  "FbTimer must be 16 bytes (8 regs)");
-_Static_assert(sizeof(SPLC_FbCounterRecord_t)    == 16,  "FbCounter must be 16 bytes (8 regs)");
-_Static_assert(sizeof(SPLC_RuleRecord_t)         == 32,  "RuleRecord must be 32 bytes (16 regs)");
-_Static_assert(sizeof(SPLC_MqttTelemetryBlock_t) == 192, "MqttTelemetryBlock must be 192 bytes (96 regs)");
-_Static_assert(sizeof(SPLC_MqttBrokerConfig_t)   == 192, "MqttBrokerConfig must be 192 bytes (96 regs)");
+_Static_assert(sizeof(SPLC_DeviceDescriptor_t)      == 20,  "Descriptor must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_DeviceResourceInfo_t)    == 20,  "ResourceInfo must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_DeviceHealth_t)          == 20,  "Health must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_RtcClock_t)              == 8,   "RTC must be 8 bytes (4 regs)");
+_Static_assert(sizeof(SPLC_DiagBlock_t)             == 10,  "DiagBlock must be 10 bytes (5 regs)");
+_Static_assert(sizeof(SPLC_FbTimerRecord_t)         == 16,  "FbTimer must be 16 bytes (8 regs)");
+_Static_assert(sizeof(SPLC_FbCounterRecord_t)       == 16,  "FbCounter must be 16 bytes (8 regs)");
+_Static_assert(sizeof(SPLC_RuleRecord_t)            == 32,  "RuleRecord must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_MqttTelemetryBlock_t)    == 192, "MqttTelemetryBlock must be 192 bytes (96 regs)");
+_Static_assert(sizeof(SPLC_MqttSubPinBinding_t)     == 20,  "MqttSubPinBinding must be 20 bytes (10 regs)");
+_Static_assert(sizeof(SPLC_MqttSubscriptionBlock_t) == 128, "MqttSubscriptionBlock must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_MqttBrokerConfig_t)      == 192, "MqttBrokerConfig must be 192 bytes (96 regs)");
 #endif
 
 /* ========================================================================= */
@@ -670,11 +777,31 @@ static inline uint32_t splc_regs_to_uint32(uint16_t hi, uint16_t lo) {
 }
 
 /**
+ * @brief Pack two 16-bit registers into an IEEE-754 32-bit float (High Word first).
+ */
+static inline float splc_regs_to_float(uint16_t hi, uint16_t lo) {
+    uint32_t u = (((uint32_t)hi << 16) | (uint32_t)lo);
+    float f;
+    memcpy(&f, &u, sizeof(float));
+    return f;
+}
+
+/**
  * @brief Unpack a 32-bit unsigned integer into two 16-bit registers (High Word first).
  */
 static inline void splc_uint32_to_regs(uint32_t val, uint16_t *hi, uint16_t *lo) {
     *hi = (uint16_t)((val >> 16) & 0xFFFF);
     *lo = (uint16_t)(val & 0xFFFF);
+}
+
+/**
+ * @brief Unpack an IEEE-754 32-bit float into two 16-bit registers (High Word first).
+ */
+static inline void splc_float_to_regs(float val, uint16_t *hi, uint16_t *lo) {
+    uint32_t u;
+    memcpy(&u, &val, sizeof(float));
+    *hi = (uint16_t)((u >> 16) & 0xFFFF);
+    *lo = (uint16_t)(u & 0xFFFF);
 }
 
 /**

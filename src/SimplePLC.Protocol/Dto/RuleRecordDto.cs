@@ -25,6 +25,34 @@ public sealed class RuleRecordDto
     public SPLC_TriggerType TriggerType { get; set; }
     public SPLC_CompareOp CompareOp { get; set; }
     public SPLC_ActionType ActionType { get; set; }
+    public byte Flags { get; set; }
+
+    /// <summary>
+    /// Bit 0 của Flags: 1 = Dữ liệu ngưỡng và tham số tác động là số thực Float32 IEEE-754.
+    /// </summary>
+    public bool IsFloatData
+    {
+        get => (Flags & 0x01) != 0;
+        set => Flags = value ? (byte)(Flags | 0x01) : (byte)(Flags & ~0x01);
+    }
+
+    public float ThresholdLoFloat
+    {
+        get => BitConverter.Int32BitsToSingle(ThresholdLo);
+        set => ThresholdLo = BitConverter.SingleToInt32Bits(value);
+    }
+
+    public float ThresholdHiFloat
+    {
+        get => BitConverter.Int32BitsToSingle(ThresholdHi);
+        set => ThresholdHi = BitConverter.SingleToInt32Bits(value);
+    }
+
+    public float ActionParamFloat
+    {
+        get => BitConverter.Int32BitsToSingle(ActionParam);
+        set => ActionParam = BitConverter.SingleToInt32Bits(value);
+    }
 
     /// <summary>
     /// Helper lấy tag index thuần từ GuardTag (bỏ bit 15 NEGATE).

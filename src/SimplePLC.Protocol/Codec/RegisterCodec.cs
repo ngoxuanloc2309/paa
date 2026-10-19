@@ -57,8 +57,8 @@ public static class RegisterCodec
         byte actionTypeByte = (byte)rule.ActionType;
         destination[12] = PackBytes(compareOpByte, actionTypeByte);
 
-        // +13..+15: reserved[6] (6 x uint8_t = 3 registers, Sender luôn ghi 0)
-        destination[13] = 0;
+        // +13..+15: reserved[6] (Reg 13 High byte = flags, Low byte + Reg 14..15 luôn ghi 0)
+        destination[13] = PackBytes(rule.Flags, 0);
         destination[14] = 0;
         destination[15] = 0;
     }
@@ -73,6 +73,7 @@ public static class RegisterCodec
 
         UnpackBytes(source[11], out byte enabledByte, out byte triggerTypeByte);
         UnpackBytes(source[12], out byte compareOpByte, out byte actionTypeByte);
+        UnpackBytes(source[13], out byte flagsByte, out _);
 
         return new RuleRecordDto
         {
@@ -86,8 +87,8 @@ public static class RegisterCodec
             Enabled = enabledByte != 0,
             TriggerType = (SPLC_TriggerType)triggerTypeByte,
             CompareOp = (SPLC_CompareOp)compareOpByte,
-            ActionType = (SPLC_ActionType)actionTypeByte
-            // source[13..15] là reserved; receiver bỏ qua theo R8
+            ActionType = (SPLC_ActionType)actionTypeByte,
+            Flags = flagsByte
         };
     }
 
@@ -248,6 +249,32 @@ public static class RegisterCodec
     }
 
     // ==========================================
+    // 3.1 HARDWARE CAPABILITIES CODEC (2 REGISTERS / 32-BIT UINT)
+    // ==========================================
+
+    /// <summary>
+    /// Giải mã 2 thanh ghi Modbus tại 0x0A08 thành SPLC_HardwareCapabilities (Big-Endian uint32).
+    /// </summary>
+    public static SPLC_HardwareCapabilities DecodeHardwareCapabilities(ReadOnlySpan<ushort> source)
+    {
+        if (source.Length < ModbusRegisterMap.HardwareCapabilitiesLength)
+            throw new ArgumentException($"Source span must have at least {ModbusRegisterMap.HardwareCapabilitiesLength} registers.", nameof(source));
+
+        return (SPLC_HardwareCapabilities)DecodeUInt32(source);
+    }
+
+    /// <summary>
+    /// Mã hóa SPLC_HardwareCapabilities thành 2 thanh ghi Modbus (Big-Endian uint32).
+    /// </summary>
+    public static void EncodeHardwareCapabilities(SPLC_HardwareCapabilities capabilities, Span<ushort> destination)
+    {
+        if (destination.Length < ModbusRegisterMap.HardwareCapabilitiesLength)
+            throw new ArgumentException($"Destination span must have at least {ModbusRegisterMap.HardwareCapabilitiesLength} registers.", nameof(destination));
+
+        EncodeUInt32((uint)capabilities, destination);
+    }
+
+    // ==========================================
     // 4. RUNTIME TAG CODEC (2 REGISTERS / INT32)
     // ==========================================
 
@@ -318,6 +345,24 @@ public static class RegisterCodec
     public static uint DecodeUInt32(ReadOnlySpan<ushort> source)
     {
         return ((uint)source[0] << 16) | source[1];
+    }
+
+    /// <summary>
+    /// Mã hóa số thực float IEEE-754 thành 2 thanh ghi Modbus theo thứ tự High Word trước, Low Word sau.
+    /// </summary>
+    public static void EncodeFloat(float value, Span<ushort> destination)
+    {
+        int bits = BitConverter.SingleToInt32Bits(value);
+        EncodeInt32(bits, destination);
+    }
+
+    /// <summary>
+    /// Giải mã 2 thanh ghi Modbus thành số thực float IEEE-754 theo thứ tự High Word trước, Low Word sau.
+    /// </summary>
+    public static float DecodeFloat(ReadOnlySpan<ushort> source)
+    {
+        int bits = DecodeInt32(source);
+        return BitConverter.Int32BitsToSingle(bits);
     }
 
     // ==========================================

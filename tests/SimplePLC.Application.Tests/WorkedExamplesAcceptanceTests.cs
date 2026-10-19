@@ -189,4 +189,41 @@ public class WorkedExamplesAcceptanceTests
         Assert.Equal(vflag0.TagIndex, r1.Trigger.Tag.TagIndex);
         Assert.Equal(do0Green.TagIndex, r1.Action.TargetTag.TagIndex);
     }
+
+    [Theory]
+    [InlineData(8, 8, 4)]
+    [InlineData(4, 4, 2)]
+    [Trait("Category", "SpecificationAcceptance")]
+    public void Example5_AnalogThresholdFloat_ProducesAccurateRule_OnAnyHardware(
+        ushort diCount, ushort doCount, ushort aiCount)
+    {
+        var product = CreateProduct(diCount, doCount, aiCount);
+        var ai0Temp = product.Tags.First(t => t.Name == "AI0");
+        var do0Cooling = product.Tags.First(t => t.Name == "DO0");
+
+        // IF Temperature (AI0) >= 75.5 THEN CoolingFan (DO0) = 1
+        var graph = new LogicGraph();
+        graph.Nodes.Add(LogicNode.CreateInput("IN_TEMP", ai0Temp.TagIndex, "TempSensor"));
+        graph.Nodes.Add(LogicNode.CreateComparator("COMP_HIGH", ai0Temp.TagIndex, CompareOperator.GreaterThanOrEqual, thresholdLo: 75.5, thresholdHi: 0));
+        graph.Nodes.Add(LogicNode.CreateAction("ACT_COOL", do0Cooling.TagIndex, ActionKind.SetTag, 1, executionOrder: 0, label: "EnableCoolingFan"));
+
+        graph.Edges.Add(new LogicEdge("IN_TEMP", "COMP_HIGH"));
+        graph.Edges.Add(new LogicEdge("COMP_HIGH", "ACT_COOL"));
+
+        var result = _compiler.Compile(graph, product);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Program);
+        Assert.Single(result.Program.Rules);
+
+        var rule = result.Program.Rules[0];
+        Assert.Equal(0, rule.RuleIndex);
+        Assert.Equal(ai0Temp.TagIndex, rule.Trigger.Tag.TagIndex);
+        Assert.Equal(CompareOperator.GreaterThanOrEqual, rule.Trigger.CompareOp);
+        Assert.Equal(75.5, rule.Trigger.ThresholdLo, tolerance: 1e-4);
+        Assert.True(rule.Trigger.IsFloat);
+        Assert.Equal(do0Cooling.TagIndex, rule.Action.TargetTag.TagIndex);
+        Assert.Equal(1, rule.Action.Parameter);
+    }
 }
+

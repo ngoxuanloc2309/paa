@@ -23,7 +23,7 @@ public static class ProjectFileService
         "SynaptiX",
         "recent_projects.json");
 
-    public static void SaveProject(string filePath, ProjectModel project)
+    public static void SaveProject(string filePath, ProjectModel project, bool allowEmptyOverwrite = false)
     {
         ArgumentNullException.ThrowIfNull(project);
         if (string.IsNullOrWhiteSpace(filePath))
@@ -35,22 +35,40 @@ public static class ProjectFileService
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
             Directory.CreateDirectory(dir);
+        }
+
+        if (File.Exists(filePath))
+        {
+            var fileInfo = new FileInfo(filePath);
+            bool isProjectEmpty = (project.Nodes == null || project.Nodes.Count == 0) &&
+                                  (project.Rules == null || project.Rules.Count == 0);
+            if (fileInfo.Length > 512 && isProjectEmpty && !allowEmptyOverwrite)
+            {
+                throw new InvalidOperationException(
+                    "Safety Gate Violation: Cannot overwrite existing project containing data with empty nodes and rules without explicit confirmation.");
+            }
+
+            try
+            {
+                string backupPath = filePath + ".bak";
+                File.Copy(filePath, backupPath, overwrite: true);
+            }
+            catch
+            {
+                // Best-effort backup
+            }
         }
 
         string tempPath = filePath + ".tmp";
         string json = JsonSerializer.Serialize(project, JsonOptions);
         File.WriteAllText(tempPath, json, System.Text.Encoding.UTF8);
 
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
-        File.Move(tempPath, filePath);
+        File.Move(tempPath, filePath, overwrite: true);
 
         AddRecentProject(filePath);
     }
 
-    public static async Task SaveProjectAsync(string filePath, ProjectModel project)
+    public static async Task SaveProjectAsync(string filePath, ProjectModel project, bool allowEmptyOverwrite = false)
     {
         ArgumentNullException.ThrowIfNull(project);
         if (string.IsNullOrWhiteSpace(filePath))
@@ -64,15 +82,33 @@ public static class ProjectFileService
             Directory.CreateDirectory(dir);
         }
 
+        if (File.Exists(filePath))
+        {
+            var fileInfo = new FileInfo(filePath);
+            bool isProjectEmpty = (project.Nodes == null || project.Nodes.Count == 0) &&
+                                  (project.Rules == null || project.Rules.Count == 0);
+            if (fileInfo.Length > 512 && isProjectEmpty && !allowEmptyOverwrite)
+            {
+                throw new InvalidOperationException(
+                    "Safety Gate Violation: Cannot overwrite existing project containing data with empty nodes and rules without explicit confirmation.");
+            }
+
+            try
+            {
+                string backupPath = filePath + ".bak";
+                File.Copy(filePath, backupPath, overwrite: true);
+            }
+            catch
+            {
+                // Best-effort backup
+            }
+        }
+
         string tempPath = filePath + ".tmp";
         string json = JsonSerializer.Serialize(project, JsonOptions);
         await File.WriteAllTextAsync(tempPath, json, System.Text.Encoding.UTF8);
 
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
-        File.Move(tempPath, filePath);
+        File.Move(tempPath, filePath, overwrite: true);
 
         AddRecentProject(filePath);
     }

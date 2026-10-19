@@ -137,4 +137,34 @@ public class MqttTelemetryCodecTests
         string unpacked = MqttTelemetryCodec.DecodePackedAscii(regs);
         Assert.Equal("factory/temp", unpacked);
     }
+
+    [Fact]
+    public void Encode_Offset15_AlwaysWritesReservedZeroAccordingToSPLC_SPEC_IEC_002()
+    {
+        var config = new MqttTelemetryConfigDto
+        {
+            Topic = "plant/furnace",
+            PublishMode = "COV",
+            Fields = new List<MqttPayloadFieldDto>
+            {
+                new() { Key = "val0", TagIndex = 10 },
+                new() { Key = "val1", TagIndex = 11 },
+                new() { Key = "val2", TagIndex = 12 },
+                new() { Key = "val3", TagIndex = 13 }
+            }
+        };
+
+        Span<ushort> buffer = stackalloc ushort[ModbusRegisterMap.MqttRegistersPerBlock];
+        MqttTelemetryCodec.EncodeBlock(config, buffer);
+
+        // Expected header at +15: Always 0x0000 (Reserved) per SPLC-SPEC-IEC-002
+        Assert.Equal(0x0000, buffer[15]);
+
+        var decoded = MqttTelemetryCodec.DecodeBlock(buffer);
+        Assert.Equal(4, decoded.Fields.Count);
+        Assert.Equal(10, decoded.Fields[0].TagIndex);
+        Assert.Equal(11, decoded.Fields[1].TagIndex);
+        Assert.Equal(12, decoded.Fields[2].TagIndex);
+        Assert.Equal(13, decoded.Fields[3].TagIndex);
+    }
 }

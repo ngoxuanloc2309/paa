@@ -12,18 +12,26 @@ public static class RuleMapper
     {
         ArgumentNullException.ThrowIfNull(domainRule);
 
+        bool isFloat = domainRule.Trigger.IsFloat || domainRule.Action.IsFloat;
         var dto = new RuleRecordDto
         {
-            ThresholdLo = domainRule.Trigger.ThresholdLo,
-            ThresholdHi = domainRule.Trigger.ThresholdHi,
+            ThresholdLo = domainRule.Trigger.IsFloat
+                ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdLo)
+                : (int)Math.Round(domainRule.Trigger.ThresholdLo),
+            ThresholdHi = domainRule.Trigger.IsFloat
+                ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdHi)
+                : (int)Math.Round(domainRule.Trigger.ThresholdHi),
             ForMs = domainRule.Trigger.ForMs,
-            ActionParam = domainRule.Action.Parameter,
+            ActionParam = domainRule.Action.IsFloat
+                ? BitConverter.SingleToInt32Bits((float)domainRule.Action.Parameter)
+                : (int)Math.Round(domainRule.Action.Parameter),
             TriggerTag = domainRule.Trigger.Tag.TagIndex,
             ActionTag = domainRule.Action.TargetTag.TagIndex,
             Enabled = domainRule.Enabled,
             TriggerType = (SPLC_TriggerType)domainRule.Trigger.Type,
             CompareOp = (SPLC_CompareOp)domainRule.Trigger.CompareOp,
-            ActionType = (SPLC_ActionType)domainRule.Action.Type
+            ActionType = (SPLC_ActionType)domainRule.Action.Type,
+            Flags = isFloat ? (byte)0x01 : (byte)0x00
         };
 
         if (domainRule.Guard.HasGuard && domainRule.Guard.Tag != null)
@@ -53,12 +61,16 @@ public static class RuleMapper
         var trigger = new TriggerModel(triggerTag, (TriggerKind)dto.TriggerType)
         {
             CompareOp = (CompareOperator)dto.CompareOp,
-            ThresholdLo = dto.ThresholdLo,
-            ThresholdHi = dto.ThresholdHi,
+            ThresholdLo = dto.IsFloatData ? dto.ThresholdLoFloat : dto.ThresholdLo,
+            ThresholdHi = dto.IsFloatData ? dto.ThresholdHiFloat : dto.ThresholdHi,
+            IsFloat = dto.IsFloatData,
             ForMs = dto.ForMs
         };
 
-        var action = new ActionModel(actionTag, (ActionKind)dto.ActionType, dto.ActionParam);
+        var action = new ActionModel(actionTag, (ActionKind)dto.ActionType, dto.IsFloatData ? dto.ActionParamFloat : dto.ActionParam)
+        {
+            IsFloat = dto.IsFloatData
+        };
 
         GuardModel guard = GuardModel.Empty;
         if (dto.HasGuard)

@@ -20,11 +20,12 @@ SimplePLC Platform V2.0 defines the **Diagnostic & Commissioning Control Subsyst
    - Wire Profile V2 preserves 100% of the Wire Profile V1 frozen memory map and data contract:
      - `DeviceDescriptor` at `0x0000` (10 registers)
      - `DeviceResourceInfo` at `0x0020` (10 registers)
-     - `ActiveRuleTable` at `0x0100` (up to 1600 registers)
+     - `ActiveRuleTable` at `0x0100` (up to 1600 registers = 100 rules × 16 registers/rule, Byte 26 / Reg 13 High: `0x01 = SPLC_RULE_FLAG_FLOAT_DATA` for IEEE-754 Single-Precision Float thresholds & scaling)
      - `DeviceHealth` at `0x0800` (10 registers)
      - `RTC Clock` at `0x0810..0x0813` (4 registers: Epoch UTC, Timezone Offset, Flags: Synced, HW_Present, Battery_Low)
      - `RuntimeTagValues` at `0x0900` (256 registers)
      - `SystemCommand` at `0x0A00` (1 register) và `SystemCommandResult` at `0x0A01` (2 registers)
+     - `HardwareCapabilities` at `0x0A08..0x0A09` (2 registers = 32-bit bitmask: Logic, Retain, RTC, Ethernet, MQTT PUB, MQTT SUB)
      - `Diagnostic Control Block` at `0x0A20..0x0A24` (5 registers)
      - `Dedicated FB Timers` at `0x0B00..0x0B3F` (64 registers = 8 timers)
      - `Dedicated FB Counters` at `0x0B40..0x0B7F` (64 registers = 8 counters)
@@ -321,6 +322,29 @@ For any slot in the 128-tag memory space (`0x0900..0x09FF`) that exceeds the dec
    - The host application marks the slot as `Unpopulated / Inactive`.
    - Unpopulated slots are filtered out of the Tag Catalog, Live Watch list, and Rule Designer binding dropdowns.
    - They **MUST NEVER** be displayed to the user as active or operable tags.
+
+---
+
+### 5.5 IEC 61131-3 Tag Value Interpretation & Data Types (`BOOL`, `DINT`, `REAL`)
+
+Starting from Platform V2.0, the 32-bit register pairs (`0x0900..0x09FF`) strictly conform to standard IEC 61131-3 data types defined by the canonical C union `SPLC_TagValue_t` (in `simpleplc_protocol_v2_0.h`):
+
+```c
+typedef union SPLC_PACKED {
+    int32_t  as_int32;         /* 32-bit signed integer (DINT) */
+    int32_t  as_dint;          /* IEC 61131-3 canonical name */
+    float    as_real;          /* 32-bit IEEE-754 single precision float (REAL) */
+    uint32_t as_raw32;         /* Raw 32-bit unsigned binary */
+    struct {
+        uint16_t high_word;    /* Modbus Register N   (Even Address) - Big-Endian */
+        uint16_t low_word;     /* Modbus Register N+1 (Odd Address) */
+    } words;
+} SPLC_TagValue_t;
+```
+
+* **`BOOL` (1-bit)**: `DI`, `DO`, `VFLAG`. Stored as `0` or `1` in the 32-bit slot.
+* **`DINT` / `INT32` (32-bit signed integer)**: `COUNTER`, `AI` (ADC raw), `VREG`, `VREG_RETAIN`. Two's complement integer.
+* **`REAL` / `Float32` (32-bit IEEE-754 float)**: `AI` (engineering units), `VREG`, `VREG_RETAIN`. Transferred directly as IEEE-754 binary floats (High Word first). Arbitrary decimal scaling multipliers ($10^{dec}$) are strictly prohibited.
 
 ---
 

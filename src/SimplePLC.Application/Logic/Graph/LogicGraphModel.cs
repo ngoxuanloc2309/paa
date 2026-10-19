@@ -69,8 +69,8 @@ public sealed class TriggerNodeData
 {
     public TriggerKind Type { get; set; } = TriggerKind.OnRise;
     public CompareOperator CompareOp { get; set; } = CompareOperator.None;
-    public int ThresholdLo { get; set; }
-    public int ThresholdHi { get; set; }
+    public double ThresholdLo { get; set; }
+    public double ThresholdHi { get; set; }
     public uint ForMs { get; set; }
 }
 
@@ -84,8 +84,8 @@ public sealed class ComparatorNodeData
 {
     public ushort InTagIndex { get; set; }
     public CompareOperator Operator { get; set; } = CompareOperator.GreaterThan;
-    public int ThresholdLo { get; set; } = 50;
-    public int ThresholdHi { get; set; } = 100;
+    public double ThresholdLo { get; set; } = 50;
+    public double ThresholdHi { get; set; } = 100;
 }
 
 public sealed class ActionNodeData
@@ -151,8 +151,8 @@ public sealed class LogicNode
         string id,
         TriggerKind type = TriggerKind.OnRise,
         CompareOperator compareOp = CompareOperator.None,
-        int thresholdLo = 0,
-        int thresholdHi = 0,
+        double thresholdLo = 0,
+        double thresholdHi = 0,
         uint forMs = 0,
         string label = "") =>
         new()
@@ -287,8 +287,8 @@ public sealed class LogicNode
         string id,
         ushort inTagIndex,
         CompareOperator op = CompareOperator.GreaterThan,
-        int thresholdLo = 50,
-        int thresholdHi = 100,
+        double thresholdLo = 50,
+        double thresholdHi = 100,
         int executionOrder = 0,
         string label = "") =>
         new()

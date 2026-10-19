@@ -41,4 +41,28 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
 
         return RegisterCodec.DecodeDeviceResourceInfo(rawRegisters);
     }
+
+    public async Task<SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities> ReadHardwareCapabilitiesAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var rawRegisters = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.HardwareCapabilitiesAddress,
+                ModbusRegisterMap.HardwareCapabilitiesLength,
+                cancellationToken
+            );
+
+            if (rawRegisters != null && rawRegisters.Length >= ModbusRegisterMap.HardwareCapabilitiesLength)
+            {
+                return RegisterCodec.DecodeHardwareCapabilities(rawRegisters);
+            }
+        }
+        catch
+        {
+            // Fallback an toàn cho firmware đời cũ chưa mở thanh ghi 0x0A08
+        }
+
+        return SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+    }
 }

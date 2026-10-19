@@ -174,4 +174,91 @@ public class RuleMapperTests
             Assert.Equal(table.Rules[i].Action.Parameter, restoredTable.Rules[i].Action.Parameter);
         }
     }
+
+    [Fact]
+    public void ToDto_FloatThresholds_MapsIeee754AndSetsFlag()
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+
+        var trigger = new TriggerModel(ai0, TriggerKind.OnChange, thresholdLo: 55.5, thresholdHi: 100.25)
+        {
+            CompareOp = CompareOperator.Between,
+            IsFloat = true
+        };
+        var action = new ActionModel(do0, ActionKind.SetTag, parameter: 1.0)
+        {
+            IsFloat = true
+        };
+
+        var rule = new Rule(0, "FloatTempRule", trigger, action, GuardModel.Empty, enabled: true);
+
+        // Act
+        var dto = RuleMapper.ToDto(rule);
+
+        // Assert
+        Assert.True(dto.IsFloatData);
+        Assert.Equal(55.5f, dto.ThresholdLoFloat, precision: 4);
+        Assert.Equal(100.25f, dto.ThresholdHiFloat, precision: 4);
+        Assert.Equal(1.0f, dto.ActionParamFloat, precision: 4);
+    }
+
+    [Fact]
+    public void Roundtrip_FloatRule_PreservesAccurateValues()
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var vreg0 = _product.FindTagByName("VREG0")!;
+
+        var trigger = new TriggerModel(ai0, TriggerKind.OnChange, thresholdLo: 23.45, thresholdHi: 89.12)
+        {
+            CompareOp = CompareOperator.Between,
+            IsFloat = true
+        };
+        var action = new ActionModel(vreg0, ActionKind.ScaleTag, parameter: 0.5)
+        {
+            IsFloat = true
+        };
+
+        var rule = new Rule(1, "FloatScaleRule", trigger, action, GuardModel.Empty, enabled: true);
+
+        // Act
+        var dto = RuleMapper.ToDto(rule);
+        var restored = RuleMapper.ToDomain(dto, 1, _product);
+
+        // Assert
+        Assert.True(restored.Trigger.IsFloat);
+        Assert.True(restored.Action.IsFloat);
+        Assert.Equal(23.45, restored.Trigger.ThresholdLo, tolerance: 1e-4);
+        Assert.Equal(89.12, restored.Trigger.ThresholdHi, tolerance: 1e-4);
+        Assert.Equal(0.5, restored.Action.Parameter, tolerance: 1e-4);
+    }
+
+    [Fact]
+    public void ToDto_PureIntegerRule_FlagsRemainZeroAndDirectInt32()
+    {
+        var di0 = _product.FindTagByName("DI0")!;
+        var vreg0 = _product.FindTagByName("VREG0")!;
+
+        var trigger = new TriggerModel(di0, TriggerKind.OnChange, thresholdLo: 1200, thresholdHi: 3400)
+        {
+            CompareOp = CompareOperator.Between,
+            IsFloat = false
+        };
+        var action = new ActionModel(vreg0, ActionKind.SetTag, parameter: 42)
+        {
+            IsFloat = false
+        };
+
+        var rule = new Rule(2, "IntRule", trigger, action, GuardModel.Empty, enabled: true);
+
+        // Act
+        var dto = RuleMapper.ToDto(rule);
+
+        // Assert
+        Assert.False(dto.IsFloatData);
+        Assert.Equal(1200, dto.ThresholdLo);
+        Assert.Equal(3400, dto.ThresholdHi);
+        Assert.Equal(42, dto.ActionParam);
+    }
 }
+

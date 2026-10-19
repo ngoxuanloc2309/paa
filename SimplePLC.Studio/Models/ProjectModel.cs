@@ -48,6 +48,8 @@ public class ProjectTagData
     public int Channel { get; set; }
     public string Group { get; set; } = string.Empty;
     public int Value { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public TagDataType DataType { get; set; } = TagDataType.Int32;
 }
 
 public class ProjectNodeData
@@ -74,8 +76,8 @@ public class ProjectNodeData
     // Guard node properties
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CompareOp CompareOp { get; set; } = CompareOp.EQ;
-    public int ThresholdLo { get; set; }
-    public int ThresholdHi { get; set; }
+    public double ThresholdLo { get; set; }
+    public double ThresholdHi { get; set; }
     public bool Negate { get; set; }
 
     // Action node properties
@@ -170,8 +172,8 @@ public class ProjectRuleData
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CompareOp CompareOp { get; set; } = CompareOp.NONE;
     public string GuardTagName { get; set; } = string.Empty;
-    public int ThresholdLo { get; set; }
-    public int ThresholdHi { get; set; }
+    public double ThresholdLo { get; set; }
+    public double ThresholdHi { get; set; }
     public bool GuardNegated { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ActionType ActionType { get; set; } = ActionType.SET_TAG;

@@ -28,5 +28,6 @@ public enum TagKind : byte
 public enum TagDataType
 {
     Boolean = 1,
-    Int32 = 2
+    Int32 = 2,
+    Float32 = 3
 }

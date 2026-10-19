@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SimplePLC.Domain.Builders;
 using SimplePLC.Domain.Enums;
+using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Domain.Models;
 
@@ -43,7 +44,32 @@ public sealed class ProductDefinition
     /// <summary>
     /// Năng lực đồng hồ thời gian thực (RTC Clock 0x0810..0x0813) khi thiết bị hỗ trợ Wire Profile V2 trở lên.
     /// </summary>
-    public bool SupportsRtcClock => WireProfile >= 2;
+    public bool SupportsRtcClock => (HardwareCapabilities & SPLC_HardwareCapabilities.RTC) != 0 || WireProfile >= 2;
+
+    /// <summary>
+    /// Bitmask năng lực phần cứng do MCU khai báo tại 0x0A08 (hoặc suy diễn theo DeviceClass nếu firmware V1).
+    /// </summary>
+    public SPLC_HardwareCapabilities HardwareCapabilities { get; }
+
+    /// <summary>
+    /// Năng lực xuất bản viễn trắc MQTT Publish (0x0C00).
+    /// </summary>
+    public bool SupportsMqttPublish => (HardwareCapabilities & SPLC_HardwareCapabilities.MQTT_PUB) != 0;
+
+    /// <summary>
+    /// Năng lực nhận dữ liệu điều khiển MQTT Subscribe (0x0D80).
+    /// </summary>
+    public bool SupportsMqttSubscribe => (HardwareCapabilities & SPLC_HardwareCapabilities.MQTT_SUB) != 0;
+
+    /// <summary>
+    /// Năng lực cổng truyền thông mạng vật lý (Ethernet/WiFi).
+    /// </summary>
+    public bool SupportsEthernet => (HardwareCapabilities & SPLC_HardwareCapabilities.ETHERNET) != 0;
+
+    /// <summary>
+    /// Năng lực lưu trữ thẻ nhớ MicroSD datalogger.
+    /// </summary>
+    public bool SupportsSdDatalog => (HardwareCapabilities & SPLC_HardwareCapabilities.SD_DATALOG) != 0;
 
     private readonly Dictionary<ushort, TagDefinition> _tagsByIndex;
     private readonly Dictionary<string, TagDefinition> _tagsByName;
@@ -58,7 +84,8 @@ public sealed class ProductDefinition
         ushort maxRules,
         ProductResourceProfile resources,
         IEnumerable<TagDefinition> tags,
-        ushort wireProfile = 1)
+        ushort wireProfile = 1,
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
     {
         ProductName = productName ?? "Default";
         DeviceClass = deviceClass;
@@ -66,12 +93,39 @@ public sealed class ProductDefinition
         MaxRules = maxRules;
         WireProfile = wireProfile;
         Resources = resources ?? ProductResourceProfile.DefaultRemoteIo;
+        HardwareCapabilities = hardwareCapabilities != SPLC_HardwareCapabilities.NONE
+            ? hardwareCapabilities
+            : GetDefaultFallbackCapabilities(wireProfile);
 
         var tagList = tags.ToList();
         Tags = tagList.AsReadOnly();
 
         _tagsByIndex = tagList.ToDictionary(t => t.TagIndex);
         _tagsByName = tagList.ToDictionary(t => t.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Năng lực dự phòng tối thiểu khi kết nối với firmware cũ (Legacy V1.x không hỗ trợ 0x0A08)
+    /// hoặc khi khởi tạo đối tượng mock/test mà không chỉ định capabilities.
+    /// <para>
+    /// NGUYÊN TẮC KIẾN TRÚC: TUYỆT ĐỐI KHÔNG suy diễn năng lực ngoại vi (Ethernet, MQTT, RTC, SD)
+    /// dựa trên DeviceClass vì mỗi phần cứng thực tế có BOM/board layout khác nhau.
+    /// Nguồn sự thật duy nhất luôn là thanh ghi 0x0A08 do firmware MCU khai báo động.
+    /// </para>
+    /// </summary>
+    public static SPLC_HardwareCapabilities GetDefaultFallbackCapabilities(ushort wireProfile = 2)
+    {
+        // Tối thiểu an toàn cho mọi SimplePLC engine là thực thi logic quy tắc và bộ nhớ duy trì
+        return SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE;
+    }
+
+    /// <summary>
+    /// Giữ lại để tương thích mã nguồn cũ, trả về cấu hình fallback an toàn.
+    /// </summary>
+    [Obsolete("Không suy diễn năng lực theo DeviceClass. Sử dụng thanh ghi 0x0A08 từ MCU hoặc GetDefaultFallbackCapabilities.")]
+    public static SPLC_HardwareCapabilities GetDefaultCapabilitiesForClass(ushort deviceClass, ushort wireProfile)
+    {
+        return GetDefaultFallbackCapabilities(wireProfile);
     }
 
     /// <summary>

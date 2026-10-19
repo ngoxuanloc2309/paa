@@ -66,6 +66,22 @@ public enum SPLC_HealthFlags : ushort
 }
 
 /// <summary>
+/// Bitmask năng lực phần cứng do MCU khai báo tại địa chỉ 0x0A08 (32-bit uint32, Big-Endian).
+/// </summary>
+[Flags]
+public enum SPLC_HardwareCapabilities : uint
+{
+    NONE         = 0x0000,
+    BASE_LOGIC   = 0x0001, // Bit 0: Hỗ trợ Logic Engine FBD cơ bản (Rule Engine)
+    RETENTIVE    = 0x0002, // Bit 1: Hỗ trợ lưu trữ Retentive Memory (Flash/NVRAM/FRAM)
+    RTC          = 0x0004, // Bit 2: Hỗ trợ Real-Time Clock phần cứng (DS3231/LSE)
+    ETHERNET     = 0x0008, // Bit 3: Có cổng truyền thông mạng vật lý (Ethernet/WiFi)
+    MQTT_PUB     = 0x0010, // Bit 4: Hỗ trợ phân hệ xuất bản viễn trắc MQTT PUB (0x0C00)
+    MQTT_SUB     = 0x0020, // Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB
+    SD_DATALOG   = 0x0040  // Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD
+}
+
+/// <summary>
 /// Lệnh maintenance cấp hệ thống do App gửi xuống MCU.
 /// </summary>
 public enum SPLC_SystemCommand : ushort

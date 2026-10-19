@@ -124,4 +124,15 @@ public class ProjectFileServiceTests
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void LoadUntitledSynx_DebugInspection()
+    {
+        string path = @"C:\Users\DELL\Documents\Untitled.synx";
+        if (!File.Exists(path)) return;
+        var vm = new ViewModels.MainViewModel();
+        vm.LoadProjectFile(path);
+        Assert.True(vm.RuleTableVM.Rules.Count > 0, $"Rule count: {vm.RuleTableVM.Rules.Count}");
+        Assert.True(vm.LogicEditorVM.Nodes.Count > 0, $"Node count: {vm.LogicEditorVM.Nodes.Count}");
+    }
 }

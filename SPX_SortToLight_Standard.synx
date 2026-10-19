@@ -1,0 +1,214 @@
+{
+  "metadata": {
+    "projectName": "SPX_SortToLight_Standard_Rack",
+    "author": "SynaptiX Solutions Architecture Team",
+    "createdAt": "2026-10-15T00:00:00Z",
+    "lastModified": "2026-10-15T00:00:00Z",
+    "schemaVersion": 1,
+    "targetDevice": "SPX-STL-EDGE-GW",
+    "description": "SPX Logistics Industrial Sort-to-Light Standard Controller (18-Bin Multi-Tier)",
+    "digitalInputs": 8,
+    "digitalOutputs": 8,
+    "analogInputs": 4,
+    "virtualFlags": 32,
+    "virtualRegisters": 32,
+    "retentiveRegisters": 32,
+    "counters": 8,
+    "maxRules": 100,
+    "mqttBrokerEnabled": true,
+    "mqttBrokerHost": "spx-wms-broker.fulfillment.internal",
+    "mqttBrokerPort": 1883,
+    "mqttClientId": "SPX-STL-RACK-01",
+    "mqttUsername": "spx_edge_client",
+    "mqttTlsEnabled": false,
+    "mqttKeepAliveSec": 30
+  },
+  "tags": [],
+  "nodes": [
+    {
+      "id": "n1_sub",
+      "type": "MqttSubscribe",
+      "locationX": 80,
+      "locationY": 80,
+      "customLabel": "SPX WMS Command Ingestion",
+      "mqttTopic": "spx/stl/rack01/cmd",
+      "mqttQos": 1,
+      "mqttSubQueueMode": "Fifo",
+      "mqttSubIgnoreRetained": true,
+      "mqttSubTimeoutMs": 5000,
+      "mqttSubFailSafeAction": "KeepLastValue",
+      "mqttSubPins": [
+        {
+          "id": "p0",
+          "label": "target_bin",
+          "jsonPath": "$.bin_id",
+          "dataType": "Int16",
+          "targetTagName": "VREG0",
+          "defaultValue": 1
+        },
+        {
+          "id": "p1",
+          "label": "color_rgb",
+          "jsonPath": "$.color",
+          "dataType": "Int16",
+          "targetTagName": "VREG1",
+          "defaultValue": 2
+        },
+        {
+          "id": "p2",
+          "label": "trigger",
+          "jsonPath": "$.trigger",
+          "dataType": "Bool",
+          "targetTagName": "FLAG0",
+          "defaultValue": 0
+        }
+      ]
+    },
+    {
+      "id": "n1_trig",
+      "type": "Trigger",
+      "locationX": 380,
+      "locationY": 100,
+      "customLabel": "Command Pulse [Trigger]",
+      "triggerType": "ON_RISE",
+      "forMs": 0
+    },
+    {
+      "id": "n1_timer",
+      "type": "Timer",
+      "locationX": 660,
+      "locationY": 90,
+      "customLabel": "Pick Window Auto-Off (5s)",
+      "timerMode": "TON",
+      "presetMs": 5000,
+      "tagName": "FLAG0",
+      "outputTagName": "DO0"
+    },
+    {
+      "id": "n1_act_on",
+      "type": "Action",
+      "locationX": 960,
+      "locationY": 90,
+      "customLabel": "Illuminate Target Bin (DO0)",
+      "actionType": "SET_TAG",
+      "targetTagName": "DO0",
+      "actionParam": 1
+    },
+    {
+      "id": "n2_inp_sensor",
+      "type": "Input",
+      "locationX": 80,
+      "locationY": 360,
+      "customLabel": "Optical Sensor / Pushbutton (DI0)",
+      "tagName": "DI0"
+    },
+    {
+      "id": "n2_trig_sensor",
+      "type": "Trigger",
+      "locationX": 380,
+      "locationY": 360,
+      "customLabel": "Pick Detection [Trigger]",
+      "triggerType": "ON_RISE",
+      "forMs": 0
+    },
+    {
+      "id": "n2_act_off",
+      "type": "Action",
+      "locationX": 660,
+      "locationY": 360,
+      "customLabel": "Extinguish Indicator (DO0=0)",
+      "actionType": "SET_TAG",
+      "targetTagName": "DO0",
+      "actionParam": 0
+    },
+    {
+      "id": "n2_pub_telemetry",
+      "type": "MqttPublish",
+      "locationX": 960,
+      "locationY": 330,
+      "customLabel": "SPX Sort Telemetry Dispatch",
+      "mqttTopic": "spx/stl/rack01/telemetry",
+      "mqttPayloadMode": "JSON",
+      "mqttQos": 1,
+      "mqttPublishMode": "COV",
+      "mqttFields": [
+        {
+          "key": "rack_id",
+          "tagName": "VREG0",
+          "unit": ""
+        },
+        {
+          "key": "cycle_done",
+          "tagName": "FLAG1",
+          "unit": ""
+        },
+        {
+          "key": "total_picks",
+          "tagName": "VREG_RETAIN0",
+          "unit": "pcs"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeId": "n1_sub",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "n1_trig",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "n1_trig",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "n1_timer",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "IN"
+    },
+    {
+      "sourceNodeId": "n1_timer",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Q",
+      "targetNodeId": "n1_act_on",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Execute"
+    },
+    {
+      "sourceNodeId": "n2_inp_sensor",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "n2_trig_sensor",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "n2_trig_sensor",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "n2_act_off",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Execute"
+    },
+    {
+      "sourceNodeId": "n2_act_off",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "n2_pub_telemetry",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    }
+  ],
+  "rules": [],
+  "watchlistTagIndices": [
+    0,
+    1,
+    8,
+    9,
+    32,
+    33,
+    64,
+    84
+  ]
+}

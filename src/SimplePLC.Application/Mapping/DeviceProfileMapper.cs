@@ -33,13 +33,14 @@ public static class DeviceProfileMapper
     }
 
     /// <summary>
-    /// Thẩm định và dựng ProductDefinition từ DeviceDescriptorDto và DeviceResourceInfoDto.
+    /// Thẩm định và dựng ProductDefinition từ DeviceDescriptorDto, DeviceResourceInfoDto và HardwareCapabilities.
     /// </summary>
     public static bool TryBuildProductDefinition(
         DeviceDescriptorDto descriptor,
         DeviceResourceInfoDto resourceInfo,
         out ProductDefinition? product,
-        out string? errorMessage)
+        out string? errorMessage,
+        SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities hardwareCapabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(resourceInfo);
@@ -55,6 +56,7 @@ public static class DeviceProfileMapper
             runtimeTagCount: resourceInfo.RuntimeTagCount,
             resources: resources,
             out product,
-            out errorMessage);
+            out errorMessage,
+            hardwareCapabilities: hardwareCapabilities);
     }
 }

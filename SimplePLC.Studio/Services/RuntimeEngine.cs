@@ -88,12 +88,12 @@ public sealed class RuntimeEngine : IRuntimeEngine
                     int currentHhmm = now.Hour * 100 + now.Minute;
                     if (rule.Trigger.CompareOp == SimplePLC.Domain.Enums.CompareOperator.Equal)
                     {
-                        conditionMet = (currentHhmm == rule.Trigger.ThresholdLo);
+                        conditionMet = (currentHhmm == (int)Math.Round(rule.Trigger.ThresholdLo));
                     }
                     else
                     {
-                        int start = rule.Trigger.ThresholdLo;
-                        int end = rule.Trigger.ThresholdHi;
+                        int start = (int)Math.Round(rule.Trigger.ThresholdLo);
+                        int end = (int)Math.Round(rule.Trigger.ThresholdHi);
                         conditionMet = start <= end
                             ? (currentHhmm >= start && currentHhmm <= end)
                             : (currentHhmm >= start || currentHhmm <= end);
@@ -117,11 +117,15 @@ public sealed class RuntimeEngine : IRuntimeEngine
 
                 case SimplePLC.Domain.Enums.TriggerKind.OnChange:
                 default:
-                    bool compareMet = Compare((CompareOp)rule.Trigger.CompareOp, current, rule.Trigger.ThresholdLo, rule.Trigger.ThresholdHi);
+                    bool compareMet = Compare((CompareOp)rule.Trigger.CompareOp, current, 
+                        rule.Trigger.ThresholdLo, 
+                        rule.Trigger.ThresholdHi, 
+                        rule.Trigger.IsFloat);
                     if (rule.Trigger.CompareOp != SimplePLC.Domain.Enums.CompareOperator.None)
                     {
                         conditionMet = compareMet;
-                        trigDesc = $"{rule.Trigger.Tag.Name} = {current} (Compare {(CompareOp)rule.Trigger.CompareOp} {rule.Trigger.ThresholdLo})";
+                        string thLoStr = rule.Trigger.ThresholdLo.ToString("0.##");
+                        trigDesc = $"{rule.Trigger.Tag.Name} = {current} (Compare {(CompareOp)rule.Trigger.CompareOp} {thLoStr})";
                     }
                     else
                     {
@@ -291,17 +295,17 @@ public sealed class RuntimeEngine : IRuntimeEngine
                     int currentHhmm2 = now2.Hour * 100 + now2.Minute;
                     if (rule.CompareOp == CompareOp.EQ)
                     {
-                        conditionMet = (currentHhmm2 == rule.ThresholdLo);
+                        conditionMet = (currentHhmm2 == (int)rule.ThresholdLo);
                     }
                     else
                     {
-                        int start = rule.ThresholdLo;
-                        int end = rule.ThresholdHi;
+                        int start = (int)rule.ThresholdLo;
+                        int end = (int)rule.ThresholdHi;
                         conditionMet = start <= end
                             ? (currentHhmm2 >= start && currentHhmm2 <= end)
                             : (currentHhmm2 >= start || currentHhmm2 <= end);
                     }
-                    trigDesc = $"TIME_WINDOW [{rule.ThresholdLo}..{rule.ThresholdHi}] (time={currentHhmm2:D4})";
+                    trigDesc = $"TIME_WINDOW [{(int)rule.ThresholdLo}..{(int)rule.ThresholdHi}] (time={currentHhmm2:D4})";
                     break;
 
                 case TriggerType.ON_RISE:
@@ -320,11 +324,12 @@ public sealed class RuntimeEngine : IRuntimeEngine
 
                 case TriggerType.ON_CHANGE:
                 default:
-                    bool compareMet = Compare(rule.CompareOp, current, rule.ThresholdLo, rule.ThresholdHi);
+                    bool compareMet = Compare(rule.CompareOp, current, rule.ThresholdLo, rule.ThresholdHi, rule.IsFloat);
                     if (rule.CompareOp != CompareOp.NONE)
                     {
                         conditionMet = compareMet;
-                        trigDesc = $"{rule.TriggerTag?.Name} = {current} (Compare {rule.CompareOp} {rule.ThresholdLo})";
+                        string thLoStr = rule.ThresholdLo.ToString("0.##");
+                        trigDesc = $"{rule.TriggerTag?.Name} = {current} (Compare {rule.CompareOp} {thLoStr})";
                     }
                     else
                     {
@@ -529,9 +534,13 @@ public sealed class RuntimeEngine : IRuntimeEngine
         switch (rule.Action.Type)
         {
             case SimplePLC.Domain.Enums.ActionKind.SetTag:
-                afterVal = rule.Action.Parameter;
+                afterVal = rule.Action.IsFloat
+                    ? BitConverter.SingleToInt32Bits((float)rule.Action.Parameter)
+                    : (int)Math.Round(rule.Action.Parameter);
                 Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SET)";
+                formattedDelta = rule.Action.IsFloat
+                    ? $"{target!.Name}: {BitConverter.Int32BitsToSingle(beforeVal):0.##} → {(float)rule.Action.Parameter:0.##} (SET)"
+                    : $"{target!.Name}: {beforeVal} → {afterVal} (SET)";
                 break;
             case SimplePLC.Domain.Enums.ActionKind.ToggleTag:
                 afterVal = beforeVal == 0 ? 1 : 0;
@@ -539,9 +548,9 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (TOGGLE)";
                 break;
             case SimplePLC.Domain.Enums.ActionKind.IncrementCounter:
-                afterVal = beforeVal + rule.Action.Parameter;
+                afterVal = beforeVal + (int)Math.Round(rule.Action.Parameter);
                 Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{rule.Action.Parameter})";
+                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{(int)Math.Round(rule.Action.Parameter)})";
                 break;
             case SimplePLC.Domain.Enums.ActionKind.AddTag:
                 afterVal = beforeVal + sourceValue;
@@ -549,9 +558,22 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
                 break;
             case SimplePLC.Domain.Enums.ActionKind.ScaleTag:
-                afterVal = (int)((long)sourceValue * rule.Action.Parameter / 1000 + rule.Trigger.ThresholdHi);
-                Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SCALE)";
+                if (rule.Action.IsFloat)
+                {
+                    float rawF = BitConverter.Int32BitsToSingle(sourceValue);
+                    float slopeF = (float)rule.Action.Parameter;
+                    float offsetF = (float)rule.Trigger.ThresholdHi;
+                    float outF = slopeF * rawF + offsetF;
+                    afterVal = BitConverter.SingleToInt32Bits(outF);
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {rawF:0.##} → {outF:0.##} (SCALE REAL)";
+                }
+                else
+                {
+                    afterVal = (int)((long)sourceValue * (long)Math.Round(rule.Action.Parameter) / 1000 + (long)Math.Round(rule.Trigger.ThresholdHi));
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SCALE)";
+                }
                 break;
             case SimplePLC.Domain.Enums.ActionKind.SendAlarm:
                 _events.Add(new(tickMs, rule.RuleIndex, $"Alarm {rule.Action.Parameter}"));
@@ -613,9 +635,22 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
                 break;
             case ActionType.SCALE_TAG:
-                afterVal = sourceValue * rule.ActionParam / 1000 + rule.ThresholdHi;
-                Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SCALE)";
+                if (rule.IsFloat)
+                {
+                    float rawF = BitConverter.Int32BitsToSingle(sourceValue);
+                    float slopeF = BitConverter.Int32BitsToSingle(rule.ActionParam);
+                    float offsetF = (float)rule.ThresholdHi;
+                    float outF = slopeF * rawF + offsetF;
+                    afterVal = BitConverter.SingleToInt32Bits(outF);
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {rawF:0.##} → {outF:0.##} (SCALE REAL)";
+                }
+                else
+                {
+                    afterVal = sourceValue * rule.ActionParam / 1000 + (int)rule.ThresholdHi;
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SCALE)";
+                }
                 break;
             case ActionType.SEND_ALARM:
                 _events.Add(new(tickMs, rule.Index, $"Alarm {rule.ActionParam}"));
@@ -658,18 +693,43 @@ public sealed class RuntimeEngine : IRuntimeEngine
     private int Read(int? index) => index.HasValue ? _tags.FirstOrDefault(t => t.Index == index.Value)?.Value ?? 0 : 0;
     private static void Write(TagModel tag, int value) => tag.Value = value;
 
-    private static bool Compare(CompareOp op, int value, int lo, int hi) => op switch
+    private static bool Compare(CompareOp op, int value, double lo, double hi, bool isFloat)
     {
-        CompareOp.NONE => true,
-        CompareOp.EQ => value == lo,
-        CompareOp.NEQ => value != lo,
-        CompareOp.GT => value > lo,
-        CompareOp.LT => value < lo,
-        CompareOp.GTE => value >= lo,
-        CompareOp.LTE => value <= lo,
-        CompareOp.BETWEEN => value >= lo && value <= hi,
-        _ => false
-    };
+        if (!isFloat)
+        {
+            int loInt = (int)Math.Round(lo);
+            int hiInt = (int)Math.Round(hi);
+            return op switch
+            {
+                CompareOp.NONE => true,
+                CompareOp.EQ => value == loInt,
+                CompareOp.NEQ => value != loInt,
+                CompareOp.GT => value > loInt,
+                CompareOp.LT => value < loInt,
+                CompareOp.GTE => value >= loInt,
+                CompareOp.LTE => value <= loInt,
+                CompareOp.BETWEEN => value >= loInt && value <= hiInt,
+                _ => false
+            };
+        }
+
+        float valFloat = BitConverter.Int32BitsToSingle(value);
+        float l = (float)lo;
+        float h = (float)hi;
+
+        return op switch
+        {
+            CompareOp.NONE => true,
+            CompareOp.EQ => Math.Abs(valFloat - l) <= 1e-5f,
+            CompareOp.NEQ => Math.Abs(valFloat - l) > 1e-5f,
+            CompareOp.GT => valFloat > l,
+            CompareOp.LT => valFloat < l,
+            CompareOp.GTE => valFloat >= l,
+            CompareOp.LTE => valFloat <= l,
+            CompareOp.BETWEEN => valFloat >= l && valFloat <= h,
+            _ => false
+        };
+    }
 }
 
 public interface IRuntimeEngine

@@ -175,4 +175,26 @@ public class TagCatalogEnhancementTests
         Assert.False(vm.IsBannerExpanded);
         Assert.Equal("▼", vm.BannerToggleIcon);
     }
+
+    [Fact]
+    public void TagCatalog_IsDataTypeEditable_MatchesSpecification()
+    {
+        var vm = new TagCatalogViewModel();
+        var di0 = vm.AllTags.First(t => t.Name == "DI0");
+        var do0 = vm.AllTags.First(t => t.Name == "DO0");
+        var ai0 = vm.AllTags.First(t => t.Name == "AI0");
+        var vf0 = vm.AllTags.First(t => t.Name == "VFLAG0");
+        var vr0 = vm.AllTags.First(t => t.Name == "VREG0");
+        var vrr0 = vm.AllTags.First(t => t.Name == "VREG_RETAIN0");
+        var c0 = vm.AllTags.First(t => t.Name == "COUNTER0");
+
+        Assert.False(di0.IsDataTypeEditable);
+        Assert.False(do0.IsDataTypeEditable);
+        Assert.False(vf0.IsDataTypeEditable);
+        Assert.False(c0.IsDataTypeEditable);
+
+        Assert.True(ai0.IsDataTypeEditable);
+        Assert.True(vr0.IsDataTypeEditable);
+        Assert.True(vrr0.IsDataTypeEditable);
+    }
 }

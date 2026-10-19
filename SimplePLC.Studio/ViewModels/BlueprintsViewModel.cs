@@ -294,6 +294,25 @@ public partial class BlueprintsViewModel : ObservableObject
             TagsSummaryEn = "AI0 (0..10V), SCALE Block (0..5m), VREG0"
         });
 
+        // 15. Analog Float32 Temperature Alarm (Worked Example 5)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "float_temp_alarm",
+            TitleVi = "Cảnh Báo Quá Nhiệt Float32 (75.5°C)",
+            TitleEn = "Analog Float32 Temp Alarm (75.5°C)",
+            SubtitleVi = "Cảm biến AI0 >= 75.5°C tự động kích hoạt quạt DO0",
+            SubtitleEn = "AI0 sensor >= 75.5°C automatically engages DO0 cooling fan",
+            DescriptionVi = "Minh họa xử lý số thực Float32 IEEE-754 chuẩn hóa theo Worked Example 5. Cảm biến tương tự AI0 đo nhiệt độ đối sánh trực tiếp với ngưỡng số thực 75.5°C. Khi nhiệt độ >= 75.5°C, hệ thống tự động bật quạt tản nhiệt DO0.",
+            DescriptionEn = "Demonstrates IEEE-754 Float32 processing based on Worked Example 5. Analog sensor AI0 compares against float threshold 75.5°C. When temp >= 75.5°C, system turns on cooling fan DO0.",
+            BadgeVi = "Float32 / Analog",
+            BadgeEn = "Float32 / Analog",
+            BadgeColor = "#2563EB",
+            Icon = "🌡️",
+            RuleCount = 1,
+            TagsSummaryVi = "AI0 (Nhiệt độ), Khối So sánh (>= 75.5°C), DO0 (Quạt làm mát)",
+            TagsSummaryEn = "AI0 (Temperature), Comparator (>= 75.5°C), DO0 (Cooling Fan)"
+        });
+
         // 13. Critical Pressure Alarm (SEND_ALARM)
         Blueprints.Add(new BlueprintModel
         {
@@ -489,15 +508,15 @@ public partial class BlueprintsViewModel : ObservableObject
             TitleEn = "IIoT Telemetry Publisher (MQTT Publish)",
             SubtitleVi = "Đẩy dữ liệu cảm biến lên Cloud Broker khi có sự kiện",
             SubtitleEn = "Publish sensor telemetry to Cloud Broker on event trigger",
-            DescriptionVi = "Kích hoạt gửi bản tin JSON lên MQTT Broker tại chủ đề 'synaptix/telemetry/data' (QoS 1) khi phát hiện xung DI0 hoặc dữ liệu AI0 thay đổi, đồng thời bật đèn báo hoàn tất DO0.",
-            DescriptionEn = "Publishes JSON telemetry payload to MQTT Broker under topic 'synaptix/telemetry/data' (QoS 1) upon DI0 trigger or AI0 analog variation, activating DO0 confirmation light.",
+            DescriptionVi = "Kích hoạt gửi bản tin JSON lên MQTT Broker tại chủ đề 'synaptix/telemetry/pressure' (QoS 1) khi phát hiện xung kích hoạt DI0, đồng thời bật đèn báo hoàn tất DO0.",
+            DescriptionEn = "Publishes JSON telemetry payload to MQTT Broker under topic 'synaptix/telemetry/pressure' (QoS 1) upon DI0 trigger event, activating DO0 confirmation light.",
             BadgeVi = "IIoT / MQTT",
             BadgeEn = "IIoT / MQTT",
             BadgeColor = "#0284C7",
             Icon = "📡",
             RuleCount = 1,
-            TagsSummaryVi = "DI0 (Kích hoạt), AI0 (Dữ liệu), DO0 (Đèn xác nhận)",
-            TagsSummaryEn = "DI0 (Trigger), AI0 (Data), DO0 (Done Indicator)"
+            TagsSummaryVi = "DI0 (Kích hoạt), AI0 (Cảm biến áp suất), DO0 (Đèn xác nhận Tx)",
+            TagsSummaryEn = "DI0 (Trigger), AI0 (Pressure Sensor), DO0 (Tx Indicator)"
         });
 
         // 23. Remote Command Dispatcher (MQTT Subscribe)
@@ -508,15 +527,15 @@ public partial class BlueprintsViewModel : ObservableObject
             TitleEn = "Remote Command Dispatcher (MQTT Subscribe)",
             SubtitleVi = "Tiếp nhận bản tin điều khiển từ Cloud xuống thiết bị",
             SubtitleEn = "Receive remote inbound commands from Cloud to Device",
-            DescriptionVi = "Lắng nghe chủ đề 'synaptix/commands/inbound' (QoS 1) khi được cho phép bởi cờ VFLAG0, giải mã trường JSON 'start' xuất ra cổng DO1 và báo xung hợp lệ lên cổng DO7.",
-            DescriptionEn = "Subscribes to 'synaptix/commands/inbound' (QoS 1) when enabled by VFLAG0, extracts JSON field 'start' to DO1 output and asserts DO7 valid packet pulse.",
+            DescriptionVi = "Lắng nghe chủ đề 'synaptix/commands/inbound' (QoS 1) từ Cloud Broker, giải mã trường JSON 'start' kích hoạt bơm cấp liệu DO1 và chớp đèn báo nhận gói tin hợp lệ DO7.",
+            DescriptionEn = "Subscribes to 'synaptix/commands/inbound' (QoS 1) from Cloud Broker, extracts JSON field 'start' to activate feed pump DO1 and indicates valid packet on DO7.",
             BadgeVi = "IIoT / MQTT",
             BadgeEn = "IIoT / MQTT",
             BadgeColor = "#0D9488",
             Icon = "📥",
-            RuleCount = 1,
-            TagsSummaryVi = "VFLAG0 (Cho phép), DO1 (Lệnh chạy), DO7 (Báo gói tin)",
-            TagsSummaryEn = "VFLAG0 (Enable), DO1 (Start Command), DO7 (Valid Indicator)"
+            RuleCount = 0,
+            TagsSummaryVi = "DO1 (Bơm cấp liệu), DO7 (Đèn báo gói tin)",
+            TagsSummaryEn = "DO1 (Feed Pump), DO7 (Valid Packet Indicator)"
         });
     }
 
@@ -690,15 +709,15 @@ public partial class BlueprintsViewModel : ObservableObject
             var do2 = tags.FirstOrDefault(t => t.Name == "DO2") ?? tags[11];
 
             var inp = new InputNodeViewModel(ai1) { Location = new Point(80, 120) };
-            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_CHANGE, CompareOp = CompareOp.GT, ThresholdLo = 85, Location = new Point(340, 120) };
+            var cmp = new ComparatorNodeViewModel(ai1, CompareOp.GT, 85) { Location = new Point(340, 120) };
             var act = new ActionNodeViewModel(do2) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
 
             _logicEditor.Nodes.Add(inp);
-            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(cmp);
             _logicEditor.Nodes.Add(act);
 
-            _logicEditor.Connect(inp.OutputConnectors[0], trig.InputConnectors[0]);
-            _logicEditor.Connect(trig.OutputConnectors[0], act.InputConnectors[0]);
+            _logicEditor.Connect(inp.OutputConnectors[0], cmp.InputConnectors[0]);
+            _logicEditor.Connect(cmp.OutputConnectors[0], act.InputConnectors[0]);
         }
         else if (bp.Id == "air_press")
         {
@@ -706,15 +725,15 @@ public partial class BlueprintsViewModel : ObservableObject
             var do3 = tags.FirstOrDefault(t => t.Name == "DO3") ?? tags[12];
 
             var inp = new InputNodeViewModel(ai0) { Location = new Point(80, 120) };
-            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_CHANGE, CompareOp = CompareOp.LT, ThresholdLo = 40, Location = new Point(340, 120) };
+            var cmp = new ComparatorNodeViewModel(ai0, CompareOp.LT, 40) { Location = new Point(340, 120) };
             var act = new ActionNodeViewModel(do3) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
 
             _logicEditor.Nodes.Add(inp);
-            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(cmp);
             _logicEditor.Nodes.Add(act);
 
-            _logicEditor.Connect(inp.OutputConnectors[0], trig.InputConnectors[0]);
-            _logicEditor.Connect(trig.OutputConnectors[0], act.InputConnectors[0]);
+            _logicEditor.Connect(inp.OutputConnectors[0], cmp.InputConnectors[0]);
+            _logicEditor.Connect(cmp.OutputConnectors[0], act.InputConnectors[0]);
         }
         else if (bp.Id == "press_window")
         {
@@ -722,15 +741,15 @@ public partial class BlueprintsViewModel : ObservableObject
             var do6 = tags.FirstOrDefault(t => t.Name == "DO6") ?? tags[15];
 
             var inp = new InputNodeViewModel(ai0) { Location = new Point(80, 120) };
-            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_CHANGE, CompareOp = CompareOp.BETWEEN, ThresholdLo = 40, ThresholdHi = 80, Location = new Point(340, 120) };
+            var cmp = new ComparatorNodeViewModel(ai0, CompareOp.BETWEEN, 40, 80) { Location = new Point(340, 120) };
             var act = new ActionNodeViewModel(do6) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
 
             _logicEditor.Nodes.Add(inp);
-            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(cmp);
             _logicEditor.Nodes.Add(act);
 
-            _logicEditor.Connect(inp.OutputConnectors[0], trig.InputConnectors[0]);
-            _logicEditor.Connect(trig.OutputConnectors[0], act.InputConnectors[0]);
+            _logicEditor.Connect(inp.OutputConnectors[0], cmp.InputConnectors[0]);
+            _logicEditor.Connect(cmp.OutputConnectors[0], act.InputConnectors[0]);
         }
         else if (bp.Id == "scale_pressure")
         {
@@ -822,21 +841,48 @@ public partial class BlueprintsViewModel : ObservableObject
             _logicEditor.Connect(inp.OutputConnectors[0], scale.InputConnectors[0]);
             _logicEditor.Connect(scale.OutputConnectors[0], act.InputConnectors[0]);
         }
+        else if (bp.Id == "float_temp_alarm")
+        {
+            var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? tags[0];
+            var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput) ?? tags[0];
+
+            var inp = new InputNodeViewModel(ai0) { Location = new Point(80, 120) };
+            var comp = new ComparatorNodeViewModel(ai0)
+            {
+                CompareOp = CompareOp.GTE,
+                ThresholdLo = 75.5,
+                ThresholdHi = 0,
+                Location = new Point(340, 120)
+            };
+            var act = new ActionNodeViewModel(do0)
+            {
+                ActionType = ActionType.SET_TAG,
+                ActionParam = 1,
+                Location = new Point(620, 120)
+            };
+
+            _logicEditor.Nodes.Add(inp);
+            _logicEditor.Nodes.Add(comp);
+            _logicEditor.Nodes.Add(act);
+
+            _logicEditor.Connect(inp.OutputConnectors[0], comp.InputConnectors[0]);
+            _logicEditor.Connect(comp.OutputConnectors[0], act.InputConnectors[0]);
+        }
         else if (bp.Id == "alarm_press")
         {
             var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags[17];
             var do3 = tags.FirstOrDefault(t => t.Name == "DO3") ?? tags[12];
 
             var inp = new InputNodeViewModel(ai0) { Location = new Point(80, 120) };
-            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_CHANGE, CompareOp = CompareOp.LT, ThresholdLo = 20, Location = new Point(340, 120) };
+            var cmp = new ComparatorNodeViewModel(ai0, CompareOp.LT, 20) { Location = new Point(340, 120) };
             var act = new ActionNodeViewModel(do3) { ActionType = ActionType.SEND_ALARM, ActionParam = 101, Location = new Point(600, 120) };
 
             _logicEditor.Nodes.Add(inp);
-            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(cmp);
             _logicEditor.Nodes.Add(act);
 
-            _logicEditor.Connect(inp.OutputConnectors[0], trig.InputConnectors[0]);
-            _logicEditor.Connect(trig.OutputConnectors[0], act.InputConnectors[0]);
+            _logicEditor.Connect(inp.OutputConnectors[0], cmp.InputConnectors[0]);
+            _logicEditor.Connect(cmp.OutputConnectors[0], act.InputConnectors[0]);
         }
         else if (bp.Id == "lube_cycle")
         {
@@ -986,23 +1032,27 @@ public partial class BlueprintsViewModel : ObservableObject
             var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? tags[0];
             var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags[9];
 
-            var inpTrig = new InputNodeViewModel(di0) { Location = new Point(80, 120) };
-            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(340, 120) };
-            var actDone = new ActionNodeViewModel(do0) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
+            // Hàng 1: Kênh Kích Hoạt Thủ Công & Đèn Xác Nhận Tx (Row 1: Y = 60)
+            var inpTrig = new InputNodeViewModel(di0) { Location = new Point(80, 60) };
+            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(340, 60) };
+            var actDone = new ActionNodeViewModel(do0) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(660, 60) };
 
-            var mqttPub = new MqttPublishNodeViewModel(ai0, "synaptix/telemetry/data")
+            // Hàng 2: Kênh Cảm Biến Đo Lường & Khối MQTT Publish (Row 2: Y = 200..220)
+            var inpVal = new InputNodeViewModel(ai0) { Location = new Point(340, 220) };
+            var mqttPub = new MqttPublishNodeViewModel(ai0, "synaptix/telemetry/pressure")
             {
                 Qos = 1,
                 PublishMode = "Event",
-                Location = new Point(340, 50)
+                Deadband = 0.5,
+                Unit = "bar",
+                Location = new Point(660, 200)
             };
-            var inpVal = new InputNodeViewModel(ai0) { Location = new Point(80, 190) };
 
             _logicEditor.Nodes.Add(inpTrig);
             _logicEditor.Nodes.Add(trig);
             _logicEditor.Nodes.Add(actDone);
-            _logicEditor.Nodes.Add(mqttPub);
             _logicEditor.Nodes.Add(inpVal);
+            _logicEditor.Nodes.Add(mqttPub);
 
             _logicEditor.Connect(inpTrig.OutputConnectors[0], trig.InputConnectors[0]);
             _logicEditor.Connect(trig.OutputConnectors[0], actDone.InputConnectors[0]);
@@ -1011,37 +1061,33 @@ public partial class BlueprintsViewModel : ObservableObject
         }
         else if (bp.Id == "mqtt_sub")
         {
-            var vflag0 = tags.FirstOrDefault(t => t.Name == "VFLAG0") ?? tags[33];
             var do1 = tags.FirstOrDefault(t => t.Name == "DO1") ?? tags[10];
             var do7 = tags.FirstOrDefault(t => t.Name == "DO7") ?? tags[16];
 
-            var inpEn = new InputNodeViewModel(vflag0) { Location = new Point(80, 120) };
-            var trigEn = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(340, 120) };
-            var actValid = new ActionNodeViewModel(do7) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 120) };
-
+            // Khối MQTT Subscribe đặt bên trái (Cột 1: X = 200, Y = 100)
             var mqttSub = new MqttSubscribeNodeViewModel("synaptix/commands/inbound")
             {
                 Qos = 1,
-                Location = new Point(340, 50)
+                Location = new Point(200, 100)
             };
 
-            var pinStart = new MqttPinBindingViewModel("StartCmd", "$.start", MqttDataType.Bool, (ushort)do1.Index)
+            var pinStart = new MqttPinBindingViewModel("StartCmd", "start", MqttDataType.Bool, (ushort)do1.Index)
             {
                 TargetTag = do1
             };
             mqttSub.AddPin(pinStart);
 
-            var actStart = new ActionNodeViewModel(do1) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 190) };
+            // Các cơ cấu chấp hành đầu ra đặt bên phải (Cột 2: X = 600)
+            // DO7: Báo nhận gói tin hợp lệ từ MQTT (Y = 80)
+            // DO1: Bơm cấp liệu kích hoạt theo lệnh (Y = 200)
+            var actValid = new ActionNodeViewModel(do7) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 80) };
+            var actStart = new ActionNodeViewModel(do1) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(600, 200) };
 
-            _logicEditor.Nodes.Add(inpEn);
-            _logicEditor.Nodes.Add(trigEn);
-            _logicEditor.Nodes.Add(actValid);
             _logicEditor.Nodes.Add(mqttSub);
+            _logicEditor.Nodes.Add(actValid);
             _logicEditor.Nodes.Add(actStart);
 
-            _logicEditor.Connect(inpEn.OutputConnectors[0], trigEn.InputConnectors[0]);
-            _logicEditor.Connect(trigEn.OutputConnectors[0], actValid.InputConnectors[0]);
-            _logicEditor.Connect(inpEn.OutputConnectors[0], mqttSub.EnableConnector);
+            _logicEditor.Connect(mqttSub.ValidConnector, actValid.InputConnectors[0]);
             if (pinStart.Connector != null)
             {
                 _logicEditor.Connect(pinStart.Connector, actStart.InputConnectors[0]);

@@ -31,7 +31,7 @@ public partial class TagCatalogViewModel : ObservableObject
             (ushort)t.Index,
             t.Name,
             t.Kind,
-            t.IsDigital ? TagDataType.Boolean : TagDataType.Int32,
+            t.IsDigital ? TagDataType.Boolean : t.DataType,
             isReadOnly: t.IsReadOnly,
             t.DisplayName
         )).ToList();
@@ -645,7 +645,8 @@ public partial class TagCatalogViewModel : ObservableObject
             Kind = t.Kind,
             Channel = t.Channel,
             Group = t.Group,
-            Value = t.Value
+            Value = t.Value,
+            DataType = t.DataType
         }).ToList();
     }
 
@@ -662,6 +663,10 @@ public partial class TagCatalogViewModel : ObservableObject
                 existing.Channel = pTag.Channel;
                 existing.Value = pTag.Value;
                 if (pTag.Kind != TagKind.None) existing.Kind = pTag.Kind;
+                if (!existing.IsDigital && pTag.DataType != TagDataType.Boolean)
+                {
+                    existing.DataType = pTag.DataType;
+                }
             }
             else
             {
@@ -673,7 +678,8 @@ public partial class TagCatalogViewModel : ObservableObject
                     Kind = pTag.Kind,
                     Channel = pTag.Channel,
                     Group = pTag.Group,
-                    Value = pTag.Value
+                    Value = pTag.Value,
+                    DataType = pTag.DataType
                 });
             }
         }

@@ -9,6 +9,12 @@ public partial class TagModel : ObservableObject
     private int _index;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDigital))]
+    [NotifyPropertyChangedFor(nameof(IsOutput))]
+    [NotifyPropertyChangedFor(nameof(IsReadOnly))]
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(IsDataTypeEditable))]
+    [NotifyPropertyChangedFor(nameof(ModbusAddressText))]
     private TagKind _kind;
 
     [ObservableProperty]
@@ -27,13 +33,35 @@ public partial class TagModel : ObservableObject
     [ObservableProperty]
     private int _value;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    private TagDataType _dataType = TagDataType.Int32;
+
+    partial void OnKindChanged(TagKind value)
+    {
+        if (IsDigital)
+        {
+            DataType = TagDataType.Boolean;
+        }
+        else if (DataType == TagDataType.Boolean)
+        {
+            DataType = TagDataType.Int32;
+        }
+    }
+
     public string DisplayName => string.IsNullOrWhiteSpace(Alias) ? Name : $"{Alias} ({Name})";
 
     public bool IsDigital => Kind is TagKind.DiscreteInput or TagKind.DiscreteOutput or TagKind.VirtualFlag or TagKind.ModbusCoil;
     public bool IsOutput => Kind is TagKind.DiscreteOutput or TagKind.ModbusCoil;
     public bool IsReadOnly => Kind is TagKind.DiscreteInput or TagKind.AnalogInput;
+    public bool IsDataTypeEditable => Kind is TagKind.AnalogInput or TagKind.VirtualRegister or TagKind.VirtualRegisterRetain or TagKind.ModbusHolding;
 
-    public string DataTypeText => IsDigital ? "BOOL (Bit)" : "INT32";
+    public string DataTypeText => DataType switch
+    {
+        TagDataType.Boolean => "BOOL (Bit)",
+        TagDataType.Float32 => "REAL",
+        _ => "INT32"
+    };
 
     public string AccessModeText => IsReadOnly ? "Read-Only" : "Read/Write";
 

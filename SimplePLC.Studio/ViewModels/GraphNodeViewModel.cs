@@ -248,7 +248,7 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         Title = tag?.Name ?? "DI0";
         Icon = "🏷️";
         Tag = tag;
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", IsInput = false, IsEvent = false, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = false, Node = this });
     }
 
     [RelayCommand]
@@ -362,6 +362,8 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(TriggerActionText))]
     [NotifyPropertyChangedFor(nameof(TriggerParamText))]
     [NotifyPropertyChangedFor(nameof(IsTimeTrigger))]
+    [NotifyPropertyChangedFor(nameof(IsIntervalTrigger))]
+    [NotifyPropertyChangedFor(nameof(IsStandardEdgeTrigger))]
     [NotifyPropertyChangedFor(nameof(IsTimeWindowRange))]
     [NotifyPropertyChangedFor(nameof(IsTimePointInTime))]
     private TriggerType _triggerType = TriggerType.ON_RISE;
@@ -522,6 +524,8 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     #region Time Trigger (RTC) Properties
     public bool IsTimeTrigger => TriggerType == TriggerType.TIME_WINDOW;
+    public bool IsIntervalTrigger => TriggerType == TriggerType.INTERVAL;
+    public bool IsStandardEdgeTrigger => TriggerType is TriggerType.ON_RISE or TriggerType.ON_FALL or TriggerType.ON_CHANGE;
 
     public bool IsTimeWindowRange
     {
@@ -551,7 +555,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     public int TimeStartHour
     {
-        get => Math.Clamp(ThresholdLo / 100, 0, 23);
+        get => Math.Clamp((int)ThresholdLo / 100, 0, 23);
         set
         {
             int h = Math.Clamp(value, 0, 23);
@@ -568,7 +572,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     public int TimeStartMinute
     {
-        get => Math.Clamp(ThresholdLo % 100, 0, 59);
+        get => Math.Clamp((int)ThresholdLo % 100, 0, 59);
         set
         {
             int m = Math.Clamp(value, 0, 59);
@@ -585,7 +589,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     public int TimeEndHour
     {
-        get => Math.Clamp(ThresholdHi / 100, 0, 23);
+        get => Math.Clamp((int)ThresholdHi / 100, 0, 23);
         set
         {
             int h = Math.Clamp(value, 0, 23);
@@ -598,7 +602,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     public int TimeEndMinute
     {
-        get => Math.Clamp(ThresholdHi % 100, 0, 59);
+        get => Math.Clamp((int)ThresholdHi % 100, 0, 59);
         set
         {
             int m = Math.Clamp(value, 0, 59);
@@ -635,53 +639,109 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(CompareOpBadgeText))]
     [NotifyPropertyChangedFor(nameof(CompactBadgeText))]
     [NotifyPropertyChangedFor(nameof(ConditionExpression))]
-    private int _thresholdLo = 0;
+    private double _thresholdLo = 0;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(CompareOpBadgeText))]
     [NotifyPropertyChangedFor(nameof(CompactBadgeText))]
     [NotifyPropertyChangedFor(nameof(ConditionExpression))]
-    private int _thresholdHi = 0;
+    private double _thresholdHi = 0;
+
+    [ObservableProperty]
+    private string _thresholdLoText = "0";
+
+    [ObservableProperty]
+    private string _thresholdHiText = "0";
+
+    partial void OnThresholdLoTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ThresholdLo - parsed) > 1e-9)
+            {
+                ThresholdLo = parsed;
+            }
+        }
+    }
+
+    partial void OnThresholdLoChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdLoText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ThresholdLoText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnThresholdHiTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ThresholdHi - parsed) > 1e-9)
+            {
+                ThresholdHi = parsed;
+            }
+        }
+    }
+
+    partial void OnThresholdHiChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdHiText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ThresholdHiText = NumericInputHelper.FormatDouble(value);
+        }
+    }
 
     public string ConditionExpression
     {
         get
         {
             if (CompareOp == CompareOp.NONE) return "Any Change";
+            string loStr = ThresholdLo.ToString("0.##");
+            string hiStr = ThresholdHi.ToString("0.##");
             string op = CompareOp switch
             {
-                CompareOp.EQ => $"== {ThresholdLo}",
-                CompareOp.NEQ => $"!= {ThresholdLo}",
-                CompareOp.GT => $"> {ThresholdLo}",
-                CompareOp.LT => $"< {ThresholdLo}",
-                CompareOp.GTE => $">= {ThresholdLo}",
-                CompareOp.LTE => $"<= {ThresholdLo}",
-                CompareOp.BETWEEN => $"in [{ThresholdLo}..{ThresholdHi}]",
+                CompareOp.EQ => $"== {loStr}",
+                CompareOp.NEQ => $"!= {loStr}",
+                CompareOp.GT => $"> {loStr}",
+                CompareOp.LT => $"< {loStr}",
+                CompareOp.GTE => $">= {loStr}",
+                CompareOp.LTE => $"<= {loStr}",
+                CompareOp.BETWEEN => $"in [{loStr}..{hiStr}]",
                 _ => "Pass"
             };
             return op;
         }
     }
 
-    public string CompareOpBadgeText => CompareOp switch
+    public string CompareOpBadgeText
     {
-        CompareOp.EQ => LocalizationService.Tr("BadgeCompareEq"),
-        CompareOp.NEQ => LocalizationService.Tr("BadgeCompareNeq"),
-        CompareOp.GT => LocalizationService.Tr("BadgeCompareGt"),
-        CompareOp.LT => LocalizationService.Tr("BadgeCompareLt"),
-        CompareOp.GTE => LocalizationService.Tr("BadgeCompareGte"),
-        CompareOp.LTE => LocalizationService.Tr("BadgeCompareLte"),
-        CompareOp.BETWEEN => string.Format(LocalizationService.Tr("BadgeCompareBetween"), ThresholdLo, ThresholdHi),
-        _ => LocalizationService.Tr("BadgeCompareNone")
-    };
+        get
+        {
+            string loStr = ThresholdLo.ToString("0.##");
+            string hiStr = ThresholdHi.ToString("0.##");
+            return CompareOp switch
+            {
+                CompareOp.EQ => string.Format(LocalizationService.Tr("BadgeCompareEq"), loStr),
+                CompareOp.NEQ => string.Format(LocalizationService.Tr("BadgeCompareNeq"), loStr),
+                CompareOp.GT => string.Format(LocalizationService.Tr("BadgeCompareGt"), loStr),
+                CompareOp.LT => string.Format(LocalizationService.Tr("BadgeCompareLt"), loStr),
+                CompareOp.GTE => string.Format(LocalizationService.Tr("BadgeCompareGte"), loStr),
+                CompareOp.LTE => string.Format(LocalizationService.Tr("BadgeCompareLte"), loStr),
+                CompareOp.BETWEEN => string.Format(LocalizationService.Tr("BadgeCompareBetween"), loStr, hiStr),
+                _ => LocalizationService.Tr("BadgeCompareNone")
+            };
+        }
+    }
 
     public TriggerNodeViewModel()
     {
         Title = "Trigger";
         Icon = "⚡";
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", IsInput = true, IsEvent = false, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", IsInput = false, IsEvent = true, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = false, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = true, Node = this });
+        ThresholdLoText = NumericInputHelper.FormatDouble(ThresholdLo);
+        ThresholdHiText = NumericInputHelper.FormatDouble(ThresholdHi);
     }
 
     protected override void OnLanguageChanged()
@@ -706,15 +766,38 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
     {
         if (HasComparison)
         {
+            bool isFloat = Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
+                           Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
+
+            if (isFloat)
+            {
+                float valFloat = BitConverter.Int32BitsToSingle(value);
+                float lo = (float)ThresholdLo;
+                float hi = (float)ThresholdHi;
+                return CompareOp switch
+                {
+                    CompareOp.EQ => Math.Abs(valFloat - lo) <= 1e-5f,
+                    CompareOp.NEQ => Math.Abs(valFloat - lo) > 1e-5f,
+                    CompareOp.GT => valFloat > lo,
+                    CompareOp.LT => valFloat < lo,
+                    CompareOp.GTE => valFloat >= lo,
+                    CompareOp.LTE => valFloat <= lo,
+                    CompareOp.BETWEEN => valFloat >= lo && valFloat <= hi,
+                    _ => valFloat != 0
+                };
+            }
+
+            int loInt = (int)Math.Round(ThresholdLo);
+            int hiInt = (int)Math.Round(ThresholdHi);
             return CompareOp switch
             {
-                CompareOp.EQ => value == ThresholdLo,
-                CompareOp.NEQ => value != ThresholdLo,
-                CompareOp.GT => value > ThresholdLo,
-                CompareOp.LT => value < ThresholdLo,
-                CompareOp.GTE => value >= ThresholdLo,
-                CompareOp.LTE => value <= ThresholdLo,
-                CompareOp.BETWEEN => value >= ThresholdLo && value <= ThresholdHi,
+                CompareOp.EQ => value == loInt,
+                CompareOp.NEQ => value != loInt,
+                CompareOp.GT => value > loInt,
+                CompareOp.LT => value < loInt,
+                CompareOp.GTE => value >= loInt,
+                CompareOp.LTE => value <= loInt,
+                CompareOp.BETWEEN => value >= loInt && value <= hiInt,
                 _ => value != 0
             };
         }
@@ -873,8 +956,8 @@ public partial class GuardNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         Title = "Guard";
         Icon = "🛡️";
         _guardTag = guardTag;
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", IsInput = true, IsEvent = true, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", IsInput = false, IsEvent = true, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = true, Node = this });
     }
 
     public void ApplyRuntimeSnapshot(RuntimeTagSnapshot snapshot, bool isOnline)
@@ -1231,7 +1314,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         Title = "Action";
         Icon = "⚙️";
         TargetTag = target;
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", IsInput = true, IsEvent = true, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
     }
 
     protected override void OnLanguageChanged()
@@ -1404,8 +1487,8 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         PresetMs = presetMs;
 
         // Standard FBD construct: In as input, Q as output
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", IsInput = true, IsEvent = true, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Q", IsInput = false, IsEvent = false, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Q", TooltipKey = "PinTooltipQ", IsInput = false, IsEvent = false, Node = this });
     }
 
     protected override void OnLanguageChanged()
@@ -1599,9 +1682,10 @@ public partial class CounterNodeViewModel : GraphNodeViewModel, ILiveTagBoundNod
 
         // Standard FBD construct: CU (or CD) and R as inputs, Q as output
         string countPort = mode == "CTD" ? "CD" : "CU";
-        InputConnectors.Add(new ConnectorViewModel { Title = countPort, IsInput = true, IsEvent = true, Node = this });
-        InputConnectors.Add(new ConnectorViewModel { Title = "R", IsInput = true, IsEvent = true, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Q", IsInput = false, IsEvent = false, Node = this });
+        string countTooltipKey = mode == "CTD" ? "PinTooltipCD" : "PinTooltipCU";
+        InputConnectors.Add(new ConnectorViewModel { Title = countPort, TooltipKey = countTooltipKey, IsInput = true, IsEvent = true, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "R", TooltipKey = "PinTooltipR", IsInput = true, IsEvent = true, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Q", TooltipKey = "PinTooltipQ", IsInput = false, IsEvent = false, Node = this });
     }
 
     protected override void OnLanguageChanged()

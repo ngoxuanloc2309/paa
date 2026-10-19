@@ -32,12 +32,56 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(FormulaExpression))]
-    private int _thresholdLo = 50;
+    private double _thresholdLo = 50;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(FormulaExpression))]
-    private int _thresholdHi = 100;
+    private double _thresholdHi = 100;
+
+    [ObservableProperty]
+    private string _thresholdLoText = "50";
+
+    [ObservableProperty]
+    private string _thresholdHiText = "100";
+
+    partial void OnThresholdLoTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ThresholdLo - parsed) > 1e-9)
+            {
+                ThresholdLo = parsed;
+            }
+        }
+    }
+
+    partial void OnThresholdLoChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdLoText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ThresholdLoText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnThresholdHiTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ThresholdHi - parsed) > 1e-9)
+            {
+                ThresholdHi = parsed;
+            }
+        }
+    }
+
+    partial void OnThresholdHiChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdHiText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ThresholdHiText = NumericInputHelper.FormatDouble(value);
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ConditionPassedText))]
@@ -68,16 +112,18 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
             string tagName = (InputTag != null && InputTag.Kind != TagKind.None && !string.IsNullOrWhiteSpace(InputTag.Name))
                 ? InputTag.Name
                 : "IN";
+            string loStr = ThresholdLo.ToString("0.##");
+            string hiStr = ThresholdHi.ToString("0.##");
             return CompareOp switch
             {
-                CompareOp.EQ => $"{tagName} == {ThresholdLo}",
-                CompareOp.NEQ => $"{tagName} != {ThresholdLo}",
-                CompareOp.GT => $"{tagName} > {ThresholdLo}",
-                CompareOp.LT => $"{tagName} < {ThresholdLo}",
-                CompareOp.GTE => $"{tagName} >= {ThresholdLo}",
-                CompareOp.LTE => $"{tagName} <= {ThresholdLo}",
-                CompareOp.BETWEEN => $"{ThresholdLo} <= {tagName} <= {ThresholdHi}",
-                _ => $"{tagName} > {ThresholdLo}"
+                CompareOp.EQ => $"{tagName} == {loStr}",
+                CompareOp.NEQ => $"{tagName} != {loStr}",
+                CompareOp.GT => $"{tagName} > {loStr}",
+                CompareOp.LT => $"{tagName} < {loStr}",
+                CompareOp.GTE => $"{tagName} >= {loStr}",
+                CompareOp.LTE => $"{tagName} <= {loStr}",
+                CompareOp.BETWEEN => $"{loStr} <= {tagName} <= {hiStr}",
+                _ => $"{tagName} > {loStr}"
             };
         }
     }
@@ -90,7 +136,7 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 
     public override string SummaryText => FormulaExpression;
 
-    public ComparatorNodeViewModel(TagModel? inTag = null, CompareOp op = CompareOp.GT, int lo = 50, int hi = 100)
+    public ComparatorNodeViewModel(TagModel? inTag = null, CompareOp op = CompareOp.GT, double lo = 50, double hi = 100)
     {
         Title = "Comparator";
         Icon = "⚖️";
@@ -98,10 +144,12 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
         CompareOp = op;
         ThresholdLo = lo;
         ThresholdHi = hi;
+        ThresholdLoText = NumericInputHelper.FormatDouble(lo);
+        ThresholdHiText = NumericInputHelper.FormatDouble(hi);
 
         // Standard IEC 61131-3 Function construct: 1 Input (IN), 1 Output (OUT: BOOL)
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", IsInput = true, IsEvent = false, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", IsInput = false, IsEvent = false, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = false, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = false, Node = this });
     }
 
     // ILiveTagBoundNode implementation for live monitoring
@@ -154,16 +202,40 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 
     public bool Evaluate(int rawValue)
     {
+        bool isFloat = (InputTag != null && InputTag.Kind == TagKind.AnalogInput) ||
+                       Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
+                       Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
+
+        if (isFloat)
+        {
+            float valFloat = BitConverter.Int32BitsToSingle(rawValue);
+            float lo = (float)ThresholdLo;
+            float hi = (float)ThresholdHi;
+            return CompareOp switch
+            {
+                CompareOp.EQ => Math.Abs(valFloat - lo) <= 1e-5f,
+                CompareOp.NEQ => Math.Abs(valFloat - lo) > 1e-5f,
+                CompareOp.GT => valFloat > lo,
+                CompareOp.LT => valFloat < lo,
+                CompareOp.GTE => valFloat >= lo,
+                CompareOp.LTE => valFloat <= lo,
+                CompareOp.BETWEEN => valFloat >= lo && valFloat <= hi,
+                _ => valFloat > lo
+            };
+        }
+
+        int loInt = (int)Math.Round(ThresholdLo);
+        int hiInt = (int)Math.Round(ThresholdHi);
         return CompareOp switch
         {
-            CompareOp.EQ => rawValue == ThresholdLo,
-            CompareOp.NEQ => rawValue != ThresholdLo,
-            CompareOp.GT => rawValue > ThresholdLo,
-            CompareOp.LT => rawValue < ThresholdLo,
-            CompareOp.GTE => rawValue >= ThresholdLo,
-            CompareOp.LTE => rawValue <= ThresholdLo,
-            CompareOp.BETWEEN => rawValue >= ThresholdLo && rawValue <= ThresholdHi,
-            _ => rawValue > ThresholdLo
+            CompareOp.EQ => rawValue == loInt,
+            CompareOp.NEQ => rawValue != loInt,
+            CompareOp.GT => rawValue > loInt,
+            CompareOp.LT => rawValue < loInt,
+            CompareOp.GTE => rawValue >= loInt,
+            CompareOp.LTE => rawValue <= loInt,
+            CompareOp.BETWEEN => rawValue >= loInt && rawValue <= hiInt,
+            _ => rawValue > loInt
         };
     }
 }

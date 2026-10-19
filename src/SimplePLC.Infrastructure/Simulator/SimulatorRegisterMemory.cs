@@ -22,6 +22,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
         // Kiểm tra xem dải có nằm trọn vẹn trong một phân vùng readable hợp lệ không
         return IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceDescriptorAddress, ModbusRegisterMap.DeviceDescriptorLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceResourceInfoAddress, ModbusRegisterMap.DeviceResourceInfoLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.HardwareCapabilitiesAddress, ModbusRegisterMap.HardwareCapabilitiesLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.RuleTableInfoAddress, ModbusRegisterMap.RuleTableInfoLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.ActiveRuleTableBaseAddress, ModbusRegisterMap.ActiveRuleTableMaxLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceHealthAddress, ModbusRegisterMap.DeviceHealthLength) ||
@@ -42,6 +43,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbCounterTableBaseAddress, ModbusRegisterMap.FbCounterTableLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttSubscribeTableBaseAddress, ModbusRegisterMap.MqttSubscribeTableTotalLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters);
     }
 
@@ -65,6 +67,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbCounterTableBaseAddress, ModbusRegisterMap.FbCounterTableLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.FbTimerTableBaseAddress, ModbusRegisterMap.FbTableTotalLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttSubscribeTableBaseAddress, ModbusRegisterMap.MqttSubscribeTableTotalLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters);
     }
 

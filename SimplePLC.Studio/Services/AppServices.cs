@@ -211,7 +211,13 @@ public sealed class AppServices
                 }
 
                 var resourceInfo = await descriptorReader.ReadResourceInfoAsync(slaveId, cancellationToken).ConfigureAwait(false);
-                if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError))
+                var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+                if (resourceInfo.WireProfile >= 2)
+                {
+                    capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities))
                 {
                     return DeviceConnectionResult.Incompatible(
                         CompatibilityResult.Incompatible(CompatibilityStatus.UnsupportedDeviceVariant, profileError ?? "Invalid device profile."));

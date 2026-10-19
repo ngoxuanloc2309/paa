@@ -1,0 +1,179 @@
+{
+  "metadata": {
+    "projectName": "SPX_SortToLight_Fulfillment_Rack01",
+    "author": "Senior Automation Solutions Lead",
+    "createdAt": "2026-10-15T00:00:00Z",
+    "lastModified": "2026-10-15T00:00:00Z",
+    "schemaVersion": 1,
+    "targetDevice": "SPX-STL-GW-01",
+    "description": "SPX Logistics Sort-to-Light 18-Bin Pick/Put Automation Logic with Fail-Safe Timeout",
+    "digitalInputs": 8,
+    "digitalOutputs": 8,
+    "analogInputs": 4,
+    "virtualFlags": 32,
+    "virtualRegisters": 32,
+    "retentiveRegisters": 32,
+    "counters": 8,
+    "maxRules": 100,
+    "mqttBrokerEnabled": true,
+    "mqttBrokerHost": "spx-mqtt-broker.fulfillment.internal",
+    "mqttBrokerPort": 1883,
+    "mqttClientId": "SPX-STL-RACK-01",
+    "mqttUsername": "spx_edge_client",
+    "mqttTlsEnabled": false,
+    "mqttKeepAliveSec": 30
+  },
+  "tags": [],
+  "nodes": [
+    {
+      "id": "node_sub",
+      "type": "MqttSubscribe",
+      "locationX": 60,
+      "locationY": 80,
+      "customLabel": "SPX Sort Command Receiver",
+      "mqttTopic": "spx/sort_to_light/rack_01/cmd",
+      "mqttQos": 1,
+      "mqttSubQueueMode": "Fifo",
+      "mqttSubIgnoreRetained": true,
+      "mqttSubTimeoutMs": 5000,
+      "mqttSubFailSafeAction": "KeepLastValue",
+      "mqttSubPins": [
+        {
+          "id": "p0",
+          "label": "bin_id",
+          "jsonPath": "$.bin_id",
+          "dataType": "Int16",
+          "targetTagName": "VREG0",
+          "defaultValue": 1
+        },
+        {
+          "id": "p1",
+          "label": "color_r",
+          "jsonPath": "$.color.r",
+          "dataType": "Int16",
+          "targetTagName": "VREG1",
+          "defaultValue": 0
+        },
+        {
+          "id": "p2",
+          "label": "color_g",
+          "jsonPath": "$.color.g",
+          "dataType": "Int16",
+          "targetTagName": "VREG2",
+          "defaultValue": 255
+        },
+        {
+          "id": "p3",
+          "label": "color_b",
+          "jsonPath": "$.color.b",
+          "dataType": "Int16",
+          "targetTagName": "VREG3",
+          "defaultValue": 0
+        },
+        {
+          "id": "p4",
+          "label": "cmd_trigger",
+          "jsonPath": "$.trigger",
+          "dataType": "Bool",
+          "targetTagName": "FLAG0",
+          "defaultValue": 0
+        }
+      ]
+    },
+    {
+      "id": "node_trig",
+      "type": "Trigger",
+      "locationX": 420,
+      "locationY": 120,
+      "customLabel": "Edge Detect [Trigger]",
+      "triggerType": "ON_RISE",
+      "forMs": 0
+    },
+    {
+      "id": "node_timer",
+      "type": "Timer",
+      "locationX": 660,
+      "locationY": 100,
+      "customLabel": "Pick Window Timer (5s)",
+      "timerMode": "TON",
+      "presetMs": 5000,
+      "tagName": "FLAG0",
+      "outputTagName": "DO0"
+    },
+    {
+      "id": "node_act_led",
+      "type": "Action",
+      "locationX": 980,
+      "locationY": 80,
+      "customLabel": "Drive Bin Indicator (DO0)",
+      "actionType": "SET_TAG",
+      "targetTagName": "DO0",
+      "actionParam": 1
+    },
+    {
+      "id": "node_pub",
+      "type": "MqttPublish",
+      "locationX": 660,
+      "locationY": 340,
+      "customLabel": "SPX Telemetry Publisher",
+      "mqttTopic": "spx/sort_to_light/rack_01/telemetry",
+      "mqttPayloadMode": "JSON",
+      "mqttQos": 0,
+      "mqttPublishMode": "COV",
+      "mqttFields": [
+        {
+          "key": "rack_id",
+          "tagName": "VREG0",
+          "unit": ""
+        },
+        {
+          "key": "bin_active",
+          "tagName": "DO0",
+          "unit": ""
+        },
+        {
+          "key": "uptime_sec",
+          "tagName": "VREG10",
+          "unit": "s"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeId": "node_sub",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node_trig",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "node_trig",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node_timer",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "IN"
+    },
+    {
+      "sourceNodeId": "node_timer",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Q",
+      "targetNodeId": "node_act_led",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Execute"
+    }
+  ],
+  "rules": [],
+  "watchlistTagIndices": [
+    0,
+    1,
+    2,
+    3,
+    8,
+    9,
+    32,
+    33
+  ]
+}

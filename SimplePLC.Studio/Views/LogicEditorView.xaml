@@ -261,10 +261,6 @@
                     <DockPanel LastChildFill="True">
                         <TextBlock Text="{Binding [ToolboxTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                    FontSize="11.5" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center" />
-                        <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="5,1" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding [ToolboxBlockCount], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="8.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                        </Border>
                     </DockPanel>
                     <TextBlock Text="{Binding [ToolboxSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontSize="10.5" Foreground="#64748B" Margin="0,2,0,8" />
@@ -298,16 +294,70 @@
                               Focusable="False" Padding="0,0,4,0">
                     <StackPanel x:Name="ToolboxItemsHost">
 
-                        <!-- Category 1: Core Logic Blocks (Trigger, Guard, Action) -->
+                        <!-- Category 1: Process I/O & Variables (Input, Action) -->
+                        <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
+                            <Expander.Header>
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="🏷️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding [ToolboxIoCategory], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Expander.Header>
+                            <StackPanel Margin="0,2,0,0">
+                                <!-- Input Tag Block -->
+                                <Border Tag="Input" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxInputDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#64748B" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="🏷️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxInputTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxInputDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Action Block -->
+                                <Border Tag="Action" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxActionDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#1D4ED8" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="⚙️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxActionTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxActionDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Category 2: Logic & Interlocks (Trigger, Guard, Comparator) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
                                     <TextBlock Text="⚡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [ToolboxCoreCategory], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Text="{Binding [ToolboxLogicCategory], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="4" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
                                 </DockPanel>
                             </Expander.Header>
                             <StackPanel Margin="0,2,0,0">
@@ -336,7 +386,8 @@
                                 <!-- Guard Block -->
                                 <Border Tag="Guard" Style="{StaticResource ToolboxCardStyle}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxGuardDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding [ToolboxGuardDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -358,7 +409,8 @@
                                 <!-- Comparator Block (CMP) -->
                                 <Border Tag="Comparator" Style="{StaticResource ToolboxCardStyle}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxComparatorDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding [ToolboxComparatorDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -376,41 +428,16 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
-
-                                <!-- Action Block -->
-                                <Border Tag="Action" Style="{StaticResource ToolboxCardStyle}"
-                                        PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxActionDesc], Source={x:Static services:LocalizationService.Instance}}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="3" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Background="#1D4ED8" CornerRadius="1,0,0,1" />
-                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
-                                            <DockPanel LastChildFill="True">
-                                                <TextBlock Text="⚙️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
-                                                <TextBlock Text="{Binding [ToolboxActionTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
-                                            </DockPanel>
-                                            <TextBlock Text="{Binding [ToolboxActionDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 2: Timer Macros (TON, TOF, TP) -->
+                        <!-- Category 3: Standard Timers (TON, TOF, TP) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
                                     <TextBlock Text="⏳" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding [ToolboxTimerCategory], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="3" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
                                 </DockPanel>
                             </Expander.Header>
                             <StackPanel Margin="0,2,0,0">
@@ -439,7 +466,8 @@
                                 <!-- TOF Block -->
                                 <Border Tag="TOF" Style="{StaticResource ToolboxCardStyle}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxTofDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding [ToolboxTofDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -461,7 +489,8 @@
                                 <!-- TP Block -->
                                 <Border Tag="TP" Style="{StaticResource ToolboxCardStyle}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxTpDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding [ToolboxTpDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -482,16 +511,13 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 3: Counter Macros (CTU, CTD) -->
+                        <!-- Category 4: Standard Counters (CTU, CTD) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
                                     <TextBlock Text="🧮" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding [ToolboxCounterCategory], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="2" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
                                 </DockPanel>
                             </Expander.Header>
                             <StackPanel Margin="0,2,0,0">
@@ -520,7 +546,8 @@
                                 <!-- CTD Block -->
                                 <Border Tag="CTD" Style="{StaticResource ToolboxCardStyle}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxCtdDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding [ToolboxCtdDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -541,16 +568,13 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 4: Analog Signal Processing (SCALE) -->
+                        <!-- Category 5: Analog Signal Processing (SCALE) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
                                     <TextBlock Text="📊" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding [ToolboxAnalogCategory], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="1" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
                                 </DockPanel>
                             </Expander.Header>
                             <StackPanel Margin="0,2,0,0">
@@ -578,16 +602,13 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 5: Cloud & IIoT Telemetry (MQTT) -->
+                        <!-- Category 6: Cloud & IIoT Communication (MQTT) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
                                     <TextBlock Text="📡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding [ToolboxMqttCategory], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="2" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
                                 </DockPanel>
                             </Expander.Header>
                             <StackPanel Margin="0,2,0,0">
@@ -631,43 +652,6 @@
                                                            FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
                                             </DockPanel>
                                             <TextBlock Text="{Binding [ToolboxMqttSubDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Expander>
-
-                        <!-- Category 6: Input Data Tags (Input) -->
-                        <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
-                            <Expander.Header>
-                                <DockPanel LastChildFill="True">
-                                    <TextBlock Text="🗂️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [ToolboxTagsCategory], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                                    <Border Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" HorizontalAlignment="Right" Margin="4,0,0,0">
-                                        <TextBlock Text="1" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
-                                    </Border>
-                                </DockPanel>
-                            </Expander.Header>
-                            <StackPanel Margin="0,2,0,0">
-                                <!-- Input Tag Block -->
-                                <Border Tag="Input" Style="{StaticResource ToolboxCardStyle}"
-                                        PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxInputDesc], Source={x:Static services:LocalizationService.Instance}}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="3" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Background="#64748B" CornerRadius="1,0,0,1" />
-                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
-                                            <DockPanel LastChildFill="True">
-                                                <TextBlock Text="🏷️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
-                                                <TextBlock Text="{Binding [ToolboxInputTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
-                                            </DockPanel>
-                                            <TextBlock Text="{Binding [ToolboxInputDesc], Source={x:Static services:LocalizationService.Instance}}" 
                                                        FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
                                         </StackPanel>
                                     </Grid>
@@ -1872,29 +1856,20 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- CÁC THUỘC TÍNH SO SÁNH TIÊU CHUẨN (ẨN KHI LÀ TIME TRIGGER) -->
-                        <StackPanel Visibility="{Binding SelectedTriggerNode.IsTimeTrigger, Converter={StaticResource InverseBoolToVis}}">
-                            <TextBlock Text="{Binding [InspectorCompareOp], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                            <ComboBox ItemsSource="{x:Static vm:RuleOptions.CompareOps}"
-                                      SelectedValue="{Binding SelectedTriggerNode.CompareOp}"
-                                      SelectedValuePath="Value"
-                                      DisplayMemberPath="DisplayName"
-                                      Margin="0,0,0,10" />
+                        <!-- CHU KỲ LẶP LẠI (CHỈ HIỂN THỊ KHI LÀ PERIODIC INTERVAL) -->
+                        <StackPanel Visibility="{Binding SelectedTriggerNode.IsIntervalTrigger, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding [InspectorIntervalMs], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding SelectedTriggerNode.ForMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
+                            <TextBlock Text="⚡ Bộ phát nhịp sự kiện lặp lại tự động theo chu kỳ mỗi N mili-giây (ms)." FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                        </StackPanel>
 
-                            <!-- Ngưỡng so sánh (Ẩn khi None, tự đổi nhãn theo phép toán) -->
-                            <StackPanel Visibility="{Binding SelectedTriggerNode.HasComparison, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding SelectedTriggerNode.ThresholdPromptText}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedTriggerNode.ThresholdLo, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
-                            </StackPanel>
-
-                            <!-- Ngưỡng trên (CHỈ HIỂN THỊ KHI SO SÁNH TRONG KHOẢNG BETWEEN) -->
-                            <StackPanel Visibility="{Binding SelectedTriggerNode.IsRangeComparison, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding [InspectorThresholdHi], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedTriggerNode.ThresholdHi, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
-                            </StackPanel>
-
-                            <TextBlock Text="{Binding [InspectorDwellTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding SelectedTriggerNode.ForMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+                        <!-- THỜI GIAN LỌC TÍN HIỆU / DWELL TIME (CHỈ HIỂN THỊ KHI LÀ ON_RISE, ON_FALL, ON_CHANGE) -->
+                        <StackPanel Visibility="{Binding SelectedTriggerNode.IsStandardEdgeTrigger, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding [InspectorDwellTimeFilter], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding SelectedTriggerNode.ForMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
+                            <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,2,0,0">
+                                <TextBlock Text="💡 Để so sánh ngưỡng số thực/nhiệt độ/áp suất, hãy sử dụng khối ⚖️ CMP (Comparator)." FontSize="10.5" Foreground="#0284C7" TextWrapping="Wrap" />
+                            </Border>
                         </StackPanel>
                     </StackPanel>
 
@@ -1970,12 +1945,12 @@
 
                         <!-- NGƯỠNG SO SÁNH (THRESHOLD LO) -->
                         <TextBlock Text="{Binding [InspectorThresholdLo], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                        <TextBox Text="{Binding SelectedComparatorNode.ThresholdLo, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+                        <TextBox Text="{Binding SelectedComparatorNode.ThresholdLoText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
 
                         <!-- NGƯỠNG TRÊN (THRESHOLD HI - KHI LÀ DẢI BETWEEN) -->
                         <StackPanel Visibility="{Binding SelectedComparatorNode.IsRangeCompare, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{Binding [InspectorThresholdHi], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding SelectedComparatorNode.ThresholdHi, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+                            <TextBox Text="{Binding SelectedComparatorNode.ThresholdHiText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
                         </StackPanel>
                     </StackPanel>
 
@@ -2253,11 +2228,11 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{Binding [InspectorScaleGain], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedScaleNode.Gain, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
+                                <TextBox Text="{Binding SelectedScaleNode.GainText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="{Binding [InspectorScaleOffset], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedScaleNode.Offset, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
+                                <TextBox Text="{Binding SelectedScaleNode.OffsetText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                             </StackPanel>
                         </Grid>
 
@@ -2288,11 +2263,11 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{Binding [InspectorScaleClampMin], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#475569" Margin="0,0,0,3" />
-                                <TextBox Text="{Binding SelectedScaleNode.ClampMin, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
+                                <TextBox Text="{Binding SelectedScaleNode.ClampMinText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="{Binding [InspectorScaleClampMax], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#475569" Margin="0,0,0,3" />
-                                <TextBox Text="{Binding SelectedScaleNode.ClampMax, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
+                                <TextBox Text="{Binding SelectedScaleNode.ClampMaxText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                             </StackPanel>
                         </Grid>
 
@@ -2319,8 +2294,8 @@
                                             <ColumnDefinition Width="6" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="{Binding SelectedScaleNode.CalibX1, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="X1 (mV)" />
-                                        <TextBox Grid.Column="2" Text="{Binding SelectedScaleNode.CalibY1, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="Y1 (Eng)" />
+                                        <TextBox Grid.Column="0" Text="{Binding SelectedScaleNode.CalibX1Text, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="X1 (mV)" />
+                                        <TextBox Grid.Column="2" Text="{Binding SelectedScaleNode.CalibY1Text, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="Y1 (Eng)" />
                                     </Grid>
                                     <!-- Point 2 -->
                                     <TextBlock Text="{Binding [InspectorScalePoint2], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Bold" Margin="0,2,0,2" />
@@ -2339,8 +2314,8 @@
                                             <ColumnDefinition Width="6" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="{Binding SelectedScaleNode.CalibX2, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="X2 (mV)" />
-                                        <TextBox Grid.Column="2" Text="{Binding SelectedScaleNode.CalibY2, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="Y2 (Eng)" />
+                                        <TextBox Grid.Column="0" Text="{Binding SelectedScaleNode.CalibX2Text, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="X2 (mV)" />
+                                        <TextBox Grid.Column="2" Text="{Binding SelectedScaleNode.CalibY2Text, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" ToolTip="Y2 (Eng)" />
                                     </Grid>
                                     <Button Content="{Binding [InspectorScaleBtnApplyCalib], Source={x:Static services:LocalizationService.Instance}}"
                                             Command="{Binding SelectedScaleNode.CalculateFromCalibPointsCommand}"
@@ -2404,7 +2379,7 @@
                         </StackPanel>
                         <StackPanel Visibility="{Binding SelectedMqttNode.IsCovMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
                             <TextBlock Text="{Binding [InspectorMqttDeadband], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="#64748B" Margin="0,0,0,2" />
-                            <TextBox Text="{Binding SelectedMqttNode.Deadband, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
+                            <TextBox Text="{Binding SelectedMqttNode.DeadbandText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                         </StackPanel>
 
                         <!-- TRANSPORT (QoS & Retain) -->

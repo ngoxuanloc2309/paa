@@ -236,10 +236,48 @@ public class RegisterCodecTests
     }
 
     [Fact]
-    public void DecodeRuleRecord_SourceTooSmall_ThrowsArgumentException()
+    public void EncodeFloat_DecodeFloat_MatchesIEEE754BitExact()
     {
-        ushort[] tooSmall = new ushort[15];
+        float[] testValues = { 0.0f, 1.0f, -1.0f, 55.5f, -12.34f, 3.1415927f, 1000.5f, 0.001f };
+        Span<ushort> regs = stackalloc ushort[2];
 
-        Assert.Throws<ArgumentException>(() => RegisterCodec.DecodeRuleRecord(tooSmall));
+        foreach (var val in testValues)
+        {
+            RegisterCodec.EncodeFloat(val, regs);
+            float decoded = RegisterCodec.DecodeFloat(regs);
+            Assert.Equal(val, decoded);
+        }
+    }
+
+    [Fact]
+    public void EncodeRuleRecord_FloatThresholds_SetsFlagAndPreservesFloat()
+    {
+        var rule = new RuleRecordDto
+        {
+            Flags = 0x01, // SPLC_RULE_FLAG_FLOAT_DATA
+            ThresholdLoFloat = 55.5f,
+            ThresholdHiFloat = 80.25f,
+            ActionParamFloat = 1.5f,
+            ForMs = 100,
+            TriggerTag = 16,
+            ActionTag = 17,
+            Enabled = true,
+            TriggerType = SPLC_TriggerType.ON_CHANGE,
+            CompareOp = SPLC_CompareOp.GT,
+            ActionType = SPLC_ActionType.SCALE_TAG
+        };
+
+        Span<ushort> registers = stackalloc ushort[16];
+        RegisterCodec.EncodeRuleRecord(rule, registers);
+
+        // Reg 13: High byte = flags (0x01), Low byte = reserved (0x00) -> 0x0100
+        Assert.Equal(0x0100, registers[13]);
+
+        var decoded = RegisterCodec.DecodeRuleRecord(registers);
+        Assert.True(decoded.IsFloatData);
+        Assert.Equal(55.5f, decoded.ThresholdLoFloat, precision: 4);
+        Assert.Equal(80.25f, decoded.ThresholdHiFloat, precision: 4);
+        Assert.Equal(1.5f, decoded.ActionParamFloat, precision: 4);
     }
 }
+

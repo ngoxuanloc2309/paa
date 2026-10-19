@@ -247,8 +247,31 @@ public partial class MainViewModel : ObservableObject
 
     private void InitializeProjectOnStartup()
     {
-        // Ứng dụng luôn khởi động trong trạng thái dự án mới tinh (Clean Canvas, 0 Nodes, 0 Rules).
-        // Các file dự án cũ vẫn được lưu trong danh sách Recent Projects để kỹ sư chủ động mở khi cần.
+        // 1. Kiểm tra tham số dòng lệnh xem ứng dụng có được mở bằng cách nhấp đúp vào file (.synx) từ Windows Explorer không
+        try
+        {
+            var args = Environment.GetCommandLineArgs();
+            if (args != null && args.Length > 1)
+            {
+                for (int i = 1; i < args.Length; i++)
+                {
+                    string candidate = args[i].Trim('"');
+                    if (System.IO.File.Exists(candidate) &&
+                        (candidate.EndsWith(".synx", StringComparison.OrdinalIgnoreCase) ||
+                         candidate.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        LoadProjectFile(candidate);
+                        return;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fallback an toàn nếu có ngoại lệ khi đọc tham số dòng lệnh
+        }
+
+        // 2. Mặc định: Ứng dụng khởi động trong trạng thái dự án mới tinh nếu không truyền file
         CurrentProjectPath = null;
         CurrentProjectName = Loc.IsVietnamese ? "Dự án mới" : "Untitled";
         CurrentProjectMetadata = new ProjectMetadata();
@@ -1219,19 +1242,36 @@ public partial class MainViewModel : ObservableObject
 
             var (nodes, connections) = LogicEditorVM.ExportGraphData();
             
-            // Nếu Canvas hiện tại đang trống nhưng Bảng Rule có luật, trích xuất đồ thị từ luật đang chọn / đầu tiên
+            // Nếu Canvas hiện tại đang trống nhưng Bảng Rule có luật, tự động tái tạo đồ thị cho tất cả các luật
             if ((nodes == null || nodes.Count == 0) && RuleTableVM.Rules.Count > 0)
             {
-                var ruleWithGraph = RuleTableVM.SelectedRule?.SourceNodes?.Count > 0 
-                    ? RuleTableVM.SelectedRule 
-                    : RuleTableVM.Rules.FirstOrDefault(r => r.SourceNodes != null && r.SourceNodes.Count > 0);
+                LogicEditorVM.ReconstructGraphFromAllRules(RuleTableVM.Rules);
+                (nodes, connections) = LogicEditorVM.ExportGraphData();
+            }
 
-                if (ruleWithGraph?.SourceNodes != null && ruleWithGraph.SourceNodes.Count > 0)
+            // Zero-Empty-Overwrite Safety Gate check
+            bool isProjectEmpty = (nodes == null || nodes.Count == 0) && RuleTableVM.Rules.Count == 0;
+            bool allowEmptyOverwrite = false;
+
+            if (System.IO.File.Exists(filePath))
+            {
+                var fi = new System.IO.FileInfo(filePath);
+                if (fi.Length > 512 && isProjectEmpty)
                 {
-                    nodes = new List<ProjectNodeData>(ruleWithGraph.SourceNodes);
-                    connections = ruleWithGraph.SourceConnections != null 
-                        ? new List<ProjectConnectionData>(ruleWithGraph.SourceConnections) 
-                        : new List<ProjectConnectionData>();
+                    bool isViWarning = Loc.IsVietnamese;
+                    var confirm = ShowConfirm(
+                        isViWarning
+                            ? "CẢNH BÁO AN TOÀN: Dự án hiện tại không có sơ đồ logic hoặc quy tắc nào.\n\nThao tác này sẽ xóa sạch dữ liệu của tệp đã lưu trên đĩa. Bạn có chắc chắn muốn ghi đè tệp rỗng không?"
+                            : "SAFETY WARNING: The current project has no logic nodes or rules.\n\nOverwriting will erase all existing content on disk. Are you sure you want to proceed?",
+                        isViWarning ? "Cảnh báo ghi đè tệp rỗng" : "Empty Overwrite Safety Warning",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Warning);
+
+                    if (confirm != System.Windows.MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
+                    allowEmptyOverwrite = true;
                 }
             }
 
@@ -1255,7 +1295,7 @@ public partial class MainViewModel : ObservableObject
                 WatchlistTagIndices = LiveWatchVM.GetWatchlistIndices()
             };
 
-            ProjectFileService.SaveProject(filePath, project);
+            ProjectFileService.SaveProject(filePath, project, allowEmptyOverwrite);
 
             CurrentProjectPath = filePath;
             CurrentProjectName = CurrentProjectMetadata.ProjectName;
@@ -1427,6 +1467,10 @@ public partial class MainViewModel : ObservableObject
             TagCatalogVM.LoadFromProjectData(project.Tags);
             AppServices.Instance.CurrentProduct = TagCatalogVM.CurrentProduct;
 
+            // Reset filters in RuleTableVM so loaded rules are immediately visible
+            RuleTableVM.SearchFilter = string.Empty;
+            RuleTableVM.StatusFilter = "ALL";
+
             // 1. Phục hồi toàn bộ Bảng Rule trước
             if (project.Rules != null && project.Rules.Count > 0)
             {
@@ -1450,12 +1494,8 @@ public partial class MainViewModel : ObservableObject
             }
             else if (RuleTableVM.Rules.Count > 0)
             {
-                // Fallback: Nếu tệp dự án lưu khi đang ở tab Bảng Rule (canvas trống), tự động nạp Rule đầu tiên lên Canvas
-                var firstRule = RuleTableVM.Rules.FirstOrDefault();
-                if (firstRule != null)
-                {
-                    LogicEditorVM.LoadRuleToCanvas(firstRule);
-                }
+                // Tự động tái tạo toàn bộ danh mục Rules thành các mạng Network độc lập trên Canvas (chuẩn TIA Portal)
+                LogicEditorVM.ReconstructGraphFromAllRules(RuleTableVM.Rules);
             }
             else
             {
@@ -1484,6 +1524,44 @@ public partial class MainViewModel : ObservableObject
         {
             System.Windows.MessageBox.Show(ex.Message, "Error Loading Project", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+    }
+
+    [RelayCommand]
+    public void LoadExample5FloatAlarm()
+    {
+        SelectTab(0);
+        LogicEditorVM.ClearCanvas();
+
+        var tags = TagCatalogVM.AllTags;
+        var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? tags[0];
+        var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput) ?? tags[0];
+
+        var inp = new InputNodeViewModel(ai0) { Location = new System.Windows.Point(80, 140) };
+        var comp = new ComparatorNodeViewModel(ai0)
+        {
+            CompareOp = CompareOp.GTE,
+            ThresholdLo = 75.5,
+            ThresholdHi = 0,
+            Location = new System.Windows.Point(340, 140)
+        };
+        var act = new ActionNodeViewModel(do0)
+        {
+            ActionType = ActionType.SET_TAG,
+            ActionParam = 1,
+            Location = new System.Windows.Point(620, 140)
+        };
+
+        LogicEditorVM.Nodes.Add(inp);
+        LogicEditorVM.Nodes.Add(comp);
+        LogicEditorVM.Nodes.Add(act);
+
+        LogicEditorVM.Connect(inp.OutputConnectors[0], comp.InputConnectors[0]);
+        LogicEditorVM.Connect(comp.OutputConnectors[0], act.InputConnectors[0]);
+
+        bool isVi = Loc.IsVietnamese;
+        LogicEditorVM.SaveStatusMessage = isVi
+            ? "● Đã nạp Ví dụ 5: Quá nhiệt Float32 (AI0 >= 75.5°C → DO0)"
+            : "● Loaded Example 5: Float32 Temp Alarm (AI0 >= 75.5°C → DO0)";
     }
 
     [RelayCommand]

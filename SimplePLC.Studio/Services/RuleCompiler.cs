@@ -306,21 +306,26 @@ public sealed class RuleCompiler : IRuleCompiler
                     ushort? mqttEnTag = null;
                     ushort? mqttDataTag = mqtt.DataTag != null && mqtt.DataTag.Kind != TagKind.None ? ResolveTagIndex(mqtt.DataTag, targetProduct) : null;
 
-                    // Resolve incoming connections to Trig (EN) and Val (Data)
-                    var trigConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
-                        (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
-                    if (trigConn?.Source?.Node is InputNodeViewModel trigInVm && trigInVm.Tag != null)
+                    // Resolve incoming connections to Trig (EN) only when in Event mode
+                    if (mqtt.IsEventMode)
                     {
-                        mqttEnTag = ResolveTagIndex(trigInVm.Tag, targetProduct);
-                    }
-                    else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmpTrig && cmpTrig.InputTag != null)
-                    {
-                        mqttEnTag = ResolveTagIndex(cmpTrig.InputTag, targetProduct);
+                        var trigConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
+                            (c.Target == mqtt.TriggerConnector ||
+                             string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
+                        if (trigConn?.Source?.Node is InputNodeViewModel trigInVm && trigInVm.Tag != null)
+                        {
+                            mqttEnTag = ResolveTagIndex(trigInVm.Tag, targetProduct);
+                        }
+                        else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmpTrig && cmpTrig.InputTag != null)
+                        {
+                            mqttEnTag = ResolveTagIndex(cmpTrig.InputTag, targetProduct);
+                        }
                     }
 
                     var valConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
-                        (string.Equals(c.Target.Title, "Val", StringComparison.OrdinalIgnoreCase) ||
+                        (c.Target == mqtt.DefaultValConnector ||
+                         string.Equals(c.Target.Title, "Val", StringComparison.OrdinalIgnoreCase) ||
                          string.Equals(c.Target.Title, "IN", StringComparison.OrdinalIgnoreCase)));
                     if (valConn?.Source?.Node is InputNodeViewModel valInVm && valInVm.Tag != null)
                     {
@@ -331,11 +336,26 @@ public sealed class RuleCompiler : IRuleCompiler
                         mqttDataTag = ResolveTagIndex(sclVal.OutputTag, targetProduct);
                     }
 
-                    var fieldDtos = mqtt.Fields.Select(f => new SimplePLC.Protocol.Dto.MqttPayloadFieldDto
+                    var fieldDtos = mqtt.Fields.Select(f =>
                     {
-                        Key = f.Key,
-                        TagIndex = f.Tag != null ? ResolveTagIndex(f.Tag, targetProduct) : (ushort)0,
-                        Unit = f.Unit
+                        ushort tagIndex = f.Tag != null ? ResolveTagIndex(f.Tag, targetProduct) : (ushort)0;
+                        var fConn = connectionList.FirstOrDefault(c => c.Target?.Node == mqtt &&
+                            (c.Target == f.Connector || (!string.IsNullOrEmpty(f.Key) && string.Equals(c.Target.Title, f.Key, StringComparison.OrdinalIgnoreCase))));
+                        if (fConn?.Source?.Node is InputNodeViewModel fInVm && fInVm.Tag != null)
+                        {
+                            tagIndex = ResolveTagIndex(fInVm.Tag, targetProduct);
+                        }
+                        else if (fConn?.Source?.Node is ScaleNodeViewModel fScl && fScl.OutputTag != null)
+                        {
+                            tagIndex = ResolveTagIndex(fScl.OutputTag, targetProduct);
+                        }
+
+                        return new SimplePLC.Protocol.Dto.MqttPayloadFieldDto
+                        {
+                            Key = f.Key,
+                            TagIndex = tagIndex,
+                            Unit = f.Unit
+                        };
                     }).ToList();
 
                     graph.Nodes.Add(LogicNode.CreateMqttPublish(

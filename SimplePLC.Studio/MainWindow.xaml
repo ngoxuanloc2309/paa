@@ -8,7 +8,10 @@
         Icon="Assets/app.png"
         Height="820" Width="1340"
         WindowStartupLocation="CenterScreen"
-        Closing="Window_Closing">
+        Closing="Window_Closing"
+        AllowDrop="True"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
 
     <Window.InputBindings>
         <!-- Project & Edit Shortcuts -->
@@ -122,6 +125,11 @@
                 <MenuItem Header="{Binding Loc[MenuExport]}">
                     <MenuItem Header="{Binding Loc[MenuExportBinary]}" Command="{Binding ExportBinaryCommand}" />
                     <MenuItem Header="{Binding Loc[MenuExportTagsCsv]}" Command="{Binding ExportTagsCsvCommand}" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="{Binding Loc[MenuSampleProjects]}">
+                    <MenuItem Header="{Binding Loc[MenuLoadDemo]}" Command="{Binding LogicEditorVM.LoadDefaultDemoGraphCommand}" />
+                    <MenuItem Header="{Binding Loc[MenuExample5Float]}" Command="{Binding LoadExample5FloatAlarmCommand}" />
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuRecentProjects]}" ItemsSource="{Binding RecentProjects}">
@@ -529,19 +537,36 @@
                                         </Button.Template>
                                     </Button>
 
-                                    <!-- 3. Lưu / Cập nhật Rule (Save Rule) -->
+                                    <!-- 3. Biên dịch kiểm tra logic (Compile - F7) -->
                                     <Button Command="{Binding LogicEditorVM.CompileNowCommand}"
-                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="ToolTip" Value="{Binding Loc[TooltipSaveRule]}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding LogicEditorVM.IsEditingExistingRule}" Value="True">
-                                                        <Setter Property="ToolTip" Value="{Binding Loc[TooltipUpdateRule]}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding Loc[MenuCompile]}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                    <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M3,3 H13 V13 H3 Z" Stroke="#475569" StrokeThickness="1.2" />
+                                                            <Path Data="M6,8.5 L7.5,10 L10.5,6.5" Stroke="#107C41" StrokeThickness="1.3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#E2E8F0" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="BtnBdr" Property="Background" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- 4. Lưu dự án vào tệp (Save Project - Ctrl+S) -->
+                                    <Button Command="{Binding SaveProjectCommand}"
+                                            Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                            ToolTip="{Binding Loc[MenuSaveProject]}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">

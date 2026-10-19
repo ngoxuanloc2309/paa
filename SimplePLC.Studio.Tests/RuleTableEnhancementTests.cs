@@ -549,4 +549,26 @@ public class RuleTableEnhancementTests
         Assert.Equal("VREG_RETAIN0", actionNodes[0].TargetTag?.Name);
         Assert.Equal("VREG_RETAIN2", actionNodes[1].TargetTag?.Name);
     }
+
+    [Fact]
+    public void Blueprints_FloatTempAlarm_CompilesWithFloatThreshold()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTable = new RuleTableViewModel(tagCatalog);
+        var logicEditor = new LogicEditorViewModel(tagCatalog, ruleTable: ruleTable, uiDispatcher: act => act());
+        var blueprints = new BlueprintsViewModel(logicEditor, () => { });
+
+        var bpFloat = blueprints.Blueprints.First(b => b.Id == "float_temp_alarm");
+        blueprints.ApplyBlueprint(bpFloat);
+        logicEditor.CompileNow();
+
+        Assert.Single(ruleTable.Rules);
+        var rule = ruleTable.Rules[0];
+        Assert.Equal("AI0", rule.TriggerTag?.Name);
+        Assert.Equal(CompareOp.GTE, rule.CompareOp);
+        Assert.Equal(75.5, rule.ThresholdLo);
+        Assert.True(rule.IsFloat);
+        Assert.Equal("DO0", rule.ActionTag?.Name);
+    }
 }
+

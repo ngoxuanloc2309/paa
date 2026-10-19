@@ -20,6 +20,7 @@ public interface IDeviceDescriptorReader
 {
     Task<DeviceDescriptorDto> ReadDescriptorAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
     Task<DeviceResourceInfoDto> ReadResourceInfoAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
+    Task<SPLC_HardwareCapabilities> ReadHardwareCapabilitiesAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -64,6 +65,17 @@ public interface IRuleTableWriter
         IReadOnlyList<FbCounterRecordDto>? counters,
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, null, cancellationToken);
+
+    Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         CancellationToken cancellationToken = default) =>
         DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, cancellationToken);
 }

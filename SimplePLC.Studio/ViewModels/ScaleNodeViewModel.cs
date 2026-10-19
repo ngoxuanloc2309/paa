@@ -92,6 +92,158 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [ObservableProperty]
     private double _calibY2 = 100.0;
 
+    [ObservableProperty]
+    private string _gainText = "0.01";
+
+    [ObservableProperty]
+    private string _offsetText = "0";
+
+    [ObservableProperty]
+    private string _clampMinText = "0";
+
+    [ObservableProperty]
+    private string _clampMaxText = "100";
+
+    [ObservableProperty]
+    private string _calibX1Text = "0";
+
+    [ObservableProperty]
+    private string _calibY1Text = "0";
+
+    [ObservableProperty]
+    private string _calibX2Text = "10000";
+
+    [ObservableProperty]
+    private string _calibY2Text = "100";
+
+    partial void OnGainTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(Gain - parsed) > 1e-9) Gain = parsed;
+        }
+    }
+
+    partial void OnGainChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(GainText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            GainText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnOffsetTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(Offset - parsed) > 1e-9) Offset = parsed;
+        }
+    }
+
+    partial void OnOffsetChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(OffsetText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            OffsetText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnClampMinTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ClampMin - parsed) > 1e-9) ClampMin = parsed;
+        }
+    }
+
+    partial void OnClampMinChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ClampMinText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ClampMinText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnClampMaxTextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(ClampMax - parsed) > 1e-9) ClampMax = parsed;
+        }
+    }
+
+    partial void OnClampMaxChanged(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(ClampMaxText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            ClampMaxText = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnCalibX1TextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(CalibX1 - parsed) > 1e-9) CalibX1 = parsed;
+        }
+    }
+
+    partial void OnCalibX1Changed(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(CalibX1Text, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            CalibX1Text = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnCalibY1TextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(CalibY1 - parsed) > 1e-9) CalibY1 = parsed;
+        }
+    }
+
+    partial void OnCalibY1Changed(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(CalibY1Text, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            CalibY1Text = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnCalibX2TextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(CalibX2 - parsed) > 1e-9) CalibX2 = parsed;
+        }
+    }
+
+    partial void OnCalibX2Changed(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(CalibX2Text, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            CalibX2Text = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
+    partial void OnCalibY2TextChanged(string value)
+    {
+        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        {
+            if (Math.Abs(CalibY2 - parsed) > 1e-9) CalibY2 = parsed;
+        }
+    }
+
+    partial void OnCalibY2Changed(double value)
+    {
+        if (!NumericInputHelper.TryParseFlexibleDouble(CalibY2Text, out double cur) || Math.Abs(cur - value) > 1e-9)
+        {
+            CalibY2Text = NumericInputHelper.FormatDouble(value);
+        }
+    }
+
     // Live Monitoring & Simulation
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SimulationProgressText))]
@@ -201,6 +353,7 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         InputConnectors.Add(new ConnectorViewModel
         {
             Title = "IN",
+            TooltipKey = "PinTooltipIn",
             IsInput = true,
             Node = this
         });
@@ -208,6 +361,7 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         OutputConnectors.Add(new ConnectorViewModel
         {
             Title = "OUT",
+            TooltipKey = "PinTooltipOut",
             IsInput = false,
             Node = this
         });
@@ -217,6 +371,15 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         CalibY1 = 0;
         CalibX2 = 10000;
         CalibY2 = 100;
+
+        GainText = NumericInputHelper.FormatDouble(Gain);
+        OffsetText = NumericInputHelper.FormatDouble(Offset);
+        ClampMinText = NumericInputHelper.FormatDouble(ClampMin);
+        ClampMaxText = NumericInputHelper.FormatDouble(ClampMax);
+        CalibX1Text = NumericInputHelper.FormatDouble(CalibX1);
+        CalibY1Text = NumericInputHelper.FormatDouble(CalibY1);
+        CalibX2Text = NumericInputHelper.FormatDouble(CalibX2);
+        CalibY2Text = NumericInputHelper.FormatDouble(CalibY2);
     }
 
     /// <summary>

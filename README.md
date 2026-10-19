@@ -19,8 +19,13 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v2.5.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+| **v2.6.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+
 | **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
+
+### 📖 Official User Manual & Technical Documentation:
+- **Commercial Handbook (.docx):** [**`docs/SynaptiX_IDE_User_Manual.docx`**](docs/SynaptiX_IDE_User_Manual.docx) — Formal industrial user manual (IEC/IEEE 82079-1:2019 compliant with Cover Page, Revision History, List of Figures, and embedded high-resolution screenshots).
+- **Online Markdown Guide (.md):** [**`docs/SYNAPTIX_IDE_USER_MANUAL.md`**](docs/SYNAPTIX_IDE_USER_MANUAL.md) — Fast-browsing documentation reference with complete diagrams and workflows.
 
 ### System Requirements:
 - **Operating System:** Windows 10 or Windows 11 (64-bit).

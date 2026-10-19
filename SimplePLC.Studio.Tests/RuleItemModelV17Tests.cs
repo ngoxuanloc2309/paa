@@ -196,4 +196,71 @@ public class RuleItemModelV17Tests
         Assert.Equal(crcFromBytes, crcFromRegisters);
         Assert.NotEqual(0, crcFromBytes);
     }
+
+    [Fact]
+    public void EncodeRuleV17_FloatThresholds_SetsFlagAndEncodesSingleBigEndian()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var rule = new RuleItemModel
+        {
+            Id = "R_FLOAT",
+            Index = 0,
+            Enabled = true,
+            TriggerType = TriggerType.ON_CHANGE,
+            TriggerTag = tagCatalog.AllTags.FirstOrDefault(t => t.Name == "AI0"),
+            CompareOp = CompareOp.BETWEEN,
+            ThresholdLo = 55.5,
+            ThresholdHi = 100.25,
+            ActionType = ActionType.SET_TAG,
+            ActionTag = tagCatalog.AllTags.FirstOrDefault(t => t.Name == "DO0"),
+            ActionParam = 1
+        };
+
+        // Act
+        byte[] bytes = RuleBinaryEncoder.EncodeRuleV17(rule);
+
+        // Assert
+        Assert.Equal(32, bytes.Length);
+        Assert.Equal(0x01, bytes[26]); // SPLC_RULE_FLAG_FLOAT_DATA flag
+
+        float loFloat = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(bytes.AsSpan(0, 4));
+        float hiFloat = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(bytes.AsSpan(4, 4));
+
+        Assert.Equal(55.5f, loFloat, precision: 4);
+        Assert.Equal(100.25f, hiFloat, precision: 4);
+    }
+
+    [Fact]
+    public void Roundtrip_FloatRule_ToDomainRule_PreservesFloatPrecision()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var original = new RuleItemModel
+        {
+            Id = "R_FLOAT_RT",
+            Index = 2,
+            Enabled = true,
+            TriggerType = TriggerType.ON_CHANGE,
+            TriggerTag = tagCatalog.AllTags.FirstOrDefault(t => t.Name == "AI0"),
+            CompareOp = CompareOp.BETWEEN,
+            ThresholdLo = 45.67,
+            ThresholdHi = 89.01,
+            ForMs = 500,
+            ActionType = ActionType.SET_TAG,
+            ActionTag = tagCatalog.AllTags.FirstOrDefault(t => t.Name == "DO0"),
+            ActionParam = 1
+        };
+
+        // Act
+        var domainRule = original.ToDomainRule(_product);
+        var restored = RuleItemModel.FromDomainRule(domainRule, tagCatalog.AllTags);
+
+        // Assert
+        Assert.True(domainRule.Trigger.IsFloat);
+        Assert.Equal(45.67, domainRule.Trigger.ThresholdLo, tolerance: 1e-4);
+        Assert.Equal(89.01, domainRule.Trigger.ThresholdHi, tolerance: 1e-4);
+
+        Assert.Equal(original.ThresholdLo, restored.ThresholdLo, tolerance: 1e-4);
+        Assert.Equal(original.ThresholdHi, restored.ThresholdHi, tolerance: 1e-4);
+    }
 }
+

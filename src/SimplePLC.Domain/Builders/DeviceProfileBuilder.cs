@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Domain.Builders;
@@ -41,7 +42,8 @@ public static class DeviceProfileBuilder
         ushort runtimeTagCount,
         ProductResourceProfile resources,
         out ProductDefinition? product,
-        out string? errorMessage)
+        out string? errorMessage,
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
     {
         product = null;
         errorMessage = null;
@@ -130,7 +132,8 @@ public static class DeviceProfileBuilder
             maxRules,
             resources,
             tags,
-            wireProfile: wireProfile);
+            wireProfile: wireProfile,
+            hardwareCapabilities: hardwareCapabilities);
 
         return true;
     }
@@ -145,9 +148,10 @@ public static class DeviceProfileBuilder
         ushort wireProfile,
         ushort maxRules,
         ushort runtimeTagCount,
-        ProductResourceProfile resources)
+        ProductResourceProfile resources,
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
     {
-        if (!TryBuild(deviceClass, productVariant, protocolVersion, wireProfile, maxRules, runtimeTagCount, resources, out var product, out var error))
+        if (!TryBuild(deviceClass, productVariant, protocolVersion, wireProfile, maxRules, runtimeTagCount, resources, out var product, out var error, hardwareCapabilities))
         {
             throw new InvalidOperationException($"Failed to build product profile: {error}");
         }

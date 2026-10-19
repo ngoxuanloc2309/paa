@@ -78,8 +78,15 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
             // 3. Đọc DeviceResourceInfo tại 0x0020
             var resourceInfo = await descriptorReader.ReadResourceInfoAsync(slaveId, ct).ConfigureAwait(false);
 
+            // 3.1 Đọc HardwareCapabilities tại 0x0A08 (nếu Wire Profile V2)
+            var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+            if (resourceInfo.WireProfile >= 2)
+            {
+                capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, ct).ConfigureAwait(false);
+            }
+
             // 4. Thẩm định Wire Profile V1 và dựng ProductDefinition tại runtime
-            if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError))
+            if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities))
             {
                 await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 await transport.DisposeAsync().ConfigureAwait(false);

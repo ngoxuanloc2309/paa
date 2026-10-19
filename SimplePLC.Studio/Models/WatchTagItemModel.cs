@@ -32,6 +32,7 @@ public partial class WatchTagItemModel : ObservableObject
     {
         TagDataType.Boolean => "BOOL",
         TagDataType.Int32 => "INT32",
+        TagDataType.Float32 => "REAL",
         _ => DataType.ToString().ToUpperInvariant()
     };
 
@@ -201,6 +202,7 @@ public partial class WatchTagItemModel : ObservableObject
             string val = DataType switch
             {
                 TagDataType.Boolean => RawValue != 0 ? "ON" : "OFF",
+                TagDataType.Float32 => BitConverter.Int32BitsToSingle(RawValue).ToString("0.##"),
                 _ => RawValue.ToString("N0")
             };
             return prefix + val + lastSuffix;
@@ -217,6 +219,10 @@ public partial class WatchTagItemModel : ObservableObject
             if (DataType == TagDataType.Boolean)
             {
                 return prefix + (RawValue != 0 ? (isVi ? "BẬT" : "ON") : (isVi ? "TẮT" : "OFF")) + lastSuffix;
+            }
+            if (DataType == TagDataType.Float32)
+            {
+                return prefix + BitConverter.Int32BitsToSingle(RawValue).ToString("0.##") + lastSuffix;
             }
             return prefix + RawValue.ToString("N0") + lastSuffix;
         }

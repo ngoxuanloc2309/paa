@@ -252,4 +252,86 @@ public class MqttVisualFieldBuilderTests
         Assert.Equal("heater_active", restoredNode.Fields[1].Key);
         Assert.Equal("bool", restoredNode.Fields[1].Unit);
     }
+
+    [Fact]
+    public void MqttPublishNode_AutoFormatsPayloadAccordingToTagDataType_IEC61131()
+    {
+        // Tag 1: REAL (Float32) with value 24.5f
+        float floatVal = 24.5f;
+        var realTag = new TagModel
+        {
+            Name = "AI0",
+            Kind = TagKind.AnalogInput,
+            DataType = TagDataType.Float32,
+            Value = BitConverter.SingleToInt32Bits(floatVal)
+        };
+
+        // Tag 2: DINT (Int32) with value 1500
+        var dintTag = new TagModel
+        {
+            Name = "VREG0",
+            Kind = TagKind.VirtualRegister,
+            DataType = TagDataType.Int32,
+            Value = 1500
+        };
+
+        // Tag 3: BOOL (Boolean) with value 1 (True)
+        var boolTag = new TagModel
+        {
+            Name = "DO0",
+            Kind = TagKind.DiscreteOutput,
+            DataType = TagDataType.Boolean,
+            Value = 1
+        };
+
+        var mqtt = new MqttPublishNodeViewModel
+        {
+            Topic = "sensor/telemetry",
+            PayloadMode = "JSON",
+            IncludeDevice = false,
+            IncludeTimestamp = false,
+            WrapValues = false
+        };
+        mqtt.AddFieldWithDetails("temperature", realTag, "C");
+        mqtt.AddFieldWithDetails("rpm", dintTag, "rpm");
+        mqtt.AddFieldWithDetails("running", boolTag, "");
+
+        string payloadJson = mqtt.GeneratePayload(0, "dev");
+
+        // Parse JSON to verify exact types
+        using var doc = JsonDocument.Parse(payloadJson);
+        var root = doc.RootElement;
+
+        Assert.Equal(24.5, root.GetProperty("temperature").GetDouble(), 1);
+        Assert.Equal(1500, root.GetProperty("rpm").GetInt32());
+        Assert.Equal(1, root.GetProperty("running").GetInt32());
+    }
+
+    [Fact]
+    public void TagCatalog_AllowsConfiguringRealDataType_AndPersistsToProject()
+    {
+        var catalog = new TagCatalogViewModel();
+        var ai0 = catalog.AllTags.First(t => t.Kind == TagKind.AnalogInput);
+        Assert.True(ai0.IsDataTypeEditable);
+
+        // Change AI0 to REAL
+        ai0.DataType = TagDataType.Float32;
+        Assert.Equal("REAL", ai0.DataTypeText);
+
+        // Verify BuildProduct reflects Float32
+        var product = catalog.BuildProductFromCurrentTags();
+        var ai0Def = product.Tags.First(t => t.TagIndex == ai0.Index);
+        Assert.Equal(TagDataType.Float32, ai0Def.DataType);
+
+        // Export to project and restore
+        var exported = catalog.ExportToProjectData();
+        var ai0Exported = exported.First(t => t.Index == ai0.Index);
+        Assert.Equal(TagDataType.Float32, ai0Exported.DataType);
+
+        var newCatalog = new TagCatalogViewModel();
+        newCatalog.LoadFromProjectData(exported);
+        var ai0Restored = newCatalog.AllTags.First(t => t.Index == ai0.Index);
+        Assert.Equal(TagDataType.Float32, ai0Restored.DataType);
+        Assert.Equal("REAL", ai0Restored.DataTypeText);
+    }
 }

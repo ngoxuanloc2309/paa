@@ -76,6 +76,7 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x0900..0x09FF` | **Runtime Tag Values** | R/W | FC03/FC16 | 256 regs (128 tags)| Giá trị nhị phân 32-bit của 128 Tags. Chỉ được phép ghi khi ở trạng thái `DIAG_CONTROL`. |
 | `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo dưỡng: REBOOT (1), FACTORY_RESET (2), CLEAR_RULES (3), CLEAR_RETAIN (4). |
 | `0x0A01..0x0A02` | **System Command Result** | R | FC03 | 2 regs (4 B) | Kết quả lệnh bảo dưỡng: `[0]=CommandStatus`, `[1]=ErrorCode`. |
+| `0x0A08..0x0A09` | **Hardware Capabilities** | R | FC03 | 2 regs (4 B) | Khai báo 32-bit năng lực phần cứng thực tế (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40). |
 | `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16| 5 regs (10 B) | Phân hệ chẩn đoán: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseMs` (0x0A23), `ErrorCode` (0x0A24). |
 | `0x0B00..0x0B3F` | **FB Timers (TON/TOF/TP)**| R/W | FC03/FC16 | 64 regs (128 B) | 8 Timers IEC 61131-3, mỗi khối 8 thanh ghi. Ghi cấu hình (Mode, PT) qua FC16; đọc viễn trắc (Status, ET) qua FC03. |
 | `0x0B40..0x0B7F` | **FB Counters (CTU/CTD)** | R/W | FC03/FC16 | 64 regs (128 B) | 8 Counters IEC 61131-3, mỗi khối 8 thanh ghi. Ghi cấu hình (Mode, PV, RetainTag) qua FC16; đọc viễn trắc (Status, CV) qua FC03. |
@@ -221,14 +222,29 @@ typedef struct SPLC_PACKED {
 ```
 
 ### 3.8. `SPLC_RuleRecord_t` (0x0100 & 0x9010, 16 thanh ghi = 32 Bytes)
-Bản ghi logic nhị phân chuẩn hóa thực thi trên MCU Rule Engine.
+Bản ghi logic nhị phân chuẩn hóa thực thi trên MCU Rule Engine, hỗ trợ kép: **Chế độ Số nguyên (Legacy Int32)** và **Chế độ Số thực dấu phẩy động (IEEE-754 Float32 / REAL)**:
 
 ```c
+/* Cờ định dạng dữ liệu (Rule Flags) lưu tại Reg 13 High */
+typedef enum {
+    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+} SPLC_RuleFlags_t;
+
 typedef struct SPLC_PACKED {
-    int32_t  threshold_lo;        /* [0..1]   Ngưỡng dưới / Giờ bắt đầu HHmm (High Word trước) */
-    int32_t  threshold_hi;        /* [2..3]   Ngưỡng trên / Giờ kết thúc HHmm (High Word trước) */
+    union {
+        int32_t  threshold_lo;    /* [0..1]   Ngưỡng dưới Int32 / Giờ bắt đầu HHmm (High Word trước) */
+        float    threshold_lo_f;  /* [0..1]   Ngưỡng dưới số thực Float32 IEEE-754 (khi flags & 0x01) */
+    };
+    union {
+        int32_t  threshold_hi;    /* [2..3]   Ngưỡng trên Int32 / Giờ kết thúc HHmm (High Word trước) */
+        float    threshold_hi_f;  /* [2..3]   Ngưỡng trên số thực Float32 IEEE-754 (khi flags & 0x01) */
+    };
     uint32_t for_ms;              /* [4..5]   Thời gian duy trì / chu kỳ định thời (ms) */
-    int32_t  action_param;        /* [6..7]   Giá trị tham số tác động (High Word trước) */
+    union {
+        int32_t  action_param;    /* [6..7]   Giá trị tham số tác động Int32 */
+        float    action_param_f;  /* [6..7]   Giá trị tham số tác động Float32 (Hệ số góc k khi SCALE_TAG) */
+    };
     uint16_t trigger_tag;         /* [8]      TagIndex kích hoạt (0..127) */
     uint16_t action_tag;          /* [9]      TagIndex tác động (0..127) */
     uint16_t guard_tag;           /* [10]     Bit 15: NEGATE, Bit 0..14: TagIndex (0x7FFF=None) */
@@ -236,9 +252,12 @@ typedef struct SPLC_PACKED {
     uint8_t  trigger_type;        /* [11L]    SPLC_TriggerType_t */
     uint8_t  compare_op;          /* [12H]    SPLC_CompareOp_t */
     uint8_t  action_type;         /* [12L]    SPLC_ActionType_t */
-    uint8_t  reserved[6];         /* [13..15] Luôn ghi 0x00; receiver bỏ qua */
+    uint8_t  flags;               /* [13H]    SPLC_RuleFlags_t (0x01 = FLOAT_DATA) */
+    uint8_t  reserved[5];         /* [13L..15] Luôn ghi 0x00; receiver bỏ qua */
 } SPLC_RuleRecord_t;
 ```
+* **Chế độ Số thực Float32**: Khi bit 0 của trường `flags` (`0x01`) được bật, bộ nạp và MCU Rule Engine đối sánh các giá trị ngưỡng dưới dạng chuẩn số thực IEEE-754 với dung sai $\epsilon = 1 \times 10^{-5}$. Hành động `SCALE_TAG` thực thi công thức tuyến tính chính xác cao: $y_{\text{float}} = x_{\text{float}} \times \text{action\_param\_f} + \text{threshold\_hi\_f}$.
+* **Tương thích ngược**: Nếu `flags == 0x00`, cấu trúc vận hành hoàn toàn tương thích với mã nguồn và dữ liệu số nguyên cũ.
 
 ### 3.9. `SPLC_MqttTelemetryBlock_t` (0x0C00..0x0D7F, 4 blocks × 96 regs = 192 Bytes/block)
 Cấu trúc khối xuất bản dữ liệu viễn trắc MQTT IIoT qua mạng công nghiệp (SPLC-SPEC-MQTT-001). Địa chỉ Block $i$: `0x0C00 + (i * 96)`.
@@ -307,6 +326,42 @@ TagIndex    Ký hiệu Tag     Số lượng   Loại Tag                  Đị
 TỔNG HOẠT ĐỘNG: 124 Tags (248 thanh ghi) | DUNG LƯỢNG KHUNG WIRE: 128 Tags (256 thanh ghi)
 ```
 
+### 4.2. Chuẩn Hóa Kiểu Dữ Liệu IEC 61131-3 & Cấu Trúc Tag Store 32-bit (`SPLC_TagValue_t`)
+
+Kể từ Platform Release V2.0 (v2.6.0), toàn bộ các biến trong Tag Store (`0x0900..0x09FF`) được chuẩn hóa theo chuẩn quốc tế IEC 61131-3:
+
+```c
+/* Định nghĩa kiểu dữ liệu theo chuẩn IEC 61131-3 */
+typedef enum {
+    SPLC_DATA_TYPE_BOOL   = 1, /* IEC 61131-3 BOOL: 1-bit logic (0 hoặc 1) */
+    SPLC_DATA_TYPE_INT32  = 2, /* IEC 61131-3 DINT: Số nguyên có dấu bù hai 32-bit */
+    SPLC_DATA_TYPE_REAL   = 3  /* IEC 61131-3 REAL: Số thực dấu phẩy động 32-bit IEEE-754 */
+} SPLC_TagDataType_t;
+
+/* Cấu trúc hợp nhất 32-bit đại diện cho một Tag trong bộ nhớ MCU */
+typedef union SPLC_PACKED {
+    int32_t  as_int32;         /* Truy cập dạng số nguyên có dấu 32-bit (DINT) */
+    int32_t  as_dint;          /* Tên chuẩn IEC 61131-3 */
+    float    as_real;          /* Truy cập dạng số thực dấu phẩy động IEEE-754 32-bit (REAL) */
+    uint32_t as_raw32;         /* Truy cập dạng raw 32-bit không dấu */
+    struct {
+        uint16_t high_word;    /* Thanh ghi Modbus địa chỉ thấp (Offset 0) - Big-Endian */
+        uint16_t low_word;     /* Thanh ghi Modbus địa chỉ cao (Offset 1) */
+    } words;
+} SPLC_TagValue_t;
+```
+
+#### Quy Tắc Phân Bổ Kiểu Dữ Liệu:
+1. **`BOOL` (1-bit logic)**:
+   - Áp dụng bất biến cho: `DI0..DI7`, `DO0..DO7`, `VFLAG0..VFLAG31`.
+   - Lưu trữ trong Tag Store dưới dạng `0` hoặc `1`. Cố định, người dùng không thể đổi kiểu.
+2. **`DINT` / `INT32` (32-bit Signed Integer)**:
+   - Áp dụng cho: `COUNTER0..COUNTER7` (bộ đếm), `AI` (chế độ ADC raw 0..4095), `VREG` (số nguyên), `VREG_RETAIN` (số nguyên), `ModbusHolding`.
+   - Trực tiếp chuyển thành số nguyên hai bù mà không cần qua bất kỳ hệ số nhân ảo nào.
+3. **`REAL` / `Float32` (32-bit Floating Point IEEE-754)**:
+   - Áp dụng cho: `AI` (khi gán đo lường nhiệt độ, áp suất, lưu lượng...), `VREG` (biến tính toán dấu phẩy động), `VREG_RETAIN` (ngưỡng setpoint thực), `ModbusHolding`.
+   - **Giao thức đường truyền**: Giá trị được truyền trực tiếp dạng nhị phân 32-bit IEEE-754 qua 2 thanh ghi Modbus liên tiếp (High Word trước, Low Word sau). **Tuyệt đối không nhân chia $10^{dec}$ tạm bợ**.
+
 ---
 
 ## 5. Quy trình Bắt tay Khám phá Tự mô tả (Self-Describing Handshake)
@@ -322,19 +377,23 @@ Host (Studio)                                    MCU Firmware
      ├─ 2. FC03 Đọc 0x0020 (10 regs) ────────────────>│ Trả về DeviceResourceInfo:
      │                                                │ WireProfile = 2, ActiveTags = 124, 8DI/8DO...
      │                                                │
-     ├─ [Studio kiểm tra WireProfile == 2]:           │
+     ├─ 3. FC03 Đọc 0x0A08 (2 regs) ─────────────────>│ Trả về HardwareCapabilities (32-bit):
+     │                                                │ Bitmask: BASE_LOGIC | RETENTIVE | RTC | ETHERNET | MQTT_PUB
+     │                                                │
+     ├─ [Studio kiểm tra WireProfile == 2 & Caps]:    │
      │  - Sinh động TagCatalog (124 tags)             │
+     │  - Nhận diện năng lực MQTT PUB/SUB, RTC, NVRAM │
      │  - Mở khóa phân hệ Chẩn đoán (0x0A20)          │
      │  - Mở khóa phân hệ Function Block (0x0B00)     │
      │                                                │
-     ├─ 3a. FC03 Đọc 0x0810..0x0813 (4 regs) ────────>│ Đọc trạng thái RTC (Giờ hiện tại, HW_PRESENT, BATTERY_LOW, SYNCED)
+     ├─ 4a. FC03 Đọc 0x0810..0x0813 (4 regs) ────────>│ Đọc trạng thái RTC (Giờ hiện tại, HW_PRESENT, BATTERY_LOW, SYNCED)
      │                                                │ Studio chỉ Read-Only để hiển thị giờ thực tế lên thanh trạng thái.
      │                                                │ (Tuyệt đối KHÔNG tự ý ghi đè giờ PC xuống MCU khi vừa kết nối).
      │                                                │
-     ├─ 3b. [Kỹ sư kích hoạt] FC16 Ghi 0x0810..0x0813>│ Chỉ ghi khi Kỹ sư mở hộp thoại Sync RTC & chọn Múi giờ:
+     ├─ 4b. [Kỹ sư kích hoạt] FC16 Ghi 0x0810..0x0813>│ Chỉ ghi khi Kỹ sư mở hộp thoại Sync RTC & chọn Múi giờ:
      │     [EpochUtcSeconds, TzOffset, StatusFlags]   │ Studio BẢO TOÀN cờ HW_PRESENT & BATTERY_LOW, bật SYNCED=1
      │                                                │
-     └─ 4. Bắt đầu chu kỳ quét viễn trắc (100ms) ────>│ MCU phản hồi Health (0x0800) & Tags (0x0900)
+     └─ 5. Bắt đầu chu kỳ quét viễn trắc (100ms) ────>│ MCU phản hồi Health (0x0800) & Tags (0x0900)
 ```
 
 ---

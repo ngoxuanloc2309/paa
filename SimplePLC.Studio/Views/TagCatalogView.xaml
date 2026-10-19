@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="clr-namespace:SimplePLC.Studio.Models"
              xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+             xmlns:domainEnums="clr-namespace:SimplePLC.Domain.Enums;assembly=SimplePLC.Domain"
              SnapsToDevicePixels="True"
              UseLayoutRounding="True"
              TextOptions.TextFormattingMode="Display"
@@ -42,6 +43,148 @@
         <Style x:Key="TagColHeaderCenter" TargetType="DataGridColumnHeader" BasedOn="{StaticResource TagColHeaderLeft}">
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="Padding" Value="4,8" />
+        </Style>
+
+        <!-- Flat Compact ComboBox Style for DataGrid Cells (Industrial Slate Standard) -->
+        <ControlTemplate x:Key="FlatTypeComboBoxToggleButton" TargetType="ToggleButton">
+            <Border x:Name="Border"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="2"
+                    SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                    </Grid.ColumnDefinitions>
+                    <Path x:Name="Arrow" Grid.Column="1"
+                          Data="M 0 0 L 3.5 3.5 L 7 0"
+                          Stroke="#64748B"
+                          StrokeThickness="1.2"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Margin="0,0,3,0" />
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#94A3B8" />
+                    <Setter TargetName="Border" Property="Background" Value="#F8FAFC" />
+                    <Setter TargetName="Arrow" Property="Stroke" Value="#1E293B" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                    <Setter TargetName="Arrow" Property="Stroke" Value="{StaticResource PrimaryBrush}" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style x:Key="FlatTypeComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="4,4" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="Transparent"
+                                CornerRadius="2"
+                                Margin="2,1"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#F1F5F9" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#E2E8F0" />
+                                <Setter Property="Foreground" Value="#0F172A" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlatTypeComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Width" Value="84" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource FlatTypeComboBoxItemStyle}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Template="{StaticResource FlatTypeComboBoxToggleButton}"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}" />
+                            <ContentPresenter x:Name="ContentSite"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="4,0,16,0"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center" />
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid x:Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="#FFFFFF"
+                                            BorderThickness="1"
+                                            BorderBrush="{StaticResource BorderLightBrush}"
+                                            CornerRadius="2"
+                                            Margin="0,2,0,4">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Color="#64748B" Opacity="0.15" />
+                                        </Border.Effect>
+                                        <ScrollViewer Margin="1" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="DropDownBorder" Property="MinHeight" Value="24" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="#94A3B8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
     
@@ -353,9 +496,32 @@
                                             Width="105" MinWidth="95">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Border Background="#F1F5F9" CornerRadius="3" Padding="8,3" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding DataTypeText}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" />
-                                </Border>
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Border x:Name="StaticBadge" 
+                                            Background="#F1F5F9" 
+                                            BorderBrush="{StaticResource BorderLightBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="2" 
+                                            Padding="8,2.5" 
+                                            HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DataTypeText}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" />
+                                    </Border>
+                                    <ComboBox x:Name="EditCombo"
+                                              Style="{StaticResource FlatTypeComboBoxStyle}"
+                                              SelectedValue="{Binding DataType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag"
+                                              Visibility="Collapsed">
+                                        <ComboBoxItem Content="INT32" Tag="{x:Static domainEnums:TagDataType.Int32}" />
+                                        <ComboBoxItem Content="REAL" Tag="{x:Static domainEnums:TagDataType.Float32}" />
+                                    </ComboBox>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsDataTypeEditable}" Value="True">
+                                        <Setter TargetName="StaticBadge" Property="Visibility" Value="Collapsed" />
+                                        <Setter TargetName="EditCombo" Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

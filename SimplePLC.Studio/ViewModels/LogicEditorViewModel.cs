@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
@@ -856,6 +857,8 @@ public partial class LogicEditorViewModel : ObservableObject
                 foreach (GraphNodeViewModel node in e.NewItems)
                 {
                     node.PropertyChanged += OnNodeSelectionPropertyChanged;
+                    node.InputConnectors.CollectionChanged += OnNodeConnectorsChanged;
+                    node.OutputConnectors.CollectionChanged += OnNodeConnectorsChanged;
                     if (node.IsSelected && !SelectedNodes.Contains(node))
                     {
                         if (!_isSyncingSelection)
@@ -878,6 +881,8 @@ public partial class LogicEditorViewModel : ObservableObject
                 foreach (GraphNodeViewModel node in e.OldItems)
                 {
                     node.PropertyChanged -= OnNodeSelectionPropertyChanged;
+                    node.InputConnectors.CollectionChanged -= OnNodeConnectorsChanged;
+                    node.OutputConnectors.CollectionChanged -= OnNodeConnectorsChanged;
                     if (!_isSyncingSelection)
                     {
                         _isSyncingSelection = true;
@@ -1765,6 +1770,26 @@ public partial class LogicEditorViewModel : ObservableObject
         }
     }
 
+    private void OnNodeConnectorsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            var oldConnectors = e.OldItems.OfType<ConnectorViewModel>().ToHashSet();
+            var toRemove = Connections.Where(c => oldConnectors.Contains(c.Source) || oldConnectors.Contains(c.Target)).ToList();
+            if (toRemove.Count > 0)
+            {
+                foreach (var conn in toRemove)
+                {
+                    Connections.Remove(conn);
+                    conn.Source.IsConnected = Connections.Any(c => c.Source == conn.Source || c.Target == conn.Source);
+                    conn.Target.IsConnected = Connections.Any(c => c.Source == conn.Target || c.Target == conn.Target);
+                }
+                NotifyGraphModified();
+                OnPropertyChanged(nameof(Connections));
+            }
+        }
+    }
+
     private static readonly HashSet<string> SemanticNodeProperties = new()
     {
         nameof(InputNodeViewModel.Tag),
@@ -1934,13 +1959,31 @@ public partial class LogicEditorViewModel : ObservableObject
         }
         else if (target.Node is MqttPublishNodeViewModel mqttNode)
         {
-            if (source.Node is InputNodeViewModel inMqtt)
+            TagModel? incomingTag = source.Node switch
             {
-                mqttNode.DataTag = inMqtt.Tag;
-            }
-            else if (source.Node is ScaleNodeViewModel scaleMqtt)
+                InputNodeViewModel inMqtt => inMqtt.Tag,
+                ScaleNodeViewModel scaleMqtt => scaleMqtt.OutputTag ?? scaleMqtt.InputTag,
+                _ => null
+            };
+
+            if (incomingTag != null)
             {
-                mqttNode.DataTag = scaleMqtt.OutputTag ?? scaleMqtt.InputTag;
+                if (target == mqttNode.TriggerConnector || string.Equals(target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(target.Title, "EN", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Trig pin connected: do not overwrite DataTag
+                }
+                else if (target == mqttNode.DefaultValConnector || string.Equals(target.Title, "Val", StringComparison.OrdinalIgnoreCase))
+                {
+                    mqttNode.DataTag = incomingTag;
+                }
+                else
+                {
+                    var matchedField = mqttNode.Fields.FirstOrDefault(f => f.Connector == target || string.Equals(f.Key, target.Title, StringComparison.OrdinalIgnoreCase));
+                    if (matchedField != null)
+                    {
+                        matchedField.Tag = incomingTag;
+                    }
+                }
             }
         }
         else if (source.Node is CounterNodeViewModel counterNodeFrom && target.Node is ActionNodeViewModel actNode)
@@ -1985,6 +2028,13 @@ public partial class LogicEditorViewModel : ObservableObject
         int index = list.IndexOf(connector);
         if (index < 0)
             return singlePinOffset;
+
+        if (node is MqttSubscribeNodeViewModel || node is MqttPublishNodeViewModel)
+        {
+            // Dynamic nodes layout connectors from top:
+            // 30px (4px accent + 26px header) + 6px top margin + index * 18px + 9px center
+            return 36.0 + (index * 18.0) + 9.0;
+        }
 
         // Chiều cao mỗi cổng là 16px, tổng chiều cao các cổng = list.Count * 16px
         // Khoảng trống trên/dưới trong vùng body 56px: (56 - list.Count * 16) / 2
@@ -3306,13 +3356,17 @@ public partial class LogicEditorViewModel : ObservableObject
                 }
 
                 ConnectorViewModel? tgtConn = null;
-                if (pConn.TargetConnectorIndex >= 0 && pConn.TargetConnectorIndex < tgtNode.InputConnectors.Count)
+                if (!string.IsNullOrEmpty(pConn.TargetConnectorTitle))
+                {
+                    tgtConn = tgtNode.InputConnectors.FirstOrDefault(c => string.Equals(c.Title, pConn.TargetConnectorTitle, StringComparison.OrdinalIgnoreCase));
+                }
+                if (tgtConn == null && pConn.TargetConnectorIndex >= 0 && pConn.TargetConnectorIndex < tgtNode.InputConnectors.Count)
                 {
                     tgtConn = tgtNode.InputConnectors[pConn.TargetConnectorIndex];
                 }
-                else
+                else if (tgtConn == null)
                 {
-                    tgtConn = tgtNode.InputConnectors.FirstOrDefault(c => c.Title == pConn.TargetConnectorTitle) ?? tgtNode.InputConnectors.FirstOrDefault();
+                    tgtConn = tgtNode.InputConnectors.FirstOrDefault();
                 }
 
                 if (srcConn != null && tgtConn != null)
@@ -3517,6 +3571,198 @@ public partial class LogicEditorViewModel : ObservableObject
                     Connect(srcConn, tgtConn);
                 }
             }
+        }
+
+        CompileAndSaveRules(true);
+    }
+
+    /// <summary>
+    /// Tự động tái tạo toàn bộ danh mục Rules thành các mạng Network độc lập trên Canvas (chuẩn TIA Portal).
+    /// Mỗi Rule được bố trí thành một hàng ngang (Input -> Trigger -> Guard -> Action) và cách nhau 260px theo trục Y.
+    /// </summary>
+    public void ReconstructGraphFromAllRules(IEnumerable<RuleItemModel> rules)
+    {
+        if (rules == null) return;
+        var ruleList = rules.ToList();
+        if (ruleList.Count == 0) return;
+
+        RecordSnapshot("Reconstruct All Rules to Canvas");
+
+        Connections.Clear();
+        Nodes.Clear();
+        SelectedNode = null;
+
+        double startX = 60;
+        double currentY = 100;
+
+        foreach (var rule in ruleList)
+        {
+            // Nếu rule đã có sẵn SourceNodes và SourceConnections riêng thì ưu tiên phục hồi nguyên trạng
+            if (rule.SourceNodes != null && rule.SourceNodes.Count > 0)
+            {
+                var localMap = new Dictionary<string, GraphNodeViewModel>();
+                foreach (var pNode in rule.SourceNodes)
+                {
+                    var node = CreateNodeFromData(pNode);
+                    if (node != null)
+                    {
+                        Nodes.Add(node);
+                        localMap[node.Id] = node;
+                    }
+                }
+                if (rule.SourceConnections != null)
+                {
+                    foreach (var pConn in rule.SourceConnections)
+                    {
+                        if (localMap.TryGetValue(pConn.SourceNodeId, out var srcNode) &&
+                            localMap.TryGetValue(pConn.TargetNodeId, out var tgtNode))
+                        {
+                            var srcConn = (pConn.SourceConnectorIndex >= 0 && pConn.SourceConnectorIndex < srcNode.OutputConnectors.Count)
+                                ? srcNode.OutputConnectors[pConn.SourceConnectorIndex]
+                                : srcNode.OutputConnectors.FirstOrDefault();
+                            var tgtConn = (pConn.TargetConnectorIndex >= 0 && pConn.TargetConnectorIndex < tgtNode.InputConnectors.Count)
+                                ? tgtNode.InputConnectors[pConn.TargetConnectorIndex]
+                                : tgtNode.InputConnectors.FirstOrDefault();
+                            if (srcConn != null && tgtConn != null)
+                            {
+                                Connect(srcConn, tgtConn);
+                            }
+                        }
+                    }
+                }
+                currentY = (Nodes.Count > 0 ? Nodes.Max(n => n.Location.Y) : currentY) + 260;
+                continue;
+            }
+
+            // Nếu rule chưa có SourceNodes, tự động sinh chuỗi Input -> Trigger -> Guard -> Action chuẩn
+            string suffix = Guid.NewGuid().ToString("N")[..8];
+            var ruleNodes = new List<ProjectNodeData>();
+            var ruleConns = new List<ProjectConnectionData>();
+
+            string inputId = $"net_in_{rule.Id}_{suffix}";
+            if (rule.TriggerTag != null)
+            {
+                ruleNodes.Add(new ProjectNodeData
+                {
+                    Id = inputId,
+                    Type = "Input",
+                    TagName = rule.TriggerTag.Name,
+                    LocationX = startX,
+                    LocationY = currentY
+                });
+            }
+
+            string triggerId = $"net_trg_{rule.Id}_{suffix}";
+            ruleNodes.Add(new ProjectNodeData
+            {
+                Id = triggerId,
+                Type = "Trigger",
+                TriggerType = rule.TriggerType,
+                ForMs = rule.ForMs,
+                CompareOp = rule.CompareOp,
+                ThresholdLo = rule.ThresholdLo,
+                ThresholdHi = rule.ThresholdHi,
+                LocationX = startX + 240,
+                LocationY = currentY
+            });
+
+            if (rule.TriggerTag != null)
+            {
+                ruleConns.Add(new ProjectConnectionData
+                {
+                    SourceNodeId = inputId,
+                    SourceConnectorIndex = 0,
+                    TargetNodeId = triggerId,
+                    TargetConnectorIndex = 0
+                });
+            }
+
+            string lastNodeId = triggerId;
+            int lastNodeOutIdx = 0;
+
+            bool hasValidGuard = rule.GuardTag != null &&
+                                 rule.GuardTag.Kind != TagKind.None &&
+                                 !string.Equals(rule.GuardTag.Name, "NONE", StringComparison.OrdinalIgnoreCase);
+
+            if (hasValidGuard && rule.GuardTag != null)
+            {
+                string guardId = $"net_grd_{rule.Id}_{suffix}";
+                ruleNodes.Add(new ProjectNodeData
+                {
+                    Id = guardId,
+                    Type = "Guard",
+                    TargetTagName = rule.GuardTag.Name,
+                    Negate = rule.GuardNegated,
+                    LocationX = startX + 480,
+                    LocationY = currentY
+                });
+
+                ruleConns.Add(new ProjectConnectionData
+                {
+                    SourceNodeId = lastNodeId,
+                    SourceConnectorIndex = lastNodeOutIdx,
+                    TargetNodeId = guardId,
+                    TargetConnectorIndex = 0
+                });
+
+                lastNodeId = guardId;
+                lastNodeOutIdx = 0;
+            }
+
+            if (rule.ActionTag != null && rule.ActionTag.Kind != TagKind.None)
+            {
+                string actionId = $"net_act_{rule.Id}_{suffix}";
+                double actionX = hasValidGuard ? (startX + 720) : (startX + 480);
+                ruleNodes.Add(new ProjectNodeData
+                {
+                    Id = actionId,
+                    Type = "Action",
+                    ActionType = rule.ActionType,
+                    TargetTagName = rule.ActionTag.Name,
+                    ActionParam = rule.ActionParam,
+                    LocationX = actionX,
+                    LocationY = currentY
+                });
+
+                ruleConns.Add(new ProjectConnectionData
+                {
+                    SourceNodeId = lastNodeId,
+                    SourceConnectorIndex = lastNodeOutIdx,
+                    TargetNodeId = actionId,
+                    TargetConnectorIndex = 0
+                });
+            }
+
+            var localCreated = new Dictionary<string, GraphNodeViewModel>();
+            foreach (var pNode in ruleNodes)
+            {
+                var node = CreateNodeFromData(pNode);
+                if (node != null)
+                {
+                    Nodes.Add(node);
+                    localCreated[node.Id] = node;
+                }
+            }
+
+            foreach (var pConn in ruleConns)
+            {
+                if (localCreated.TryGetValue(pConn.SourceNodeId, out var srcNode) &&
+                    localCreated.TryGetValue(pConn.TargetNodeId, out var tgtNode))
+                {
+                    var srcConn = (pConn.SourceConnectorIndex >= 0 && pConn.SourceConnectorIndex < srcNode.OutputConnectors.Count)
+                        ? srcNode.OutputConnectors[pConn.SourceConnectorIndex]
+                        : srcNode.OutputConnectors.FirstOrDefault();
+                    var tgtConn = (pConn.TargetConnectorIndex >= 0 && pConn.TargetConnectorIndex < tgtNode.InputConnectors.Count)
+                        ? tgtNode.InputConnectors[pConn.TargetConnectorIndex]
+                        : tgtNode.InputConnectors.FirstOrDefault();
+                    if (srcConn != null && tgtConn != null)
+                    {
+                        Connect(srcConn, tgtConn);
+                    }
+                }
+            }
+
+            currentY += 260;
         }
 
         CompileAndSaveRules(true);

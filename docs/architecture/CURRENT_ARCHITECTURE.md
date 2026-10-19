@@ -112,24 +112,47 @@ sequenceDiagram
 ---
 
 ### 3.3. Khế Ước Dữ Liệu Quy Tắc (32-Byte Rule Record Wire Layout)
-Mỗi quy tắc được đóng gói thành 16 thanh ghi Modbus (32 bytes), tương ứng chính xác với struct C `SPLC_RuleRecord_t`:
+Mỗi quy tắc được đóng gói thành 16 thanh ghi Modbus (32 bytes), tương ứng chính xác với struct C `SPLC_RuleRecord_t` hỗ trợ chế độ kép Số nguyên (Int32) và Số thực (IEEE-754 Single Float32 / REAL):
 
 ```c
+/* Cờ định dạng dữ liệu (Rule Flags) lưu tại Reg 13 High */
+typedef enum {
+    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+} SPLC_RuleFlags_t;
+
 typedef struct SPLC_PACKED {
-    int32_t  threshold_lo;        /* [0..1] Ngưỡng dưới / giá trị so sánh chính (Big-Endian) */
-    int32_t  threshold_hi;        /* [2..3] Ngưỡng trên (dùng cho khoảng so sánh Between) */
-    uint32_t for_ms;               /* [4..5] Thời gian duy trì điều kiện liên tục trước khi kích hoạt (ms) */
-    int32_t  action_param;        /* [6..7] Tham số hành động (giá trị set coil, step count, target value) */
+    union {
+        int32_t  threshold_lo;    /* [0..1] Ngưỡng dưới Int32 / Giờ bắt đầu HHmm (Big-Endian) */
+        float    threshold_lo_f;  /* [0..1] Ngưỡng dưới số thực Float32 IEEE-754 (khi flags & 0x01) */
+    };
+    union {
+        int32_t  threshold_hi;    /* [2..3] Ngưỡng trên Int32 / Giờ kết thúc HHmm (Big-Endian) */
+        float    threshold_hi_f;  /* [2..3] Ngưỡng trên số thực Float32 IEEE-754 (khi flags & 0x01) */
+    };
+    uint32_t for_ms;              /* [4..5] Thời gian duy trì điều kiện liên tục (ms) */
+    union {
+        int32_t  action_param;    /* [6..7] Tham số hành động Int32 */
+        float    action_param_f;  /* [6..7] Tham số hành động Float32 (Hệ số góc k khi SCALE_TAG) */
+    };
     uint16_t trigger_tag;         /* [8]    Chỉ số Tag nguồn phát sinh sự kiện (0..127) */
     uint16_t action_tag;          /* [9]    Chỉ số Tag đích nhận hành động (0..127) */
     uint16_t guard_tag;           /* [10]   Bit 0..14: Guard Tag index; Bit 15: cờ đảo logic (NEGATE) */
     uint8_t  enabled;             /* [11 High Byte] 1 = Kích hoạt, 0 = Vô hiệu */
-    uint8_t  trigger_type;        /* [11 Low Byte]  Loại kích hoạt (OnChange, OnTrue, Threshold, Timer,...) */
+    uint8_t  trigger_type;        /* [11 Low Byte]  Loại kích hoạt (OnChange, TimeWindow, Interval,...) */
     uint8_t  compare_op;          /* [12 High Byte] Toán tử so sánh (Equal, Greater, Less, Between,...) */
-    uint8_t  action_type;         /* [12 Low Byte]  Loại hành động (SetCoil, ResetCoil, Toggle, WriteValue,...) */
-    uint8_t  reserved[6];         /* [13..15] Dành cho mở rộng trong tương lai, luôn ghi 0x00 */
+    uint8_t  action_type;         /* [12 Low Byte]  Loại hành động (SetTag, Toggle, IncCounter, Scale,...) */
+    uint8_t  flags;               /* [13 High Byte] Bit 0: 0x01 = SPLC_RULE_FLAG_FLOAT_DATA */
+    uint8_t  reserved[5];         /* [13 Low Byte..15] Dành cho mở rộng tương lai, luôn ghi 0x00 */
 } SPLC_RuleRecord_t;
 ```
+
+#### Kiến Trúc Mô Hình Nghiệp Vụ Thuần Khiết (Pure Clean Architecture):
+* **Domain Layer**: `TriggerModel.ThresholdLo`, `ThresholdHi`, và `ActionModel.Parameter` được thống nhất về kiểu `double` duy nhất. Kiểu `double` (IEEE-754 64-bit với 53 bit mantissa) bảo toàn chính xác 100% mọi giá trị nguyên `int32` mà không gây sai số phần cứng, đồng thời hỗ trợ mượt mà các giá trị số thực thập phân.
+* **Ranh giới giao thức (Boundary Serialization)**: Tại `RuleMapper`, hệ thống tự động kiểm tra cờ `IsFloat` để đóng gói xuống 32-bit:
+  - Nếu `IsFloat`: dùng `BitConverter.SingleToInt32Bits((float)ThresholdLo)`.
+  - Nếu số nguyên: dùng `(int)Math.Round(ThresholdLo)`.
+* **Zero Technical Debt**: Xóa bỏ hoàn toàn các trường song song (`ThresholdLoDouble`, `ThresholdHiDouble`, `ParameterDouble`) khỏi toàn bộ mã nguồn.
 
 ---
 

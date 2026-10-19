@@ -131,6 +131,21 @@ public sealed class McuReferenceSimulator
         {
             _memory.InternalWrite((ushort)(ModbusRegisterMap.DeviceResourceInfoAddress + i), resourceRegs[i]);
         }
+
+        // 0x0A08 - 0x0A09: HardwareCapabilities (32-bit uint32, Big-Endian)
+        if (_wireProfile >= 2)
+        {
+            var caps = SPLC_HardwareCapabilities.BASE_LOGIC |
+                       SPLC_HardwareCapabilities.RETENTIVE |
+                       SPLC_HardwareCapabilities.RTC |
+                       SPLC_HardwareCapabilities.ETHERNET |
+                       SPLC_HardwareCapabilities.MQTT_PUB |
+                       SPLC_HardwareCapabilities.MQTT_SUB;
+            Span<ushort> capsRegs = stackalloc ushort[2];
+            RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
+            _memory.InternalWrite(ModbusRegisterMap.HardwareCapabilitiesAddress, capsRegs[0]);
+            _memory.InternalWrite((ushort)(ModbusRegisterMap.HardwareCapabilitiesAddress + 1), capsRegs[1]);
+        }
     }
 
     private void InitializeDefaultState()
@@ -572,7 +587,7 @@ public sealed class McuReferenceSimulator
                             {
                                 if (rule.CompareOp != SPLC_CompareOp.NONE)
                                 {
-                                    condMet = EvaluateCompare(rule.CompareOp, currVal, rule.ThresholdLo, rule.ThresholdHi);
+                                    condMet = EvaluateCompare(rule.CompareOp, currVal, rule.ThresholdLo, rule.ThresholdHi, rule.IsFloatData);
                                 }
                                 else
                                 {
@@ -617,17 +632,39 @@ public sealed class McuReferenceSimulator
         }
     }
 
-    private static bool EvaluateCompare(SPLC_CompareOp op, int val, int lo, int hi) => op switch
+    private static bool EvaluateCompare(SPLC_CompareOp op, int val, int lo, int hi, bool isFloat = false)
     {
-        SPLC_CompareOp.EQ => val == lo,
-        SPLC_CompareOp.NEQ => val != lo,
-        SPLC_CompareOp.GT => val > lo,
-        SPLC_CompareOp.LT => val < lo,
-        SPLC_CompareOp.GTE => val >= lo,
-        SPLC_CompareOp.LTE => val <= lo,
-        SPLC_CompareOp.BETWEEN => val >= lo && val <= hi,
-        _ => true
-    };
+        if (!isFloat)
+        {
+            return op switch
+            {
+                SPLC_CompareOp.EQ => val == lo,
+                SPLC_CompareOp.NEQ => val != lo,
+                SPLC_CompareOp.GT => val > lo,
+                SPLC_CompareOp.LT => val < lo,
+                SPLC_CompareOp.GTE => val >= lo,
+                SPLC_CompareOp.LTE => val <= lo,
+                SPLC_CompareOp.BETWEEN => val >= lo && val <= hi,
+                _ => true
+            };
+        }
+
+        float valFloat = BitConverter.Int32BitsToSingle(val);
+        float loFloat = BitConverter.Int32BitsToSingle(lo);
+        float hiFloat = BitConverter.Int32BitsToSingle(hi);
+
+        return op switch
+        {
+            SPLC_CompareOp.EQ => Math.Abs(valFloat - loFloat) <= 1e-5f,
+            SPLC_CompareOp.NEQ => Math.Abs(valFloat - loFloat) > 1e-5f,
+            SPLC_CompareOp.GT => valFloat > loFloat,
+            SPLC_CompareOp.LT => valFloat < loFloat,
+            SPLC_CompareOp.GTE => valFloat >= loFloat,
+            SPLC_CompareOp.LTE => valFloat <= loFloat,
+            SPLC_CompareOp.BETWEEN => valFloat >= loFloat && valFloat <= hiFloat,
+            _ => true
+        };
+    }
 
     private int ReadTagValue(ushort tagIndex)
     {
@@ -660,9 +697,21 @@ public sealed class McuReferenceSimulator
                 WriteTagValue(rule.ActionTag, val + rule.ActionParam);
                 break;
             case SPLC_ActionType.SCALE_TAG:
-                int trigVal = ReadTagValue(rule.TriggerTag);
-                int scaledVal = (int)((long)trigVal * rule.ActionParam / 1000 + rule.ThresholdHi);
-                WriteTagValue(rule.ActionTag, scaledVal);
+                if (rule.IsFloatData)
+                {
+                    int rawTrigVal = ReadTagValue(rule.TriggerTag);
+                    float trigValFloat = BitConverter.Int32BitsToSingle(rawTrigVal);
+                    float gain = rule.ActionParamFloat;
+                    float offset = rule.ThresholdHiFloat;
+                    float scaledFloat = trigValFloat * gain + offset;
+                    WriteTagValue(rule.ActionTag, BitConverter.SingleToInt32Bits(scaledFloat));
+                }
+                else
+                {
+                    int trigVal = ReadTagValue(rule.TriggerTag);
+                    int scaledVal = (int)((long)trigVal * rule.ActionParam / 1000 + rule.ThresholdHi);
+                    WriteTagValue(rule.ActionTag, scaledVal);
+                }
                 break;
             case SPLC_ActionType.ADD_TAG:
                 int tVal = ReadTagValue(rule.TriggerTag);
@@ -1053,14 +1102,8 @@ public sealed class McuReferenceSimulator
         // Chuyển sang VERIFYING (2)
         _memory.InternalWrite(ModbusRegisterMap.ConfigStatusAddress, 2);
 
-        // 1. Kiểm tra Completeness: phải có số rule > 0 và toàn bộ register đều đã ghi
+        // 1. Kiểm tra Completeness: toàn bộ register đã khai báo đều phải được ghi đầy đủ
         int requiredRegisters = _stagedRuleCount * ModbusRegisterMap.RegistersPerRule;
-        if (requiredRegisters == 0)
-        {
-            _memory.InternalWrite(ModbusRegisterMap.ConfigStatusAddress, 4); // ERROR
-            _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.INVALID_PARAMETER);
-            return;
-        }
 
         for (int i = 0; i < requiredRegisters; i++)
         {

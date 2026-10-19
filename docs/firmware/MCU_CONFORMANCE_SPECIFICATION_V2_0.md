@@ -98,31 +98,60 @@ $$\text{Modbus Address} = 0\text{x}0900 + (\text{TagIndex} \times 2)$$
 
 ## 5. Đặc tả Cấu trúc Bản ghi Rule 32-Byte (`SPLC_RuleRecord_t`)
 
-Mỗi bản ghi Rule chiếm đúng 16 thanh ghi Modbus (32 bytes), định dạng byte-exact theo chuẩn đóng gói `#pragma pack(push, 1)`:
+Mỗi bản ghi Rule chiếm đúng 16 thanh ghi Modbus (32 bytes), định dạng byte-exact theo chuẩn đóng gói `#pragma pack(push, 1)`. 
+SimplePLC V2.0 hỗ trợ cả **Chế độ Số nguyên (Legacy Int32)** và **Chế độ Số thực dấu phẩy động (IEEE-754 Single-Precision Float32 / REAL)** mà không làm thay đổi kích thước 32-byte của Wire Contract:
 
 ```c
+/* Cờ thuộc tính Rule (Rule Flags) lưu tại Reg 13 High */
+typedef enum {
+    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+} SPLC_RuleFlags_t;
+
 typedef struct SPLC_PACKED {
-    int32_t  threshold_lo;        /* [Reg 0..1]   Ngưỡng dưới (High Word trước) */
-    int32_t  threshold_hi;        /* [Reg 2..3]   Ngưỡng trên (High Word trước) */
-    uint32_t for_ms;              /* [Reg 4..5]   Thời gian trễ / chu kỳ kích hoạt (ms) */
-    int32_t  action_param;        /* [Reg 6..7]   Giá trị tham số hành động */
-    uint16_t trigger_tag;         /* [Reg 8]      TagIndex kích hoạt (0..127) */
-    uint16_t action_tag;          /* [Reg 9]      TagIndex tác động (0..127) */
-    uint16_t guard_tag;           /* [Reg 10]     Bit 15: NEGATE (1=NOT), Bits 0..14: TagIndex (0x7FFF=None) */
+    union {
+        int32_t  threshold_lo;    /* [Reg 0..1] Ngưỡng dưới dạng số nguyên Int32 (Big-Endian) */
+        float    threshold_lo_f;  /* [Reg 0..1] Ngưỡng dưới dạng số thực IEEE-754 Float32 (khi flags & 0x01) */
+    };
+    union {
+        int32_t  threshold_hi;    /* [Reg 2..3] Ngưỡng trên dạng số nguyên Int32 (Big-Endian) */
+        float    threshold_hi_f;  /* [Reg 2..3] Ngưỡng trên dạng số thực IEEE-754 Float32 (khi flags & 0x01) */
+    };
+    uint32_t for_ms;              /* [Reg 4..5] Thời gian trễ / chu kỳ kích hoạt (ms) */
+    union {
+        int32_t  action_param;    /* [Reg 6..7] Tham số hành động Int32 */
+        float    action_param_f;  /* [Reg 6..7] Tham số hành động Float32 (Hệ số góc k khi SCALE_TAG) */
+    };
+    uint16_t trigger_tag;         /* [Reg 8]    TagIndex kích hoạt (0..127) */
+    uint16_t action_tag;          /* [Reg 9]    TagIndex tác động (0..127) */
+    uint16_t guard_tag;           /* [Reg 10]   Bit 15: NEGATE (1=NOT), Bits 0..14: TagIndex (0x7FFF=None) */
     uint8_t  enabled;             /* [Reg 11 High] 1 = Kích hoạt, 0 = Vô hiệu */
     uint8_t  trigger_type;        /* [Reg 11 Low]  SPLC_TriggerType_t */
     uint8_t  compare_op;          /* [Reg 12 High] SPLC_CompareOp_t */
     uint8_t  action_type;         /* [Reg 12 Low]  SPLC_ActionType_t */
-    uint8_t  reserved[6];         /* [Reg 13..15] Luôn ghi 0x00; receiver bỏ qua */
+    uint8_t  flags;               /* [Reg 13 High] SPLC_RuleFlags_t (0x01 = FLOAT_DATA) */
+    uint8_t  reserved[5];         /* [Reg 13 Low..15] Luôn ghi 0x00; receiver bỏ qua */
 } SPLC_RuleRecord_t;
 ```
 
-### Các tập Enum Logic:
+### 5.1. Cơ chế Chuyển đổi và Tương thích Ngược (Float vs Int32)
+* Khi **`flags == 0x00` (Legacy / Integer Mode)**:
+  * Toàn bộ các trường `threshold_lo`, `threshold_hi`, `action_param` được tính toán số học số nguyên 32-bit có dấu thông thường.
+  * Tương thích 100% với các phiên bản Firmware và dự án SimplePLC cũ.
+* Khi **`flags & 0x01 != 0` (Float32 / REAL Mode)**:
+  * Ngưỡng so sánh `threshold_lo_f`, `threshold_hi_f` và tham số `action_param_f` được diễn giải dưới dạng chuẩn **IEEE-754 Single Precision (32-bit float)**.
+  * Các phép toán so sánh `EQ`, `NEQ` sử dụng epsilon công nghiệp $\epsilon = 1 \times 10^{-5}$:
+    * `EQ`: $|x - \text{threshold}| \le 10^{-5}$
+    * `GT`: $x > \text{threshold}$
+    * `BETWEEN`: $\text{threshold\_lo\_f} \le x \le \text{threshold\_hi\_f}$
+  * Hỗ trợ đặt ngưỡng thập phân trực quan từ IDE (ví dụ: `55.5°C`, `-12.3 bar`).
+
+### 5.2. Các tập Enum Logic:
 * **TriggerType (`uint8_t`)**:
-  * `0`: `ON_CHANGE` — Kích hoạt khi giá trị tag thay đổi so với chu kỳ trước.
+  * `0`: `ON_CHANGE` — Kích hoạt khi giá trị tag thay đổi so với chu kỳ trước (hoặc thỏa mãn điều kiện so sánh).
   * `1`: `ON_RISE` — Kích hoạt khi có sườn lên (0 -> 1 hoặc vượt qua ngưỡng).
   * `2`: `ON_FALL` — Kích hoạt khi có sườn xuống (1 -> 0 hoặc tụt xuống dưới ngưỡng).
-  * `3`: `TIME_WINDOW` — Kích hoạt theo khung giờ thực tế (dựa vào đồng hồ RTC).
+  * `3`: `TIME_WINDOW` — Kích hoạt theo khung giờ thực tế (dựa vào đồng hồ RTC, luôn xử lý dạng số nguyên `HHMM`).
   * `4`: `INTERVAL` — Kích hoạt định kỳ sau mỗi khoảng thời gian `for_ms`.
 * **CompareOp (`uint8_t`)**:
   * `0`: `NONE`, `1`: `EQ` (`=`), `2`: `NEQ` (`!=`), `3`: `GT` (`>`), `4`: `LT` (`<`), `5`: `GTE` (`>=`), `6`: `LTE` (`<=`), `7`: `BETWEEN` (`Lo <= X <= Hi`).
@@ -134,14 +163,13 @@ typedef struct SPLC_PACKED {
   * `4`: `LOG_EVENT` — Ghi bản ghi nhật ký vào RAM circular buffer.
   * `5`: `SEND_ALARM` — Bật cờ cảnh báo hệ thống.
   * `6`: `ADD_TAG` — Cộng giá trị `action_param` vào giá trị tag hiện tại.
-  * `7`: `SCALE_TAG` — Áp dụng công thức chuyển đổi tỉ lệ tuyến tính (`y = k * x + b`):
-    * `action_param`: Hệ số tỉ lệ cố định đã nhân tỉ lệ với 1000 (`action_param = round(k * 1000)`).
-    * `threshold_hi`: Độ lệch gốc (Offset `b`) dạng số nguyên.
-    * Giá trị ngõ ra ghi vào `action_tag`:
-      ```text
-      ActionTag.Value = floor((TriggerTag.Value * action_param) / 1000) + threshold_hi
-      ```
-    * *Ví dụ:* Cảm biến analog `0..10000 mV` chuyển đổi sang `0..100°C` với hệ số `k = 0.01`, offset `b = 0`: `action_param = 10`, `threshold_hi = 0`.
+  * `7`: `SCALE_TAG` — Áp dụng công thức chuyển đổi tỉ lệ tuyến tính ($y = k \cdot x + b$):
+    * **Chế độ Số nguyên (`flags == 0x00`)**:
+      $$y = \left\lfloor\frac{x \times \text{action\_param}}{1000}\right\rfloor + \text{threshold\_hi}$$
+    * **Chế độ Số thực Float32 (`flags & 0x01 != 0`)**:
+      $$y_{\text{float}} = x_{\text{float}} \times \text{action\_param\_f} + \text{threshold\_hi\_f}$$
+      Trong đó $k$ (`action_param_f`), $b$ (`threshold_hi_f`), và ngõ vào $x$ đều được tính toán theo đơn vị dấu phẩy động IEEE-754 chính xác tuyệt đối. Giá trị ngõ ra $y$ được lưu dưới dạng 32-bit float bit pattern vào thanh ghi Tag tương ứng.
+    * *Ví dụ:* Cảm biến analog `0..10000 mV` chuyển đổi sang `0..100.0°C` với $k = 0.01$, offset $b = 0.0$: `action_param_f = 0.01f`, `threshold_hi_f = 0.0f`. Giá trị đọc được tại $5550 \text{ mV}$ sẽ ra đúng $55.5^\circ\text{C}$.
 
 ---
 
@@ -335,14 +363,14 @@ Nếu Host gửi yêu cầu không hợp lệ, MCU phản hồi frame ngoại l�
 [SlaveID, FC | 0x80, ExceptionCode, CRC_Lo, CRC_Hi]
 ```
 
-* **`0x01 (Illegal Function)`**: Khi nhận FC ngoài 0x03, 0x06, 0x16.
+* **`0x01 (Illegal Function)`**: Khi nhận FC ngoài 0x03, 0x06, 0x10 (FC16 Write Multiple Registers).
 * **`0x02 (Illegal Data Address)`**: Địa chỉ thanh ghi vượt ngoài bản đồ cho phép, hoặc cố gắng ghi vào Tag Store (0x0900) khi đang ở trạng thái `ENGINE_RUNNING`.
 * **`0x03 (Illegal Data Value)`**: Số lượng registers yêu cầu vượt quá giới hạn (ví dụ đọc > 125 registers trong 1 FC03 frame) hoặc ghi số lẻ registers vào vùng Tag 32-bit.
 * **`0x04 (Slave Device Failure)`**: Lỗi phần cứng không thể đọc/ghi bộ nhớ Flash khi commit.
 
 ---
 
-## 12. Bảng Kiểm Tra Tuân Thủ Toàn Diện (Conformance Checklist CHKL-01 .. CHKL-14)
+## 12. Bảng Kiểm Tra Tuân Thủ Toàn Diện (Conformance Checklist CHKL-01 .. CHKL-15)
 
 Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio, firmware MCU bắt buộc phải vượt qua 100% các tiêu chí sau:
 
@@ -359,4 +387,100 @@ Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio,
 - [ ] **CHKL-11: Atomic Staging & CRC Verification**: Nạp payload với CRC giả mạo → MCU từ chối commit tại `0xA000`, giữ nguyên bảng logic đang chạy.
 - [ ] **CHKL-12: Non-Volatile Flash Retain**: Ghi giá trị vào `VREG_RETAIN0` (0x09A8) → Reset nguồn MCU → Khởi động lại đọc đúng giá trị đã ghi.
 - [ ] **CHKL-13: Retain Dirty Protection**: Thay đổi retain trong chế độ Diag → Gửi `EXIT_DIAG` → MCU từ chối với lỗi `RETAIN_DIRTY (5)` cho đến khi gọi `COMMIT_RETAIN`.
-- [ ] **CHKL-14: Golden Vectors V2.0 Conformance**: Toàn bộ các gói tin Modbus RTU của firmware khớp 100% byte-for-byte với [`golden_vectors_v2_0.json`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/GoldenVectors/golden_vectors_v2_0.json).
+- [ ] **CHKL-15: MQTT IIoT Gateway & Telemetry Wire Conformance**: Đọc/ghi cấu hình Broker tại `0x0E00` (96 regs) và Telemetry Block tại `0x0C00` (96 regs) bằng FC03/FC16 đúng byte-exact theo [`splc_mqtt_wire.h`](splc_mqtt_wire.h); thanh ghi `+15` là `reserved_header` (luôn ghi/đọc `0x0000`); phản hồi trạng thái Live Broker tại `0x0E54..0x0E5F`.
+- [ ] **CHKL-16: IEC 61131-3 Data Types & Native Telemetry Conformance**: Toàn bộ giá trị 32-bit tại `0x0900..0x09FF` tuân thủ union `SPLC_TagValue_t`. Các kênh số thực `REAL` (`AI`, `VREG`, `VREG_RETAIN`) lưu nhị phân chuẩn IEEE-754 Single Precision (High Word trước, Low Word sau), tuyệt đối không nhân chia $10^{dec}$; bộ phân giải JSON MQTT tự động format số thực `float` hay số nguyên `int` theo kiểu dữ liệu tự nhiên của Tag.
+- [ ] **CHKL-17: Hardware Capabilities Declaration (0x0A08)**: MCU phản hồi chính xác giá trị 32-bit (2 holding registers, High Word trước) tại `0x0A08..0x0A09` theo bitmask `SPLC_HardwareCapabilities_t` (Logic, Retain, RTC, Ethernet, MQTT PUB, MQTT SUB). Không gây ngoại lệ `0x02` khi đọc FC03.
+
+---
+
+## 13. Hướng Dẫn Kỹ Thuật Cho Kỹ Sư Firmware: Triển Khai Chuẩn IEC 61131-3 & MQTT Telemetry
+
+Nhằm thống nhất 100% giữa Firmware MCU (C/C++) và SimplePLC Studio (C# .NET), các kỹ sư Firmware cần tuân thủ nghiêm ngặt các quy chuẩn sau:
+
+### 13.1. Quản lý Bộ nhớ Tag Store 32-Bit (`0x0900..0x09FF`)
+* Toàn bộ các Tag trong hệ thống đều chiếm đúng **4 bytes = 2 Holding Registers**.
+* Khai báo mảng Tag Store trên MCU bằng union `SPLC_TagValue_t` (đã định nghĩa trong `simpleplc_protocol_v2_0.h`):
+
+```c
+#include "simpleplc_protocol_v2_0.h"
+
+/* Bộ nhớ Tag Store tập trung trên MCU */
+static SPLC_TagValue_t g_tag_store[SPLC_MAX_RUNTIME_TAGS];
+
+/* Đọc giá trị Tag từ Modbus request (High Word trước, Low Word sau) */
+void splc_tag_write_from_modbus(uint16_t tag_index, uint16_t high_word, uint16_t low_word) {
+    if (tag_index >= SPLC_MAX_RUNTIME_TAGS) return;
+    g_tag_store[tag_index].words.high_word = high_word;
+    g_tag_store[tag_index].words.low_word  = low_word;
+}
+
+/* Đọc giá trị Tag gửi lên Modbus FC03 response */
+void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16_t *out_low_word) {
+    if (tag_index >= SPLC_MAX_RUNTIME_TAGS) {
+        *out_high_word = 0;
+        *out_low_word  = 0;
+        return;
+    }
+    *out_high_word = g_tag_store[tag_index].words.high_word;
+    *out_low_word  = g_tag_store[tag_index].words.low_word;
+}
+```
+
+### 13.2. Quy Tắc Xử Lý Kiểu Dữ Liệu (IEC 61131-3 Data Types)
+1. **`BOOL` (1-bit):**
+   * Áp dụng cho: `DI0..DI7`, `DO0..DO7`, `VFLAG0..VFLAG31`, `ModbusCoil`.
+   * Giá trị hợp lệ: `0` (FALSE) hoặc `1` (TRUE).
+   * Trong thanh ghi 32-bit: `as_raw32 == 0` hoặc `as_raw32 == 1`.
+2. **`DINT` / `INT32` (32-bit Signed Integer):**
+   * Áp dụng cho: `COUNTER0..COUNTER15`, `VREG` (mặc định), `VREG_RETAIN` (mặc định), `AI` (chế độ ADC thô 0..4095).
+   * Giá trị: Số nguyên có dấu bù 2 từ $-2,147,483,648$ đến $+2,147,483,647$.
+   * Thao tác: Truy cập qua trường `g_tag_store[tag_idx].as_int32`.
+3. **`REAL` (32-bit Floating Point IEEE-754):**
+   * Áp dụng cho: `AI` (chế độ số thực đã scale °C, bar, RPM,...), `VREG` (chế độ số thực), `VREG_RETAIN` (chế độ số thực).
+   * Giá trị: Số thực dấu phẩy động 32-bit chuẩn IEEE-754.
+   * Thao tác: Truy cập trực tiếp qua trường `g_tag_store[tag_idx].as_real`.
+   * **Lưu ý cốt lõi:** Tuyệt đối không nhân chia hệ số $10^{dec}$ tạm bợ vào thanh ghi Modbus. Client và Server trao đổi trực tiếp biểu diễn nhị phân 32-bit của số thực.
+
+### 13.3. Quy Chuẩn Xuất Bản MQTT Telemetry (`0x0C00`)
+1. **Khắc phục cấu trúc thanh ghi:**
+   * `Offset +15`: Được chuẩn hóa thành `reserved_header` (giá trị mặc định `0x0000`). Firmware **không** đọc trường này để lấy số chữ số lẻ nữa.
+2. **Thuật toán Phân giải Placeholder JSON:**
+   Khi sinh chuỗi JSON từ `payload_template`:
+   * Khi gặp `{val1}`..`{val8}` hoặc `{val}`:
+     * Nếu Tag cấu hình là `REAL`: Sử dụng `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `24.5` thay vì `24.5000`).
+     * Nếu Tag cấu hình là `DINT`/`INT32`: Sử dụng `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
+     * Nếu Tag cấu hình là `BOOL`: Sử dụng `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
+3. **Bảo vệ Bộ nhớ Đệm:**
+   * Giới hạn `topic`: Tối đa 32 bytes (đã bao gồm byte null).
+   * Giới hạn `payload_template`: Tối đa 128 bytes.
+   * Giới hạn buffer xuất bản: Khuyến nghị buffer truyền nhận MQTT tối thiểu 256 bytes để đủ dung lượng ghép chuỗi JSON hoàn chỉnh.
+
+### 13.4. Khai Báo Năng Lực Phần Cứng `HardwareCapabilities` (`0x0A08`)
+* Địa chỉ: `0x0A08` (32-bit uint32, 2 holding registers Big-Endian: `0x0A08` High Word, `0x0A09` Low Word, FC03 Read-Only).
+* Bitmask định nghĩa (`SPLC_HardwareCapabilities_t` trong `simpleplc_protocol_v2_0.h`):
+  * `0x0001` (`SPLC_CAP_BASE_LOGIC`): Hỗ trợ Rule Engine FBD.
+  * `0x0002` (`SPLC_CAP_RETENTIVE`): Hỗ trợ lưu trữ Flash/NVRAM/FRAM.
+  * `0x0004` (`SPLC_CAP_RTC`): Có IC RTC DS3231 hoặc LSE crystal.
+  * `0x0008` (`SPLC_CAP_ETHERNET`): Có cổng mạng vật lý (LAN/WiFi).
+  * `0x0010` (`SPLC_CAP_MQTT_PUB`): Hỗ trợ phân hệ MQTT Telemetry (0x0C00).
+  * `0x0020` (`SPLC_CAP_MQTT_SUB`): Hỗ trợ nhận lệnh điều khiển Inbound MQTT SUB.
+  * `0x0040` (`SPLC_CAP_SD_DATALOG`): Có khe cắm thẻ nhớ MicroSD.
+* **Nguyên tắc vận hành:** Khi kết nối, Studio đọc `0x0A08` để biết chính xác phần cứng có năng lực gì. Chỉ khi bit `SPLC_CAP_MQTT_PUB (0x0010)` được bật, Studio mới cho phép Deploy vùng nhớ `0x0C00 / 0x0E00`. Khi bit `SPLC_CAP_MQTT_SUB (0x0020)` chưa bật, Studio cô lập khối SUB trong chế độ mô phỏng an toàn, không gửi lệnh ghi Modbus thừa xuống MCU.
+
+### 13.5. Quy Chuẩn Nhận Lệnh Điều Khiển MQTT Subscribe (`0x0D80..0x0DFF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC-SPEC-MQTT-002_SUBSCRIBE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_002_SUBSCRIBE_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x0D80 - 0x0DFF` (128 registers = 256 bytes): Hỗ trợ tối đa 2 khối Subscribe độc lập (mỗi khối 64 registers = 128 bytes).
+   * Block 0: `0x0D80..0x0DBF`, Block 1: `0x0DC0..0x0DFF`.
+2. **Cấu trúc mỗi khối Subscribe:**
+   * `Offset +0`: Control Flags (Enable, QoS, QueueMode, IgnoreRetained, FailSafeAction).
+   * `Offset +2..+3`: FailSafe Timeout tính bằng mili-giây (32-bit uint32).
+   * `Offset +4`: Pin Count (1..4).
+   * `Offset +8..+23`: Topic (32 bytes ASCII null-padded).
+   * `Offset +24..+63`: 4 Pin Bindings (mỗi pin 10 registers = 20 bytes: Target TagIndex, DataType, DefaultValue, 12 bytes JsonKey).
+3. **Nguyên tắc an toàn thời gian thực:**
+   * Tuyệt đối không ghi trực tiếp vào `g_tag_store` trong callback MQTT.
+   * Sử dụng FreeRTOS Queue để đệm bản tin.
+   * Chỉ cập nhật vào `g_tag_store` tại đầu chu kỳ quét (Scan Pass Boundary) 10ms của PLC Engine để tránh xung đột dữ liệu (Thread Safety).
+   * Kiểm tra Fail-Safe Watchdog: Nếu quá `failsafe_timeout_ms` không nhận được tin, tự động đưa các chân tín hiệu về giá trị an toàn (Reset về 0 hoặc Set về Default).
+

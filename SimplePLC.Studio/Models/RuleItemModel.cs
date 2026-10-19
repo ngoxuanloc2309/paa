@@ -57,10 +57,12 @@ public partial class RuleItemModel : ObservableObject
     private CompareOp _compareOp = CompareOp.NONE;
 
     [ObservableProperty]
-    private int _thresholdLo;
+    private double _thresholdLo;
 
     [ObservableProperty]
-    private int _thresholdHi;
+    private double _thresholdHi;
+
+    public bool IsFloat => Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 || Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
 
     [ObservableProperty]
     private uint _forMs;
@@ -139,6 +141,8 @@ public partial class RuleItemModel : ObservableObject
             if (CompareOp == CompareOp.NONE)
                 return GuardNegated ? $"{GuardTag.Name} == 0" : $"{GuardTag.Name} == 1";
 
+            string loStr = ThresholdLo.ToString("0.##");
+            string hiStr = ThresholdHi.ToString("0.##");
             string op = CompareOp switch
             {
                 CompareOp.EQ => "==",
@@ -147,10 +151,10 @@ public partial class RuleItemModel : ObservableObject
                 CompareOp.LT => "<",
                 CompareOp.GTE => ">=",
                 CompareOp.LTE => "<=",
-                CompareOp.BETWEEN => $"in [{ThresholdLo}..{ThresholdHi}]",
+                CompareOp.BETWEEN => $"in [{loStr}..{hiStr}]",
                 _ => ""
             };
-            return CompareOp == CompareOp.BETWEEN ? $"{GuardTag.Name} {op}" : $"{GuardTag.Name} {op} {ThresholdLo}";
+            return CompareOp == CompareOp.BETWEEN ? $"{GuardTag.Name} {op}" : $"{GuardTag.Name} {op} {loStr}";
         }
     }
 
@@ -180,18 +184,20 @@ public partial class RuleItemModel : ObservableObject
         get
         {
             bool isVi = SimplePLC.Studio.Services.LocalizationService.Instance.IsVietnamese;
+            string loStr = ThresholdLo.ToString("0.##");
+            string hiStr = ThresholdHi.ToString("0.##");
             string opText = "";
             if (CompareOp != CompareOp.NONE)
             {
                 opText = CompareOp switch
                 {
-                    CompareOp.EQ => $"== {ThresholdLo}",
-                    CompareOp.NEQ => $"!= {ThresholdLo}",
-                    CompareOp.GT => $"> {ThresholdLo}",
-                    CompareOp.LT => $"< {ThresholdLo}",
-                    CompareOp.GTE => $">= {ThresholdLo}",
-                    CompareOp.LTE => $"<= {ThresholdLo}",
-                    CompareOp.BETWEEN => isVi ? $"trong dải [{ThresholdLo}..{ThresholdHi}]" : $"in range [{ThresholdLo}..{ThresholdHi}]",
+                    CompareOp.EQ => $"== {loStr}",
+                    CompareOp.NEQ => $"!= {loStr}",
+                    CompareOp.GT => $"> {loStr}",
+                    CompareOp.LT => $"< {loStr}",
+                    CompareOp.GTE => $">= {loStr}",
+                    CompareOp.LTE => $"<= {loStr}",
+                    CompareOp.BETWEEN => isVi ? $"trong dải [{loStr}..{hiStr}]" : $"in range [{loStr}..{hiStr}]",
                     _ => ""
                 };
             }
@@ -209,8 +215,8 @@ public partial class RuleItemModel : ObservableObject
                     TriggerType.ON_FALL => "Sườn xuống (1 → 0, TẮT)",
                     TriggerType.ON_CHANGE => "Đổi trạng thái / giá trị",
                     TriggerType.TIME_WINDOW => ThresholdHi > 0
-                        ? $"Trong khung giờ {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2} - {ThresholdHi / 100:D2}:{ThresholdHi % 100:D2}"
-                        : $"Đúng thời điểm {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2}",
+                        ? $"Trong khung giờ {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2} - {(int)ThresholdHi / 100:D2}:{(int)ThresholdHi % 100:D2}"
+                        : $"Đúng thời điểm {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2}",
                     TriggerType.INTERVAL => $"Chu kỳ định kỳ {ForMs} ms",
                     _ => TriggerType.ToString()
                 };
@@ -223,8 +229,8 @@ public partial class RuleItemModel : ObservableObject
                     TriggerType.ON_FALL => "Falling edge (1 → 0, OFF)",
                     TriggerType.ON_CHANGE => "State / value change",
                     TriggerType.TIME_WINDOW => ThresholdHi > 0
-                        ? $"During window {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2} - {ThresholdHi / 100:D2}:{ThresholdHi % 100:D2}"
-                        : $"At time {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2}",
+                        ? $"During window {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2} - {(int)ThresholdHi / 100:D2}:{(int)ThresholdHi % 100:D2}"
+                        : $"At time {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2}",
                     TriggerType.INTERVAL => $"Interval every {ForMs} ms",
                     _ => TriggerType.ToString()
                 };
@@ -331,18 +337,21 @@ public partial class RuleItemModel : ObservableObject
 
         bool isVi = SimplePLC.Studio.Services.LocalizationService.Instance.IsVietnamese;
 
+        string loStr = ThresholdLo.ToString("0.##");
+        string hiStr = ThresholdHi.ToString("0.##");
+
         string cond = "";
         if (CompareOp != CompareOp.NONE)
         {
             string opStr = CompareOp switch
             {
-                CompareOp.EQ => $"== {ThresholdLo}",
-                CompareOp.NEQ => $"!= {ThresholdLo}",
-                CompareOp.GT => $"> {ThresholdLo}",
-                CompareOp.LT => $"< {ThresholdLo}",
-                CompareOp.GTE => $">= {ThresholdLo}",
-                CompareOp.LTE => $"<= {ThresholdLo}",
-                CompareOp.BETWEEN => isVi ? $"trong khoảng [{ThresholdLo}..{ThresholdHi}]" : $"between [{ThresholdLo}..{ThresholdHi}]",
+                CompareOp.EQ => $"== {loStr}",
+                CompareOp.NEQ => $"!= {loStr}",
+                CompareOp.GT => $"> {loStr}",
+                CompareOp.LT => $"< {loStr}",
+                CompareOp.GTE => $">= {loStr}",
+                CompareOp.LTE => $"<= {loStr}",
+                CompareOp.BETWEEN => isVi ? $"trong khoảng [{loStr}..{hiStr}]" : $"between [{loStr}..{hiStr}]",
                 _ => ""
             };
             cond = $" {opStr}";
@@ -358,7 +367,7 @@ public partial class RuleItemModel : ObservableObject
                 TriggerType.ON_CHANGE => !string.IsNullOrEmpty(cond)
                     ? $"Khi {TriggerTag?.DisplayName ?? "???"}{cond}"
                     : $"Khi {TriggerTag?.DisplayName ?? "???"} đổi giá trị",
-                TriggerType.TIME_WINDOW => $"Trong ca {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2} - {ThresholdHi / 100:D2}:{ThresholdHi % 100:D2}",
+                TriggerType.TIME_WINDOW => $"Trong ca {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2} - {(int)ThresholdHi / 100:D2}:{(int)ThresholdHi % 100:D2}",
                 TriggerType.INTERVAL => $"Mỗi chu kỳ {ForMs} ms",
                 _ => "Khi sự kiện xảy ra"
             };
@@ -376,7 +385,7 @@ public partial class RuleItemModel : ObservableObject
                 TriggerType.ON_CHANGE => !string.IsNullOrEmpty(cond)
                     ? $"When {TriggerTag?.DisplayName ?? "???"}{cond}"
                     : $"When {TriggerTag?.DisplayName ?? "???"} value changes",
-                TriggerType.TIME_WINDOW => $"During shift {ThresholdLo / 100:D2}:{ThresholdLo % 100:D2} - {ThresholdHi / 100:D2}:{ThresholdHi % 100:D2}",
+                TriggerType.TIME_WINDOW => $"During shift {(int)ThresholdLo / 100:D2}:{(int)ThresholdLo % 100:D2} - {(int)ThresholdHi / 100:D2}:{(int)ThresholdHi % 100:D2}",
                 TriggerType.INTERVAL => $"Every interval of {ForMs} ms",
                 _ => "When event triggers"
             };
@@ -445,15 +454,20 @@ public partial class RuleItemModel : ObservableObject
         var actionTagDef = product.FindTagByIndex(actIdx) ??
                            new SimplePLC.Domain.Models.TagDefinition(actIdx, ActionTag?.Name ?? $"TAG_{actIdx}", SimplePLC.Domain.Enums.TagKind.DiscreteOutput, SimplePLC.Domain.Enums.TagDataType.Boolean, isReadOnly: false);
 
+        bool isFloat = IsFloat;
         var trigger = new SimplePLC.Domain.Models.TriggerModel(triggerTagDef, (SimplePLC.Domain.Enums.TriggerKind)TriggerType)
         {
             CompareOp = (SimplePLC.Domain.Enums.CompareOperator)CompareOp,
             ThresholdLo = ThresholdLo,
             ThresholdHi = ThresholdHi,
+            IsFloat = isFloat,
             ForMs = ForMs
         };
 
-        var action = new SimplePLC.Domain.Models.ActionModel(actionTagDef, (SimplePLC.Domain.Enums.ActionKind)ActionType, ActionParam);
+        var action = new SimplePLC.Domain.Models.ActionModel(actionTagDef, (SimplePLC.Domain.Enums.ActionKind)ActionType, ActionParam)
+        {
+            IsFloat = isFloat
+        };
 
         SimplePLC.Domain.Models.GuardModel guard = SimplePLC.Domain.Models.GuardModel.Empty;
         if (GuardTag != null && GuardTag.Kind != TagKind.None)
@@ -489,7 +503,7 @@ public partial class RuleItemModel : ObservableObject
             ForMs = domainRule.Trigger.ForMs,
             TriggerTag = tagsList.FirstOrDefault(t => t.Index == domainRule.Trigger.Tag.TagIndex),
             ActionType = (ActionType)domainRule.Action.Type,
-            ActionParam = domainRule.Action.Parameter,
+            ActionParam = (int)Math.Round(domainRule.Action.Parameter),
             ActionTag = tagsList.FirstOrDefault(t => t.Index == domainRule.Action.TargetTag.TagIndex)
         };
 

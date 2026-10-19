@@ -176,4 +176,65 @@ public class FunctionBlockGatewayTests
         Assert.Equal("operator", decodedBroker.Username);
         Assert.Equal("secret", decodedBroker.Password);
     }
+
+    [Fact]
+    public async Task DeployRulesUseCase_WithMqttSubConfigs_DeploysMqttSubToMCU()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        var writer = new RuleTableWriter(fakeClient);
+        var useCase = new DeployRulesUseCase(writer);
+
+        var table = new RuleTable();
+        var di0 = _product.FindTagByName("DI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+        table.AddRule(new Rule(0, "R1", new TriggerModel(di0, TriggerKind.OnRise), new ActionModel(do0, ActionKind.SetTag, 1)));
+
+        var subConfigs = new List<MqttSubscriptionConfigDto>
+        {
+            new()
+            {
+                Topic = "plant/cmd/furnace_01",
+                Qos = 1,
+                QueueMode = MqttQueueMode.Fifo,
+                IgnoreRetainedOnBoot = true,
+                TimeoutMs = 5000,
+                FailSafeAction = MqttFailSafeAction.ResetToDefault,
+                Pins = new List<MqttPinBindingDto>
+                {
+                    new()
+                    {
+                        Id = "sp",
+                        Label = "Setpoint",
+                        JsonPath = "sp",
+                        DataType = MqttDataType.Float,
+                        TargetTagIndex = 25,
+                        DefaultValue = 150.0
+                    }
+                }
+            }
+        };
+
+        // Act
+        var result = await useCase.ExecuteAsync(table, timers: null, counters: null, mqttConfigs: null, brokerConfig: null, subConfigs, slaveId: 1);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.DeployedRuleCount);
+
+        // Verify MQTT Subscribe Block 0 written at 0x0D80 (64 registers)
+        var subRegs = await fakeClient.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttSubscribeTableBaseAddress, ModbusRegisterMap.MqttSubscribeRegistersPerBlock);
+        var decodedSub = SimplePLC.Protocol.Codec.MqttSubscriptionCodec.DecodeBlock(subRegs);
+        Assert.Equal("plant/cmd/furnace_01", decodedSub.Topic);
+        Assert.Equal(1, decodedSub.Qos);
+        Assert.Equal(MqttQueueMode.Fifo, decodedSub.QueueMode);
+        Assert.True(decodedSub.IgnoreRetainedOnBoot);
+        Assert.Equal(5000u, decodedSub.TimeoutMs);
+        Assert.Equal(MqttFailSafeAction.ResetToDefault, decodedSub.FailSafeAction);
+        Assert.Single(decodedSub.Pins);
+        Assert.Equal((ushort)25, decodedSub.Pins[0].TargetTagIndex);
+        Assert.Equal("sp", decodedSub.Pins[0].JsonPath);
+        Assert.Equal(150.0, decodedSub.Pins[0].DefaultValue, precision: 2);
+    }
 }

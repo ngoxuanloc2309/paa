@@ -38,6 +38,16 @@ public sealed class RuleTableWriter : IRuleTableWriter
         CancellationToken cancellationToken = default) =>
         DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, null, cancellationToken);
 
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, null, cancellationToken);
+
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
         IReadOnlyList<RuleRecordDto> rules,
@@ -45,6 +55,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<FbCounterRecordDto>? counters,
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         CancellationToken cancellationToken = default)
     {
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
@@ -86,8 +97,37 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
-        // 3. Nạp cấu hình MQTT Telemetry blocks (0x0C00) nếu có (SPLC-SPEC-MQTT-001)
-        if (mqttConfigs != null)
+        // 3. Nạp cấu hình MQTT Telemetry & Broker (0x0C00, 0x0D80, 0x0E00) nếu thiết bị có năng lực MQTT tương ứng (0x0A08)
+        bool isMqttPubSupported = false;
+        bool isMqttSubSupported = false;
+        if (mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
+        {
+            try
+            {
+                // Kiểm tra năng lực phần cứng thực tế qua thanh ghi HardwareCapabilities tại 0x0A08
+                var rawCaps = await _client.ReadHoldingRegistersAsync(
+                    slaveId,
+                    ModbusRegisterMap.HardwareCapabilitiesAddress,
+                    ModbusRegisterMap.HardwareCapabilitiesLength,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (rawCaps != null && rawCaps.Length >= ModbusRegisterMap.HardwareCapabilitiesLength)
+                {
+                    var caps = RegisterCodec.DecodeHardwareCapabilities(rawCaps);
+                    isMqttPubSupported = (caps & SPLC_HardwareCapabilities.MQTT_PUB) != 0;
+                    isMqttSubSupported = (caps & SPLC_HardwareCapabilities.MQTT_SUB) != 0;
+                }
+            }
+            catch
+            {
+                // Thiết bị không hỗ trợ vùng nhớ 0x0A08 hoặc từ chối truy cập
+                isMqttPubSupported = false;
+                isMqttSubSupported = false;
+            }
+        }
+
+        // 3.1 Nạp cấu hình MQTT Telemetry blocks (0x0C00) nếu thiết bị hỗ trợ PUB (SPLC-SPEC-MQTT-001)
+        if (isMqttPubSupported && mqttConfigs != null)
         {
             int blockCount = Math.Min(mqttConfigs.Count, ModbusRegisterMap.MqttMaxBlocks);
             for (int i = 0; i < blockCount; i++)
@@ -106,7 +146,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 }
             }
 
-            // Vô hiệu hóa (disable) các khối MQTT cũ không còn nằm trong cấu hình triển khai
+            // Vô hiệu hóa (disable) các khối MQTT PUB cũ không còn nằm trong cấu hình triển khai
             for (int j = blockCount; j < ModbusRegisterMap.MqttMaxBlocks; j++)
             {
                 ushort staleBlockAddr = ModbusRegisterMap.GetMqttBlockAddress(j);
@@ -114,8 +154,36 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
-        // 4. Nạp cấu hình MQTT Broker (0x0E00) nếu có (SPLC-SPEC-MQTT-001)
-        if (brokerConfig != null)
+        // 3.2 Nạp cấu hình MQTT Inbound Subscribe blocks (0x0D80) nếu thiết bị hỗ trợ SUB (SPLC-SPEC-MQTT-002)
+        if (isMqttSubSupported && mqttSubConfigs != null)
+        {
+            int blockCount = Math.Min(mqttSubConfigs.Count, ModbusRegisterMap.MqttSubscribeMaxBlocks);
+            for (int i = 0; i < blockCount; i++)
+            {
+                var blockRegs = new ushort[ModbusRegisterMap.MqttSubscribeRegistersPerBlock];
+                MqttSubscriptionCodec.EncodeBlock(mqttSubConfigs[i], blockRegs);
+
+                ushort blockStartAddr = ModbusRegisterMap.GetMqttSubscribeBlockAddress(i);
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    blockStartAddr,
+                    blockRegs.AsMemory());
+
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Vô hiệu hóa (disable) các khối MQTT SUB cũ không còn nằm trong cấu hình triển khai
+            for (int j = blockCount; j < ModbusRegisterMap.MqttSubscribeMaxBlocks; j++)
+            {
+                ushort staleBlockAddr = ModbusRegisterMap.GetMqttSubscribeBlockAddress(j);
+                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 3.3 Nạp cấu hình MQTT Broker (0x0E00) nếu thiết bị hỗ trợ ít nhất một phân hệ MQTT
+        if ((isMqttPubSupported || isMqttSubSupported) && brokerConfig != null)
         {
             var brokerRegs = new ushort[ModbusRegisterMap.MqttBrokerConfigRegisters];
             MqttBrokerConfigCodec.Encode(brokerConfig, brokerRegs);

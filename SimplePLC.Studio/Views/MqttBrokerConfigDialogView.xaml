@@ -213,6 +213,7 @@
 
                             <Button Grid.Column="0" 
                                     Content="{Binding [MqttBrokerTestBtn], Source={x:Static services:LocalizationService.Instance}}"
+                                    ToolTip="{Binding [MqttBrokerTestBtnTip], Source={x:Static services:LocalizationService.Instance}}"
                                     Command="{Binding TestConnectionCommand}"
                                     Style="{StaticResource BtnSecondary}"
                                     Padding="14,6" FontSize="11.5" VerticalAlignment="Center" />

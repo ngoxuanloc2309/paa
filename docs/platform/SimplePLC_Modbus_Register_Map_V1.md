@@ -29,9 +29,13 @@ The Modbus 16-bit register map is organized into two primary address spaces:
 | `0x0900..0x09FF` | 256 | **Runtime Tag Values** | RW | FC03 / FC16 | Live 32-bit values of up to 128 runtime tags (`0x0900 + TagIndex * 2`). High Word first. Direct writes protected by Diag Safety Interlock. |
 | `0x0A00` | 1 | **System Command** | WO | FC06 / FC16 | System command request (`1: REBOOT`, `2: CLEAR_FAULTS`, `3: FACTORY_RESET`). |
 | `0x0A01..0x0A02` | 2 | **System Command Result**| RO | FC03 | Execution result: `[0]=CommandStatus` (0=IDLE, 1=ACCEPTED, 2=BUSY, 3=DONE, 4=ERROR), `[1]=ErrorCode`. |
+| `0x0A08..0x0A09` | 2 | **Hardware Capabilities**| RO | FC03 | 32-bit bitmask (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40). |
 | `0x0A20..0x0A24` | 5 | **Diagnostic Control Block**| RW | FC03 / FC16 | Diagnostic subsystem (V2): `[0]=DIAG_COMMAND` (1=ENTER, 2=HEARTBEAT, 3=EXIT, 4=COMMIT_RETAIN, 5=DISCARD), `[1]=STATE`, `[2]=FLAGS`, `[3]=LEASE_MS` (3000ms), `[4]=ERROR`. |
 | `0x0B00..0x0B3F` | 64 | **Dedicated FB Timers** | RW | FC03 / FC16 | 8 dedicated IEC 61131-3 Timers (TON, TOF, TP), 8 registers each (Mode, PresetMs, ElapsedMs, IN, Reset, Running, Q). |
 | `0x0B40..0x0B7F` | 64 | **Dedicated FB Counters** | RW | FC03 / FC16 | 8 dedicated IEC 61131-3 Counters (CTU, CTD, CTUD), 8 registers each (Mode, PV, CV, CU, CD, Reset, Load, QU, QD). |
+| `0x0C00..0x0D7F` | 384 | **MQTT Telemetry PUB** | RW | FC03 / FC16 | 4 independent outbound publication streams (96 regs each: Topic, Interval, COV Deadband, 8 Tag indices, 128B JSON template). |
+| `0x0D80..0x0DFF` | 128 | **MQTT Inbound SUB** | RW | FC03 / FC16 | 2 independent inbound subscribe blocks (64 regs each: Topic, QoS, Queue, FailSafe Timeout, 4 Pin bindings). |
+| `0x0E00..0x0E5F` | 96 | **MQTT Broker Config** | RW | FC03 / FC16 | System MQTT Broker parameters (Host, Port, TLS, CleanSession, KeepAlive, ClientId, User, Password). |
 
 ---
 
@@ -54,14 +58,24 @@ The Modbus 16-bit register map is organized into two primary address spaces:
 
 ## 4. Runtime Tag Address Formulas & Dynamic Layout
 
-### 4.1 Modbus Register Address Formula
+### 4.1 Modbus Register Address Formula & IEC 61131-3 Data Types
 For any tag with index `TagIndex` (0..127):
 ```text
 ModbusAddress = 0x0900 + TagIndex * 2
-High Word = Memory[ModbusAddress]
-Low Word  = Memory[ModbusAddress + 1]
-Value     = (int32)((High Word << 16) | Low Word)
+High Word     = Memory[ModbusAddress]
+Low Word      = Memory[ModbusAddress + 1]
+Raw 32-bit    = (uint32)((High Word << 16) | Low Word)
 ```
+
+Starting from Platform V2.0, the 32-bit raw value is interpreted strictly according to the IEC 61131-3 Data Type of the Tag (see `SPLC_TagValue_t` in `simpleplc_protocol_v2_0.h`):
+
+| IEC 61131-3 Type | Storage | Interpretation | Applicable Tags |
+|---|---|---|---|
+| **`BOOL`** | 32-bit slot | `0` = FALSE, `1` = TRUE | `DI`, `DO`, `VFLAG`, `ModbusCoil` |
+| **`DINT` / `INT32`** | 32-bit signed int | Two's complement: `(int32_t)Raw32` | `COUNTER`, `AI` (ADC raw 0..4095), `VREG`, `VREG_RETAIN`, `ModbusHolding` |
+| **`REAL` / `Float32`** | 32-bit IEEE-754 | Single-Precision Float: `*(float*)&Raw32` | `AI` (physical engineering units), `VREG`, `VREG_RETAIN`, `ModbusHolding` |
+
+> **Note on Endianness:** Modbus word order is strictly **Big-Endian (High Word first)** on the wire. Real numbers are transmitted directly as IEEE-754 binary floats without arbitrary $10^{dec}$ scaling multipliers.
 
 ### 4.2 Dynamic Tag Index Layout (`TagLayoutMap`)
 Starting with Platform V2.0, tag indices are no longer fixed to 8-slot boundaries. Tag Base Indices are calculated dynamically by packing declared resources consecutively based on `DeviceResourceInfo` (0x0020):

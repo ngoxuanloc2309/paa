@@ -115,4 +115,81 @@ public class RuntimeEngineApplicationTests
         Assert.Equal(RuleEvaluationStatus.Pass, snap2.Evaluations[0].Status);
         Assert.Equal(1, store.GetValue(8));
     }
+
+    [Fact]
+    public void Scan_FloatComparison_EvaluatesThresholdCorrectly()
+    {
+        // Tag 16 (Temperature), Tag 8 (Cooler Relay)
+        // Rule: If Temperature > 55.5 -> Turn ON Cooler (Tag 8 = 1)
+        int initialTempBits = BitConverter.SingleToInt32Bits(50.0f);
+        var store = new InMemoryTagStore((16, initialTempBits), (8, 0));
+        var engine = new RuntimeEngine(store);
+
+        var tagIn = new TagDefinition(16, "Temperature", TagKind.AnalogInput, TagDataType.Float32, true);
+        var tagOut = new TagDefinition(8, "Cooler", TagKind.DiscreteOutput, TagDataType.Boolean, false);
+
+        var trigger = new TriggerModel(tagIn, TriggerKind.OnChange)
+        {
+            CompareOp = CompareOperator.GreaterThan,
+            ThresholdLo = 55.5,
+            IsFloat = true
+        };
+
+        var rule = new Rule(0, "R_Cooler_Control", trigger, new ActionModel(tagOut, ActionKind.SetTag, 1));
+
+        // Scan 1: initial 50.0 <= 55.5 -> Skip
+        var snap1 = engine.Scan(new[] { rule }, 0);
+        Assert.Equal(RuleEvaluationStatus.Skip, snap1.Evaluations[0].Status);
+        Assert.Equal(0, store.GetValue(8));
+
+        // Temp rises to 55.4 (still <= 55.5) -> Skip
+        store.SetValue(16, BitConverter.SingleToInt32Bits(55.4f));
+        var snap2 = engine.Scan(new[] { rule }, 10);
+        Assert.Equal(RuleEvaluationStatus.Skip, snap2.Evaluations[0].Status);
+        Assert.Equal(0, store.GetValue(8));
+
+        // Temp rises to 55.6 (> 55.5) -> Pass, Cooler turns ON!
+        store.SetValue(16, BitConverter.SingleToInt32Bits(55.6f));
+        var snap3 = engine.Scan(new[] { rule }, 20);
+        Assert.Equal(RuleEvaluationStatus.Pass, snap3.Evaluations[0].Status);
+        Assert.Equal(1, store.GetValue(8));
+    }
+
+    [Fact]
+    public void Scan_FloatLinearScale_CalculatesIEEE754Correctly()
+    {
+        // Tag 16 (Raw Pressure), Tag 52 (Scaled Bar)
+        // y = k * x + b where k = 0.5f, b = 10.5f, x = 100.0f
+        // Expected y = 0.5 * 100.0 + 10.5 = 60.5f
+        int initialRawBits = BitConverter.SingleToInt32Bits(0.0f);
+        var store = new InMemoryTagStore((16, initialRawBits), (52, 0));
+        var engine = new RuntimeEngine(store);
+
+        var tagIn = new TagDefinition(16, "RawSensor", TagKind.AnalogInput, TagDataType.Float32, true);
+        var tagOut = new TagDefinition(52, "ScaledBar", TagKind.VirtualRegister, TagDataType.Float32, false);
+
+        var trigger = new TriggerModel(tagIn, TriggerKind.OnChange)
+        {
+            ThresholdHi = 10.5, // offset b
+            IsFloat = true
+        };
+
+        var action = new ActionModel(tagOut, ActionKind.ScaleTag, 0.5)
+        {
+            IsFloat = true
+        };
+
+        var rule = new Rule(0, "R_Scale_Float", trigger, action);
+
+        // Initial scan
+        engine.Scan(new[] { rule }, 0);
+
+        // Sensor updates to 100.0f
+        store.SetValue(16, BitConverter.SingleToInt32Bits(100.0f));
+        var snap = engine.Scan(new[] { rule }, 10);
+
+        Assert.Equal(RuleEvaluationStatus.Pass, snap.Evaluations[0].Status);
+        float scaledResult = BitConverter.Int32BitsToSingle(store.GetValue(52));
+        Assert.Equal(60.5f, scaledResult, precision: 4);
+    }
 }

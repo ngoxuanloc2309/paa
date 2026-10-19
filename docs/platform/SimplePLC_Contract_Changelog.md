@@ -1,5 +1,40 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.6.0] - 2026-10-14 (IEC 61131-3 DATA TYPES STANDARDIZATION & NATIVE TELEMETRY WIRE PROFILE)
+
+### Added
+- **Chuẩn hóa Kiểu Dữ Liệu Quốc Tế IEC 61131-3 Cho Toàn Bộ Hệ Thống (Host & MCU Firmware)**:
+  - Bổ sung định nghĩa chuẩn `SPLC_TagDataType_t` (`SPLC_DATA_TYPE_BOOL = 1`, `SPLC_DATA_TYPE_INT32 = 2`, `SPLC_DATA_TYPE_REAL = 3`) và cấu trúc hợp nhất 32-bit `SPLC_TagValue_t` vào file header C chính thức [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h).
+  - Ánh xạ rõ ràng kiểu dữ liệu theo bản chất phần cứng và logic:
+    - **`BOOL` (1-bit)**: Dành riêng cho `DI` (Discrete Input), `DO` (Discrete Output), `VFLAG` (Virtual Flag), `ModbusCoil`.
+    - **`DINT` / `INT32` (32-bit Signed Integer)**: Dành cho `AI` (ADC raw 0..4095), `COUNTER`, `VREG` (số nguyên), `VREG_RETAIN` (số nguyên), `ModbusHolding`.
+    - **`REAL` / `Float32` (32-bit Floating Point IEEE-754)**: Dành cho `AI` (kênh đo lường vật lý: °C, bar, RPM, kW), `VREG` (kết quả tính toán thực), `VREG_RETAIN` (ngưỡng setpoint thực), `ModbusHolding`.
+  - Hỗ trợ người dùng chuyển đổi linh hoạt kiểu dữ liệu `DINT` <-> `REAL` cho tất cả các thanh ghi 32-bit (`AI`, `VREG`, `VREG_RETAIN`, `ModbusHolding`) trực tiếp tại bảng Tag Catalog trong SimplePLC Studio.
+- **Chuẩn hóa Giao Thức MQTT Subscribe ICD (SPLC-SPEC-MQTT-002)**:
+  - Định nghĩa vùng nhớ cấu hình thuê bao lệnh điều khiển inbound MQTT SUB tại `0x0D80..0x0DFF` (128 thanh ghi = 2 khối $\times$ 64 thanh ghi).
+  - Bổ sung cấu trúc chuẩn C firmware `SPLC_MqttSubPinBinding_t` (12 bytes/pin, tối đa 8 pins/block) và `SPLC_MqttSubscriptionBlock_t` (128 bytes/block) trong `simpleplc_protocol_v2_0.h`.
+  - Hỗ trợ cơ chế hàng đợi lệnh (`Fifo` vs `LatestWins`) và chính sách an toàn Fail-Safe Timeout (`KeepLastValue`, `SetToDefault`, `ZeroOutput`) khi mất kết nối Broker.
+  - Ban hành tài liệu ICD: `docs/firmware/SPLC_SPEC_MQTT_002_SUBSCRIBE_ICD.md`.
+- **Giải Pháp Công Nghiệp Đóng Gói SPX Logistics Sort-to-Light**:
+  - Ban hành Hồ sơ đề xuất giải pháp kỹ thuật chuẩn quốc tế: `docs/SPX_Sort_to_Light_Solution_Proposal_V2.docx`.
+  - Dự án mẫu `SPX_SortToLight_Standard.synx` tích hợp 2 luồng logic trực giao: Nhận lệnh WMS qua MQTT SUB (Timer TON 5s auto-off) và Cảm biến xác nhận (DI0) gửi viễn trắc MQTT PUB.
+
+
+### Changed
+- **Loại Bỏ Hoàn Toàn Anti-Pattern "Decimals" & Hệ Số Nhân Ảo $10^{dec}$**:
+  - Loại bỏ hoàn toàn trường số chữ số lẻ khỏi Tag Catalog và bảng cấu hình MQTT Publish.
+  - Bảng cấu hình xuất bản MQTT Telemetry (`0x0C00..0x0D7F`): Chuẩn hóa thanh ghi `Offset +15` thành `reserved_header` (luôn ghi/đọc `0x0000`).
+  - Dữ liệu `REAL` được trao đổi trực tiếp trên đường truyền Modbus RTU và bộ nhớ Tag Store (`0x0900..0x09FF`) dưới dạng nhị phân 32-bit IEEE-754 (High Word trước, Low Word sau), đảm bảo độ chính xác tuyệt đối, loại bỏ lỗi làm tròn và đơn giản hóa mã nguồn MCU.
+- **Quy Chuẩn Xuất Bản Viễn Trắc Tự Nhiên (Native Telemetry Formatting)**:
+  - MCU Firmware phân giải token JSON `{val1}`..`{val8}` / `{val}` / `{vals}` trực tiếp theo kiểu dữ liệu tự nhiên của Tag: `REAL` xuất ra số thực (`%.4g`), `DINT` xuất ra số nguyên (`%ld`), `BOOL` xuất ra boolean (`1`/`0` hoặc `true`/`false`).
+- **Nâng Cấp Giao Diện Bảng Tag Catalog Đạt Tiêu Chuẩn Công Nghiệp ISA-101**:
+  - Thay thế toàn bộ mã màu neon web bằng bảng màu công nghiệp **Industrial Slate Gray** (`#FFFFFF`, `#D1D5DB`, `#1E293B`, `#E2E8F0`), tương đồng giao diện Siemens TIA Portal V19 / Rockwell Studio 5000.
+  - Sửa lỗi crash ứng dụng khi chuyển tab Tag Catalog do sai kiểu enum `KeyboardNavigation.DirectionalNavigation`.
+- **Hoàn Thiện Bộ Tài Liệu Kỹ Thuật Firmware & Kiến Trúc**:
+  - Ban hành tài liệu đặc tả kiến trúc: [`docs/architecture/SPLC_SPEC_IEC61131_DATA_TYPES_AND_MQTT_STANDARDIZATION.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/architecture/SPLC_SPEC_IEC61131_DATA_TYPES_AND_MQTT_STANDARDIZATION.md).
+  - Bổ sung **Mục 13 & Tiêu chí nghiệm thu CHKL-16** trong [`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md).
+  - Cập nhật [`docs/firmware/splc_mqtt_wire.h`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/splc_mqtt_wire.h) và [`docs/firmware/SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_001_TELEMETRY_ICD.md).
+
 ## [2.5.0] - 2026-10-13 (PLATFORM V2.0 STANDARDIZATION & MULTI-CLASS MCU GATEWAY CONNECTIVITY)
 
 ### Added

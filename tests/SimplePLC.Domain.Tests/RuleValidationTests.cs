@@ -157,4 +157,53 @@ public class RuleValidationTests
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Code == RuleValidator.ErrorIncrementTargetNotInteger);
     }
+
+    [Fact]
+    public void CompareOp_Between_FloatThresholds_Valid_PassesValidation()
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+
+        var trigger = new TriggerModel(ai0, TriggerKind.OnChange, thresholdLo: 25.5, thresholdHi: 75.8)
+        {
+            CompareOp = CompareOperator.Between
+        };
+
+        var rule = new Rule(
+            ruleIndex: 0,
+            name: "ValidFloatBetween",
+            trigger: trigger,
+            action: new ActionModel(do0, ActionKind.SetTag, 1)
+        );
+
+        var result = RuleValidator.Validate(rule);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void CompareOp_Between_FloatThresholds_LoGreaterThanHi_FailsValidation()
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+
+        var trigger = new TriggerModel(ai0, TriggerKind.OnChange, thresholdLo: 80.5, thresholdHi: 30.2)
+        {
+            CompareOp = CompareOperator.Between
+        };
+
+        var rule = new Rule(
+            ruleIndex: 0,
+            name: "InvalidFloatBetween",
+            trigger: trigger,
+            action: new ActionModel(do0, ActionKind.SetTag, 1)
+        );
+
+        var result = RuleValidator.Validate(rule);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Code == RuleValidator.ErrorBetweenThresholdsInvalid);
+    }
 }
+

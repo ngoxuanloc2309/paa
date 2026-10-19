@@ -153,4 +153,42 @@ public class MqttSubscriptionParserTests
         Assert.Equal(5, result.NumericValues["pin_grid"]);
         Assert.Equal(1, result.NumericValues["pin_color"]);
     }
+
+    [Fact]
+    public void Parse_ValidJson_FloatPayload_ExtractsDoublePrecisionSuccessfully()
+    {
+        string json = "{\"temperature\": 25.75, \"pressure\": -12.34}";
+
+        var pins = new List<MqttPinBindingDto>
+        {
+            new() { Id = "pin_temp", Label = "temperature", JsonPath = "temperature", DataType = MqttDataType.Float },
+            new() { Id = "pin_press", Label = "pressure", JsonPath = "pressure", DataType = MqttDataType.Float }
+        };
+
+        var result = MqttSubscriptionParser.Parse(json, pins);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(MqttErrorCode.None, result.ErrorCode);
+        Assert.Equal(25.75, result.NumericValues["pin_temp"], precision: 2);
+        Assert.Equal(-12.34, result.NumericValues["pin_press"], precision: 2);
+        Assert.Equal("25.75", result.StringValues["pin_temp"]);
+        Assert.Equal("-12.34", result.StringValues["pin_press"]);
+    }
+
+    [Fact]
+    public void Parse_RawFloatPayload_ExtractsSuccessfully()
+    {
+        string raw = "75.85";
+
+        var pins = new List<MqttPinBindingDto>
+        {
+            new() { Id = "pin_flow", Label = "Flow", DataType = MqttDataType.Float, MinValue = 0, MaxValue = 100 }
+        };
+
+        var result = MqttSubscriptionParser.Parse(raw, pins);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(75.85, result.NumericValues["pin_flow"], precision: 2);
+        Assert.Equal("75.85", result.StringValues["pin_flow"]);
+    }
 }

@@ -114,6 +114,12 @@ public static class ModbusRegisterMap
     public const ushort SystemCommandResultAddress = 0x0A01;
     public const ushort SystemCommandResultLength = 2;
 
+    /// <summary>
+    /// Vùng khai báo năng lực phần cứng HardwareCapabilities (0x0A08..0x0A09, 2 registers = 4 bytes, uint32 Big-Endian, RO).
+    /// </summary>
+    public const ushort HardwareCapabilitiesAddress = 0x0A08;
+    public const ushort HardwareCapabilitiesLength = 2;
+
     // ==========================================
     // 2.0 PHÂN VÙNG DIAGNOSTIC & COMMISSIONING V2 (0x0A20 - 0x0A24)
     // ==========================================
@@ -194,7 +200,31 @@ public static class ModbusRegisterMap
     public const ushort MqttControlPayloadModeShift = 6;
 
     // ==========================================
-    // 2.3 PHÂN VÙNG MQTT BROKER CONFIGURATION (0x0E00 - 0x0E5F)
+    // 2.3 PHÂN VÙNG MQTT SUBSCRIBE INBOUND (0x0D80 - 0x0DFF)
+    // SPLC-SPEC-MQTT-002: 2 Blocks x 64 Registers = 128 Registers (256 Bytes)
+    // ==========================================
+    public const ushort MqttSubscribeTableBaseAddress = 0x0D80;
+    public const int MqttSubscribeRegistersPerBlock = 64;
+    public const int MqttSubscribeBytesPerBlock = 128;
+    public const int MqttSubscribeMaxBlocks = 2;
+    public const int MqttSubscribeMaxPinsPerBlock = 4;
+    public const int MqttSubscribeJsonKeyMaxChars = 12;
+    public const ushort MqttSubscribeTableTotalLength = MqttSubscribeMaxBlocks * MqttSubscribeRegistersPerBlock; // 128 registers
+
+    public static ushort GetMqttSubscribeBlockAddress(int blockIndex) =>
+        (ushort)(MqttSubscribeTableBaseAddress + (blockIndex * MqttSubscribeRegistersPerBlock));
+
+    // Bitmasks cho CONTROL_FLAGS của Subscribe Block (Offset +0)
+    public const ushort MqttSubControlBitEnabled = 0x0001;        // Bit 0: Enable
+    public const ushort MqttSubControlQosMask = 0x0006;           // Bit 1..2: QoS (0, 1, 2)
+    public const ushort MqttSubControlQosShift = 1;
+    public const ushort MqttSubControlBitQueueFifo = 0x0008;      // Bit 3: 0=LatestOnly, 1=FIFO
+    public const ushort MqttSubControlBitIgnoreRetain = 0x0010;   // Bit 4: Ignore Retained
+    public const ushort MqttSubControlFailSafeMask = 0x0060;      // Bit 5..6: FailSafe (0=Keep, 1=ResetZero, 2=SetDefault)
+    public const ushort MqttSubControlFailSafeShift = 5;
+
+    // ==========================================
+    // 2.4 PHÂN VÙNG MQTT BROKER CONFIGURATION (0x0E00 - 0x0E5F)
     // SPLC-SPEC-MQTT-001: 96 Registers = 192 Bytes
     // ==========================================
     public const ushort MqttBrokerConfigBaseAddress = 0x0E00;

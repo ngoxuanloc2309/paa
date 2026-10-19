@@ -92,6 +92,12 @@ public class LogicEditorViewModelTests : IDisposable
 
         foreach (var bp in blueprintsVM.Blueprints)
         {
+            if (bp.Id is "mqtt_pub" or "mqtt_sub")
+            {
+                // MQTT IIoT blueprints use dedicated multi-tier grid layout tested in MqttBlueprintTests
+                continue;
+            }
+
             blueprintsVM.ApplyBlueprintCommand.Execute(bp);
 
             // Verify horizontal main line: All single-chain nodes are placed at Y = 120

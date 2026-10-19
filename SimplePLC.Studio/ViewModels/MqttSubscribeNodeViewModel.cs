@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Linq;
 using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
@@ -168,6 +169,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         EnableConnector = new ConnectorViewModel
         {
             Title = "EN",
+            TooltipKey = "PinTooltipEn",
             IsInput = true,
             Node = this
         };
@@ -177,6 +179,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         ValidConnector = new ConnectorViewModel
         {
             Title = "Valid",
+            TooltipKey = "PinTooltipValid",
             IsInput = false,
             Node = this
         };
@@ -185,6 +188,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         ErrorConnector = new ConnectorViewModel
         {
             Title = "Err",
+            TooltipKey = "PinTooltipErr",
             IsInput = false,
             Node = this
         };
@@ -239,6 +243,9 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         if (pin.Connector != null && OutputConnectors.Contains(pin.Connector))
         {
             pin.Connector.Title = pin.Label;
+            pin.Connector.SetBilingualDescription(
+                $"Trích xuất trường JSON '{pin.JsonPath}' ({pin.DataType}) từ bản tin MQTT",
+                $"Extract JSON field '{pin.JsonPath}' ({pin.DataType}) from MQTT message");
             return;
         }
 
@@ -249,6 +256,9 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
             IsInput = false,
             Node = this
         };
+        connector.SetBilingualDescription(
+            $"Trích xuất trường JSON '{pin.JsonPath}' ({pin.DataType}) từ bản tin MQTT",
+            $"Extract JSON field '{pin.JsonPath}' ({pin.DataType}) from MQTT message");
         pin.Connector = connector;
         OutputConnectors.Add(connector);
     }
@@ -306,7 +316,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
                 if (result.NumericValues.TryGetValue(pin.Id, out double numVal))
                 {
                     pin.CurrentValue = numVal;
-                    pin.CurrentStringValue = numVal.ToString();
+                    pin.CurrentStringValue = numVal.ToString(CultureInfo.InvariantCulture);
                 }
                 else if (result.StringValues.TryGetValue(pin.Id, out string? strVal))
                 {

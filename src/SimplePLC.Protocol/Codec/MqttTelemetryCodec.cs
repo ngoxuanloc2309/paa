@@ -90,8 +90,8 @@ public static class MqttTelemetryCodec
             }
         }
 
-        // Offset +15: RESERVED
-        destination[15] = 0;
+        // Offset +15: RESERVED_HEADER (Luôn ghi 0x0000 theo SPLC-SPEC-IEC-002)
+        destination[15] = 0x0000;
 
         // Offset +16..+31: TOPIC_STRING (32 bytes ASCII = 16 thanh ghi)
         EncodePackedAscii(config.Topic, destination.Slice(16, 16), ModbusRegisterMap.MqttTopicMaxChars);

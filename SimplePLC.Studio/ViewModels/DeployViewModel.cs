@@ -456,13 +456,15 @@ public partial class DeployViewModel : ObservableObject
             IReadOnlyList<FbTimerRecordDto>? fbTimers = null;
             IReadOnlyList<FbCounterRecordDto>? fbCounters = null;
             IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null;
+            IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null;
 
-            // Luôn trích xuất Function Blocks (Timer, Counter) và MQTT Telemetry blocks từ Logic Editor nếu có
+            // Luôn trích xuất Function Blocks (Timer, Counter) và MQTT Telemetry/Subscribe blocks từ Logic Editor nếu có
             if (_logicEditorVM?.CurrentProgram != null)
             {
                 fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
                 fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
                 mqttConfigs = _logicEditorVM.CurrentProgram.MqttTelemetryConfigs;
+                mqttSubConfigs = _logicEditorVM.CurrentProgram.MqttSubscriptionConfigs;
             }
 
             // Trích xuất Rule Table: Ưu tiên bảng rule đã biên tập trong Rule Table, hoặc fallback về Logic Editor
@@ -512,18 +514,42 @@ public partial class DeployViewModel : ObservableObject
             Steps[0].Status = StepStatus.Success;
             ProgressPercent = 30;
             AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
+            var meta = _getMetadata?.Invoke();
             if (totalFbs > 0 || totalMqtt > 0)
             {
                 bool isVi = LocalizationService.Instance.IsVietnamese;
                 AppendLog(isVi
                     ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots)."
                     : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots).");
+
+                int subCount = mqttSubConfigs?.Count ?? 0;
+                if (subCount > 0)
+                {
+                    if (product != null && product.SupportsMqttSubscribe)
+                    {
+                        AppendLog(isVi
+                            ? $"[MQTT SUB] Phát hiện {subCount} khối Subscribe -> Nạp cấu hình Inbound xuống phân vùng 0x0D80 của MCU."
+                            : $"[MQTT SUB] Detected {subCount} Subscribe block(s) -> Deploying inbound config to MCU partition 0x0D80.");
+                    }
+                    else
+                    {
+                        AppendLog(isVi
+                            ? $"[MQTT SUB] {subCount} khối Subscribe đang vận hành ở chế độ Host Simulation & Sandbox (MCU chưa kích hoạt cờ 0x0020)."
+                            : $"[MQTT SUB] {subCount} Subscribe block(s) running in Host Simulation & Sandbox mode (MCU flag 0x0020 inactive).");
+                    }
+                }
+
+                if (product != null && !product.SupportsMqttPublish && (mqttConfigs?.Count > 0 || meta?.MqttBrokerEnabled == true))
+                {
+                    AppendLog(isVi
+                        ? $"[Cảnh báo Phần cứng] Thiết bị '{product.ProductName}' không hỗ trợ MQTT Telemetry (Thiếu cờ SPLC_CAP_MQTT_PUB tại 0x0A08). Bỏ qua nạp cấu hình MQTT."
+                        : $"[Hardware Warning] Device '{product.ProductName}' does not support MQTT Telemetry (Missing SPLC_CAP_MQTT_PUB at 0x0A08). Skipping MQTT configuration.");
+                }
             }
             await Task.Delay(60).ConfigureAwait(true);
 
             // Build MQTT Broker config if available
             MqttBrokerConfigDto? brokerConfig = null;
-            var meta = _getMetadata?.Invoke();
             if (meta != null && (totalMqtt > 0 || meta.MqttBrokerEnabled))
             {
                 brokerConfig = new MqttBrokerConfigDto
@@ -551,7 +577,7 @@ public partial class DeployViewModel : ObservableObject
             AppendLog(LocalizationService.Tr("DeployLogStaging"));
 
             var deployUseCase = GetDeployUseCase();
-            var deployResult = await deployUseCase.ExecuteAsync(ruleTable, fbTimers, fbCounters, mqttConfigs, brokerConfig, slaveId: 1).ConfigureAwait(true);
+            var deployResult = await deployUseCase.ExecuteAsync(ruleTable, fbTimers, fbCounters, mqttConfigs, brokerConfig, mqttSubConfigs, slaveId: 1).ConfigureAwait(true);
 
             if (deployResult.IsSuccess)
             {

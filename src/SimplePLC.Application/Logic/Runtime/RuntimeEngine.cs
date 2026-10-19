@@ -82,12 +82,12 @@ public sealed class RuntimeEngine : IRuntimeEngine
                     int currentHhmm = now.Hour * 100 + now.Minute;
                     if (rule.Trigger.CompareOp == CompareOperator.Equal)
                     {
-                        conditionMet = (currentHhmm == rule.Trigger.ThresholdLo);
+                        conditionMet = (currentHhmm == (int)Math.Round(rule.Trigger.ThresholdLo));
                     }
                     else
                     {
-                        int start = rule.Trigger.ThresholdLo;
-                        int end = rule.Trigger.ThresholdHi;
+                        int start = (int)Math.Round(rule.Trigger.ThresholdLo);
+                        int end = (int)Math.Round(rule.Trigger.ThresholdHi);
                         conditionMet = start <= end
                             ? (currentHhmm >= start && currentHhmm <= end)
                             : (currentHhmm >= start || currentHhmm <= end);
@@ -111,11 +111,13 @@ public sealed class RuntimeEngine : IRuntimeEngine
 
                 case TriggerKind.OnChange:
                 default:
-                    bool compareMet = Compare(rule.Trigger.CompareOp, current, rule.Trigger.ThresholdLo, rule.Trigger.ThresholdHi);
+                    bool compareMet = Compare(rule.Trigger.CompareOp, current, rule.Trigger.ThresholdLo, rule.Trigger.ThresholdHi, rule.Trigger.IsFloat);
                     if (rule.Trigger.CompareOp != CompareOperator.None)
                     {
                         conditionMet = compareMet;
-                        trigDesc = $"{rule.Trigger.Tag.Name} = {current} (Compare {rule.Trigger.CompareOp} {rule.Trigger.ThresholdLo})";
+                        string displayVal = rule.Trigger.IsFloat ? BitConverter.Int32BitsToSingle(current).ToString("0.##") : current.ToString();
+                        string displayLo = rule.Trigger.IsFloat ? rule.Trigger.ThresholdLo.ToString("0.##") : rule.Trigger.ThresholdLo.ToString();
+                        trigDesc = $"{rule.Trigger.Tag.Name} = {displayVal} (Compare {rule.Trigger.CompareOp} {displayLo})";
                     }
                     else
                     {
@@ -284,9 +286,13 @@ public sealed class RuntimeEngine : IRuntimeEngine
         switch (rule.Action.Type)
         {
             case ActionKind.SetTag:
-                afterVal = rule.Action.Parameter;
+                afterVal = rule.Action.IsFloat
+                    ? BitConverter.SingleToInt32Bits((float)rule.Action.Parameter)
+                    : (int)Math.Round(rule.Action.Parameter);
                 Write(targetIndex, afterVal);
-                formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (SET)";
+                formattedDelta = rule.Action.IsFloat
+                    ? $"{targetName}: {BitConverter.Int32BitsToSingle(beforeVal):0.##} → {(float)rule.Action.Parameter:0.##} (SET)"
+                    : $"{targetName}: {beforeVal} → {afterVal} (SET)";
                 break;
             case ActionKind.ToggleTag:
                 afterVal = beforeVal == 0 ? 1 : 0;
@@ -294,9 +300,9 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (TOGGLE)";
                 break;
             case ActionKind.IncrementCounter:
-                afterVal = beforeVal + rule.Action.Parameter;
+                afterVal = beforeVal + (int)Math.Round(rule.Action.Parameter);
                 Write(targetIndex, afterVal);
-                formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{rule.Action.Parameter})";
+                formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{(int)Math.Round(rule.Action.Parameter)})";
                 break;
             case ActionKind.AddTag:
                 afterVal = beforeVal + sourceValue;
@@ -304,9 +310,24 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{sourceValue})";
                 break;
             case ActionKind.ScaleTag:
-                afterVal = (int)((long)sourceValue * rule.Action.Parameter / 1000 + rule.Trigger.ThresholdHi);
-                Write(targetIndex, afterVal);
-                formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (SCALE)";
+                if (rule.Action.IsFloat)
+                {
+                    float inValFloat = rule.Trigger.Tag.DataType == TagDataType.Float32
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
+                    float gainFloat = (float)rule.Action.Parameter;
+                    float offsetFloat = (float)rule.Trigger.ThresholdHi;
+                    float scaledFloat = inValFloat * gainFloat + offsetFloat;
+                    afterVal = BitConverter.SingleToInt32Bits(scaledFloat);
+                    Write(targetIndex, afterVal);
+                    formattedDelta = $"{targetName}: {BitConverter.Int32BitsToSingle(beforeVal):0.##} → {scaledFloat:0.##} (SCALE)";
+                }
+                else
+                {
+                    afterVal = (int)((long)sourceValue * (long)Math.Round(rule.Action.Parameter) / 1000 + (long)Math.Round(rule.Trigger.ThresholdHi));
+                    Write(targetIndex, afterVal);
+                    formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (SCALE)";
+                }
                 break;
             case ActionKind.SendAlarm:
                 _events.Add(new(tickMs, rule.RuleIndex, $"Alarm {rule.Action.Parameter}"));
@@ -384,16 +405,41 @@ public sealed class RuntimeEngine : IRuntimeEngine
         return list;
     }
 
-    private static bool Compare(CompareOperator op, int value, int lo, int hi) => op switch
+    private static bool Compare(CompareOperator op, int value, double lo, double hi, bool isFloat)
     {
-        CompareOperator.None => true,
-        CompareOperator.Equal => value == lo,
-        CompareOperator.NotEqual => value != lo,
-        CompareOperator.GreaterThan => value > lo,
-        CompareOperator.LessThan => value < lo,
-        CompareOperator.GreaterThanOrEqual => value >= lo,
-        CompareOperator.LessThanOrEqual => value <= lo,
-        CompareOperator.Between => value >= lo && value <= hi,
-        _ => false
-    };
+        if (!isFloat)
+        {
+            int loInt = (int)Math.Round(lo);
+            int hiInt = (int)Math.Round(hi);
+            return op switch
+            {
+                CompareOperator.None => true,
+                CompareOperator.Equal => value == loInt,
+                CompareOperator.NotEqual => value != loInt,
+                CompareOperator.GreaterThan => value > loInt,
+                CompareOperator.LessThan => value < loInt,
+                CompareOperator.GreaterThanOrEqual => value >= loInt,
+                CompareOperator.LessThanOrEqual => value <= loInt,
+                CompareOperator.Between => value >= loInt && value <= hiInt,
+                _ => false
+            };
+        }
+
+        float valFloat = BitConverter.Int32BitsToSingle(value);
+        float l = (float)lo;
+        float h = (float)hi;
+
+        return op switch
+        {
+            CompareOperator.None => true,
+            CompareOperator.Equal => Math.Abs(valFloat - l) <= 1e-5f,
+            CompareOperator.NotEqual => Math.Abs(valFloat - l) > 1e-5f,
+            CompareOperator.GreaterThan => valFloat > l,
+            CompareOperator.LessThan => valFloat < l,
+            CompareOperator.GreaterThanOrEqual => valFloat >= l,
+            CompareOperator.LessThanOrEqual => valFloat <= l,
+            CompareOperator.Between => valFloat >= l && valFloat <= h,
+            _ => false
+        };
+    }
 }

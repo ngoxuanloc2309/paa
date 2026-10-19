@@ -39,11 +39,19 @@ public static class RuleBinaryEncoder
         if (destination.Length < RuleRecordSize)
             throw new ArgumentException($"Destination span must be at least {RuleRecordSize} bytes.", nameof(destination));
 
-        // 00-03: threshold_lo (int32_t, BE)
-        BinaryPrimitives.WriteInt32BigEndian(destination.Slice(0, 4), rule.ThresholdLo);
+        bool isFloat = rule.IsFloat;
 
-        // 04-07: threshold_hi (int32_t, BE)
-        BinaryPrimitives.WriteInt32BigEndian(destination.Slice(4, 4), rule.ThresholdHi);
+        // 00-03 & 04-07: threshold_lo & threshold_hi (int32_t or float32, BE)
+        if (isFloat)
+        {
+            BinaryPrimitives.WriteSingleBigEndian(destination.Slice(0, 4), (float)rule.ThresholdLo);
+            BinaryPrimitives.WriteSingleBigEndian(destination.Slice(4, 4), (float)rule.ThresholdHi);
+        }
+        else
+        {
+            BinaryPrimitives.WriteInt32BigEndian(destination.Slice(0, 4), (int)Math.Round(rule.ThresholdLo));
+            BinaryPrimitives.WriteInt32BigEndian(destination.Slice(4, 4), (int)Math.Round(rule.ThresholdHi));
+        }
 
         // 08-11: for_ms (uint32_t, BE)
         BinaryPrimitives.WriteUInt32BigEndian(destination.Slice(8, 4), rule.ForMs);
@@ -80,8 +88,11 @@ public static class RuleBinaryEncoder
         // 25: action_type (uint8_t)
         destination[25] = (byte)rule.ActionType;
 
-        // 26-31: reserved[6] = 0x00 0x00 0x00 0x00 0x00 0x00 (R8)
-        destination.Slice(26, 6).Clear();
+        // 26: flags (uint8_t: 0x01 = SPLC_RULE_FLAG_FLOAT_DATA)
+        destination[26] = (byte)(isFloat ? 0x01 : 0x00);
+
+        // 27-31: reserved[5] = 0x00 (R8)
+        destination.Slice(27, 5).Clear();
     }
 
     /// <summary>
@@ -135,16 +146,24 @@ public static class RuleBinaryEncoder
     /// <summary>
     /// Giải mã một record 32-byte thành dữ liệu thô theo chuẩn Data Contract V1.7.
     /// </summary>
-    public static (int ThresholdLo, int ThresholdHi, uint ForMs, int ActionParam, 
+    public static (double ThresholdLo, double ThresholdHi, uint ForMs, int ActionParam, 
                    ushort TriggerTag, ushort ActionTag, ushort GuardTag, bool GuardNegated,
-                   bool Enabled, byte TriggerType, byte CompareOp, byte ActionType) 
+                   bool Enabled, byte TriggerType, byte CompareOp, byte ActionType, byte Flags) 
         DecodeRecord(ReadOnlySpan<byte> source)
     {
         if (source.Length < RuleRecordSize)
             throw new ArgumentException($"Source span must be at least {RuleRecordSize} bytes.", nameof(source));
 
-        int thresholdLo = BinaryPrimitives.ReadInt32BigEndian(source.Slice(0, 4));
-        int thresholdHi = BinaryPrimitives.ReadInt32BigEndian(source.Slice(4, 4));
+        byte flags = source[26];
+        bool isFloat = (flags & 0x01) != 0;
+
+        double thresholdLo = isFloat 
+            ? BinaryPrimitives.ReadSingleBigEndian(source.Slice(0, 4))
+            : BinaryPrimitives.ReadInt32BigEndian(source.Slice(0, 4));
+        double thresholdHi = isFloat 
+            ? BinaryPrimitives.ReadSingleBigEndian(source.Slice(4, 4))
+            : BinaryPrimitives.ReadInt32BigEndian(source.Slice(4, 4));
+
         uint forMs = BinaryPrimitives.ReadUInt32BigEndian(source.Slice(8, 4));
         int actionParam = BinaryPrimitives.ReadInt32BigEndian(source.Slice(12, 4));
         ushort triggerTag = BinaryPrimitives.ReadUInt16BigEndian(source.Slice(16, 2));
@@ -157,18 +176,16 @@ public static class RuleBinaryEncoder
         byte compareOp = source[24];
         byte actionType = source[25];
 
-        // bytes 26-31: reserved[6] (R8)
-
         return (thresholdLo, thresholdHi, forMs, actionParam, triggerTag, actionTag, 
-                guardTag, guardNegated, enabled, triggerType, compareOp, actionType);
+                guardTag, guardNegated, enabled, triggerType, compareOp, actionType, flags);
     }
 
     /// <summary>
     /// Alias DecodeRecordV17 hỗ trợ tương thích mã gọi cũ.
     /// </summary>
-    public static (int ThresholdLo, int ThresholdHi, uint ForMs, int ActionParam, 
+    public static (double ThresholdLo, double ThresholdHi, uint ForMs, int ActionParam, 
                    ushort TriggerTag, ushort ActionTag, ushort GuardTag, bool GuardNegated,
-                   bool Enabled, byte TriggerType, byte CompareOp, byte ActionType) 
+                   bool Enabled, byte TriggerType, byte CompareOp, byte ActionType, byte Flags) 
         DecodeRecordV17(ReadOnlySpan<byte> source) => DecodeRecord(source);
 
     /// <summary>
