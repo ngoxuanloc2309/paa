@@ -148,8 +148,8 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
         ThresholdHiText = NumericInputHelper.FormatDouble(hi);
 
         // Standard IEC 61131-3 Function construct: 1 Input (IN), 1 Output (OUT: BOOL)
-        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = false, Node = this });
-        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = false, Node = this });
+        InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipCmpIn", IsInput = true, IsEvent = false, Node = this });
+        OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipCmpOut", IsInput = false, IsEvent = false, Node = this });
     }
 
     // ILiveTagBoundNode implementation for live monitoring

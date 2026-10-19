@@ -241,6 +241,53 @@ public static class ModbusRegisterMap
     public const ushort MqttBrokerControlVersionShift = 3;
 
     // ==========================================
+    // 2.5 PHÂN VÙNG MQTT TLS CERTIFICATE STAGING (0x0F00 - 0x0F4F)
+    // SPLC-SPEC-MQTT-003: 64 Registers = 128 Bytes per Chunk Struct
+    // ==========================================
+    public const ushort MqttCertStagingBaseAddress = 0x0F00;
+    public const int MqttCertChunkRegisters = 64;
+    public const int MqttCertChunkBytes = 128;
+    public const int MqttCertPayloadMaxBytes = 120;
+    public const ushort MqttCertAckAddress = 0x0F40;
+    public const ushort MqttCertStatusAddress = 0x0F41;
+    public const ushort MqttCertCommitAddress = 0x0F42;
+    public const ushort MqttCertActiveTypeMaskAddress = 0x0F43;
+    public const ushort MqttCertCommitMagic = 0xA5A5;
+
+    // Cert Types
+    public const byte MqttCertTypeRootCa = 0x01;
+    public const byte MqttCertTypeClientCert = 0x02;
+    public const byte MqttCertTypeClientKey = 0x03;
+
+    // ==========================================
+    // 2.6 PHÂN VÙNG MODBUS RTU MASTER POLLER (0x1000 - 0x10FF)
+    // SPLC-SPEC-MBM-001: 4 Blocks x 64 Registers = 256 Registers (512 Bytes)
+    // ==========================================
+    public const ushort ModbusMasterTableBaseAddress = 0x1000;
+    public const int ModbusMasterRegistersPerBlock = 64;
+    public const int ModbusMasterBytesPerBlock = 128;
+    public const int ModbusMasterMaxBlocks = 4;
+    public const int ModbusMasterMaxPinsPerBlock = 4;
+    public const int ModbusMasterPinLabelMaxChars = 12;
+    public const ushort ModbusMasterTableTotalLength = ModbusMasterMaxBlocks * ModbusMasterRegistersPerBlock; // 256 registers
+
+    public static ushort GetModbusMasterBlockAddress(int blockIndex) =>
+        (ushort)(ModbusMasterTableBaseAddress + (blockIndex * ModbusMasterRegistersPerBlock));
+
+    // ==========================================
+    // 2.7 PHÂN VÙNG MODBUS RTU MASTER WRITER / ACTUATOR (0x1100 - 0x11FF)
+    // SPLC-SPEC-MBM-002: 4 Blocks x 64 Registers = 256 Registers (512 Bytes)
+    // ==========================================
+    public const ushort ModbusMasterWriteTableBaseAddress = 0x1100;
+    public const int ModbusMasterWriteRegistersPerBlock = 64;
+    public const int ModbusMasterWriteBytesPerBlock = 128;
+    public const int ModbusMasterWriteMaxBlocks = 4;
+    public const ushort ModbusMasterWriteTableTotalLength = ModbusMasterWriteMaxBlocks * ModbusMasterWriteRegistersPerBlock; // 256 registers
+
+    public static ushort GetModbusMasterWriteBlockAddress(int blockIndex) =>
+        (ushort)(ModbusMasterWriteTableBaseAddress + (blockIndex * ModbusMasterWriteRegistersPerBlock));
+
+    // ==========================================
     // 3. PHÂN VÙNG RULE TRANSFER & COMMIT (0x9000 - 0xA001)
     // ==========================================
     public const ushort ConfigStatusAddress = 0x9000;

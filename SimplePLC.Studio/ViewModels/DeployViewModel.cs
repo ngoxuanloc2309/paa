@@ -221,6 +221,9 @@ public partial class DeployViewModel : ObservableObject
             : 0;
         int mqttCount = (_logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0)
             + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
+        int modbusCount = (_logicEditorVM?.CurrentProgram?.ModbusMasterConfigs?.Count ?? 0)
+            + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
+        int directWriteCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
 
         if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
         {
@@ -231,13 +234,13 @@ public partial class DeployViewModel : ObservableObject
             {
                 ruleDesc = $"{firstRule.Id} ({firstRule.TriggerSummary} ➔ {firstRule.ActionSummary})";
             }
-            HasValidRules = enabledCount > 0 || fbCount > 0 || mqttCount > 0;
+            HasValidRules = enabledCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
             ManifestRuleCount = enabledCount;
             ManifestRuleSummary = ruleDesc;
             string extraDesc = "";
-            if (fbCount > 0 || mqttCount > 0)
+            if (fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0)
             {
-                extraDesc = isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT)" : $" (+ {fbCount} FBs, {mqttCount} MQTT)";
+                extraDesc = isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)";
             }
             string baseSummary = isVi
                 ? $"Sẵn sàng nạp: {ruleCount} quy tắc trong Bảng Rule ({enabledCount} đang bật){extraDesc}"
@@ -250,17 +253,17 @@ public partial class DeployViewModel : ObservableObject
         else if (_logicEditorVM?.CurrentProgram != null)
         {
             ruleCount = _logicEditorVM.CurrentProgram.RuleCount;
-            HasValidRules = ruleCount > 0 || fbCount > 0 || mqttCount > 0;
+            HasValidRules = ruleCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
             ManifestRuleCount = ruleCount;
 
-            if ((fbCount > 0 || mqttCount > 0) && ruleCount == 0)
+            if ((fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0) && ruleCount == 0)
             {
                 ruleDesc = isVi
-                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT (0 Rule slots)"
-                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT (0 Rule slots)";
+                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)"
+                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)";
                 string baseSummary = isVi
-                    ? $"Sẵn sàng nạp {fbCount} Function Blocks & {mqttCount} MQTT Blocks xuống thiết bị."
-                    : $"Ready to deploy {fbCount} Function Blocks & {mqttCount} MQTT Blocks to device.";
+                    ? $"Sẵn sàng nạp {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks xuống thiết bị."
+                    : $"Ready to deploy {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks to device.";
                 PreflightSummary = isConnected
                     ? baseSummary
                     : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
@@ -269,9 +272,9 @@ public partial class DeployViewModel : ObservableObject
             {
                 ruleDesc = isVi ? $"{ruleCount} quy tắc từ bản vẽ logic" : $"{ruleCount} rules from logic canvas";
                 string baseSummary = string.Format(LocalizationService.Tr("DeployPreflightReady"), ruleCount);
-                if (fbCount > 0 || mqttCount > 0)
+                if (fbCount > 0 || mqttCount > 0 || modbusCount > 0)
                 {
-                    baseSummary += isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT)" : $" (+ {fbCount} FBs, {mqttCount} MQTT)";
+                    baseSummary += isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)";
                 }
                 PreflightSummary = isConnected
                     ? baseSummary
@@ -457,14 +460,16 @@ public partial class DeployViewModel : ObservableObject
             IReadOnlyList<FbCounterRecordDto>? fbCounters = null;
             IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null;
             IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null;
+            IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null;
 
-            // Luôn trích xuất Function Blocks (Timer, Counter) và MQTT Telemetry/Subscribe blocks từ Logic Editor nếu có
+            // Luôn trích xuất Function Blocks (Timer, Counter), MQTT và Modbus Master blocks từ Logic Editor nếu có
             if (_logicEditorVM?.CurrentProgram != null)
             {
                 fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
                 fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
                 mqttConfigs = _logicEditorVM.CurrentProgram.MqttTelemetryConfigs;
                 mqttSubConfigs = _logicEditorVM.CurrentProgram.MqttSubscriptionConfigs;
+                modbusMasterConfigs = _logicEditorVM.CurrentProgram.ModbusMasterConfigs;
             }
 
             // Trích xuất Rule Table: Ưu tiên bảng rule đã biên tập trong Rule Table, hoặc fallback về Logic Editor
@@ -483,13 +488,15 @@ public partial class DeployViewModel : ObservableObject
 
             int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
             int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
-            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0)
+            int totalModbus = (modbusMasterConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
+            int totalDirectWrite = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
+            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0)
             {
                 Steps[0].Status = StepStatus.Failed;
                 DeployState = DeployState.Failed;
                 PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule, Function Blocks và khối MQTT đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
-                    : "Cannot deploy: Rule table, Function Blocks, and MQTT blocks are empty. Please add at least one rule or function block.";
+                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus và Direct Write đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
+                    : "Cannot deploy: Rule table, Function Blocks, MQTT blocks, Modbus, and Direct Write are empty. Please add at least one rule or function block.";
                 StatusMessage = PreflightSummary;
                 AppendLog(PreflightSummary);
                 IsDeploying = false;
@@ -577,7 +584,17 @@ public partial class DeployViewModel : ObservableObject
             AppendLog(LocalizationService.Tr("DeployLogStaging"));
 
             var deployUseCase = GetDeployUseCase();
-            var deployResult = await deployUseCase.ExecuteAsync(ruleTable, fbTimers, fbCounters, mqttConfigs, brokerConfig, mqttSubConfigs, slaveId: 1).ConfigureAwait(true);
+            var deployResult = await deployUseCase.ExecuteAsync(
+                ruleTable,
+                fbTimers,
+                fbCounters,
+                mqttConfigs,
+                brokerConfig,
+                mqttSubConfigs,
+                modbusMasterConfigs,
+                slaveId: 1,
+                ct: default,
+                progressLogger: AppendLog).ConfigureAwait(true);
 
             if (deployResult.IsSuccess)
             {

@@ -83,6 +83,51 @@ public partial class LogicEditorViewModel : ObservableObject
         NotifyGraphModified();
     }
 
+    [RelayCommand]
+    public void OpenModbusReadConfig(ModbusReadNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedModbusReadNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.ModbusReadConfigDialogView(dialogVm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        NotifyGraphModified();
+    }
+
+    [RelayCommand]
+    public void OpenModbusWriteConfig(ModbusWriteNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedModbusWriteNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.ModbusWriteConfigDialogView(dialogVm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        NotifyGraphModified();
+    }
+
+    [RelayCommand]
+    public void OpenDirectWriteConfig(DirectWriteNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedDirectWriteNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new DirectWriteConfigDialogViewModel(targetNode);
+        var dialog = new Views.DirectWriteConfigDialogView(dialogVm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        NotifyGraphModified();
+    }
+
     [ObservableProperty]
     private string _aiProposalSummaryText = string.Empty;
 
@@ -99,6 +144,9 @@ public partial class LogicEditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedScaleNode))]
     [NotifyPropertyChangedFor(nameof(SelectedMqttNode))]
     [NotifyPropertyChangedFor(nameof(SelectedMqttSubNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedModbusReadNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedModbusWriteNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedDirectWriteNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
@@ -113,6 +161,9 @@ public partial class LogicEditorViewModel : ObservableObject
     public ScaleNodeViewModel? SelectedScaleNode => SelectedNode as ScaleNodeViewModel;
     public MqttPublishNodeViewModel? SelectedMqttNode => SelectedNode as MqttPublishNodeViewModel;
     public MqttSubscribeNodeViewModel? SelectedMqttSubNode => SelectedNode as MqttSubscribeNodeViewModel;
+    public ModbusReadNodeViewModel? SelectedModbusReadNode => SelectedNode as ModbusReadNodeViewModel;
+    public ModbusWriteNodeViewModel? SelectedModbusWriteNode => SelectedNode as ModbusWriteNodeViewModel;
+    public DirectWriteNodeViewModel? SelectedDirectWriteNode => SelectedNode as DirectWriteNodeViewModel;
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -2008,6 +2059,9 @@ public partial class LogicEditorViewModel : ObservableObject
         ActionNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
         MqttPublishNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
         MqttSubscribeNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        ModbusReadNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        ModbusWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        DirectWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
         TimerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Timer,
         CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
         ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
@@ -2297,6 +2351,9 @@ public partial class LogicEditorViewModel : ObservableObject
             "MqttPublish" or "MQTT" or "MqttPub" => new MqttPublishNodeViewModel(
                 tag ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput || t.Kind == TagKind.DiscreteInput)),
             "MqttSubscribe" or "MqttSub" => new MqttSubscribeNodeViewModel(),
+            "MB_READ" or "ModbusRead" or "Modbus" or "MbRead" or "MB_RD" => new ModbusReadNodeViewModel(),
+            "MB_WRITE" or "ModbusWrite" or "MbWrite" or "MB_WR" => new ModbusWriteNodeViewModel(),
+            "DIRECT_WRITE" or "DirectWrite" or "DirWrite" or "DIR_WR" => new DirectWriteNodeViewModel(),
             "Comparator" or "CMP" => new ComparatorNodeViewModel(
                 tag,
                 CompareOp.GT,
@@ -3038,6 +3095,8 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.Type = "Timer";
             pNode.TimerMode = tm.TimerMode;
             pNode.PresetMs = tm.PresetMs;
+            pNode.TimeUnit = tm.TimeUnit;
+            pNode.DurationValue = tm.DurationValue;
             pNode.TagName = tm.InputTag?.Name ?? string.Empty;
             pNode.OutputTagName = tm.OutputTag?.Name ?? string.Empty;
         }
@@ -3114,6 +3173,67 @@ public partial class LogicEditorViewModel : ObservableObject
                 DefaultValue = p.DefaultValue
             }).ToList();
         }
+        else if (node is ModbusReadNodeViewModel mb)
+        {
+            pNode.Type = "ModbusRead";
+            pNode.ModbusSlaveId = mb.SlaveId;
+            pNode.ModbusFunctionCode = mb.FunctionCode.ToString();
+            pNode.ModbusStartAddress = mb.StartAddress;
+            pNode.ModbusRegCount = mb.RegCount;
+            pNode.ModbusPollIntervalMs = mb.PollIntervalMs;
+            pNode.ModbusTimeoutMs = mb.TimeoutMs;
+            pNode.ModbusPins = mb.Pins.Select(p => new ModbusPinData
+            {
+                Id = p.Id,
+                Label = p.Label,
+                RegOffset = p.RegOffset,
+                DataType = p.DataType.ToString(),
+                Endianness = p.Endianness.ToString(),
+                Multiplier = p.Multiplier,
+                TargetTagName = p.TargetTag?.Name ?? string.Empty,
+                TargetTagIndex = p.TargetTag != null ? (ushort?)p.TargetTag.Index : null
+            }).ToList();
+        }
+        else if (node is ModbusWriteNodeViewModel mbw)
+        {
+            pNode.Type = "ModbusWrite";
+            pNode.ModbusWriteSlaveId = mbw.SlaveId;
+            pNode.ModbusWriteMode = mbw.WriteMode.ToString();
+            pNode.ModbusWriteFunctionCode = mbw.FunctionCode.ToString();
+            pNode.ModbusWriteStartAddress = mbw.StartAddress;
+            pNode.ModbusWritePointCount = mbw.PointCount;
+            pNode.ModbusWriteBaseAddressCommand = mbw.BaseAddressCommand;
+            pNode.ModbusWriteBaseAddressParam = mbw.BaseAddressParam;
+            pNode.ModbusWriteChannelCount = mbw.ChannelCount;
+            pNode.ModbusWriteIsExclusiveChannel = mbw.IsExclusiveChannel;
+            pNode.ModbusWriteTriggerMode = mbw.TriggerMode.ToString();
+            pNode.ModbusWriteCyclicIntervalMs = mbw.CyclicIntervalMs;
+            pNode.ModbusWriteTimeoutMs = mbw.TimeoutMs;
+            pNode.ModbusWritePins = mbw.Pins.Select(p => new ModbusPinData
+            {
+                Id = p.Id,
+                Label = p.Label,
+                RegOffset = p.RegOffset,
+                DataType = p.DataType.ToString(),
+                Endianness = p.Endianness.ToString(),
+                Multiplier = p.Multiplier,
+                TargetTagName = p.TargetTag?.Name ?? string.Empty,
+                TargetTagIndex = p.TargetTag != null ? (ushort?)p.TargetTag.Index : null
+            }).ToList();
+        }
+        else if (node is DirectWriteNodeViewModel dw)
+        {
+            pNode.Type = "DirectWrite";
+            pNode.DirectWriteTargetPin = dw.TargetPin.ToString();
+            pNode.DirectWriteMode = dw.Mode.ToString();
+            pNode.DirectWriteChannelCount = dw.ChannelCount;
+            pNode.DirectWriteIsExclusiveChannel = dw.IsExclusiveChannel;
+            pNode.DirectWritePulseWidthUs = dw.PulseWidthUs;
+            pNode.DirectWritePwmFrequencyHz = dw.PwmFrequencyHz;
+            pNode.DirectWriteTriggerMode = dw.TriggerMode.ToString();
+            pNode.DirectWriteTimeoutMs = dw.TimeoutMs;
+            pNode.DirectWriteDefaultColorRgb = dw.DefaultColorRgb;
+        }
 
         return pNode;
     }
@@ -3166,11 +3286,16 @@ public partial class LogicEditorViewModel : ObservableObject
             var inTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
             var qTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.OutputTagName, StringComparison.OrdinalIgnoreCase))
                        ?? TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput || t.Kind == TagKind.VirtualFlag);
-            node = new TimerNodeViewModel(
+            var timerNode = new TimerNodeViewModel(
                 mode: string.IsNullOrWhiteSpace(pNode.TimerMode) ? "TON" : pNode.TimerMode,
                 inTag: inTag,
                 qTag: qTag,
                 presetMs: pNode.PresetMs > 0 ? pNode.PresetMs : 3000);
+            if (!string.IsNullOrEmpty(pNode.TimeUnit))
+            {
+                timerNode.SetDuration(pNode.DurationValue > 0 ? pNode.DurationValue : (pNode.PresetMs / 1000.0), pNode.TimeUnit);
+            }
+            node = timerNode;
         }
         else if (string.Equals(type, "Counter", StringComparison.OrdinalIgnoreCase))
         {
@@ -3277,6 +3402,122 @@ public partial class LogicEditorViewModel : ObservableObject
             }
 
             node = sub;
+        }
+        else if (string.Equals(type, "MB_READ", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "ModbusRead", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "Modbus", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MB_RD", StringComparison.OrdinalIgnoreCase))
+        {
+            var mb = new ModbusReadNodeViewModel
+            {
+                SlaveId = pNode.ModbusSlaveId == 0 ? (byte)1 : pNode.ModbusSlaveId,
+                StartAddress = pNode.ModbusStartAddress,
+                RegCount = pNode.ModbusRegCount == 0 ? (ushort)2 : pNode.ModbusRegCount,
+                PollIntervalMs = pNode.ModbusPollIntervalMs == 0 ? 500u : pNode.ModbusPollIntervalMs,
+                TimeoutMs = pNode.ModbusTimeoutMs == 0 ? 300u : pNode.ModbusTimeoutMs
+            };
+            if (Enum.TryParse<ModbusMasterFunctionCode>(pNode.ModbusFunctionCode, true, out var fc))
+                mb.FunctionCode = fc;
+
+            if (pNode.ModbusPins != null && pNode.ModbusPins.Count > 0)
+            {
+                mb.Pins.Clear();
+                foreach (var p in pNode.ModbusPins)
+                {
+                    var dt = Enum.TryParse<ModbusDataType>(p.DataType, true, out var parsedDt) ? parsedDt : ModbusDataType.Int16;
+                    var ed = Enum.TryParse<ModbusEndianness>(p.Endianness, true, out var parsedEd) ? parsedEd : ModbusEndianness.BigEndian_ABCD;
+                    var binding = new ModbusPinBindingViewModel
+                    {
+                        Id = p.Id,
+                        Label = p.Label,
+                        RegOffset = p.RegOffset,
+                        DataType = dt,
+                        Endianness = ed,
+                        Multiplier = p.Multiplier == 0.0f ? 1.0f : p.Multiplier
+                    };
+                    if (!string.IsNullOrEmpty(p.TargetTagName))
+                    {
+                        binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, p.TargetTagName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    mb.Pins.Add(binding);
+                }
+            }
+
+            node = mb;
+        }
+        else if (string.Equals(type, "MB_WRITE", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "ModbusWrite", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MbWrite", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MB_WR", StringComparison.OrdinalIgnoreCase))
+        {
+            var mbw = new ModbusWriteNodeViewModel
+            {
+                SlaveId = pNode.ModbusWriteSlaveId == 0 ? (byte)1 : pNode.ModbusWriteSlaveId,
+                StartAddress = pNode.ModbusWriteStartAddress,
+                PointCount = pNode.ModbusWritePointCount == 0 ? (ushort)1 : pNode.ModbusWritePointCount,
+                BaseAddressCommand = pNode.ModbusWriteBaseAddressCommand == 0 ? (ushort)0x0100 : pNode.ModbusWriteBaseAddressCommand,
+                BaseAddressParam = pNode.ModbusWriteBaseAddressParam == 0 ? (ushort)0x0120 : pNode.ModbusWriteBaseAddressParam,
+                ChannelCount = pNode.ModbusWriteChannelCount == 0 ? (ushort)9 : pNode.ModbusWriteChannelCount,
+                IsExclusiveChannel = pNode.ModbusWriteIsExclusiveChannel,
+                CyclicIntervalMs = pNode.ModbusWriteCyclicIntervalMs == 0 ? 500u : pNode.ModbusWriteCyclicIntervalMs,
+                TimeoutMs = pNode.ModbusWriteTimeoutMs == 0 ? 300u : pNode.ModbusWriteTimeoutMs
+            };
+            if (Enum.TryParse<ModbusWriteMode>(pNode.ModbusWriteMode, true, out var wm))
+                mbw.WriteMode = wm;
+            if (Enum.TryParse<ModbusMasterWriteFunctionCode>(pNode.ModbusWriteFunctionCode, true, out var fc))
+                mbw.FunctionCode = fc;
+            if (Enum.TryParse<ModbusWriteTriggerMode>(pNode.ModbusWriteTriggerMode, true, out var tm))
+                mbw.TriggerMode = tm;
+
+            if (pNode.ModbusWritePins != null && pNode.ModbusWritePins.Count > 0)
+            {
+                mbw.Pins.Clear();
+                foreach (var p in pNode.ModbusWritePins)
+                {
+                    var dt = Enum.TryParse<ModbusDataType>(p.DataType, true, out var parsedDt) ? parsedDt : ModbusDataType.Int16;
+                    var ed = Enum.TryParse<ModbusEndianness>(p.Endianness, true, out var parsedEd) ? parsedEd : ModbusEndianness.BigEndian_ABCD;
+                    var binding = new ModbusPinBindingViewModel
+                    {
+                        Id = p.Id,
+                        Label = p.Label,
+                        RegOffset = p.RegOffset,
+                        DataType = dt,
+                        Endianness = ed,
+                        Multiplier = p.Multiplier == 0.0f ? 1.0f : p.Multiplier
+                    };
+                    if (!string.IsNullOrEmpty(p.TargetTagName))
+                    {
+                        binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, p.TargetTagName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    mbw.Pins.Add(binding);
+                }
+            }
+
+            mbw.SyncConnectors();
+            node = mbw;
+        }
+        else if (string.Equals(type, "DIRECT_WRITE", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DirectWrite", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DirWrite", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DIR_WR", StringComparison.OrdinalIgnoreCase))
+        {
+            var dw = new DirectWriteNodeViewModel
+            {
+                ChannelCount = pNode.DirectWriteChannelCount == 0 ? (ushort)18 : pNode.DirectWriteChannelCount,
+                IsExclusiveChannel = pNode.DirectWriteIsExclusiveChannel,
+                PulseWidthUs = pNode.DirectWritePulseWidthUs == 0 ? 50u : pNode.DirectWritePulseWidthUs,
+                PwmFrequencyHz = pNode.DirectWritePwmFrequencyHz == 0 ? 1000u : pNode.DirectWritePwmFrequencyHz,
+                TimeoutMs = pNode.DirectWriteTimeoutMs == 0 ? 300u : pNode.DirectWriteTimeoutMs,
+                DefaultColorRgb = pNode.DirectWriteDefaultColorRgb == 0 ? 0x00FF00 : pNode.DirectWriteDefaultColorRgb
+            };
+            if (Enum.TryParse<DirectWriteTargetPin>(pNode.DirectWriteTargetPin, true, out var tp))
+                dw.TargetPin = tp;
+            if (Enum.TryParse<DirectWriteMode>(pNode.DirectWriteMode, true, out var wm))
+                dw.Mode = wm;
+            if (Enum.TryParse<DirectWriteTriggerMode>(pNode.DirectWriteTriggerMode, true, out var tm))
+                dw.TriggerMode = tm;
+
+            node = dw;
         }
 
         if (node != null)
@@ -4309,7 +4550,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 (result.Program?.FunctionBlockTimers.Count ?? 0) + 
                 (result.Program?.FunctionBlockCounters.Count ?? 0) + 
                 (result.Program?.MqttTelemetryConfigs.Count ?? 0) +
-                (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
+                (result.Program?.MqttSubscriptionConfigs.Count ?? 0) +
+                (result.Program?.ModbusMasterConfigs.Count ?? 0) +
+                (result.Program?.ModbusMasterWriteConfigs.Count ?? 0) +
+                (result.Program?.DirectWriteConfigs.Count ?? 0);
 
             // Trong chế độ tự động đồng bộ khi vẽ (Authoring / Editing mode theo chuẩn TIA Portal / CODESYS):
             // Nếu toàn bộ mạch đã hoàn chỉnh và hợp lệ: tự động cập nhật Program để sẵn sàng
@@ -4409,7 +4653,10 @@ public partial class LogicEditorViewModel : ObservableObject
             (result.Program?.FunctionBlockTimers.Count ?? 0) + 
             (result.Program?.FunctionBlockCounters.Count ?? 0) + 
             (result.Program?.MqttTelemetryConfigs.Count ?? 0) +
-            (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
+            (result.Program?.MqttSubscriptionConfigs.Count ?? 0) +
+            (result.Program?.ModbusMasterConfigs.Count ?? 0) +
+            (result.Program?.ModbusMasterWriteConfigs.Count ?? 0) +
+            (result.Program?.DirectWriteConfigs.Count ?? 0);
 
         if (totalDeployableExplicit == 0)
         {

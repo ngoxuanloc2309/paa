@@ -344,15 +344,16 @@ public sealed class MqttHardwareTestSuite : IAsyncDisposable
     }
 
     /// <summary>
-    /// TC07: Thử truy cập ngoài vùng nhớ (0x0D80 trở đi) và xác minh MCU từ chối an toàn.
+    /// TC07: Thử truy cập ngoài vùng nhớ (địa chỉ unmapped 0x2000) và xác minh MCU từ chối an toàn.
+    /// Lưu ý: 0x0D80 trước đây là unmapped nhưng từ V2 đã được phân bổ cho MQTT Subscribe Table (0x0D80..0x0DFF).
     /// </summary>
     private async Task<string?> Test07_IllegalAddressAccessAsync(CancellationToken ct)
     {
         bool readBlocked = false;
         try
         {
-            // Vùng hợp lệ kết thúc tại 0x0D7F. Địa chỉ 0x0D80 phải bị từ chối
-            await _client!.ReadHoldingRegistersAsync(_slaveId, 0x0D80, 10, ct);
+            // Vùng 0x2000 là ngoài toàn bộ bản đồ thanh ghi hợp lệ. Bắt buộc bị từ chối với Modbus Exception 0x02.
+            await _client!.ReadHoldingRegistersAsync(_slaveId, 0x2000, 10, ct);
         }
         catch
         {
@@ -361,10 +362,10 @@ public sealed class MqttHardwareTestSuite : IAsyncDisposable
 
         if (!readBlocked)
         {
-            throw new Exception("MCU cho phép đọc ngoài vùng địa chỉ MQTT (0x0D80) mà không ném ngoại lệ Modbus!");
+            throw new Exception("MCU cho phép đọc ngoài vùng địa chỉ hợp lệ (0x2000) mà không ném ngoại lệ Modbus!");
         }
 
-        return "MCU bảo vệ bộ nhớ chuẩn xác: Khóa mọi truy cập ngoài vùng 0x0D80.";
+        return "MCU bảo vệ bộ nhớ chuẩn xác: Khóa mọi truy cập ngoài vùng hợp lệ (0x2000).";
     }
 
     /// <summary>

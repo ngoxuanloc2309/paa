@@ -19,13 +19,17 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v2.6.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+| **v2.7.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
 
 | **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
 
-### 📖 Official User Manual & Technical Documentation:
-- **Commercial Handbook (.docx):** [**`docs/SynaptiX_IDE_User_Manual.docx`**](docs/SynaptiX_IDE_User_Manual.docx) — Formal industrial user manual (IEC/IEEE 82079-1:2019 compliant with Cover Page, Revision History, List of Figures, and embedded high-resolution screenshots).
-- **Online Markdown Guide (.md):** [**`docs/SYNAPTIX_IDE_USER_MANUAL.md`**](docs/SYNAPTIX_IDE_USER_MANUAL.md) — Fast-browsing documentation reference with complete diagrams and workflows.
+### Official User Manual & Technical Documentation:
+- **English Editions:**
+  - **Commercial Handbook (.docx):** [**`docs/SynaptiX_IDE_User_Manual_EN.docx`**](docs/SynaptiX_IDE_User_Manual_EN.docx) — Formal industrial user manual (IEC/IEEE 82079-1:2019 compliant with Cover Page, Document Control, List of Figures, ANSI Z535 callouts, and embedded screenshots).
+  - **Online Markdown Guide (.md):** [**`docs/SYNAPTIX_IDE_USER_MANUAL_EN.md`**](docs/SYNAPTIX_IDE_USER_MANUAL_EN.md) — Fast-browsing documentation reference with architecture diagrams and workflows.
+- **Vietnamese Editions (Bản Tiếng Việt Kỹ thuật):**
+  - **Tài liệu Hướng dẫn Sử dụng (.docx):** [**`docs/SynaptiX_IDE_User_Manual_VI.docx`**](docs/SynaptiX_IDE_User_Manual_VI.docx) — Bản Word tiêu chuẩn quốc tế hoàn chỉnh (Trang bìa công nghiệp, Kiểm soát tài liệu, Bảng hình vẽ minh họa, Hộp cảnh báo an toàn ANSI Z535, giữ nguyên thuật ngữ chuyên ngành tiếng Anh).
+  - **Tài liệu Markdown Trực tuyến (.md):** [**`docs/SYNAPTIX_IDE_USER_MANUAL_VI.md`**](docs/SYNAPTIX_IDE_USER_MANUAL_VI.md) — Bản Markdown kỹ thuật chuẩn quốc tế đọc trực tiếp trên repo hoặc tích hợp Wiki.
 
 ### System Requirements:
 - **Operating System:** Windows 10 or Windows 11 (64-bit).
@@ -46,7 +50,7 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 - **Integrated Real-Time Simulator:** Test and debug logic offline with virtual DI toggle switches, AI analog sliders, DO output status LEDs, and a real-time event trace log without physical hardware.
 - **Live Watch & Online Diagnostics:** Real-time variable inspection with quality badges (Good / Stale / Bad), live sparkline telemetry graphs, and instant tag override / force write.
 - **Built-in Auto-Updater:** Automatically checks for new versions on GitHub Releases, previews markdown changelogs, and performs zero-hassle hot-swap restart upon update.
-- **MQTT IIoT Cloud & Edge Gateway (Platform V2.0):** Native MQTT v3.1.1 & v5.0 client over TCP/MQTTS (1883/8883) with two-tier decoupled architecture: System Broker (`0x0E00`), **MQTT PUB** (`0x0C00`, Outbound telemetry supporting Event/COV/Periodic modes and No-Code Visual Fields / Custom JSON), and **MQTT SUB** (Inbound message ingestion with fail-safe Atomic All-or-Nothing parser, supporting Flat JSON, Standard Envelopes, Nested paths, and dynamic FBD canvas pins).
+- **MQTT IIoT Cloud & Edge Gateway (Platform V2.0):** Native MQTT v3.1.1 & v5.0 client over TCP/MQTTS (1883/8883) with two-tier decoupled architecture: System Broker (`0x0E00`) with **TLS/SSL X.509 Certificate Staging & Chunked Struct Transfer Protocol (`0x0F00` SPLC-SPEC-MQTT-003)**, **MQTT PUB** (`0x0C00`, Outbound telemetry supporting Event/COV/Periodic modes and No-Code Visual Fields / Custom JSON), and **MQTT SUB** (Inbound message ingestion with fail-safe Atomic All-or-Nothing parser, supporting Flat JSON, Standard Envelopes, Nested paths, and dynamic FBD canvas pins).
 - **IEC 61131-3 Dedicated Function Blocks:** Hardware-timed TON/TOF/TP Timers with sub-millisecond precision, CTU/CTD Counters with non-volatile retain binding, and Linear Analog Signal Scalers ($y = k \cdot x + b$).
 - **Industrial Design System:** High-contrast technical interface adhering to Siemens TIA Portal and Beckhoff TwinCAT ergonomics (Siemens Petrol `#006487`, IEC Green `#107C41`, standardized 185px node geometry with `[PUB]`/`[SUB]` badges, and instant bilingual English/Vietnamese localization).
 

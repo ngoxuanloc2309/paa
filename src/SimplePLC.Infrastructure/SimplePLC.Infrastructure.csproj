@@ -16,4 +16,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SimplePLC.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="SimplePLC.Studio.Tests" />
+  </ItemGroup>
+
 </Project>

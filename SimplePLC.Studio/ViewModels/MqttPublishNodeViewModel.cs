@@ -319,7 +319,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
         TriggerConnector = new ConnectorViewModel
         {
             Title = "Trig",
-            TooltipKey = "PinTooltipTrig",
+            TooltipKey = "PinTooltipMqttPubTrig",
             IsInput = true,
             Node = this
         };
@@ -327,7 +327,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
         DefaultValConnector = new ConnectorViewModel
         {
             Title = "Val",
-            TooltipKey = "PinTooltipVal",
+            TooltipKey = "PinTooltipMqttPubVal",
             IsInput = true,
             Node = this
         };
@@ -335,7 +335,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
         DoneConnector = new ConnectorViewModel
         {
             Title = "Done",
-            TooltipKey = "PinTooltipDone",
+            TooltipKey = "PinTooltipMqttPubDone",
             IsInput = false,
             Node = this
         };
@@ -343,7 +343,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
         ErrorConnector = new ConnectorViewModel
         {
             Title = "Err",
-            TooltipKey = "PinTooltipErr",
+            TooltipKey = "PinTooltipMqttPubErr",
             IsInput = false,
             Node = this
         };

@@ -258,14 +258,20 @@
                                      TextWrapping="NoWrap" Padding="8" />
                         </Border>
 
-                        <!-- Ready Status Banner (100% Localized) -->
-                        <Border Grid.Row="2" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="3" Padding="8">
-                            <StackPanel>
-                                <TextBlock Text="{Binding [MqttConfigReadyTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontWeight="SemiBold" FontSize="10.5" Foreground="#15803D" Margin="0,0,0,2" />
-                                <TextBlock Text="{Binding [MqttConfigReadyDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="10" Foreground="#166534" TextWrapping="Wrap" />
-                            </StackPanel>
+                        <!-- Ready Status Banner (ISA-101 / TIA Portal Diagnostic Box) -->
+                        <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="7,6">
+                            <DockPanel LastChildFill="True">
+                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,7,0" DockPanel.Dock="Left" />
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                        <Ellipse Width="6" Height="6" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Text="{Binding [MqttConfigReadyTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding [MqttConfigReadyDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10" Foreground="#475569" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
                     </Grid>
                 </Border>

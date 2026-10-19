@@ -79,6 +79,11 @@ public partial class MainWindow : Window
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
         }
+        else if (e.Data.GetDataPresent(typeof(string)))
+        {
+            // Cho phép kéo thả khối từ Toolbox mà không bị Window từ chối
+            e.Effects = DragDropEffects.Copy;
+        }
         else
         {
             e.Effects = DragDropEffects.None;

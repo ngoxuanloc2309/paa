@@ -136,4 +136,20 @@ public class GraphGrammarTests
         Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Trigger, LogicNodeKind.Counter));
         Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Guard, LogicNodeKind.Counter));
     }
+
+    [Fact]
+    public void ModbusMaster_Grammar_Supports_Sensors_And_Actuators()
+    {
+        // ModbusRead receives from Trigger/Guard/Input and outputs to Action/Publish/Timer/Counter
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Input, LogicNodeKind.ModbusRead));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Trigger, LogicNodeKind.ModbusRead));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.ModbusRead, LogicNodeKind.Action));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.ModbusRead, LogicNodeKind.MqttPublish));
+
+        // ModbusWrite receives from Input/Trigger/Guard/Scale/Comparator/MqttSubscribe and outputs to Action/Trigger
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Input, LogicNodeKind.ModbusWrite));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Trigger, LogicNodeKind.ModbusWrite));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.MqttSubscribe, LogicNodeKind.ModbusWrite));
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.ModbusWrite, LogicNodeKind.Action));
+    }
 }

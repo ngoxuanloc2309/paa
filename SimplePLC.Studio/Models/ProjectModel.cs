@@ -36,6 +36,11 @@ public class ProjectMetadata
     public bool MqttTlsEnabled { get; set; } = false;
     public bool MqttCleanSession { get; set; } = true;
     public ushort MqttKeepAliveSec { get; set; } = 60;
+
+    // MQTT TLS Certificate Settings (SPLC-SPEC-MQTT-003)
+    public string MqttTlsCaCertPath { get; set; } = string.Empty;
+    public string MqttTlsCaCertPem { get; set; } = string.Empty;
+    public bool MqttTlsAllowSelfSigned { get; set; } = false;
 }
 
 public class ProjectTagData
@@ -89,6 +94,8 @@ public class ProjectNodeData
     // Timer node properties
     public string TimerMode { get; set; } = "TON"; // "TON", "TOF", "TP"
     public uint PresetMs { get; set; }
+    public string TimeUnit { get; set; } = "s";
+    public double DurationValue { get; set; } = 3.0;
     public string OutputTagName { get; set; } = string.Empty;
 
     // Counter node properties
@@ -128,6 +135,41 @@ public class ProjectNodeData
     public uint MqttSubTimeoutMs { get; set; } = 0;
     public string MqttSubFailSafeAction { get; set; } = "KeepLastValue";
     public List<MqttSubPinData> MqttSubPins { get; set; } = new();
+
+    // Modbus Read node properties
+    public byte ModbusSlaveId { get; set; } = 1;
+    public string ModbusFunctionCode { get; set; } = "ReadHoldingRegisters";
+    public ushort ModbusStartAddress { get; set; } = 0;
+    public ushort ModbusRegCount { get; set; } = 2;
+    public uint ModbusPollIntervalMs { get; set; } = 500;
+    public uint ModbusTimeoutMs { get; set; } = 300;
+    public List<ModbusPinData> ModbusPins { get; set; } = new();
+
+    // Modbus Write node properties
+    public byte ModbusWriteSlaveId { get; set; } = 1;
+    public string ModbusWriteMode { get; set; } = "ChannelIndexed";
+    public string ModbusWriteFunctionCode { get; set; } = "WriteSingleRegister";
+    public ushort ModbusWriteStartAddress { get; set; } = 0;
+    public ushort ModbusWritePointCount { get; set; } = 1;
+    public ushort ModbusWriteBaseAddressCommand { get; set; } = 0x0100;
+    public ushort ModbusWriteBaseAddressParam { get; set; } = 0x0120;
+    public ushort ModbusWriteChannelCount { get; set; } = 9;
+    public bool ModbusWriteIsExclusiveChannel { get; set; } = true;
+    public string ModbusWriteTriggerMode { get; set; } = "OnTriggerRisingEdge";
+    public uint ModbusWriteCyclicIntervalMs { get; set; } = 500;
+    public uint ModbusWriteTimeoutMs { get; set; } = 300;
+    public List<ModbusPinData> ModbusWritePins { get; set; } = new();
+
+    // Direct Write node properties
+    public string DirectWriteTargetPin { get; set; } = "Do0";
+    public string DirectWriteMode { get; set; } = "DigitalOutput";
+    public ushort DirectWriteChannelCount { get; set; } = 18;
+    public bool DirectWriteIsExclusiveChannel { get; set; } = true;
+    public uint DirectWritePulseWidthUs { get; set; } = 50;
+    public uint DirectWritePwmFrequencyHz { get; set; } = 1000;
+    public string DirectWriteTriggerMode { get; set; } = "OnTriggerRisingEdge";
+    public uint DirectWriteTimeoutMs { get; set; } = 300;
+    public uint DirectWriteDefaultColorRgb { get; set; } = 0x00FF00;
 }
 
 public class MqttPayloadFieldData
@@ -148,6 +190,18 @@ public class MqttSubPinData
     public double? MinValue { get; set; }
     public double? MaxValue { get; set; }
     public double DefaultValue { get; set; } = 0.0;
+}
+
+public class ModbusPinData
+{
+    public string Id { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public ushort RegOffset { get; set; } = 0;
+    public string DataType { get; set; } = "Int16";
+    public string Endianness { get; set; } = "BigEndian_ABCD";
+    public float Multiplier { get; set; } = 1.0f;
+    public string TargetTagName { get; set; } = string.Empty;
+    public ushort? TargetTagIndex { get; set; }
 }
 
 public class ProjectConnectionData

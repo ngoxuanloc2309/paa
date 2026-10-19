@@ -1330,8 +1330,37 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     }
 }
 
+public class TimeUnitOption : System.ComponentModel.INotifyPropertyChanged
+{
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    public string Key { get; }
+    public string LocKey { get; }
+    public double MultiplierToMs { get; }
+
+    public string Label => LocalizationService.Instance.Get(LocKey);
+
+    public TimeUnitOption(string key, string locKey, double multiplier)
+    {
+        Key = key;
+        LocKey = locKey;
+        MultiplierToMs = multiplier;
+        LocalizationService.Instance.LanguageChanged += () =>
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Label)));
+        };
+    }
+}
+
 public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
 {
+    public static IReadOnlyList<TimeUnitOption> AvailableUnits { get; } = new List<TimeUnitOption>
+    {
+        new("ms", "TimeUnit_ms", 1.0),
+        new("s", "TimeUnit_s", 1000.0),
+        new("min", "TimeUnit_min", 60000.0),
+        new("h", "TimeUnit_h", 3600000.0)
+    };
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayTitle))]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -1344,7 +1373,140 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(PresetText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
+    [NotifyPropertyChangedFor(nameof(CalculatedMsSummary))]
+    [NotifyPropertyChangedFor(nameof(SimulationProgressText))]
+    [NotifyPropertyChangedFor(nameof(TimerStatusPillText))]
     private uint _presetMs = 3000;
+
+    [ObservableProperty]
+    private string _timeUnit = "s";
+
+    [ObservableProperty]
+    private string _durationValueText = "3";
+
+    public double DurationValue { get; private set; } = 3.0;
+
+    private bool _isInternalUpdating = false;
+
+    partial void OnPresetMsChanged(uint value)
+    {
+        if (!_isInternalUpdating)
+        {
+            SyncFromPresetMs();
+        }
+    }
+
+    partial void OnTimeUnitChanged(string value)
+    {
+        RecalculatePresetMsFromInput();
+    }
+
+    partial void OnDurationValueTextChanged(string value)
+    {
+        RecalculatePresetMsFromInput();
+    }
+
+    private void RecalculatePresetMsFromInput()
+    {
+        if (_isInternalUpdating) return;
+
+        if (double.TryParse(DurationValueText.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val) && val >= 0)
+        {
+            DurationValue = val;
+            double factor = TimeUnit switch
+            {
+                "h" => 3600000.0,
+                "min" => 60000.0,
+                "s" => 1000.0,
+                _ => 1.0
+            };
+            uint computed = (uint)Math.Clamp(Math.Round(val * factor), 1, uint.MaxValue);
+            _isInternalUpdating = true;
+            try
+            {
+                PresetMs = computed;
+            }
+            finally
+            {
+                _isInternalUpdating = false;
+            }
+            OnPropertyChanged(nameof(CalculatedMsSummary));
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(PresetText));
+            OnPropertyChanged(nameof(NarrativeText));
+        }
+    }
+
+    public void SyncFromPresetMs()
+    {
+        _isInternalUpdating = true;
+        try
+        {
+            if (PresetMs >= 3600000 && PresetMs % 3600000 == 0)
+            {
+                TimeUnit = "h";
+                DurationValue = PresetMs / 3600000.0;
+                DurationValueText = DurationValue.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else if (PresetMs >= 60000 && PresetMs % 60000 == 0)
+            {
+                TimeUnit = "min";
+                DurationValue = PresetMs / 60000.0;
+                DurationValueText = DurationValue.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else if (PresetMs >= 1000 && PresetMs % 1000 == 0)
+            {
+                TimeUnit = "s";
+                DurationValue = PresetMs / 1000.0;
+                DurationValueText = DurationValue.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else if (PresetMs >= 100 && PresetMs % 100 == 0)
+            {
+                TimeUnit = "s";
+                DurationValue = PresetMs / 1000.0;
+                DurationValueText = DurationValue.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                TimeUnit = "ms";
+                DurationValue = PresetMs;
+                DurationValueText = PresetMs.ToString();
+            }
+
+            OnPropertyChanged(nameof(CalculatedMsSummary));
+        }
+        finally
+        {
+            _isInternalUpdating = false;
+        }
+    }
+
+    public void SetDuration(double val, string unit)
+    {
+        _isInternalUpdating = true;
+        try
+        {
+            TimeUnit = AvailableUnits.Any(u => u.Key == unit) ? unit : "s";
+            DurationValue = val;
+            DurationValueText = val.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _isInternalUpdating = false;
+        }
+        RecalculatePresetMsFromInput();
+    }
+
+    public static string FormatDurationHumanReadable(uint ms)
+    {
+        if (ms >= 3600000 && ms % 3600000 == 0) return $"{ms / 3600000}h";
+        if (ms >= 60000 && ms % 60000 == 0) return $"{ms / 60000}min";
+        if (ms >= 1000 && ms % 1000 == 0) return $"{ms / 1000}s";
+        if (ms >= 1000) return $"{(ms / 1000.0):0.##}s";
+        return $"{ms}ms";
+    }
+
+    public string CalculatedMsSummary => $"= {PresetMs:N0} ms ({FormatDurationHumanReadable(PresetMs)})";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -1381,7 +1543,7 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
 
     public string TimerStatusPillText => IsLiveActive
         ? "Q = ON"
-        : (IsTiming ? $"{(int)ProgressPercent}% ({(PresetMs / 1000.0):0.#}s)" : $"{PresetMs / 1000.0:0.#}s (OFF)");
+        : (IsTiming ? $"{(int)ProgressPercent}% ({FormatDurationHumanReadable(PresetMs)})" : $"{FormatDurationHumanReadable(PresetMs)} (OFF)");
 
     public ushort? BoundTagIndex => (OutputTag != null && OutputTag.Kind != TagKind.None && OutputTag.Index < 65535) ? (ushort)OutputTag.Index : null;
 
@@ -1451,7 +1613,7 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         _ => "🕒"
     };
 
-    public string PresetText => $"{PresetMs} ms ({(PresetMs / 1000.0):0.#}s)";
+    public string PresetText => $"{PresetMs:N0} ms ({FormatDurationHumanReadable(PresetMs)})";
 
     public string OutputBadgeText => OutputTag != null ? OutputTag.Name : "(Chưa chọn Q)";
 
@@ -1464,8 +1626,8 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             string inTag = InputTag?.DisplayName ?? LocalizationService.Tr("NarrNoTag");
             string outTag = OutputTag?.DisplayName ?? LocalizationService.Tr("NarrNoTargetTag");
             string sec = PresetMs >= 1000
-                ? string.Format(LocalizationService.Tr("NarrDwellSec"), (PresetMs / 1000.0).ToString("0.#"))
-                : "";
+                ? string.Format(LocalizationService.Tr("NarrDwellSec"), FormatDurationHumanReadable(PresetMs))
+                : $"{PresetMs} ms";
             return TimerMode switch
             {
                 "TOF" => string.Format(LocalizationService.Tr("NarrTimerTof"), inTag, outTag, PresetMs, sec),
@@ -1475,7 +1637,7 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         }
     }
 
-    public override string SummaryText => $"{TimerMode} ({PresetMs}ms) → {OutputTag?.Name ?? "--"}";
+    public override string SummaryText => $"{TimerMode} ({FormatDurationHumanReadable(PresetMs)}) → {OutputTag?.Name ?? "--"}";
 
     public TimerNodeViewModel(string mode = "TON", TagModel? inTag = null, TagModel? qTag = null, uint presetMs = 3000)
     {
@@ -1484,7 +1646,8 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         TimerMode = mode;
         InputTag = inTag;
         OutputTag = qTag;
-        PresetMs = presetMs;
+        _presetMs = presetMs;
+        SyncFromPresetMs();
 
         // Standard FBD construct: In as input, Q as output
         InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
@@ -1501,6 +1664,9 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         OnPropertyChanged(nameof(InputBadgeText));
         OnPropertyChanged(nameof(NarrativeText));
         OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(TimeUnit));
+        OnPropertyChanged(nameof(TimerStatusPillText));
+        OnPropertyChanged(nameof(CalculatedMsSummary));
     }
 }
 

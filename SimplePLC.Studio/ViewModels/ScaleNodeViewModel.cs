@@ -353,7 +353,7 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         InputConnectors.Add(new ConnectorViewModel
         {
             Title = "IN",
-            TooltipKey = "PinTooltipIn",
+            TooltipKey = "PinTooltipScaleIn",
             IsInput = true,
             Node = this
         });
@@ -361,7 +361,7 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         OutputConnectors.Add(new ConnectorViewModel
         {
             Title = "OUT",
-            TooltipKey = "PinTooltipOut",
+            TooltipKey = "PinTooltipScaleOut",
             IsInput = false,
             Node = this
         });

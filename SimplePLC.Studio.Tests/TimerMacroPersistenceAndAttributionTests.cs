@@ -235,4 +235,118 @@ public class TimerMacroPersistenceAndAttributionTests
         Assert.Equal("DO0", compileResult.Rules[0].ActionTag?.Name);
         Assert.Equal("DO0", compileResult.Rules[1].ActionTag?.Name);
     }
+
+    [Fact]
+    public void TimerNode_TimeUnitConversions_CalculatesAccurateHardwareMs()
+    {
+        var node = new TimerNodeViewModel("TON", presetMs: 3000);
+
+        // Mặc định 3000ms -> 3 giây
+        Assert.Equal("s", node.TimeUnit);
+        Assert.Equal("3", node.DurationValueText);
+        Assert.Equal(3000u, node.PresetMs);
+        Assert.Contains("3,000 ms", node.CalculatedMsSummary);
+
+        // Người dùng nhập 30 phút (min)
+        node.TimeUnit = "min";
+        node.DurationValueText = "30";
+        Assert.Equal(1800000u, node.PresetMs); // 30 * 60 * 1000 = 1,800,000 ms
+        Assert.Contains("1,800,000 ms", node.CalculatedMsSummary);
+        Assert.Contains("30min", node.CalculatedMsSummary);
+
+        // Người dùng nhập 1.5 giây
+        node.TimeUnit = "s";
+        node.DurationValueText = "1.5";
+        Assert.Equal(1500u, node.PresetMs);
+        Assert.Contains("1,500 ms", node.CalculatedMsSummary);
+
+        // Người dùng nhập 2 giờ (h)
+        node.TimeUnit = "h";
+        node.DurationValueText = "2";
+        Assert.Equal(7200000u, node.PresetMs); // 2 * 3600 * 1000 = 7,200,000 ms
+        Assert.Contains("7,200,000 ms", node.CalculatedMsSummary);
+
+        // Người dùng nhập 250 ms
+        node.TimeUnit = "ms";
+        node.DurationValueText = "250";
+        Assert.Equal(250u, node.PresetMs);
+        Assert.Contains("250 ms", node.CalculatedMsSummary);
+
+        // Gán trực tiếp PresetMs (SyncFromPresetMs)
+        node.PresetMs = 60000;
+        Assert.Equal("min", node.TimeUnit);
+        Assert.Equal("1", node.DurationValueText);
+    }
+
+    [Fact]
+    public void TimerNode_Persistence_WithCustomUnit_RoundtripSuccessful()
+    {
+        var di0 = _catalog.AllTags.First(t => t.Name == "DI0");
+        var do0 = _catalog.AllTags.First(t => t.Name == "DO0");
+
+        var originalNode = new TimerNodeViewModel("TON", di0, do0);
+        originalNode.SetDuration(45, "min"); // 45 phút = 2,700,000 ms
+        Assert.Equal(2700000u, originalNode.PresetMs);
+
+        // Export
+        var pNode = LogicEditorViewModel.ExportSingleNodeData(originalNode);
+        Assert.Equal(2700000u, pNode.PresetMs);
+        Assert.Equal("min", pNode.TimeUnit);
+        Assert.Equal(45.0, pNode.DurationValue);
+
+        // Serialize & Deserialize
+        string json = JsonSerializer.Serialize(pNode);
+        var deserializedPNode = JsonSerializer.Deserialize<ProjectNodeData>(json)!;
+
+        // Import
+        var editorVm = new LogicEditorViewModel(_catalog);
+        var reloadedNode = editorVm.CreateNodeFromData(deserializedPNode) as TimerNodeViewModel;
+
+        Assert.NotNull(reloadedNode);
+        Assert.Equal(2700000u, reloadedNode.PresetMs);
+        Assert.Equal("min", reloadedNode.TimeUnit);
+        Assert.Equal("45", reloadedNode.DurationValueText);
+    }
+
+    [Fact]
+    public void TimerNode_TimeUnit_SynchronizesWithLocalizationService()
+    {
+        var originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            // Switch to English
+            LocalizationService.Instance.CurrentLanguage = "en";
+            var sUnitEn = TimerNodeViewModel.AvailableUnits.First(u => u.Key == "s");
+            var minUnitEn = TimerNodeViewModel.AvailableUnits.First(u => u.Key == "min");
+            var hUnitEn = TimerNodeViewModel.AvailableUnits.First(u => u.Key == "h");
+            var msUnitEn = TimerNodeViewModel.AvailableUnits.First(u => u.Key == "ms");
+
+            Assert.Equal("s (seconds)", sUnitEn.Label);
+            Assert.Equal("min (minutes)", minUnitEn.Label);
+            Assert.Equal("h (hours)", hUnitEn.Label);
+            Assert.Equal("ms (milliseconds)", msUnitEn.Label);
+
+            // Switch to Vietnamese
+            bool propertyChangedFired = false;
+            sUnitEn.PropertyChanged += (sender, args) =>
+            {
+                if (args.PropertyName == nameof(TimeUnitOption.Label))
+                {
+                    propertyChangedFired = true;
+                }
+            };
+
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.True(propertyChangedFired);
+            Assert.Equal("s (giây)", sUnitEn.Label);
+            Assert.Equal("min (phút)", minUnitEn.Label);
+            Assert.Equal("h (giờ)", hUnitEn.Label);
+            Assert.Equal("ms (mili-giây)", msUnitEn.Label);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
 }
+

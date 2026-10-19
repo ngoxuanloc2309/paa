@@ -13,7 +13,10 @@ public enum LogicNodeKind
     Scale = 6,
     Comparator = 7,
     MqttPublish = 8,
-    MqttSubscribe = 9
+    MqttSubscribe = 9,
+    ModbusRead = 10,
+    ModbusWrite = 11,
+    DirectWrite = 12
 }
 
 public sealed class ScaleNodeData
@@ -126,6 +129,55 @@ public sealed class MqttSubscribeNodeData
     public List<SimplePLC.Protocol.Dto.MqttPinBindingDto> Pins { get; set; } = new();
 }
 
+public sealed class ModbusReadNodeData
+{
+    public ushort? EnTagIndex { get; set; }
+    public byte SlaveId { get; set; } = 1;
+    public SimplePLC.Protocol.Enums.ModbusMasterFunctionCode FunctionCode { get; set; } = SimplePLC.Protocol.Enums.ModbusMasterFunctionCode.ReadHoldingRegisters;
+    public ushort StartAddress { get; set; } = 0;
+    public ushort RegCount { get; set; } = 2;
+    public uint PollIntervalMs { get; set; } = 500;
+    public uint TimeoutMs { get; set; } = 300;
+    public List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto> Pins { get; set; } = new();
+}
+
+public sealed class ModbusWriteNodeData
+{
+    public ushort? TrigTagIndex { get; set; }
+    public byte SlaveId { get; set; } = 1;
+    public SimplePLC.Protocol.Enums.ModbusWriteMode WriteMode { get; set; } = SimplePLC.Protocol.Enums.ModbusWriteMode.ChannelIndexed;
+    public SimplePLC.Protocol.Enums.ModbusMasterWriteFunctionCode FunctionCode { get; set; } = SimplePLC.Protocol.Enums.ModbusMasterWriteFunctionCode.WriteSingleRegister;
+    public ushort StartAddress { get; set; } = 0;
+    public ushort PointCount { get; set; } = 1;
+    public ushort BaseAddressCommand { get; set; } = 0x0100;
+    public ushort BaseAddressParam { get; set; } = 0x0120;
+    public ushort ChannelCount { get; set; } = 9;
+    public bool IsExclusiveChannel { get; set; } = true;
+    public SimplePLC.Protocol.Enums.ModbusWriteTriggerMode TriggerMode { get; set; } = SimplePLC.Protocol.Enums.ModbusWriteTriggerMode.OnTriggerRisingEdge;
+    public uint CyclicIntervalMs { get; set; } = 500;
+    public uint TimeoutMs { get; set; } = 300;
+    public ushort? ChannelTagIndex { get; set; }
+    public ushort? CommandTagIndex { get; set; }
+    public ushort? ParamTagIndex { get; set; }
+    public List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto> Pins { get; set; } = new();
+}
+
+public sealed class DirectWriteNodeData
+{
+    public ushort? TrigTagIndex { get; set; }
+    public SimplePLC.Protocol.Enums.DirectWriteTargetPin TargetPin { get; set; } = SimplePLC.Protocol.Enums.DirectWriteTargetPin.Do0;
+    public SimplePLC.Protocol.Enums.DirectWriteMode Mode { get; set; } = SimplePLC.Protocol.Enums.DirectWriteMode.DigitalOutput;
+    public ushort ChannelCount { get; set; } = 18;
+    public bool IsExclusiveChannel { get; set; } = true;
+    public uint PulseWidthUs { get; set; } = 50;
+    public uint PwmFrequencyHz { get; set; } = 1000;
+    public SimplePLC.Protocol.Enums.DirectWriteTriggerMode TriggerMode { get; set; } = SimplePLC.Protocol.Enums.DirectWriteTriggerMode.OnTriggerRisingEdge;
+    public uint TimeoutMs { get; set; } = 300;
+    public ushort? ChannelTagIndex { get; set; }
+    public ushort? ParamTagIndex { get; set; }
+    public uint DefaultColorRgb { get; set; } = 0x00FF00;
+}
+
 public sealed class LogicNode
 {
     public string Id { get; set; } = string.Empty;
@@ -143,6 +195,9 @@ public sealed class LogicNode
     public ComparatorNodeData? ComparatorData { get; set; }
     public MqttPublishNodeData? MqttPublishData { get; set; }
     public MqttSubscribeNodeData? MqttSubscribeData { get; set; }
+    public ModbusReadNodeData? ModbusReadData { get; set; }
+    public ModbusWriteNodeData? ModbusWriteData { get; set; }
+    public DirectWriteNodeData? DirectWriteData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };
@@ -379,6 +434,125 @@ public sealed class LogicNode
                 TimeoutMs = timeoutMs,
                 FailSafeAction = failSafeAction,
                 Pins = pins != null ? new List<SimplePLC.Protocol.Dto.MqttPinBindingDto>(pins) : new()
+            }
+        };
+
+    public static LogicNode CreateModbusRead(
+        string id,
+        ushort? enTag = null,
+        byte slaveId = 1,
+        SimplePLC.Protocol.Enums.ModbusMasterFunctionCode functionCode = SimplePLC.Protocol.Enums.ModbusMasterFunctionCode.ReadHoldingRegisters,
+        ushort startAddress = 0,
+        ushort regCount = 2,
+        uint pollIntervalMs = 500,
+        uint timeoutMs = 300,
+        IEnumerable<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>? pins = null,
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.ModbusRead,
+            ExecutionOrder = executionOrder,
+            Label = label,
+            ModbusReadData = new ModbusReadNodeData
+            {
+                EnTagIndex = enTag,
+                SlaveId = slaveId,
+                FunctionCode = functionCode,
+                StartAddress = startAddress,
+                RegCount = regCount,
+                PollIntervalMs = pollIntervalMs,
+                TimeoutMs = timeoutMs,
+                Pins = pins != null ? new List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>(pins) : new()
+            }
+        };
+
+    public static LogicNode CreateModbusWrite(
+        string id,
+        ushort? trigTag = null,
+        byte slaveId = 1,
+        SimplePLC.Protocol.Enums.ModbusWriteMode writeMode = SimplePLC.Protocol.Enums.ModbusWriteMode.ChannelIndexed,
+        SimplePLC.Protocol.Enums.ModbusMasterWriteFunctionCode functionCode = SimplePLC.Protocol.Enums.ModbusMasterWriteFunctionCode.WriteSingleRegister,
+        ushort startAddress = 0,
+        ushort pointCount = 1,
+        ushort baseAddressCommand = 0x0100,
+        ushort baseAddressParam = 0x0120,
+        ushort channelCount = 9,
+        bool isExclusiveChannel = true,
+        SimplePLC.Protocol.Enums.ModbusWriteTriggerMode triggerMode = SimplePLC.Protocol.Enums.ModbusWriteTriggerMode.OnTriggerRisingEdge,
+        uint cyclicIntervalMs = 500,
+        uint timeoutMs = 300,
+        ushort? channelTag = null,
+        ushort? commandTag = null,
+        ushort? paramTag = null,
+        int executionOrder = 0,
+        string label = "",
+        IEnumerable<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>? pins = null) =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.ModbusWrite,
+            ExecutionOrder = executionOrder,
+            Label = label,
+            ModbusWriteData = new ModbusWriteNodeData
+            {
+                TrigTagIndex = trigTag,
+                SlaveId = slaveId,
+                WriteMode = writeMode,
+                FunctionCode = functionCode,
+                StartAddress = startAddress,
+                PointCount = pointCount,
+                BaseAddressCommand = baseAddressCommand,
+                BaseAddressParam = baseAddressParam,
+                ChannelCount = channelCount,
+                IsExclusiveChannel = isExclusiveChannel,
+                TriggerMode = triggerMode,
+                CyclicIntervalMs = cyclicIntervalMs,
+                TimeoutMs = timeoutMs,
+                ChannelTagIndex = channelTag,
+                CommandTagIndex = commandTag,
+                ParamTagIndex = paramTag,
+                Pins = pins != null ? new List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>(pins) : new()
+            }
+        };
+
+    public static LogicNode CreateDirectWrite(
+        string id,
+        ushort? trigTag = null,
+        SimplePLC.Protocol.Enums.DirectWriteTargetPin targetPin = SimplePLC.Protocol.Enums.DirectWriteTargetPin.Do0,
+        SimplePLC.Protocol.Enums.DirectWriteMode mode = SimplePLC.Protocol.Enums.DirectWriteMode.DigitalOutput,
+        ushort channelCount = 18,
+        bool isExclusiveChannel = true,
+        uint pulseWidthUs = 50,
+        uint pwmFrequencyHz = 1000,
+        SimplePLC.Protocol.Enums.DirectWriteTriggerMode triggerMode = SimplePLC.Protocol.Enums.DirectWriteTriggerMode.OnTriggerRisingEdge,
+        uint timeoutMs = 300,
+        ushort? channelTag = null,
+        ushort? paramTag = null,
+        uint defaultColorRgb = 0x00FF00,
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.DirectWrite,
+            ExecutionOrder = executionOrder,
+            Label = label,
+            DirectWriteData = new DirectWriteNodeData
+            {
+                TrigTagIndex = trigTag,
+                TargetPin = targetPin,
+                Mode = mode,
+                ChannelCount = channelCount,
+                IsExclusiveChannel = isExclusiveChannel,
+                PulseWidthUs = pulseWidthUs,
+                PwmFrequencyHz = pwmFrequencyHz,
+                TriggerMode = triggerMode,
+                TimeoutMs = timeoutMs,
+                ChannelTagIndex = channelTag,
+                ParamTagIndex = paramTag,
+                DefaultColorRgb = defaultColorRgb
             }
         };
 }

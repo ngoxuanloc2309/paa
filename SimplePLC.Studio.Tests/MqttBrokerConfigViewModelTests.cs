@@ -163,4 +163,84 @@ public class MqttBrokerConfigViewModelTests
         Assert.False(vm.IsTestSuccess);
         Assert.Equal(SimplePLC.Studio.Services.LocalizationService.Instance["MqttBrokerErrEmptyHost"], vm.TestStatusMessage);
     }
+
+    [Fact]
+    public void TlsCertificate_LoadAndClear_ShouldUpdatePropertiesAndCommit()
+    {
+        // Arrange
+        var meta = new ProjectMetadata
+        {
+            MqttTlsEnabled = true,
+            MqttTlsCaCertPath = "C:\\Certs\\test_ca.crt",
+            MqttTlsCaCertPem = "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----",
+            MqttTlsAllowSelfSigned = true
+        };
+
+        // Act 1: Constructor loads metadata
+        var vm = new MqttBrokerConfigViewModel(meta);
+        Assert.Equal("C:\\Certs\\test_ca.crt", vm.CaCertPath);
+        Assert.Equal("-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----", vm.CaCertPem);
+        Assert.True(vm.AllowSelfSigned);
+        Assert.True(vm.HasCaCert);
+
+        // Act 2: Clear certificate
+        vm.ClearCaCertCommand.Execute(null);
+        Assert.Empty(vm.CaCertPath);
+        Assert.Empty(vm.CaCertPem);
+        Assert.False(vm.HasCaCert);
+
+        // Act 3: Save commits cleared state to metadata
+        vm.SaveCommand.Execute(null);
+        Assert.Empty(meta.MqttTlsCaCertPath);
+        Assert.Empty(meta.MqttTlsCaCertPem);
+    }
+
+    [Fact]
+    public void ParseCertPem_ValidX509Pem_ExtractsIssuerAndSha256Fingerprint()
+    {
+        // Arrange: Generate an authentic self-signed X509 certificate in memory
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var req = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            "CN=SPX Test Root CA, O=SPX Automation",
+            rsa,
+            System.Security.Cryptography.HashAlgorithmName.SHA256,
+            System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(365));
+        string pem = cert.ExportCertificatePem();
+
+        var meta = new ProjectMetadata();
+        var vm = new MqttBrokerConfigViewModel(meta);
+
+        // Act
+        vm.ParseCertPem(pem, "in-memory.crt");
+
+        // Assert
+        Assert.True(vm.HasCaCert);
+        Assert.Equal("in-memory.crt", vm.CaCertPath);
+        Assert.Equal(pem, vm.CaCertPem);
+        Assert.Contains("CN=SPX Test Root CA", vm.CaCertIssuer);
+        Assert.Contains("CN=SPX Test Root CA", vm.CaCertSubject);
+        Assert.False(string.IsNullOrWhiteSpace(vm.CaCertExpiry));
+        Assert.False(string.IsNullOrWhiteSpace(vm.CaCertSha256));
+        Assert.Contains(":", vm.CaCertSha256); // Valid colon-delimited hex fingerprint
+    }
+
+    [Fact]
+    public void ParseCertPem_CorruptPem_FallsBackToCustomCertWithoutThrowing()
+    {
+        // Arrange
+        var meta = new ProjectMetadata();
+        var vm = new MqttBrokerConfigViewModel(meta);
+
+        // Act
+        vm.ParseCertPem("NOT_A_VALID_PEM_OR_CERTIFICATE", "raw_binary.der");
+
+        // Assert: Handles exception gracefully without throwing and falls back to Custom Certificate
+        Assert.True(vm.HasCaCert);
+        Assert.Equal("raw_binary.der", vm.CaCertPath);
+        Assert.Equal("Custom Certificate", vm.CaCertIssuer);
+        Assert.Equal("Loaded", vm.CaCertExpiry);
+        Assert.Equal("N/A", vm.CaCertSha256);
+    }
 }
+

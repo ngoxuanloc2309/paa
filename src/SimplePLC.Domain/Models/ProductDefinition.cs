@@ -71,6 +71,11 @@ public sealed class ProductDefinition
     /// </summary>
     public bool SupportsSdDatalog => (HardwareCapabilities & SPLC_HardwareCapabilities.SD_DATALOG) != 0;
 
+    /// <summary>
+    /// Năng lực khối hàm Modbus RTU Master Poller (0x1000).
+    /// </summary>
+    public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0 || WireProfile >= 2;
+
     private readonly Dictionary<ushort, TagDefinition> _tagsByIndex;
     private readonly Dictionary<string, TagDefinition> _tagsByName;
 

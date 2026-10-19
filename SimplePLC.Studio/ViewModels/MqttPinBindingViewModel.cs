@@ -42,6 +42,14 @@ public partial class MqttPinBindingViewModel : ObservableObject
     [ObservableProperty]
     private string _currentStringValue = "--";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomResolvedPath))]
+    private string _resolvedPath = string.Empty;
+
+    public bool HasCustomResolvedPath =>
+        !string.IsNullOrWhiteSpace(ResolvedPath) &&
+        !string.Equals(ResolvedPath, Label, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Tên trường trong bản tin JSON, đồng thời làm tên chân ngõ ra trên Canvas.
     /// Giúp người lập trình không chuyên chỉ cần thao tác 1 trường duy nhất mà không bị rối.
@@ -119,7 +127,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
     {
         Id = Id,
         Label = Label,
-        JsonPath = JsonPath,
+        JsonPath = !string.IsNullOrWhiteSpace(ResolvedPath) ? ResolvedPath : JsonPath,
         DataType = DataType,
         TargetTagIndex = TargetTagIndex,
         MinValue = MinValue,

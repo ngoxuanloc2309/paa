@@ -31,6 +31,8 @@
     <Geometry x:Key="IconComparatorOp">M3.5,6 L8,9 L3.5,12 M9.5,7 L13,7 M9.5,10.5 L13,10.5</Geometry>
     <!-- MQTT / IIoT Broadcast: Antenna tower with radiating waves -->
     <Geometry x:Key="IconMqttBroadcast">M8,14 L8,8 M5,10 A4,4 0 0 1 11,10 M3,7.5 A7,7 0 0 1 13,7.5 M1.5,5 A9.5,9.5 0 0 1 14.5,5</Geometry>
+    <!-- Modbus Master / Serial Bus: Bidirectional communication arrows -->
+    <Geometry x:Key="IconModbusMaster">M2,5 L14,5 M14,5 L10,2 M14,5 L10,8 M14,11 L2,11 M2,11 L6,8 M2,11 L6,14</Geometry>
 
     <!-- Shared style for all block header icons: 11×11 viewport, single-color Slate stroke -->
     <Style x:Key="NodeHeaderIconStyle" TargetType="Path">
@@ -239,17 +241,17 @@
                             <Setter TargetName="NodeBorder" Property="Background" Value="#F5F3FF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#4C1D95" />
                         </DataTrigger>
-                        <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green) -->
+                        <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green border & accent stripe, crisp neutral body) -->
                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
                         </DataTrigger>
                         <!-- Priority 4: Simulation Blocked — runtime fault state (IEC red) -->
@@ -409,17 +411,17 @@
                             <Setter TargetName="NodeBorder" Property="Background" Value="#F5F3FF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#4C1D95" />
                         </DataTrigger>
-                        <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green) -->
+                        <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green border & accent stripe, crisp neutral body) -->
                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
                             <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#E6F4EA" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
                             <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
                         </DataTrigger>
                         <!-- Priority 4: Simulation Blocked — runtime fault state (IEC red) -->
@@ -484,7 +486,7 @@
                                 <Setter Property="BorderBrush" Value="#CBD5E1" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                        <Setter Property="Background" Value="#E6F4EA" />
+                                        <Setter Property="Background" Value="#F1F5F9" />
                                         <Setter Property="BorderBrush" Value="#107C41" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -568,7 +570,7 @@
                                     <Setter Property="BorderBrush" Value="#C05621" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimTriggered}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -651,7 +653,7 @@
                                     <Setter Property="BorderBrush" Value="#B91C1C" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimPassed}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -713,11 +715,11 @@
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSimFired}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -836,7 +838,7 @@
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsTiming}" Value="True">
@@ -939,7 +941,7 @@
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -1149,7 +1151,7 @@
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsConditionMet}" Value="True">
-                                    <Setter Property="Background" Value="#E6F4EA" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -1226,7 +1228,7 @@
                                     <Setter Property="BorderBrush" Value="#DC2626" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#ECFDF5" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
@@ -1332,7 +1334,7 @@
                                     <Setter Property="BorderBrush" Value="#DC2626" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                    <Setter Property="Background" Value="#ECFDF5" />
+                                    <Setter Property="Background" Value="#F1F5F9" />
                                     <Setter Property="BorderBrush" Value="#107C41" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -1363,6 +1365,316 @@
                                             <Setter Property="Foreground" Value="#DC2626" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsValidActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 11. Modbus Master Read Node Template (Generic RS-485 Sensor & Device Poller) -->
+    <DataTemplate DataType="{x:Type vm:ModbusReadNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="185"
+                     HeaderBrush="{StaticResource NodeModbusBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconModbusMaster}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="MB_RD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <!-- Communication Summary (Slave ID & FC) -->
+                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,3" ToolTip="{Binding SummaryText}" />
+
+                <!-- Status Pill -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F8FAFC" />
+                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                    <Setter Property="Background" Value="#FEF2F2" />
+                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsValidActive}" Value="True">
+                                    <Setter Property="Background" Value="#F1F5F9" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Fill" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsValidActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="95">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsValidActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 12. Modbus Master Write Node Template (Generic RS-485 Actuator & Data Output) -->
+    <DataTemplate DataType="{x:Type vm:ModbusWriteNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="220"
+                     HeaderBrush="{StaticResource NodeModbusBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconModbusMaster}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="MB_WR" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <!-- Communication Technical Specs (2 Clean Lines: Device ID & Target Config) -->
+                <TextBlock Text="{Binding DeviceIdDisplay}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding TargetConfigDisplay}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#475569" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+
+                <!-- Status Pill -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F8FAFC" />
+                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                    <Setter Property="Background" Value="#FEF2F2" />
+                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                    <Setter Property="Background" Value="#FEF3C7" />
+                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                    <Setter Property="Background" Value="#F1F5F9" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Fill" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Fill" Value="#D97706" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#D97706" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 13. Direct Write Node Template (Direct Physical Output Actuator & Pixel / Pulse Driver) -->
+    <DataTemplate DataType="{x:Type vm:DirectWriteNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="210"
+                     HeaderBrush="{StaticResource NodeActionBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="⚡" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#0284C7" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="DIR_WR" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <!-- Physical Target & Output Mode Summary -->
+                <TextBlock Text="{Binding TargetPinDisplay}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding ModeSummaryDisplay}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#475569" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+
+                <!-- Status Pill -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F8FAFC" />
+                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                    <Setter Property="Background" Value="#FEF2F2" />
+                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                    <Setter Property="Background" Value="#FEF3C7" />
+                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                    <Setter Property="Background" Value="#F1F5F9" />
+                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Fill" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Fill" Value="#D97706" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                            <Setter Property="Fill" Value="#107C41" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#64748B" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#DC2626" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#D97706" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
                                             <Setter Property="Foreground" Value="#107C41" />
                                         </DataTrigger>
                                     </Style.Triggers>

@@ -44,7 +44,7 @@ public static class GraphGrammarV1
 
         if (targetKind == LogicNodeKind.MqttPublish)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -52,13 +52,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MQTT-IN";
-            errorReason = "MQTT Publish node can only receive an upstream connection from Input, Scale, Trigger, Guard, Comparator, Timer, Counter, or MQTT Subscribe.";
+            errorReason = "MQTT Publish node can only receive an upstream connection from Input, Scale, Trigger, Guard, Comparator, Timer, Counter, MQTT Subscribe, Modbus Read, Modbus Write, or Direct Write.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.MqttSubscribe)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -66,7 +66,7 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MQTTSUB-OUT";
-            errorReason = "MQTT Subscribe output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, or MQTT Publish.";
+            errorReason = "MQTT Subscribe output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, MQTT Publish, Modbus Write, or Direct Write.";
             return false;
         }
 
@@ -81,6 +81,90 @@ public static class GraphGrammarV1
 
             errorCode = "SPLC-GRAPH-MQTTSUB-IN";
             errorReason = "MQTT Subscribe EN input can only receive upstream connection from Input, Trigger, or Guard.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.ModbusRead)
+        {
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MBM-OUT";
+            errorReason = "Modbus Read output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Publish, Modbus Write, or Direct Write.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.ModbusRead)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MBM-IN";
+            errorReason = "Modbus Read EN input can only receive upstream connection from Input, Trigger, Guard, Timer, or Counter.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.ModbusWrite)
+        {
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MBW-OUT";
+            errorReason = "Modbus Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, or MQTT Publish.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.ModbusWrite)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MBW-IN";
+            errorReason = "Modbus Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, or Modbus Read.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.DirectWrite)
+        {
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-DIRW-OUT";
+            errorReason = "Direct Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, or MQTT Publish.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.DirectWrite)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-DIRW-IN";
+            errorReason = "Direct Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, or Modbus Read.";
             return false;
         }
 

@@ -537,6 +537,67 @@ public partial class BlueprintsViewModel : ObservableObject
             TagsSummaryVi = "DO1 (Bơm cấp liệu), DO7 (Đèn báo gói tin)",
             TagsSummaryEn = "DO1 (Feed Pump), DO7 (Valid Packet Indicator)"
         });
+
+        // =========================================================================
+        // NHÓM 7: TRUYỀN THÔNG CÔNG NGHIỆP RS-485 MODBUS MASTER & LOGISTICS
+        // =========================================================================
+
+        // 24. Modbus RTU Master Sensor Ingestion (MB_READ)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "mb_read",
+            TitleVi = "Thu Thập Cảm Biến RS-485 (MB_READ)",
+            TitleEn = "RS-485 Sensor Ingestion (MB_READ)",
+            SubtitleVi = "Đọc định kỳ cảm biến áp suất qua FC04 cập nhật vào VREG0",
+            SubtitleEn = "Cyclically poll pressure transmitter via FC04 into VREG0",
+            DescriptionVi = "Khối MB_READ đóng vai trò Modbus RTU Master, định kỳ 500ms thăm dò cảm biến áp suất (Slave ID 2, FC04, Địa chỉ 0), tự động trích xuất chân Pressure vào VREG0 và chớp đèn báo dữ liệu hợp lệ DO6.",
+            DescriptionEn = "MB_READ acts as Modbus RTU Master, cyclically polling pressure transmitter every 500ms (Slave ID 2, FC04, Addr 0), streaming Pressure into VREG0 and pulsing DO6 valid indicator.",
+            BadgeVi = "Modbus Read",
+            BadgeEn = "Modbus Read",
+            BadgeColor = "#0284C7",
+            Icon = "🔄",
+            RuleCount = 0,
+            TagsSummaryVi = "DI0 (EN), VREG0 (Áp suất), DO6 (Đèn báo Valid)",
+            TagsSummaryEn = "DI0 (EN), VREG0 (Pressure), DO6 (Valid Indicator)"
+        });
+
+        // 25. Modbus RTU Master VFD Actuator (MB_WRITE Direct Registers)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "mb_write_vfd",
+            TitleVi = "Điều Khiển Biến Tần VFD (MB_WRITE)",
+            TitleEn = "VFD Speed Controller (MB_WRITE)",
+            SubtitleVi = "Ghi tần số đặt 50.00 Hz vào thanh ghi biến tần 40001 (FC06)",
+            SubtitleEn = "Write 50.00 Hz frequency setpoint to VFD register 40001 (FC06)",
+            DescriptionVi = "Khi công tắc DI0 chuyển mức 1, khối MB_WRITE (chế độ Direct Registers, FC06) tự động phát lệnh ghi giá trị tần số 50.00 Hz từ VREG1 xuống biến tần (Slave ID 3, thanh ghi 40001) và bật cờ xác nhận DO0.",
+            DescriptionEn = "On DI0 rising edge, MB_WRITE (Direct Registers, FC06) dispatches 50.00 Hz frequency command from VREG1 to VFD (Slave ID 3, reg 40001), asserting DO0 completion light.",
+            BadgeVi = "Modbus Write",
+            BadgeEn = "Modbus Write",
+            BadgeColor = "#0284C7",
+            Icon = "⚙️",
+            RuleCount = 0,
+            TagsSummaryVi = "DI0 (Kích hoạt), VREG1 (Tần số đặt), DO0 (Đèn xác nhận Tx)",
+            TagsSummaryEn = "DI0 (Trigger), VREG1 (Speed Setpoint), DO0 (Tx Acknowledge)"
+        });
+
+        // 26. SPX Sort-to-Light 18-Bin Parcel Sorting Hub (DIRECT_WRITE Direct Output)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "spx_sort_to_light",
+            TitleVi = "SPX Sort-to-Light 18 Ô Phân Loại (DIRECT_WRITE)",
+            TitleEn = "SPX 18-Bin Sort-to-Light (DIRECT_WRITE)",
+            SubtitleVi = "Nhận lệnh WMS qua MQTT SUB, xuất trực tiếp dải LED 18 ô cọc DO3",
+            SubtitleEn = "Ingest WMS put commands via MQTT SUB, drive 18-bin LEDs on terminal DO3",
+            DescriptionVi = "Hệ thống Sort-to-Light 18 ô phân loại cho SPX Logistics: Khối MQTT SUB nhận mã ô từ WMS qua JSON bin_id, kích hoạt khối DIRECT_WRITE (Target Pin: DO3, 18 Kênh, Chế độ độc quyền Exclusive) xuất xung trực tiếp điều khiển dải LED 18 ô (UCS16703/WS2812B) không cần Modbus ID, đồng thời kích hoạt còi báo nhả hàng DO4.",
+            DescriptionEn = "SPX Logistics 18-bin Sort-to-Light: MQTT SUB unpacks target bin_id from WMS command, triggering DIRECT_WRITE (Target Pin: DO3, 18 Channels, Exclusive) to directly drive 18-bin LED strip (UCS16703/WS2812B) on terminal DO3 without Modbus ID, sounding DO4 chime.",
+            BadgeVi = "Logistics / SPX",
+            BadgeEn = "Logistics / SPX",
+            BadgeColor = "#C05621",
+            Icon = "📦",
+            RuleCount = 0,
+            TagsSummaryVi = "MQTT SUB, VREG0 (Mã ô 1..18), DIRECT_WRITE (DO3), DO4 (Còi)",
+            TagsSummaryEn = "MQTT SUB, VREG0 (Bin ID 1..18), DIRECT_WRITE (DO3), DO4 (Buzzer)"
+        });
     }
 
     [RelayCommand]
@@ -1092,6 +1153,127 @@ public partial class BlueprintsViewModel : ObservableObject
             {
                 _logicEditor.Connect(pinStart.Connector, actStart.InputConnectors[0]);
             }
+        }
+        else if (bp.Id == "mb_read")
+        {
+            var di0 = tags.FirstOrDefault(t => t.Name == "DI0") ?? tags[1];
+            var vreg0 = tags.FirstOrDefault(t => t.Name == "VREG0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.VirtualRegister) ?? tags[33];
+            var do6 = tags.FirstOrDefault(t => t.Name == "DO6") ?? tags[15];
+
+            // Cột 1: Input DI0 (Kích hoạt EN) (X = 80, Y = 100)
+            var inpEn = new InputNodeViewModel(di0) { Location = new Point(80, 100) };
+
+            // Cột 2: Khối MB_READ (X = 340, Y = 100)
+            var mbRead = new ModbusReadNodeViewModel
+            {
+                SlaveId = 2,
+                FunctionCode = ModbusMasterFunctionCode.ReadInputRegisters,
+                StartAddress = 0,
+                RegCount = 1,
+                PollIntervalMs = 500,
+                Location = new Point(340, 100)
+            };
+            var pinPress = new ModbusPinBindingViewModel
+            {
+                Label = "Pressure",
+                RegOffset = 0,
+                DataType = ModbusDataType.Int16,
+                TargetTag = vreg0,
+                Multiplier = 0.1f
+            };
+            mbRead.Pins.Add(pinPress);
+
+            // Cột 3: Đèn báo Valid DO6 (X = 680, Y = 100)
+            var actValid = new ActionNodeViewModel(do6) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(680, 100) };
+
+            _logicEditor.Nodes.Add(inpEn);
+            _logicEditor.Nodes.Add(mbRead);
+            _logicEditor.Nodes.Add(actValid);
+
+            _logicEditor.Connect(inpEn.OutputConnectors[0], mbRead.EnableConnector);
+            _logicEditor.Connect(mbRead.ValidConnector, actValid.InputConnectors[0]);
+        }
+        else if (bp.Id == "mb_write_vfd")
+        {
+            var di0 = tags.FirstOrDefault(t => t.Name == "DI0") ?? tags[1];
+            var vreg1 = tags.FirstOrDefault(t => t.Name == "VREG1") ?? tags.FirstOrDefault(t => t.Kind == TagKind.VirtualRegister) ?? tags[34];
+            var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags[9];
+
+            // Hàng 1: Nút kích hoạt DI0 -> Trigger ON_RISE (X = 80, 320, Y = 80)
+            var inpTrig = new InputNodeViewModel(di0) { Location = new Point(80, 80) };
+            var trig = new TriggerNodeViewModel { TriggerType = TriggerType.ON_RISE, Location = new Point(320, 80) };
+
+            // Khối MB_WRITE (DirectRegisters, FC06) (X = 560, Y = 80)
+            var mbWrite = new ModbusWriteNodeViewModel(slaveId: 3, mode: ModbusWriteMode.DirectRegisters)
+            {
+                FunctionCode = ModbusMasterWriteFunctionCode.WriteSingleRegister,
+                StartAddress = 40001,
+                PointCount = 1,
+                TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge,
+                Location = new Point(560, 80)
+            };
+            var pinSpeed = new ModbusPinBindingViewModel
+            {
+                Label = "TargetFreq",
+                RegOffset = 0,
+                DataType = ModbusDataType.Int16,
+                TargetTag = vreg1
+            };
+            mbWrite.Pins.Add(pinSpeed);
+
+            // Đèn xác nhận DO0 (X = 860, Y = 80)
+            var actDone = new ActionNodeViewModel(do0) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(860, 80) };
+
+            _logicEditor.Nodes.Add(inpTrig);
+            _logicEditor.Nodes.Add(trig);
+            _logicEditor.Nodes.Add(mbWrite);
+            _logicEditor.Nodes.Add(actDone);
+
+            _logicEditor.Connect(inpTrig.OutputConnectors[0], trig.InputConnectors[0]);
+            _logicEditor.Connect(trig.OutputConnectors[0], mbWrite.TrigConnector);
+            _logicEditor.Connect(mbWrite.DoneConnector, actDone.InputConnectors[0]);
+        }
+        else if (bp.Id == "spx_sort_to_light")
+        {
+            var vreg0 = tags.FirstOrDefault(t => t.Name == "VREG0") ?? tags[33];
+            var do4 = tags.FirstOrDefault(t => t.Name == "DO4") ?? tags[13];
+
+            // Cột 1 (X = 80): MQTT Subscribe nhận lệnh WMS (Y = 80)
+            var mqttSub = new MqttSubscribeNodeViewModel("spx/hub_hn/rack_01/put_command")
+            {
+                Qos = 1,
+                Location = new Point(80, 80)
+            };
+            var pinBin = new MqttPinBindingViewModel("BinId", "bin_id", MqttDataType.Int32, (ushort)vreg0.Index)
+            {
+                TargetTag = vreg0
+            };
+            mqttSub.AddPin(pinBin);
+
+            // Tag mã ô đích vào Channel (X = 80, Y = 240)
+            var inpBin = new InputNodeViewModel(vreg0) { Location = new Point(80, 240) };
+
+            // Cột 2 (X = 460): Khối DIRECT_WRITE (Target Pin: DO3, 18 ô Sort-to-Light, Exclusive Channel) (Y = 80)
+            var dirWrite = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do3, DirectWriteMode.AddressableBus)
+            {
+                ChannelCount = 18,
+                IsExclusiveChannel = true,
+                TriggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge,
+                DefaultColorRgb = 0x00FF00,
+                Location = new Point(460, 80)
+            };
+
+            // Cột 3 (X = 800): Còi báo nhả hàng DO4 (Y = 80)
+            var actChime = new ActionNodeViewModel(do4) { ActionType = ActionType.SET_TAG, ActionParam = 1, Location = new Point(800, 80) };
+
+            _logicEditor.Nodes.Add(mqttSub);
+            _logicEditor.Nodes.Add(inpBin);
+            _logicEditor.Nodes.Add(dirWrite);
+            _logicEditor.Nodes.Add(actChime);
+
+            _logicEditor.Connect(mqttSub.ValidConnector, dirWrite.TrigConnector);
+            _logicEditor.Connect(inpBin.OutputConnectors[0], dirWrite.ChannelConnector);
+            _logicEditor.Connect(dirWrite.DoneConnector, actChime.InputConnectors[0]);
         }
 
         // Tự động biên dịch ngay lập tức để đồng bộ sang bảng Rule

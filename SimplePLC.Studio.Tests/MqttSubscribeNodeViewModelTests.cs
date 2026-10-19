@@ -198,5 +198,44 @@ public class MqttSubscribeNodeViewModelTests
         Assert.Equal("5", pinGrid.CurrentStringValue);
         Assert.Equal("1", pinColor.CurrentStringValue);
     }
+
+    [Fact]
+    public void Dialog_AddPinAndRemovePin_PreservesUserCustomPayload()
+    {
+        var node = new MqttSubscribeNodeViewModel();
+        var pinGrid = new MqttPinBindingViewModel("grid", "grid", MqttDataType.Int16);
+        node.Pins.Add(pinGrid);
+
+        var dialogVm = new MqttSubConfigDialogViewModel(node, new TagCatalogViewModel());
+
+        // Người dùng dán chuỗi payload custom của họ
+        string customUserPayload = "{ 'custom_command': { 'grid': 12, 'color': 3 } }";
+        dialogVm.SimulationInput = customUserPayload;
+        dialogVm.RunSimulation();
+
+        // Kiểm tra đã bóc tách được trường đầu tiên
+        Assert.Equal("12", pinGrid.CurrentStringValue);
+
+        // Khi người dùng bấm thêm chân "color", chuỗi payload custom KHÔNG được phép bị ghi đè!
+        dialogVm.AddPin();
+        Assert.Equal(customUserPayload, dialogVm.SimulationInput);
+
+        // Sau khi đổi tên chân mới thành "color", chạy lại bóc tách phải ra giá trị 3
+        var addedPin = node.Pins[^1];
+        addedPin.FieldName = "color";
+        dialogVm.RunSimulation();
+
+        Assert.Equal(customUserPayload, dialogVm.SimulationInput);
+        Assert.Equal("3", addedPin.CurrentStringValue);
+
+        // Khi xóa bớt 1 chân, chuỗi custom payload vẫn phải được bảo toàn nguyên vẹn
+        dialogVm.RemovePin(addedPin);
+        Assert.Equal(customUserPayload, dialogVm.SimulationInput);
+
+        // Chỉ khi người dùng chủ động bấm "ResetSamplePayload" thì chuỗi mẫu mặc định mới được tạo lại
+        dialogVm.ResetSamplePayload();
+        Assert.NotEqual(customUserPayload, dialogVm.SimulationInput);
+        Assert.Contains("SynaptiX_Controller", dialogVm.SimulationInput);
+    }
 }
 

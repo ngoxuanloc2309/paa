@@ -58,6 +58,10 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
                 return RegisterCodec.DecodeHardwareCapabilities(rawRegisters);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch
         {
             // Fallback an toàn cho firmware đời cũ chưa mở thanh ghi 0x0A08

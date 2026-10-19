@@ -1,0 +1,185 @@
+{
+  "metadata": {
+    "projectName": "Modbus_RTU_Master_VFD_Pump_Station",
+    "author": "Industrial Automation Team",
+    "createdAt": "2026-10-16T10:26:54.018595+00:00",
+    "lastModified": "2026-10-16T10:26:54.018595+00:00",
+    "schemaVersion": 1,
+    "targetDevice": "SynaptiX SYNX-RIO-884",
+    "description": "Hệ thống trạm bơm tăng áp tự động điều khiển biến tần theo áp suất đường ống nước qua giao thức RS-485 Modbus RTU Master. Khối MB_READ đọc áp suất qua FC04, khối SCALE chuyển đổi bar, khối Comparator so sánh ngưỡng, và khối MB_WRITE (Direct Registers) ghi lệnh tốc độ vào thanh ghi biến tần 40001 (FC06).",
+    "deviceClass": 1,
+    "productVariant": 1,
+    "digitalInputs": 8,
+    "digitalOutputs": 8,
+    "analogInputs": 4,
+    "virtualFlags": 32,
+    "virtualRegisters": 32,
+    "retentiveRegisters": 32,
+    "counters": 8,
+    "maxRules": 100,
+    "mqttBrokerEnabled": false
+  },
+  "tags": [
+    {
+      "index": 0,
+      "name": "DI0",
+      "alias": "AUTO_SWITCH",
+      "kind": "DiscreteInput",
+      "channel": 0,
+      "group": "Controls",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 1,
+      "name": "DI1",
+      "alias": "DRY_RUN_SENSOR",
+      "kind": "DiscreteInput",
+      "channel": 1,
+      "group": "Protection",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 8,
+      "name": "DO0",
+      "alias": "MAIN_CONTACTOR",
+      "kind": "DiscreteOutput",
+      "channel": 0,
+      "group": "Actuators",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 20,
+      "name": "VREG0",
+      "alias": "PIPE_PRESSURE_BAR",
+      "kind": "VirtualRegister",
+      "channel": 0,
+      "group": "Sensors",
+      "value": 32,
+      "dataType": "Int32"
+    },
+    {
+      "index": 21,
+      "name": "VREG1",
+      "alias": "VFD_TARGET_FREQ_HZ",
+      "kind": "VirtualRegister",
+      "channel": 1,
+      "group": "Actuators",
+      "value": 4500,
+      "dataType": "Int32"
+    },
+    {
+      "index": 40,
+      "name": "VFLAG0",
+      "alias": "PRESSURE_LOW_FLAG",
+      "kind": "VirtualFlag",
+      "channel": 0,
+      "group": "Alarms",
+      "value": 1,
+      "dataType": "Boolean"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node-mb-read-pt",
+      "type": "ModbusRead",
+      "locationX": 60,
+      "locationY": 150,
+      "customLabel": "Pipe Pressure Sensor (4-20mA Transmitter)",
+      "modbusSlaveId": 2,
+      "modbusFunctionCode": "ReadInputRegisters",
+      "modbusStartAddress": 0,
+      "modbusRegCount": 1,
+      "modbusPollIntervalMs": 250,
+      "modbusTimeoutMs": 300,
+      "modbusPins": [
+        {
+          "id": "pin-press",
+          "label": "RawPressure",
+          "regOffset": 0,
+          "dataType": "Int32",
+          "multiplier": 0.1,
+          "targetTagName": "VREG0",
+          "targetTagIndex": 20
+        }
+      ]
+    },
+    {
+      "id": "node-scale-press",
+      "type": "Scale",
+      "locationX": 360,
+      "locationY": 150,
+      "customLabel": "Bar Calibrator (0-10 bar)",
+      "gain": 0.01,
+      "offset": 0.0,
+      "unit": "bar",
+      "decimalPlaces": 2,
+      "isClamped": true,
+      "clampMin": 0.0,
+      "clampMax": 10.0
+    },
+    {
+      "id": "node-mb-write-vfd",
+      "type": "ModbusWrite",
+      "locationX": 700,
+      "locationY": 150,
+      "customLabel": "VFD Speed Controller (FC06)",
+      "modbusWriteSlaveId": 3,
+      "modbusWriteMode": "DirectRegisters",
+      "modbusWriteFunctionCode": "WriteSingleRegister",
+      "modbusWriteStartAddress": 40001,
+      "modbusWritePointCount": 1,
+      "modbusWriteTriggerMode": "OnDataChange",
+      "modbusWriteTimeoutMs": 300,
+      "modbusWritePins": [
+        {
+          "id": "pin-vfd-freq",
+          "label": "TargetFreq",
+          "regOffset": 0,
+          "dataType": "Int32",
+          "targetTagName": "VREG1",
+          "targetTagIndex": 21
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeId": "node-mb-read-pt",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Valid",
+      "targetNodeId": "node-scale-press",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "node-scale-press",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node-mb-write-vfd",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Trig"
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": 1,
+      "triggerTagIndex": 20,
+      "triggerType": "ON_FALL",
+      "triggerForMs": 500,
+      "guardTagIndex": 1,
+      "guardCompareOp": "EQ",
+      "guardThresholdLo": 1.0,
+      "guardThresholdHi": 1.0,
+      "actionType": "SET_TAG",
+      "actionTargetIndex": 21,
+      "actionParam": 5000,
+      "enabled": true,
+      "triggerSummary": "KHI Áp suất giảm dưới ngưỡng",
+      "guardSummary": "NẾU Bể nước còn đầy (DRY_RUN_SENSOR = 1)",
+      "actionSummary": "THÌ Tăng tốc biến tần lên 50.00 Hz"
+    }
+  ]
+}

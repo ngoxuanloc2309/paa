@@ -434,6 +434,207 @@ public sealed class RuleCompiler : IRuleCompiler
                         label: sub.DisplayTitle));
                     break;
 
+                case ModbusReadNodeViewModel mb:
+                    ushort? mbEnTag = null;
+                    var mbEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == mb &&
+                        (string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == mb.EnableConnector ||
+                         c.Target == mb.InputConnectors.FirstOrDefault()));
+                    if (mbEnConn?.Source?.Node is InputNodeViewModel enMbInVm && enMbInVm.Tag != null)
+                    {
+                        mbEnTag = ResolveTagIndex(enMbInVm.Tag, targetProduct);
+                    }
+                    else if (mbEnConn?.Source?.Node is TriggerNodeViewModel trigMb)
+                    {
+                        var trigIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigMb);
+                        if (trigIn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            mbEnTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
+                        }
+                    }
+
+                    var mbPinDtos = new List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>();
+                    foreach (var pin in mb.Pins)
+                    {
+                        var dto = pin.ToDto();
+                        if (pin.TargetTag != null && pin.TargetTag.Kind != TagKind.None)
+                        {
+                            dto.TargetTagIndex = ResolveTagIndex(pin.TargetTag, targetProduct);
+                        }
+                        else
+                        {
+                            var pinConn = connectionList.FirstOrDefault(c => c.Source?.Node == mb &&
+                                (c.Source == pin.Connector ||
+                                 string.Equals(c.Source.Title, pin.Label, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(c.Source.Id, pin.Id, StringComparison.OrdinalIgnoreCase)));
+                            if (pinConn?.Target?.Node is ActionNodeViewModel mbActNode && mbActNode.TargetTag != null)
+                            {
+                                dto.TargetTagIndex = ResolveTagIndex(mbActNode.TargetTag, targetProduct);
+                            }
+                        }
+                        mbPinDtos.Add(dto);
+                    }
+
+                    graph.Nodes.Add(LogicNode.CreateModbusRead(
+                        mb.Id,
+                        mbEnTag,
+                        mb.SlaveId,
+                        mb.FunctionCode,
+                        mb.StartAddress,
+                        mb.RegCount,
+                        mb.PollIntervalMs,
+                        mb.TimeoutMs,
+                        mbPinDtos,
+                        executionOrder: actionOrder++,
+                        label: mb.DisplayTitle));
+                    break;
+
+                case ModbusWriteNodeViewModel mbw:
+                    ushort? mbwTrigTag = null;
+                    var mbwTrigConn = connectionList.FirstOrDefault(c => c.Target?.Node == mbw &&
+                        (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == mbw.TrigConnector ||
+                         c.Target == mbw.InputConnectors.FirstOrDefault()));
+                    if (mbwTrigConn?.Source?.Node is InputNodeViewModel mbwTrigInVm && mbwTrigInVm.Tag != null)
+                    {
+                        mbwTrigTag = ResolveTagIndex(mbwTrigInVm.Tag, targetProduct);
+                    }
+                    else if (mbwTrigConn?.Source?.Node is TriggerNodeViewModel trigWNode)
+                    {
+                        var trigIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigWNode);
+                        if (trigIn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            mbwTrigTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
+                        }
+                    }
+
+                    ushort? ResolveConnectorTag(ConnectorViewModel? connector, string connectorName)
+                    {
+                        var conn = connectionList.FirstOrDefault(c => c.Target?.Node == mbw &&
+                            (c.Target == connector || string.Equals(c.Target.Title, connectorName, StringComparison.OrdinalIgnoreCase)));
+                        if (conn?.Source?.Node is InputNodeViewModel inVm && inVm.Tag != null)
+                            return ResolveTagIndex(inVm.Tag, targetProduct);
+                        if (conn?.Source?.Node is TriggerNodeViewModel trigNode)
+                        {
+                            var tIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigNode);
+                            if (tIn?.Source?.Node is InputNodeViewModel tInNode && tInNode.Tag != null)
+                                return ResolveTagIndex(tInNode.Tag, targetProduct);
+                        }
+                        if (conn?.Source?.Node is ScaleNodeViewModel sclVm && sclVm.OutputTag != null)
+                            return ResolveTagIndex(sclVm.OutputTag, targetProduct);
+                        return null;
+                    }
+
+                    ushort? mbwChannelTag = ResolveConnectorTag(mbw.ChannelConnector, "Channel");
+                    ushort? mbwCommandTag = ResolveConnectorTag(mbw.CommandConnector, "Command");
+                    ushort? mbwParamTag = ResolveConnectorTag(mbw.ParamConnector, "Param");
+
+                    var mbwPinDtos = new List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>();
+                    foreach (var pin in mbw.Pins)
+                    {
+                        var dto = pin.ToDto();
+                        if (pin.TargetTag != null && pin.TargetTag.Kind != TagKind.None)
+                        {
+                            dto.TargetTagIndex = ResolveTagIndex(pin.TargetTag, targetProduct);
+                        }
+                        else
+                        {
+                            var pinConn = connectionList.FirstOrDefault(c => c.Target?.Node == mbw &&
+                                (c.Target == pin.Connector ||
+                                 string.Equals(c.Target.Title, pin.Label, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(c.Target.Id, pin.Id, StringComparison.OrdinalIgnoreCase)));
+                            if (pinConn?.Source?.Node is InputNodeViewModel pinInNode && pinInNode.Tag != null)
+                            {
+                                dto.TargetTagIndex = ResolveTagIndex(pinInNode.Tag, targetProduct);
+                            }
+                            else if (pinConn?.Source?.Node is ScaleNodeViewModel sclVm && sclVm.OutputTag != null)
+                            {
+                                dto.TargetTagIndex = ResolveTagIndex(sclVm.OutputTag, targetProduct);
+                            }
+                        }
+                        mbwPinDtos.Add(dto);
+                    }
+
+                    graph.Nodes.Add(LogicNode.CreateModbusWrite(
+                        mbw.Id,
+                        trigTag: mbwTrigTag,
+                        slaveId: mbw.SlaveId,
+                        writeMode: mbw.WriteMode,
+                        functionCode: mbw.FunctionCode,
+                        startAddress: mbw.StartAddress,
+                        pointCount: mbw.PointCount,
+                        baseAddressCommand: mbw.BaseAddressCommand,
+                        baseAddressParam: mbw.BaseAddressParam,
+                        channelCount: mbw.ChannelCount,
+                        isExclusiveChannel: mbw.IsExclusiveChannel,
+                        triggerMode: mbw.TriggerMode,
+                        cyclicIntervalMs: mbw.CyclicIntervalMs,
+                        timeoutMs: mbw.TimeoutMs,
+                        channelTag: mbwChannelTag,
+                        commandTag: mbwCommandTag,
+                        paramTag: mbwParamTag,
+                        executionOrder: actionOrder++,
+                        label: mbw.DisplayTitle,
+                        pins: mbwPinDtos));
+                    break;
+
+                case DirectWriteNodeViewModel dw:
+                    ushort? dwTrigTag = null;
+                    var dwTrigConn = connectionList.FirstOrDefault(c => c.Target?.Node == dw &&
+                        (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == dw.TrigConnector ||
+                         c.Target == dw.InputConnectors.FirstOrDefault()));
+                    if (dwTrigConn?.Source?.Node is InputNodeViewModel dwTrigInVm && dwTrigInVm.Tag != null)
+                    {
+                        dwTrigTag = ResolveTagIndex(dwTrigInVm.Tag, targetProduct);
+                    }
+                    else if (dwTrigConn?.Source?.Node is TriggerNodeViewModel trigDwNode)
+                    {
+                        var trigIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigDwNode);
+                        if (trigIn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
+                        {
+                            dwTrigTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
+                        }
+                    }
+
+                    ushort? ResolveDwConnectorTag(ConnectorViewModel? connector, string connectorName)
+                    {
+                        var conn = connectionList.FirstOrDefault(c => c.Target?.Node == dw &&
+                            (c.Target == connector || string.Equals(c.Target.Title, connectorName, StringComparison.OrdinalIgnoreCase)));
+                        if (conn?.Source?.Node is InputNodeViewModel inVm && inVm.Tag != null)
+                            return ResolveTagIndex(inVm.Tag, targetProduct);
+                        if (conn?.Source?.Node is TriggerNodeViewModel trigNode)
+                        {
+                            var tIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigNode);
+                            if (tIn?.Source?.Node is InputNodeViewModel tInNode && tInNode.Tag != null)
+                                return ResolveTagIndex(tInNode.Tag, targetProduct);
+                        }
+                        if (conn?.Source?.Node is ScaleNodeViewModel sclVm && sclVm.OutputTag != null)
+                            return ResolveTagIndex(sclVm.OutputTag, targetProduct);
+                        return null;
+                    }
+
+                    ushort? dwChannelTag = ResolveDwConnectorTag(dw.ChannelConnector, "Chan");
+                    ushort? dwParamTag = ResolveDwConnectorTag(dw.ParamConnector, "Param");
+
+                    graph.Nodes.Add(LogicNode.CreateDirectWrite(
+                        dw.Id,
+                        trigTag: dwTrigTag,
+                        targetPin: dw.TargetPin,
+                        mode: dw.Mode,
+                        channelCount: dw.ChannelCount,
+                        isExclusiveChannel: dw.IsExclusiveChannel,
+                        pulseWidthUs: dw.PulseWidthUs,
+                        pwmFrequencyHz: dw.PwmFrequencyHz,
+                        triggerMode: dw.TriggerMode,
+                        timeoutMs: dw.TimeoutMs,
+                        channelTag: dwChannelTag,
+                        paramTag: dwParamTag,
+                        defaultColorRgb: dw.DefaultColorRgb,
+                        executionOrder: actionOrder++,
+                        label: dw.DisplayTitle));
+                    break;
+
                 default:
                     studioDiagnostics.Add(new(SimplePLC.Studio.Models.DiagnosticSeverity.Error, LocalizationService.Tr("DiagUnsupportedNode"), NodeId: node.Id));
                     break;

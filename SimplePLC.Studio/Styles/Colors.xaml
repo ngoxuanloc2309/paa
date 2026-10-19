@@ -26,7 +26,13 @@
     <!-- Success / RUN / GOOD: Industrial Forest Green -->
     <Color x:Key="ColorSuccess">#107C41</Color>
     <Color x:Key="ColorSuccessHover">#0E6B37</Color>
-    <Color x:Key="ColorSuccessLight">#E6F4EA</Color>
+    <Color x:Key="ColorSuccessLight">#F1F5F9</Color>
+
+    <!-- ISA-101 Technical Diagnostic Indicators -->
+    <Color x:Key="IndustrialDiagBannerBg">#F8FAFC</Color>
+    <Color x:Key="IndustrialDiagBannerBorder">#CBD5E1</Color>
+    <Color x:Key="IndustrialDiagAccentValid">#107C41</Color>
+    <Color x:Key="IndustrialDiagText">#0F172A</Color>
     
     <!-- Warning / STALE / FORCE: Industrial Safety Amber -->
     <Color x:Key="ColorWarning">#C05621</Color>
@@ -54,6 +60,7 @@
     <Color x:Key="ColorNodeScale">#475569</Color>     <!-- Industrial Slate Blue (Analog Scaler) -->
     <Color x:Key="ColorNodeComparator">#006487</Color> <!-- Siemens Petrol Blue (IEC 61131-3 Comparators CMP) -->
     <Color x:Key="ColorNodeMqtt">#006487</Color>       <!-- Siemens Petrol Blue (MQTT Telemetry) -->
+    <Color x:Key="ColorNodeModbus">#006487</Color>     <!-- Siemens Petrol Blue (Modbus RTU Communication) -->
 
     <!-- Industrial Semantic Tokens for System-wide Consistency -->
     <Color x:Key="IndustrialPrimary">#006487</Color>
@@ -107,6 +114,13 @@
     <SolidColorBrush x:Key="NodeScaleBrush" Color="{StaticResource ColorNodeScale}" />
     <SolidColorBrush x:Key="NodeComparatorBrush" Color="{StaticResource ColorNodeComparator}" />
     <SolidColorBrush x:Key="NodeMqttBrush" Color="{StaticResource ColorNodeMqtt}" />
+    <SolidColorBrush x:Key="NodeModbusBrush" Color="{StaticResource ColorNodeModbus}" />
+
+    <!-- ISA-101 Technical Diagnostic Brushes -->
+    <SolidColorBrush x:Key="IndustrialDiagBannerBgBrush" Color="{StaticResource IndustrialDiagBannerBg}" />
+    <SolidColorBrush x:Key="IndustrialDiagBannerBorderBrush" Color="{StaticResource IndustrialDiagBannerBorder}" />
+    <SolidColorBrush x:Key="IndustrialDiagAccentValidBrush" Color="{StaticResource IndustrialDiagAccentValid}" />
+    <SolidColorBrush x:Key="IndustrialDiagTextBrush" Color="{StaticResource IndustrialDiagText}" />
 
     <!-- Selection & Highlight Brushes -->
     <SolidColorBrush x:Key="SelectionHighlightBrush" Color="{StaticResource ColorSelectionHighlight}" />

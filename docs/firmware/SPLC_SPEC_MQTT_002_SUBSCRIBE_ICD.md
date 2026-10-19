@@ -158,8 +158,12 @@ Khi Broker đẩy bản tin về qua hàm callback MQTT:
 Tại đầu mỗi chu kỳ 10ms của PLC Engine, trước khi chạy Rule Logic:
 1. Kiểm tra hàng đợi `SPLC_MqttInboundMsg_t`.
 2. Lấy bản tin ra và giải mã:
-   - Nếu `pins[i].json_key[0] == '\0'`: Xem payload là chuỗi số thô (`atof()` hoặc `atol()`).
-   - Nếu có `json_key`: Sử dụng thư viện `jsmn` (hoặc `cJSON`) để tìm key tương ứng trong chuỗi JSON.
+   - **Chế độ Raw chuỗi đơn:** Nếu `pins[i].json_key[0] == '\0'` hoặc `json_key` bắt đầu bằng `"raw"` / `"pos["`: Trích xuất số thô trực tiếp (`strtod()` / `strtol()`).
+   - **Chế độ Direct Path Walk (Zero-Allocation Token Walk):**
+     - SimplePLC Studio đã tự động duyệt DFS/Lenient trên App và ghi trực tiếp đường dẫn chính xác (ví dụ `values.grid` hoặc `grid`) vào cấu trúc `pins[i].json_key` qua Modbus `0x0D80`.
+     - Firmware MCU sử dụng bộ phân tích token zero-allocation `jsmn` (với mảng tĩnh `jsmntok_t tokens[32]` trên stack, **tuyệt đối không cấp phát heap `malloc`**).
+     - MCU tách `json_key` theo dấu `.` để duyệt trực tiếp qua các cấp token tương ứng trong $O(1)$ đến $O(k)$ bước ($k \le 4$).
+     - So khớp tên khóa không phân biệt hoa thường và bỏ qua ký tự `_`/`-` nếu cần.
 3. Nếu tìm thấy giá trị hợp lệ:
    - Ghi vào `g_tag_store[pin.target_tag_index]`:
      - Nếu kiểu là `REAL`: Gán `g_tag_store[tag_idx].as_real = val_real`.

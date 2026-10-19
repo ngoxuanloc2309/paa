@@ -1,0 +1,391 @@
+{
+  "metadata": {
+    "projectName": "SPX_SortToLight_Logistics_Center",
+    "author": "SPX Automation Engineering Team",
+    "createdAt": "2026-10-16T10:26:54.018595+00:00",
+    "lastModified": "2026-10-16T10:26:54.018595+00:00",
+    "schemaVersion": 1,
+    "targetDevice": "SynaptiX GatewayV2 (SYNX-RIO-884)",
+    "description": "Dự án mẫu tự động hóa chia chọn bưu kiện Sort-to-Light 18 ô phân loại cho SPX Express Fulfillment Hub (Hà Nội SOC). Tích hợp nhận lệnh WMS qua MQTT SUB, điều phối chấp hành dải LED ô trực tiếp qua cổng DO3 (DIRECT_WRITE AddressableBus, không cần Modbus ID), kiểm soát thời gian thả hàng qua Timer TON, xác nhận kiện hàng qua cảm biến quang DI1, đếm tổng sản lượng qua Counter CTU, và truyền dữ liệu đo xa xác nhận về WMS qua MQTT PUB.",
+    "deviceClass": 1,
+    "productVariant": 1,
+    "digitalInputs": 8,
+    "digitalOutputs": 8,
+    "analogInputs": 4,
+    "virtualFlags": 32,
+    "virtualRegisters": 32,
+    "retentiveRegisters": 32,
+    "counters": 8,
+    "maxRules": 100,
+    "mqttBrokerEnabled": true,
+    "mqttBrokerHost": "mqtt-spx-hub.internal.logistics",
+    "mqttBrokerPort": 1883,
+    "mqttClientId": "spx-gw2-hn-rack01",
+    "mqttUsername": "spx_edge_operator",
+    "mqttPassword": "spx_secure_token",
+    "mqttTlsEnabled": false,
+    "mqttCleanSession": true,
+    "mqttKeepAliveSec": 60
+  },
+  "tags": [
+    {
+      "index": 0,
+      "name": "DI0",
+      "alias": "PE_PARCEL_ARRIVE",
+      "kind": "DiscreteInput",
+      "channel": 0,
+      "group": "Field Sensors",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 1,
+      "name": "DI1",
+      "alias": "PE_BIN_CONFIRM",
+      "kind": "DiscreteInput",
+      "channel": 1,
+      "group": "Field Sensors",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 2,
+      "name": "DI2",
+      "alias": "E_STOP_NC",
+      "kind": "DiscreteInput",
+      "channel": 2,
+      "group": "Safety",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 8,
+      "name": "DO0",
+      "alias": "CONVEYOR_MOTOR",
+      "kind": "DiscreteOutput",
+      "channel": 0,
+      "group": "Actuators",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 9,
+      "name": "DO1",
+      "alias": "TOWER_GREEN_RUN",
+      "kind": "DiscreteOutput",
+      "channel": 1,
+      "group": "Tower Light",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 10,
+      "name": "DO2",
+      "alias": "TOWER_YELLOW_BUSY",
+      "kind": "DiscreteOutput",
+      "channel": 2,
+      "group": "Tower Light",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 11,
+      "name": "DO3",
+      "alias": "TOWER_RED_ALARM",
+      "kind": "DiscreteOutput",
+      "channel": 3,
+      "group": "Tower Light",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 12,
+      "name": "DO4",
+      "alias": "SORT_BUZZER",
+      "kind": "DiscreteOutput",
+      "channel": 4,
+      "group": "Alarms",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 20,
+      "name": "VREG0",
+      "alias": "TARGET_BIN_ID",
+      "kind": "VirtualRegister",
+      "channel": 0,
+      "group": "WMS Setpoints",
+      "value": 7,
+      "dataType": "Int32"
+    },
+    {
+      "index": 21,
+      "name": "VREG1",
+      "alias": "LED_COLOR_RGB",
+      "kind": "VirtualRegister",
+      "channel": 1,
+      "group": "WMS Setpoints",
+      "value": 65280,
+      "dataType": "Int32"
+    },
+    {
+      "index": 22,
+      "name": "VREG2",
+      "alias": "PARCEL_SORTED_COUNT",
+      "kind": "VirtualRegister",
+      "channel": 2,
+      "group": "KPI Metrics",
+      "value": 458,
+      "dataType": "Int32"
+    },
+    {
+      "index": 40,
+      "name": "VFLAG0",
+      "alias": "SYS_READY_FLAG",
+      "kind": "VirtualFlag",
+      "channel": 0,
+      "group": "Interlocks",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 41,
+      "name": "VFLAG1",
+      "alias": "SORT_CYCLE_BUSY",
+      "kind": "VirtualFlag",
+      "channel": 1,
+      "group": "Interlocks",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 60,
+      "name": "RETAIN0",
+      "alias": "SHIFT_SORT_ACCUMULATOR",
+      "kind": "VirtualRegisterRetain",
+      "channel": 0,
+      "group": "Non-Volatile",
+      "value": 12480,
+      "dataType": "Int32"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node-mqtt-sub",
+      "type": "MqttSubscribe",
+      "locationX": 50,
+      "locationY": 120,
+      "customLabel": "WMS Put Command (Inbound)",
+      "mqttSubTopic": "spx/hub_hn/rack_01/put_command",
+      "mqttSubQos": 1,
+      "mqttSubQueueMode": "Fifo",
+      "mqttSubQueueCapacity": 16,
+      "mqttSubIgnoreRetained": true,
+      "mqttSubPins": [
+        {
+          "id": "pin-bin",
+          "label": "BinId",
+          "jsonPath": "bin_id",
+          "dataType": "Int32",
+          "targetTagName": "VREG0",
+          "targetTagIndex": 20,
+          "minValue": 1,
+          "maxValue": 18,
+          "defaultValue": 1
+        },
+        {
+          "id": "pin-color",
+          "label": "ColorRgb",
+          "jsonPath": "color_rgb",
+          "dataType": "Int32",
+          "targetTagName": "VREG1",
+          "targetTagIndex": 21,
+          "minValue": 0,
+          "maxValue": 16777215,
+          "defaultValue": 65280
+        }
+      ]
+    },
+    {
+      "id": "node-inp-bin",
+      "type": "Input",
+      "locationX": 80,
+      "locationY": 240,
+      "customLabel": "Target Bin Index (1..18)",
+      "tagName": "VREG0"
+    },
+    {
+      "id": "node-dir-write",
+      "type": "DirectWrite",
+      "locationX": 400,
+      "locationY": 120,
+      "customLabel": "18-Bin LED Light Controller (DO3)",
+      "directWriteTargetPin": "Do3",
+      "directWriteMode": "AddressableBus",
+      "directWriteChannelCount": 18,
+      "directWriteIsExclusiveChannel": true,
+      "directWritePulseWidthUs": 50,
+      "directWritePwmFrequencyHz": 1000,
+      "directWriteTriggerMode": "OnTriggerRisingEdge",
+      "directWriteTimeoutMs": 300,
+      "directWriteDefaultColorRgb": 65280
+    },
+    {
+      "id": "node-timer-timeout",
+      "type": "Timer",
+      "locationX": 750,
+      "locationY": 120,
+      "customLabel": "15s Drop Timeout Watchdog",
+      "timerMode": "TON",
+      "presetMs": 15000,
+      "timeUnit": "s",
+      "durationValue": 15.0,
+      "outputTagName": "DO3"
+    },
+    {
+      "id": "node-inp-confirm",
+      "type": "Input",
+      "locationX": 50,
+      "locationY": 440,
+      "customLabel": "PE Bin Confirm Sensor",
+      "tagName": "DI1"
+    },
+    {
+      "id": "node-trg-confirm",
+      "type": "Trigger",
+      "locationX": 280,
+      "locationY": 440,
+      "customLabel": "On Parcel Drop",
+      "triggerType": "ON_RISE",
+      "forMs": 20
+    },
+    {
+      "id": "node-counter-sorted",
+      "type": "Counter",
+      "locationX": 520,
+      "locationY": 440,
+      "customLabel": "Shift Sorter Counter",
+      "counterMode": "CTU",
+      "cvTagName": "VREG2",
+      "presetValue": 5000,
+      "resetTagName": "DI2"
+    },
+    {
+      "id": "node-mqtt-pub",
+      "type": "MqttPublish",
+      "locationX": 820,
+      "locationY": 440,
+      "customLabel": "WMS Feedback Telemetry",
+      "mqttTopic": "spx/hub_hn/rack_01/feedback",
+      "mqttPayloadMode": "JSON",
+      "mqttQos": 1,
+      "mqttRetain": false,
+      "mqttPublishMode": "Event",
+      "mqttIncludeDevice": true,
+      "mqttIncludeTimestamp": true,
+      "mqttFields": [
+        {
+          "key": "bin_id",
+          "tagName": "VREG0",
+          "unit": ""
+        },
+        {
+          "key": "sorted_count",
+          "tagName": "VREG2",
+          "unit": "parcels"
+        },
+        {
+          "key": "status",
+          "tagName": "VFLAG0",
+          "unit": ""
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeId": "node-mqtt-sub",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Valid",
+      "targetNodeId": "node-dir-write",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Trig"
+    },
+    {
+      "sourceNodeId": "node-inp-bin",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node-dir-write",
+      "targetConnectorIndex": 1,
+      "targetConnectorTitle": "Chan"
+    },
+    {
+      "sourceNodeId": "node-dir-write",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Done",
+      "targetNodeId": "node-timer-timeout",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "node-inp-confirm",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node-trg-confirm",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "In"
+    },
+    {
+      "sourceNodeId": "node-trg-confirm",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node-counter-sorted",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "CU"
+    },
+    {
+      "sourceNodeId": "node-counter-sorted",
+      "sourceConnectorIndex": 0,
+      "sourceConnectorTitle": "Out",
+      "targetNodeId": "node-mqtt-pub",
+      "targetConnectorIndex": 0,
+      "targetConnectorTitle": "Trig"
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": 1,
+      "triggerTagIndex": 0,
+      "triggerType": "ON_RISE",
+      "triggerForMs": 10,
+      "guardTagIndex": 2,
+      "guardCompareOp": "EQ",
+      "guardThresholdLo": 1.0,
+      "guardThresholdHi": 1.0,
+      "actionType": "SET_TAG",
+      "actionTargetIndex": 8,
+      "actionParam": 1,
+      "enabled": true,
+      "triggerSummary": "KHI [DI0: PE_PARCEL_ARRIVE] TĂNG",
+      "guardSummary": "NẾU [DI2: E_STOP_NC] = 1",
+      "actionSummary": "THÌ Gán [DO0: CONVEYOR_MOTOR] = 1"
+    },
+    {
+      "ruleId": 2,
+      "triggerTagIndex": 1,
+      "triggerType": "ON_RISE",
+      "triggerForMs": 20,
+      "guardTagIndex": 0,
+      "guardCompareOp": "EQ",
+      "guardThresholdLo": 0.0,
+      "guardThresholdHi": 0.0,
+      "actionType": "SET_TAG",
+      "actionTargetIndex": 12,
+      "actionParam": 1,
+      "enabled": true,
+      "triggerSummary": "KHI [DI1: PE_BIN_CONFIRM] TĂNG",
+      "guardSummary": "NẾU [DI0: PE_PARCEL_ARRIVE] = 0",
+      "actionSummary": "THÌ Bật còi [DO4: SORT_BUZZER] = 1"
+    }
+  ]
+}

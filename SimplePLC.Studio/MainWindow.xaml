@@ -338,9 +338,9 @@
                                         <Setter Property="Background" Value="#F1F5F9" />
                                     </Trigger>
                                     <DataTrigger Binding="{Binding AiChatVM.IsPanelOpen}" Value="True">
-                                        <Setter Property="Background" Value="#E6F4EA" />
+                                        <Setter Property="Background" Value="#F1F5F9" />
                                         <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}" />
-                                        <Setter Property="Foreground" Value="#0E6B37" />
+                                        <Setter Property="Foreground" Value="#107C41" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -720,7 +720,7 @@
                                                                     <Border x:Name="DebugBdrActive" Background="#107C41" BorderBrush="#0B5A2F" BorderThickness="1" CornerRadius="2" Padding="6,1">
                                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                                             <!-- Pulsing indicator dot -->
-                                                                            <Ellipse Width="6" Height="6" Fill="#86EFAC" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                                            <Ellipse Width="6" Height="6" Fill="#FFFFFF" Margin="0,0,5,0" VerticalAlignment="Center">
                                                                                 <Ellipse.Triggers>
                                                                                     <EventTrigger RoutedEvent="Loaded">
                                                                                         <BeginStoryboard>

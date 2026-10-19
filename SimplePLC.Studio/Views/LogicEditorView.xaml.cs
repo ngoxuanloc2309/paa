@@ -311,8 +311,12 @@ public partial class LogicEditorView : UserControl
         }
     }
 
+    private Point _toolboxMouseDownPos;
+
     private void ToolboxItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        _toolboxMouseDownPos = e.GetPosition(this);
+
         if (e.ClickCount == 2 && sender is FrameworkElement fe && fe.Tag is string tag)
         {
             if (DataContext is LogicEditorViewModel vm)
@@ -327,7 +331,14 @@ public partial class LogicEditorView : UserControl
     {
         if (e.LeftButton == MouseButtonState.Pressed && sender is FrameworkElement fe && fe.Tag is string tag)
         {
-            DragDrop.DoDragDrop(fe, tag, DragDropEffects.Copy);
+            Point currentPos = e.GetPosition(this);
+            Vector diff = _toolboxMouseDownPos - currentPos;
+
+            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            {
+                DragDrop.DoDragDrop(fe, tag, DragDropEffects.Copy);
+            }
         }
     }
 
@@ -437,6 +448,32 @@ public partial class LogicEditorView : UserControl
     private Point _mouseDownPos;
     private SimplePLC.Studio.Services.GraphSnapshot? _preDragSnapshot;
 
+    private void NodifyEditor_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(typeof(string)))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+    }
+
+    private void NodifyEditor_DragEnter(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(typeof(string)))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+    }
+
     private void NodifyEditor_Drop(object sender, DragEventArgs e)
     {
         if (DataContext is LogicEditorViewModel vm)
@@ -500,6 +537,18 @@ public partial class LogicEditorView : UserControl
                 else if (node is MqttSubscribeNodeViewModel mqttSubNode)
                 {
                     vm.OpenMqttSubConfigCommand.Execute(mqttSubNode);
+                }
+                else if (node is ModbusReadNodeViewModel mbNode)
+                {
+                    vm.OpenModbusReadConfigCommand.Execute(mbNode);
+                }
+                else if (node is ModbusWriteNodeViewModel mbwNode)
+                {
+                    vm.OpenModbusWriteConfigCommand.Execute(mbwNode);
+                }
+                else if (node is DirectWriteNodeViewModel dwNode)
+                {
+                    vm.OpenDirectWriteConfigCommand.Execute(dwNode);
                 }
 
                 fe.Focus();

@@ -1,0 +1,124 @@
+using System.Linq;
+using SimplePLC.Protocol.Enums;
+using SimplePLC.Studio.ViewModels;
+using Xunit;
+
+namespace SimplePLC.Studio.Tests;
+
+public class DirectWriteConfigDialogViewModelTests
+{
+    [Fact]
+    public void Constructor_InitializesValuesFromNode()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do2, DirectWriteMode.DigitalOutput)
+        {
+            IsActiveHigh = true,
+            FailSafeState = 0,
+            PwmFrequencyHz = 2500,
+            PulseWidthUs = 100,
+            TriggerMode = DirectWriteTriggerMode.Continuous
+        };
+
+        var vm = new DirectWriteConfigDialogViewModel(node);
+
+        Assert.Equal(DirectWriteTargetPin.Do2, vm.TargetPin);
+        Assert.Equal(DirectWriteMode.DigitalOutput, vm.Mode);
+        Assert.True(vm.IsActiveHigh);
+        Assert.Equal(0, vm.FailSafeState);
+        Assert.Equal(2500u, vm.PwmFrequencyHz);
+        Assert.Equal(100u, vm.PulseWidthUs);
+        Assert.Equal(DirectWriteTriggerMode.Continuous, vm.TriggerMode);
+    }
+
+    [Fact]
+    public void AvailableTargetPins_ContainsOnlyGenericIndustrialPins()
+    {
+        var node = new DirectWriteNodeViewModel();
+        var vm = new DirectWriteConfigDialogViewModel(node);
+
+        Assert.Equal(8, vm.AvailableTargetPins.Count);
+        var pinNames = vm.AvailableTargetPins.Select(p => p.DisplayName).ToList();
+
+        // Must not contain any custom application terms
+        Assert.DoesNotContain(pinNames, p => p.Contains("MOSFET"));
+        Assert.DoesNotContain(pinNames, p => p.Contains("LED Data"));
+        Assert.DoesNotContain(pinNames, p => p.Contains("Sort-to-Light"));
+        Assert.DoesNotContain(pinNames, p => p.Contains("OUT"));
+        Assert.DoesNotContain(pinNames, p => p.Contains("FAST"));
+
+        // Must contain standard industrial digital outputs DO0..DO7
+        Assert.Contains(pinNames, p => p == "DO0");
+        Assert.Contains(pinNames, p => p == "DO7");
+    }
+
+    [Fact]
+    public void DigitalOutputMode_ConfiguresActiveLevelAndFailSafeState_Cleanly()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do0, DirectWriteMode.DigitalOutput)
+        {
+            IsActiveHigh = false,
+            FailSafeState = 1
+        };
+
+        var vm = new DirectWriteConfigDialogViewModel(node);
+
+        Assert.True(vm.IsDigitalOutputMode);
+        Assert.False(vm.IsActiveHigh);
+        Assert.Equal(1, vm.FailSafeState);
+        Assert.Contains("DO0", vm.SummaryBadgeText);
+        Assert.Contains("Digital Output", vm.SummaryBadgeText);
+    }
+
+    [Fact]
+    public void Apply_TransfersPropertiesBackToNode()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do1, DirectWriteMode.DigitalOutput);
+        var vm = new DirectWriteConfigDialogViewModel(node)
+        {
+            TargetPin = DirectWriteTargetPin.Do3,
+            Mode = DirectWriteMode.PwmDuty,
+            PwmFrequencyHz = 5000,
+            DutyMin = 10,
+            DutyMax = 90,
+            PulseWidthUs = 80,
+            TriggerMode = DirectWriteTriggerMode.Continuous,
+            DefaultColorHex = "#AABBCC"
+        };
+
+        vm.Apply();
+
+        Assert.Equal(DirectWriteTargetPin.Do3, node.TargetPin);
+        Assert.Equal(DirectWriteMode.PwmDuty, node.Mode);
+        Assert.Equal(5000u, node.PwmFrequencyHz);
+        Assert.Equal((ushort)10, node.DutyMin);
+        Assert.Equal((ushort)90, node.DutyMax);
+        Assert.Equal(80u, node.PulseWidthUs);
+        Assert.Equal(DirectWriteTriggerMode.Continuous, node.TriggerMode);
+        Assert.Equal("Duty", node.ChannelConnector.Title); // Connector title dynamically updated
+    }
+
+    [Fact]
+    public void LiveSimulation_GeneratesDeterministicDirectDriveSignal()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do3, DirectWriteMode.DigitalOutput);
+
+        var vm = new DirectWriteConfigDialogViewModel(node)
+        {
+            SimDoValue = true
+        };
+
+        vm.GenerateSignalPreview();
+
+        Assert.False(string.IsNullOrWhiteSpace(vm.SimStatusMessage));
+        Assert.Contains("PIN DO3", vm.SimDispatchedSignal);
+        Assert.Contains("24V", vm.SimDispatchedSignal);
+        Assert.NotEmpty(vm.SignalBreakdownItems);
+
+        // Verification of clean text breakdown (no truncated phrases)
+        foreach (var item in vm.SignalBreakdownItems)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.FieldName));
+            Assert.False(string.IsNullOrWhiteSpace(item.Interpretation));
+        }
+    }
+}

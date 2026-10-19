@@ -78,7 +78,9 @@ public enum SPLC_HardwareCapabilities : uint
     ETHERNET     = 0x0008, // Bit 3: Có cổng truyền thông mạng vật lý (Ethernet/WiFi)
     MQTT_PUB     = 0x0010, // Bit 4: Hỗ trợ phân hệ xuất bản viễn trắc MQTT PUB (0x0C00)
     MQTT_SUB     = 0x0020, // Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB
-    SD_DATALOG   = 0x0040  // Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD
+    SD_DATALOG   = 0x0040, // Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD
+    MQTT_TLS_CERT = 0x0080, // Bit 7: Hỗ trợ nạp chứng chỉ bảo mật TLS/SSL theo từng struct (0x0F00)
+    MODBUS_MASTER = 0x0100  // Bit 8: Hỗ trợ phân hệ Modbus RTU Master Poller (0x1000)
 }
 
 /// <summary>

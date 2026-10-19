@@ -15,6 +15,9 @@ public sealed class CompiledProgram
     public IReadOnlyList<FbCounterRecordDto> FunctionBlockCounters { get; }
     public IReadOnlyList<MqttTelemetryConfigDto> MqttTelemetryConfigs { get; }
     public IReadOnlyList<MqttSubscriptionConfigDto> MqttSubscriptionConfigs { get; }
+    public IReadOnlyList<ModbusMasterReadConfigDto> ModbusMasterConfigs { get; }
+    public IReadOnlyList<ModbusMasterWriteConfigDto> ModbusMasterWriteConfigs { get; }
+    public IReadOnlyList<DirectWriteConfigDto> DirectWriteConfigs { get; }
 
     public CompiledProgram(
         string programId,
@@ -24,7 +27,10 @@ public sealed class CompiledProgram
         IReadOnlyList<FbTimerRecordDto>? fbTimers = null,
         IReadOnlyList<FbCounterRecordDto>? fbCounters = null,
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null,
-        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null)
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null,
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
+        IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
+        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null)
     {
         ProgramId = programId ?? Guid.NewGuid().ToString("N");
         Rules = rules ?? Array.Empty<Rule>();
@@ -34,6 +40,9 @@ public sealed class CompiledProgram
         FunctionBlockCounters = fbCounters ?? Array.Empty<FbCounterRecordDto>();
         MqttTelemetryConfigs = mqttConfigs ?? Array.Empty<MqttTelemetryConfigDto>();
         MqttSubscriptionConfigs = mqttSubConfigs ?? Array.Empty<MqttSubscriptionConfigDto>();
+        ModbusMasterConfigs = modbusMasterConfigs ?? Array.Empty<ModbusMasterReadConfigDto>();
+        ModbusMasterWriteConfigs = modbusMasterWriteConfigs ?? Array.Empty<ModbusMasterWriteConfigDto>();
+        DirectWriteConfigs = directWriteConfigs ?? Array.Empty<DirectWriteConfigDto>();
     }
 
     public RuleTable ToRuleTable()

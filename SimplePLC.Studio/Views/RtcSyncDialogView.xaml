@@ -97,7 +97,7 @@
                                         <Setter Property="BorderBrush" Value="#CBD5E1" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasHardwareRtc}" Value="True">
-                                                <Setter Property="Background" Value="#E6F4EA" />
+                                                <Setter Property="Background" Value="#F1F5F9" />
                                                 <Setter Property="BorderBrush" Value="#107C41" />
                                             </DataTrigger>
                                         </Style.Triggers>

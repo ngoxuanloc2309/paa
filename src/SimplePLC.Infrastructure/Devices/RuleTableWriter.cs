@@ -48,6 +48,29 @@ public sealed class RuleTableWriter : IRuleTableWriter
         CancellationToken cancellationToken = default) =>
         DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, null, cancellationToken);
 
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, cancellationToken);
+
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, cancellationToken, null);
+
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
         IReadOnlyList<RuleRecordDto> rules,
@@ -56,7 +79,9 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
-        CancellationToken cancellationToken = default)
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
+        CancellationToken cancellationToken,
+        Action<string>? progressLogger)
     {
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
         // Giới hạn tối đa 3 khối (24 thanh ghi = 48 bytes payload, frame 57 bytes <= 64 bytes RX buffer của MCU)
@@ -98,12 +123,21 @@ public sealed class RuleTableWriter : IRuleTableWriter
         }
 
         // 3. Nạp cấu hình MQTT Telemetry & Broker (0x0C00, 0x0D80, 0x0E00) nếu thiết bị có năng lực MQTT tương ứng (0x0A08)
+        bool hasMqttPub = mqttConfigs != null && mqttConfigs.Count > 0;
+        bool hasMqttSub = mqttSubConfigs != null && mqttSubConfigs.Count > 0;
+        bool hasBroker = brokerConfig != null && brokerConfig.Enabled;
+        bool hasMqttWork = hasMqttPub || hasMqttSub || hasBroker;
+
         bool isMqttPubSupported = false;
         bool isMqttSubSupported = false;
-        if (mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
+        SPLC_HardwareCapabilities caps = SPLC_HardwareCapabilities.NONE;
+        Exception? capsReadException = null;
+
+        if (hasMqttWork || mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
         {
             try
             {
+                progressLogger?.Invoke($"[CAPS] Reading hardware capabilities at 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}...");
                 // Kiểm tra năng lực phần cứng thực tế qua thanh ghi HardwareCapabilities tại 0x0A08
                 var rawCaps = await _client.ReadHoldingRegistersAsync(
                     slaveId,
@@ -113,16 +147,70 @@ public sealed class RuleTableWriter : IRuleTableWriter
 
                 if (rawCaps != null && rawCaps.Length >= ModbusRegisterMap.HardwareCapabilitiesLength)
                 {
-                    var caps = RegisterCodec.DecodeHardwareCapabilities(rawCaps);
+                    caps = RegisterCodec.DecodeHardwareCapabilities(rawCaps);
                     isMqttPubSupported = (caps & SPLC_HardwareCapabilities.MQTT_PUB) != 0;
                     isMqttSubSupported = (caps & SPLC_HardwareCapabilities.MQTT_SUB) != 0;
+                    progressLogger?.Invoke($"[CAPS] MCU capabilities: 0x{(uint)caps:X8} (MQTT_PUB: {isMqttPubSupported}, MQTT_SUB: {isMqttSubSupported})");
+                }
+                else
+                {
+                    progressLogger?.Invoke($"[CAPS WARNING] Empty or short response when reading 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}.");
                 }
             }
-            catch
+            catch (OperationCanceledException)
             {
-                // Thiết bị không hỗ trợ vùng nhớ 0x0A08 hoặc từ chối truy cập
+                throw;
+            }
+            catch (Exception ex)
+            {
+                capsReadException = ex;
                 isMqttPubSupported = false;
                 isMqttSubSupported = false;
+                progressLogger?.Invoke($"[CAPS WARNING] Error reading 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}: {ex.Message}");
+            }
+
+            // Cơ chế an toàn Fail-Fast: Chặn triển khai nếu dự án có dùng MQTT nhưng phần cứng không đáp ứng
+            if (hasMqttWork)
+            {
+                if (capsReadException != null)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Communication error reading hardware capabilities at 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}: {capsReadException.Message}. Deployment aborted for safety.");
+                }
+
+                if (hasMqttPub && !isMqttPubSupported)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not support MQTT Telemetry PUB (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MQTT_PUB at 0x0A08). Deployment aborted for safety.");
+                }
+
+                if (hasMqttSub && !isMqttSubSupported)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not support MQTT Inbound SUB (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MQTT_SUB at 0x0A08). Deployment aborted for safety.");
+                }
+
+                if (hasBroker && !isMqttPubSupported && !isMqttSubSupported)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not declare any MQTT capability (Reported caps: 0x{(uint)caps:X8}, missing MQTT_PUB/SUB at 0x0A08). Deployment aborted for safety.");
+                }
             }
         }
 
@@ -136,6 +224,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 MqttTelemetryCodec.EncodeBlock(mqttConfigs[i], blockRegs);
 
                 ushort blockStartAddr = ModbusRegisterMap.GetMqttBlockAddress(i);
+                progressLogger?.Invoke($"[MQTT PUB] Writing {blockRegs.Length} registers to 0x{blockStartAddr:X04} (Block {i})...");
                 var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
                     blockStartAddr,
                     blockRegs.AsMemory());
@@ -164,6 +253,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 MqttSubscriptionCodec.EncodeBlock(mqttSubConfigs[i], blockRegs);
 
                 ushort blockStartAddr = ModbusRegisterMap.GetMqttSubscribeBlockAddress(i);
+                progressLogger?.Invoke($"[MQTT SUB] Writing {blockRegs.Length} registers to 0x{blockStartAddr:X04} (Block {i})...");
                 var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
                     blockStartAddr,
                     blockRegs.AsMemory());
@@ -188,6 +278,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
             var brokerRegs = new ushort[ModbusRegisterMap.MqttBrokerConfigRegisters];
             MqttBrokerConfigCodec.Encode(brokerConfig, brokerRegs);
 
+            progressLogger?.Invoke($"[MQTT Broker] Writing {brokerRegs.Length} registers to 0x{ModbusRegisterMap.MqttBrokerConfigBaseAddress:X04} (Host: {brokerConfig.Host}, Port: {brokerConfig.Port})...");
             var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
                 ModbusRegisterMap.MqttBrokerConfigBaseAddress,
                 brokerRegs.AsMemory());
@@ -195,6 +286,34 @@ public sealed class RuleTableWriter : IRuleTableWriter
             foreach (var (chunkAddress, chunkMemory) in chunks)
             {
                 await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 4.1 Nạp cấu hình Modbus RTU Master blocks (0x1000) nếu có
+        if (modbusMasterConfigs != null && modbusMasterConfigs.Count > 0)
+        {
+            int blockCount = Math.Min(modbusMasterConfigs.Count, ModbusRegisterMap.ModbusMasterMaxBlocks);
+            for (int i = 0; i < blockCount; i++)
+            {
+                var blockRegs = new ushort[ModbusRegisterMap.ModbusMasterRegistersPerBlock];
+                ModbusMasterCodec.EncodeBlock(modbusMasterConfigs[i], blockRegs);
+
+                ushort blockStartAddr = ModbusRegisterMap.GetModbusMasterBlockAddress(i);
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    blockStartAddr,
+                    blockRegs.AsMemory());
+
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Vô hiệu hóa (disable) các khối Modbus Master cũ không còn trong cấu hình
+            for (int j = blockCount; j < ModbusRegisterMap.ModbusMasterMaxBlocks; j++)
+            {
+                ushort staleBlockAddr = ModbusRegisterMap.GetModbusMasterBlockAddress(j);
+                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
             }
         }
 

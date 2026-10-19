@@ -106,9 +106,17 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         var newPin = new MqttPinBindingViewModel(defaultName, defaultName, MqttDataType.Int16);
         Node.Pins.Add(newPin);
 
-        // Tự động đồng bộ thêm trường vào payload mẫu
-        SimulationInput = GenerateSamplePayload();
-        RunSimulation();
+        // Giữ nguyên chuỗi payload người dùng đã nhập, chỉ tạo mẫu mặc định nếu ô nhập hoàn toàn trống
+        if (string.IsNullOrWhiteSpace(SimulationInput))
+        {
+            SimulationInput = GenerateSamplePayload();
+        }
+
+        // Tự động thử nghiệm lại trên payload hiện tại nếu đã từng chạy test
+        if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationInput))
+        {
+            RunSimulation();
+        }
     }
 
     [RelayCommand]
@@ -117,9 +125,12 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         if (pin != null && Node.Pins.Contains(pin))
         {
             Node.Pins.Remove(pin);
-            // Tự động đồng bộ payload mẫu
-            SimulationInput = GenerateSamplePayload();
-            RunSimulation();
+
+            // Giữ nguyên chuỗi payload hiện tại và tự động thử nghiệm lại nếu đang ở trạng thái xem kết quả
+            if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationInput))
+            {
+                RunSimulation();
+            }
         }
     }
 
@@ -142,21 +153,34 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         else
         {
             IsSimulationSuccess = false;
+            string field = !string.IsNullOrEmpty(result.FaultyField) ? $"'{result.FaultyField}'" : string.Empty;
             SimulationStatusMessage = result.ErrorCode switch
             {
                 MqttErrorCode.JsonSyntaxError => isVi
                     ? "❌ Bản tin không đúng định dạng JSON (vui lòng kiểm tra dấu ngoặc {}, dấu phẩy hoặc dấu nháy kép)."
                     : "❌ Invalid JSON format (please check curly brackets {}, commas, or quotes).",
                 MqttErrorCode.MissingField => isVi
-                    ? $"❌ Bản tin thiếu trường dữ liệu: {result.ErrorMessage}"
-                    : $"❌ Missing required data field: {result.ErrorMessage}",
+                    ? (!string.IsNullOrEmpty(field)
+                        ? $"❌ Bản tin thiếu trường dữ liệu: Không tìm thấy trường {field} trong gói tin."
+                        : "❌ Bản tin thiếu trường dữ liệu bắt buộc.")
+                    : (!string.IsNullOrEmpty(field)
+                        ? $"❌ Missing required data field: Field {field} was not found in the payload."
+                        : "❌ Missing required data field in payload."),
                 MqttErrorCode.OutOfRange => isVi
-                    ? $"❌ Giá trị vượt giới hạn cho phép: {result.ErrorMessage}"
-                    : $"❌ Value out of range: {result.ErrorMessage}",
+                    ? (!string.IsNullOrEmpty(field)
+                        ? $"❌ Giá trị vượt giới hạn cho phép tại trường {field}."
+                        : "❌ Giá trị vượt giới hạn cho phép.")
+                    : (!string.IsNullOrEmpty(field)
+                        ? $"❌ Value out of range for field {field}."
+                        : "❌ Value out of range."),
                 MqttErrorCode.TypeMismatch => isVi
-                    ? $"❌ Sai kiểu dữ liệu: {result.ErrorMessage}"
-                    : $"❌ Data type mismatch: {result.ErrorMessage}",
-                _ => $"❌ Lỗi: {result.ErrorMessage}"
+                    ? (!string.IsNullOrEmpty(field)
+                        ? $"❌ Sai kiểu dữ liệu tại trường {field}."
+                        : "❌ Sai kiểu dữ liệu.")
+                    : (!string.IsNullOrEmpty(field)
+                        ? $"❌ Data type mismatch for field {field}."
+                        : "❌ Data type mismatch."),
+                _ => isVi ? $"❌ Lỗi: {result.ErrorMessage}" : $"❌ Error: {result.ErrorMessage}"
             };
         }
     }

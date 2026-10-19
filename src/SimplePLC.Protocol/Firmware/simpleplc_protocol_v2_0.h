@@ -195,7 +195,42 @@ extern "C" {
 #define SPLC_BROKER_CTRL_VERSION_MASK     0x0018
 #define SPLC_BROKER_CTRL_VERSION_SHIFT    3
 
-/* --- 2.8 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
+/* --- 2.8 MQTT TLS Certificate Staging Buffer (0x0F00 - 0x0F43, SPLC-SPEC-MQTT-003) --- */
+#define SPLC_ADDR_MQTT_TLS_STAGING        0x0F00  /* 64 regs (128 B): SPLC_CertChunk_t (FC16, WO) */
+#define SPLC_LEN_MQTT_TLS_STAGING_CHUNK   64
+#define SPLC_ADDR_MQTT_TLS_ACK            0x0F40  /* 1 reg: ACK chunk index (FC03, RO) */
+#define SPLC_ADDR_MQTT_TLS_ERROR          0x0F41  /* 1 reg: Error Code (FC03, RO) */
+#define SPLC_ADDR_MQTT_TLS_COMMIT         0x0F42  /* 1 reg: Commit 0xA5A5 (FC06/FC16, WO) */
+#define SPLC_ADDR_MQTT_TLS_ACTIVE_MASK    0x0F43  /* 1 reg: Active Cert Type Mask (FC03, RO) */
+#define SPLC_MQTT_CERT_PAYLOAD_MAX_BYTES  120
+
+/* --- 2.9 Modbus RTU Master Poller Space (0x1000 - 0x10FF) --- */
+#define SPLC_ADDR_MODBUS_MASTER           0x1000  /* 256 regs: 4 Blocks * 64 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MODBUS_MASTER_TOTAL      256
+#define SPLC_MBM_MAX_BLOCKS               4
+#define SPLC_MBM_REGS_PER_BLOCK           64      /* 64 regs = 128 bytes per block */
+#define SPLC_MBM_BYTES_PER_BLOCK          128
+#define SPLC_MBM_MAX_PINS_PER_BLOCK       4
+#define SPLC_MBM_MAX_LABEL_CHARS          12
+
+/* Master Control Flags Bitmask (Offset +0 in Block) */
+#define SPLC_MBM_CTRL_ENABLED_BIT         0x0001
+
+/* Data Types */
+#define SPLC_MBM_TYPE_BOOL                1
+#define SPLC_MBM_TYPE_INT16               2
+#define SPLC_MBM_TYPE_UINT16              3
+#define SPLC_MBM_TYPE_INT32               4
+#define SPLC_MBM_TYPE_UINT32              5
+#define SPLC_MBM_TYPE_REAL                6
+
+/* Endianness */
+#define SPLC_MBM_ENDIAN_ABCD              0
+#define SPLC_MBM_ENDIAN_CDAB              1
+#define SPLC_MBM_ENDIAN_BADC              2
+#define SPLC_MBM_ENDIAN_DCBA              3
+
+/* --- 2.9 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
 #define SPLC_ADDR_CONFIG_STATUS           0x9000  /* 1 reg: SPLC_CommandStatus_t (FC03, RO) */
 #define SPLC_ADDR_CONFIG_ERROR_CODE       0x9001  /* 1 reg: SPLC_ErrorCode_t (FC03, RO) */
 #define SPLC_ADDR_RULE_COUNT_STAGED       0x9002  /* 1 reg: Number of rules staged (FC03/FC16, RW) */
@@ -341,8 +376,10 @@ typedef enum {
     SPLC_CAP_RTC          = 0x0004, /* Bit 2: Hỗ trợ phần cứng Real-Time Clock (DS3231/LSE) */
     SPLC_CAP_ETHERNET     = 0x0008, /* Bit 3: Có cổng truyền thông mạng vật lý (Ethernet/WiFi) */
     SPLC_CAP_MQTT_PUB     = 0x0010, /* Bit 4: Hỗ trợ phân hệ xuất bản viễn trắc MQTT PUB (0x0C00) */
-    SPLC_CAP_MQTT_SUB     = 0x0020, /* Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB */
-    SPLC_CAP_SD_DATALOG   = 0x0040  /* Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD */
+    SPLC_CAP_MQTT_SUB     = 0x0020, /* Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB (0x0D80) */
+    SPLC_CAP_SD_DATALOG   = 0x0040, /* Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD */
+    SPLC_CAP_MQTT_TLS_CERT = 0x0080, /* Bit 7: Hỗ trợ nạp và giải mã chứng chỉ TLS/SSL theo khối struct (0x0F00) */
+    SPLC_CAP_MODBUS_MASTER = 0x0100  /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -740,6 +777,128 @@ typedef struct SPLC_PACKED {
     SPLC_MqttSubPinBinding_t pins[SPLC_MQTT_MAX_PINS_PER_SUB_BLOCK]; /* 4 pins * 20 bytes = 80 bytes */
 } SPLC_MqttSubscriptionBlock_t;
 
+/**
+ * @brief MQTT TLS Certificate Staging Chunk Wire Record (64 registers = 128 bytes at 0x0F00).
+ * SPLC-SPEC-MQTT-003: Chunked transfer of X.509 CA/Client certificates.
+ */
+typedef struct SPLC_PACKED {
+    uint8_t  cert_type;        /* 0x01: Root CA, 0x02: Client Cert, 0x03: Client Key */
+    uint8_t  chunk_index;      /* Chunk sequence: 0, 1, 2, ... (total_chunks - 1) */
+    uint8_t  total_chunks;     /* Total number of chunks (N <= 32) */
+    uint8_t  chunk_len;        /* Valid data byte length in payload (1..120) */
+    uint16_t total_cert_size;  /* Total size of full certificate in bytes */
+    uint16_t chunk_crc16;      /* CRC-16/MODBUS (Polynomial 0xA001) over payload */
+    uint8_t  payload[SPLC_MQTT_CERT_PAYLOAD_MAX_BYTES]; /* 120 bytes PEM/DER data */
+} SPLC_CertChunk_t;
+
+/**
+ * @brief Modbus Master Pin Binding Record (12 registers = 24 bytes).
+ * Defines target tag index, register offset, data type, endianness, multiplier, and pin label.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t target_tag_index;
+    uint16_t reg_offset;
+    uint16_t data_type;         /* 1=BOOL, 2=INT16, 3=UINT16, 4=INT32, 5=UINT32, 6=REAL */
+    uint16_t endianness;        /* 0=ABCD, 1=CDAB, 2=BADC, 3=DCBA */
+    float    multiplier;        /* IEEE 754 32-bit float */
+    char     pin_label[SPLC_MBM_MAX_LABEL_CHARS]; /* 12 bytes null-padded */
+} SPLC_ModbusMasterPinBinding_t;
+
+/**
+ * @brief Modbus Master Read Block Wire Record (64 registers = 128 bytes at 0x1000 + (idx * 64)).
+ * Defines polling transaction: Slave ID, Function Code, Start Address, Reg Count, Interval, Timeout,
+ * status tags, and up to 4 dynamic pin bindings.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;
+    uint8_t  slave_id;
+    uint8_t  function_code;
+    uint16_t start_address;
+    uint16_t reg_count;
+    uint32_t poll_interval_ms;
+    uint32_t timeout_ms;
+    uint16_t valid_tag_index;
+    uint16_t error_tag_index;
+    uint16_t err_code_tag_index;
+    uint16_t pin_count;
+    uint16_t reserved[3];
+    SPLC_ModbusMasterPinBinding_t pins[SPLC_MBM_MAX_PINS_PER_BLOCK]; /* 4 pins * 24 bytes = 96 bytes */
+} SPLC_ModbusMasterReadBlock_t;
+
+/**
+ * @brief Modbus Master Write Block Wire Record (64 registers = 128 bytes at 0x1100 + (idx * 64)).
+ * Defines write transaction: Slave ID, Function Code, Mode (Direct vs Channel-Indexed),
+ * Start Address / Base Addresses, Channel / Point Count, Trigger Mode, and payload bindings.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;             /* Bit 0=Enabled, Bit 1=Exclusive, Bit 2..3=Mode (0=Direct, 1=ChannelIndexed) */
+    uint8_t  slave_id;
+    uint8_t  function_code;             /* FC05, FC06, FC15, FC16 */
+    uint16_t start_or_base_cmd;         /* Direct: Start Address; Indexed: Base Command Address */
+    uint16_t count_or_channels;         /* Direct: Point Count; Indexed: Channel Count */
+    uint32_t base_address_param;        /* Indexed: Base Param / Color Address */
+    uint32_t cyclic_interval_ms;
+    uint32_t timeout_ms;
+    uint16_t trigger_mode;              /* 0=Edge, 1=Change, 2=Cyclic */
+    uint16_t trig_tag_index;
+    uint16_t done_tag_index;
+    uint16_t busy_tag_index;
+    uint16_t error_tag_index;
+    uint16_t err_code_tag_index;
+    union {
+        struct {
+            uint16_t channel_tag_index;
+            uint16_t command_tag_index;
+            uint16_t param_tag_index;
+            uint16_t reserved[45];
+        } indexed;
+        SPLC_ModbusMasterPinBinding_t direct_pins[SPLC_MBM_MAX_PINS_PER_BLOCK]; /* 4 * 24 = 96 bytes */
+    } payload;
+} SPLC_ModbusMasterWriteBlock_t;
+
+typedef enum {
+    SPLC_DIR_PIN_DO0 = 0,
+    SPLC_DIR_PIN_DO1 = 1,
+    SPLC_DIR_PIN_DO2 = 2,
+    SPLC_DIR_PIN_DO3 = 3,
+    SPLC_DIR_PIN_DO4 = 4,
+    SPLC_DIR_PIN_DO5 = 5,
+    SPLC_DIR_PIN_DO6 = 6,
+    SPLC_DIR_PIN_DO7 = 7
+} SPLC_DirectPin_t;
+
+typedef enum {
+    SPLC_DIR_MODE_DIGITAL_OUTPUT  = 0, /* Direct logic output 0/1 (Relay / Solenoid / Lamp) */
+    SPLC_DIR_MODE_PWM_DUTY        = 1, /* PWM Duty Cycle 0..100% (Dimmer / Motor Speed) */
+    SPLC_DIR_MODE_PULSE_TRAIN     = 2, /* Pulse Train Output (PTO for Stepper / Servo) */
+    SPLC_DIR_MODE_ADDRESSABLE_BUS = 3  /* 1-wire addressable bus (UCS16703 / WS2812 / Actuator) */
+} SPLC_DirectMode_t;
+
+typedef enum {
+    SPLC_DIR_TRIG_RISING_EDGE = 0,     /* Trigger execution on rising edge */
+    SPLC_DIR_TRIG_CONTINUOUS  = 1      /* Continuous cyclic execution every scan pass */
+} SPLC_DirectTrigger_t;
+
+/**
+ * @brief DIRECT_WRITE Block Configuration (32 bytes = 16 Modbus registers).
+ * Located at 0x1200..0x12FF (Up to 8 blocks: 0x1200 + BlockIndex * 16).
+ */
+typedef struct {
+    uint8_t  target_pin;        /* SPLC_DirectPin_t: DO0..DO7 (0..7) */
+    uint8_t  mode;              /* SPLC_DirectMode_t: 0=DO, 1=PWM, 2=PTO, 3=Bus */
+    uint16_t channel_count;     /* Number of channels (Bus mode) or pulses count */
+    uint8_t  flags;             /* Bit 0: is_active_high, Bit 1: is_exclusive, Bit 2: fail_safe */
+    uint8_t  trigger_mode;      /* SPLC_DirectTrigger_t: 0=RisingEdge, 1=Continuous */
+    uint16_t pulse_width_us;    /* Base pulse width in microseconds */
+    uint32_t pwm_freq_hz;       /* PWM Frequency (Hz) */
+    uint8_t  duty_min;          /* PWM Duty Minimum % (0..100) */
+    uint8_t  duty_max;          /* PWM Duty Maximum % (0..100) */
+    uint16_t channel_tag_index; /* Tag index for logic in / duty % / bus channel */
+    uint16_t param_tag_index;   /* Tag index for enable / frequency / bus parameter */
+    uint32_t default_color_rgb; /* Default 24-bit RGB parameter (0x00RRGGBB) */
+    uint8_t  reserved[10];      /* Padding to align to exactly 32 bytes */
+} SPLC_DirectWriteBlock_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
@@ -755,7 +914,12 @@ _Static_assert(sizeof(SPLC_RuleRecord_t)            == 32,  "RuleRecord must be 
 _Static_assert(sizeof(SPLC_MqttTelemetryBlock_t)    == 192, "MqttTelemetryBlock must be 192 bytes (96 regs)");
 _Static_assert(sizeof(SPLC_MqttSubPinBinding_t)     == 20,  "MqttSubPinBinding must be 20 bytes (10 regs)");
 _Static_assert(sizeof(SPLC_MqttSubscriptionBlock_t) == 128, "MqttSubscriptionBlock must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_CertChunk_t)          == 128, "CertChunk must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_MqttBrokerConfig_t)      == 192, "MqttBrokerConfig must be 192 bytes (96 regs)");
+_Static_assert(sizeof(SPLC_ModbusMasterPinBinding_t)== 24,  "ModbusMasterPinBinding must be 24 bytes (12 regs)");
+_Static_assert(sizeof(SPLC_ModbusMasterReadBlock_t) == 128, "ModbusMasterReadBlock must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_ModbusMasterWriteBlock_t)== 128, "ModbusMasterWriteBlock must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_DirectWriteBlock_t)      == 32,  "DirectWriteBlock must be 32 bytes (16 regs)");
 #endif
 
 /* ========================================================================= */

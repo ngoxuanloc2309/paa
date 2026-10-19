@@ -169,7 +169,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         EnableConnector = new ConnectorViewModel
         {
             Title = "EN",
-            TooltipKey = "PinTooltipEn",
+            TooltipKey = "PinTooltipMqttSubEn",
             IsInput = true,
             Node = this
         };
@@ -179,7 +179,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         ValidConnector = new ConnectorViewModel
         {
             Title = "Valid",
-            TooltipKey = "PinTooltipValid",
+            TooltipKey = "PinTooltipMqttSubValid",
             IsInput = false,
             Node = this
         };
@@ -188,7 +188,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         ErrorConnector = new ConnectorViewModel
         {
             Title = "Err",
-            TooltipKey = "PinTooltipErr",
+            TooltipKey = "PinTooltipMqttSubErr",
             IsInput = false,
             Node = this
         };
@@ -301,7 +301,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         LastReceivedTime = DateTime.Now.ToString("HH:mm:ss");
 
         var pinDtos = Pins.Select(p => p.ToDto()).ToList();
-        var result = MqttSubscriptionParser.Parse(payload, pinDtos);
+        var result = MqttSubscriptionParser.Parse(payload, pinDtos, lenient: true);
 
         if (result.IsSuccess)
         {
@@ -310,9 +310,14 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
             LastErrorMessage = string.Empty;
             MsgCount++;
 
-            // Cập nhật giá trị vào các pin
+            // Cập nhật giá trị và đường dẫn phân giải vào các pin
             foreach (var pin in Pins)
             {
+                if (result.ResolvedPaths.TryGetValue(pin.Id, out string? resPath))
+                {
+                    pin.ResolvedPath = resPath;
+                }
+
                 if (result.NumericValues.TryGetValue(pin.Id, out double numVal))
                 {
                     pin.CurrentValue = numVal;

@@ -54,7 +54,7 @@ public class McuStudioRoundtripAutomationTests
         try
         {
             var blueprints = mainVM.BlueprintsVM.Blueprints;
-            Assert.Equal(26, blueprints.Count);
+            Assert.Equal(29, blueprints.Count);
 
 
             foreach (var bp in blueprints)

@@ -135,4 +135,25 @@ public class ProjectFileServiceTests
         Assert.True(vm.RuleTableVM.Rules.Count > 0, $"Rule count: {vm.RuleTableVM.Rules.Count}");
         Assert.True(vm.LogicEditorVM.Nodes.Count > 0, $"Node count: {vm.LogicEditorVM.Nodes.Count}");
     }
+
+    [Theory]
+    [InlineData("examples/SPX_Sort_To_Light_Logistics_Center.synx")]
+    [InlineData("examples/Modbus_RTU_Master_VFD_And_Sensor_Loop.synx")]
+    [InlineData("examples/IIoT_Cold_Chain_Smart_Gateway.synx")]
+    public void LoadExampleProjects_LoadsSuccessfullyWithNodesAndMetadata(string relativePath)
+    {
+        string fullPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", relativePath);
+        if (!File.Exists(fullPath))
+        {
+            fullPath = Path.GetFullPath(relativePath);
+        }
+        Assert.True(File.Exists(fullPath), $"Example file must exist: {fullPath}");
+
+        var project = ProjectFileService.LoadProject(fullPath);
+        Assert.NotNull(project);
+        Assert.NotNull(project.Metadata);
+        Assert.False(string.IsNullOrWhiteSpace(project.Metadata.ProjectName));
+        Assert.NotEmpty(project.Tags);
+        Assert.NotEmpty(project.Nodes);
+    }
 }

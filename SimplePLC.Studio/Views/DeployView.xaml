@@ -96,7 +96,7 @@
                                     <Setter Property="Background" Value="#F3F4F6" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasValidRules}" Value="True">
-                                            <Setter Property="Background" Value="#E6F4EA" />
+                                            <Setter Property="Background" Value="#F1F5F9" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -154,13 +154,13 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Scenario 2: Success Card -->
+                        <!-- Scenario 2: Success Card (ISA-101 Diagnostic Box) -->
                         <Border Margin="0,0,0,14">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed" />
-                                    <Setter Property="Background" Value="#E6F4EA" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="#F8FAFC" />
+                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
                                     <Setter Property="Padding" Value="12" />
@@ -171,12 +171,18 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <StackPanel>
-                                <TextBlock Text="{Binding [DeploySuccessTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontWeight="Bold" FontSize="12" Foreground="#107C41" Margin="0,0,0,4" />
-                                <TextBlock Text="{Binding [DeploySuccessDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" Foreground="#107C41" TextWrapping="Wrap" />
-                            </StackPanel>
+                            <DockPanel LastChildFill="True">
+                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,10,0" DockPanel.Dock="Left" />
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Ellipse Width="6.5" Height="6.5" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Text="{Binding [DeploySuccessTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontWeight="Bold" FontSize="12" Foreground="#0F172A" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding [DeploySuccessDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
 
                         <!-- Manifest Details (Always Available) -->
@@ -269,7 +275,7 @@
                                                         <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
-                                                                <Setter Property="Background" Value="#E6F4EA" />
+                                                                <Setter Property="Background" Value="#F1F5F9" />
                                                                 <Setter Property="BorderBrush" Value="#107C41" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
@@ -306,7 +312,7 @@
                                                         <Setter Property="Background" Value="#F3F4F6" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
-                                                                <Setter Property="Background" Value="#E6F4EA" />
+                                                                <Setter Property="Background" Value="#F1F5F9" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
                                                                 <Setter Property="Background" Value="#ECEFF1" />

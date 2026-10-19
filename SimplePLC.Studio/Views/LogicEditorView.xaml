@@ -656,6 +656,75 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+
+                                <!-- Modbus Master Read Block -->
+                                <Border Tag="MB_READ" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxModbusReadDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#0284C7" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="🔄" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxModbusReadTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxModbusReadDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Modbus Master Write Block -->
+                                <Border Tag="MB_WRITE" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxModbusWriteDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#0284C7" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="📤" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxModbusWriteTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxModbusWriteDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Direct Hardware Actuator Write Block -->
+                                <Border Tag="DIRECT_WRITE" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxDirectWriteDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#0284C7" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="⚡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxDirectWriteTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxDirectWriteDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Expander>
 
@@ -708,6 +777,8 @@
                                      SelectedItems="{Binding SelectedNodes}"
                                      AllowDrop="True"
                                      Drop="NodifyEditor_Drop"
+                                     DragOver="NodifyEditor_DragOver"
+                                     DragEnter="NodifyEditor_DragEnter"
                                      PreviewMouseDown="NodifyEditor_PreviewMouseDown">
                     <nodify:NodifyEditor.Style>
                         <Style TargetType="{x:Type nodify:NodifyEditor}">
@@ -875,8 +946,11 @@
                         <TextBlock Text="{Binding AiProposalSummaryText}" FontWeight="SemiBold" FontSize="12" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,12,0" />
                         
                         <!-- Safety Badge -->
-                        <Border Background="#E6F4EA" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,12,0">
-                            <TextBlock Text="✓ An toàn: 0 xung đột ghi" FontSize="10.5" FontWeight="SemiBold" Foreground="#0E6B37" />
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                <TextBlock Text="✓ An toàn: 0 xung đột ghi" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Accept Button -->
@@ -910,11 +984,13 @@
                 <!-- Save Confirmation Toast Notification (Bottom-Right, non-intrusive, industrial theme) -->
                 <Border Visibility="{Binding ShowSaveToast, Converter={StaticResource BoolToVis}}"
                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,16"
-                        Background="#E6F4EA" BorderBrush="#107C41" BorderThickness="1"
+                        Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1"
                         CornerRadius="2" Padding="12,8">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="✓" FontWeight="Bold" Foreground="#107C41" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding SaveToastMessage}" FontWeight="SemiBold" Foreground="#107C41" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <DockPanel LastChildFill="True">
+                        <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="✓" FontWeight="Bold" Foreground="#107C41" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SaveToastMessage}" FontWeight="SemiBold" Foreground="#0F172A" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,12,0" />
                         <Button Content="{Binding [ToastViewRuleTable], Source={x:Static services:LocalizationService.Instance}}" Command="{Binding ViewRuleTableCommand}"
                                 Background="#FFFFFF" Foreground="#107C41" BorderBrush="#107C41" BorderThickness="1"
                                 FontWeight="SemiBold" FontSize="10.5" Padding="8,3" Margin="0,0,8,0" Cursor="Hand">
@@ -938,6 +1014,7 @@
                         <Button Content="✕" Command="{Binding DismissToastCommand}"
                                 Background="Transparent" BorderThickness="0" Foreground="#107C41" Opacity="0.75" FontWeight="Bold" FontSize="11" Cursor="Hand" VerticalAlignment="Center" Padding="4,2" />
                     </StackPanel>
+                    </DockPanel>
                 </Border>
 
                 <!-- Live Debug Floating HUD Banner (Top-Center, CAD & VS Code Industrial Floating Bar) -->
@@ -1045,7 +1122,7 @@
                                             <Setter Property="BorderThickness" Value="1" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSimRunning}" Value="True">
-                                                    <Setter Property="Background" Value="#E6F4EA" />
+                                                    <Setter Property="Background" Value="#F1F5F9" />
                                                     <Setter Property="BorderBrush" Value="#107C41" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -1638,7 +1715,7 @@
                                                                             <Setter Property="Visibility" Value="Visible" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Tag.Value}" Value="1">
-                                                                            <Setter Property="Background" Value="#E6F4EA" />
+                                                                            <Setter Property="Background" Value="#F1F5F9" />
                                                                             <Setter Property="Foreground" Value="#107C41" />
                                                                             <Setter Property="BorderBrush" Value="#107C41" />
                                                                         </DataTrigger>
@@ -1706,7 +1783,7 @@
                                                                 <Setter Property="BorderThickness" Value="1" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsSimFired}" Value="True">
-                                                                        <Setter Property="Background" Value="#DCFCE7" />
+                                                                        <Setter Property="Background" Value="#F1F5F9" />
                                                                         <Setter Property="BorderBrush" Value="#107C41" />
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
@@ -1765,8 +1842,8 @@
                             <TextBlock Text="{Binding [InspectorTriggerSelecting], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" Foreground="#107C41" FontSize="12" />
                         </Border>
 
-                        <!-- SIMULATION TRIGGER STATUS CARD -->
-                        <Border Background="#E6F4EA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,10">
+                        <!-- SIMULATION TRIGGER STATUS CARD (ISA-101 Diagnostic Box) -->
+                        <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,10">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -1785,7 +1862,7 @@
                                             <Setter Property="Background" Value="#F1F5F9" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding SelectedTriggerNode.IsSimTriggered}" Value="True">
-                                                    <Setter Property="Background" Value="#E6F4EA" />
+                                                    <Setter Property="Background" Value="#F1F5F9" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -1991,7 +2068,7 @@
                                                 <Setter Property="Background" Value="#FEF2F2" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding SelectedGuardNode.IsSimPassed}" Value="True">
-                                                        <Setter Property="Background" Value="#DCFCE7" />
+                                                        <Setter Property="Background" Value="#F1F5F9" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -2085,7 +2162,7 @@
                                                 <Setter Property="Background" Value="#F1F5F9" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding SelectedActionNode.IsSimFired}" Value="True">
-                                                        <Setter Property="Background" Value="#DCFCE7" />
+                                                        <Setter Property="Background" Value="#F1F5F9" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -2152,9 +2229,27 @@
                             <ComboBoxItem Content="TP — Pulse Timer" Tag="TP" />
                         </ComboBox>
 
-                        <!-- Preset Time PT (ms) -->
-                        <TextBlock Text="{Binding [InspectorPresetMs], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                        <TextBox Text="{Binding SelectedTimerNode.PresetMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+                        <!-- Preset Time PT (Value + Unit) -->
+                        <TextBlock Text="{Binding [InspectorPresetTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="145" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Value Input (supports integer and decimals, e.g. 30, 1.5, 500) -->
+                            <TextBox Grid.Column="0" Text="{Binding SelectedTimerNode.DurationValueText, UpdateSourceTrigger=PropertyChanged}" 
+                                     Padding="6,4" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center" />
+
+                            <!-- Unit Selector: ms, s, min, h (dynamically localized) -->
+                            <ComboBox Grid.Column="2" 
+                                      ItemsSource="{x:Static vm:TimerNodeViewModel.AvailableUnits}"
+                                      SelectedValue="{Binding SelectedTimerNode.TimeUnit, Mode=TwoWay}"
+                                      SelectedValuePath="Key"
+                                      DisplayMemberPath="Label"
+                                      Height="28" Padding="5,3" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                        </Grid>
 
                         <!-- Output Tag Q (DO or VFLAG) -->
                         <TextBlock Text="{Binding [InspectorOutputTag], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
@@ -2167,8 +2262,8 @@
 
                     <!-- COUNTER NODE PROPERTIES FORM -->
                     <StackPanel Visibility="{Binding SelectedCounterNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
-                        <Border Background="#ECFDF5" BorderBrush="#0F5132" BorderThickness="1" CornerRadius="2" Padding="8" Margin="0,0,0,10">
-                            <TextBlock Text="{Binding [InspectorCounterSelecting], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" Foreground="#0F5132" FontSize="12" />
+                        <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding [InspectorCounterSelecting], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" Foreground="#334155" FontSize="12" />
                         </Border>
 
                         <!-- Custom Node Label -->
@@ -2605,14 +2700,174 @@
                         </Border>
                     </StackPanel>
 
+                    <!-- MODBUS READ NODE PROPERTIES FORM -->
+                    <StackPanel Visibility="{Binding SelectedModbusReadNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
+                        <!-- Header Banner (Industrial Slate Gray - Matching MQTT Pub & Sub) -->
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,10">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock Text="🔄" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [InspectorModbusSelecting], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Custom Node Label -->
+                        <TextBlock Text="{Binding [InspectorNodeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding SelectedModbusReadNode.CustomLabel, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+
+                        <!-- Slave ID & Polling Summary Card -->
+                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusColSlaveId], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.SlaveId}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <!-- Function Code -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding [ModbusColFunctionCode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" VerticalAlignment="Top" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedModbusReadNode.FunctionCodeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" />
+                                </Grid>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusColStartAddr], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.StartAddress}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusColRegCount], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.RegCount}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorModbusPollRate], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.PollIntervalDisplay}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding [InspectorModbusPinsLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.PinsCountSummary}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <Button Content="{Binding [InspectorModbusConfigureBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                        Command="{Binding OpenModbusReadConfigCommand}"
+                                        CommandParameter="{Binding SelectedModbusReadNode}"
+                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                        Padding="12,7" HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- MODBUS MASTER WRITE NODE PROPERTIES FORM -->
+                    <StackPanel Visibility="{Binding SelectedModbusWriteNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
+                        <!-- Header Banner -->
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,10">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock Text="📤" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [InspectorModbusWriteSelecting], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Custom Node Label -->
+                        <TextBlock Text="{Binding [InspectorNodeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding SelectedModbusWriteNode.CustomLabel, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+
+                        <!-- Write Summary Card -->
+                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusColSlaveId], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusWriteNode.SlaveId}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Write Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusWriteColMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusWriteNode.WriteModeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Trigger Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusWriteColTrigMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusWriteNode.TriggerModeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Target Summary Info -->
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding [InspectorModbusWritePinsLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusWriteNode.PinsCountSummary}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <Button Content="{Binding [InspectorModbusConfigureBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                        Command="{Binding OpenModbusWriteConfigCommand}"
+                                        CommandParameter="{Binding SelectedModbusWriteNode}"
+                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                        Padding="12,7" HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- DIRECT WRITE ACTUATOR NODE PROPERTIES FORM -->
+                    <StackPanel Visibility="{Binding SelectedDirectWriteNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
+                        <!-- Header Banner -->
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,10">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock Text="⚡" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [InspectorDirectWriteSelecting], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontWeight="Bold" Foreground="#1E293B" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Custom Node Label -->
+                        <TextBlock Text="{Binding [InspectorNodeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding SelectedDirectWriteNode.CustomLabel, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+
+                        <!-- Direct Write Summary Card -->
+                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorDirectWritePinLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDirectWriteNode.TargetPinDisplay}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Output Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorDirectWriteModeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDirectWriteNode.ModeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Trigger Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusWriteColTrigMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDirectWriteNode.TriggerModeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Channel / Summary Info -->
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding [InspectorDirectWriteSummaryLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDirectWriteNode.ModeSummaryDisplay}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <Button Content="{Binding [InspectorDirectWriteConfigureBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                        Command="{Binding OpenDirectWriteConfigCommand}"
+                                        CommandParameter="{Binding SelectedDirectWriteNode}"
+                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                        Padding="12,7" HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
                     <!-- INPUT NODE PROPERTIES FORM -->
                     <StackPanel Visibility="{Binding SelectedInputNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
                         <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8" Margin="0,0,0,10">
                             <TextBlock Text="{Binding [InspectorInputSelecting], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" Foreground="#334155" FontSize="12" />
                         </Border>
 
-                        <!-- SIMULATION INPUT INTERACTIVE FORCE CARD -->
-                        <Border Background="#E6F4EA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,10">
+                        <!-- SIMULATION INPUT INTERACTIVE FORCE CARD (ISA-101 Diagnostic Box) -->
+                        <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,10">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -2645,7 +2900,7 @@
                                                     <Setter Property="Visibility" Value="Visible" />
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding SelectedInputNode.Tag.Value}" Value="1">
-                                                    <Setter Property="Background" Value="#E6F4EA" />
+                                                    <Setter Property="Background" Value="#F1F5F9" />
                                                     <Setter Property="Foreground" Value="#107C41" />
                                                     <Setter Property="BorderBrush" Value="#107C41" />
                                                 </DataTrigger>
@@ -2710,10 +2965,10 @@
                                     <Setter Property="Background" Value="#FFFBEB" />
                                     <Setter Property="BorderBrush" Value="#FDE68A" />
                                     <Style.Triggers>
-                                        <!-- Valid: Industrial Muted Green -->
+                                        <!-- Valid: Industrial Standard Green -->
                                         <DataTrigger Binding="{Binding CompileState}" Value="Valid">
-                                            <Setter Property="Background" Value="#ECFDF5" />
-                                            <Setter Property="BorderBrush" Value="#A7F3D0" />
+                                            <Setter Property="Background" Value="#F1F5F9" />
+                                            <Setter Property="BorderBrush" Value="#107C41" />
                                         </DataTrigger>
                                         <!-- Invalid: Industrial Red -->
                                         <DataTrigger Binding="{Binding CompileState}" Value="Invalid">
@@ -2731,7 +2986,7 @@
                                                 <Setter Property="Foreground" Value="#9C4221" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding CompileState}" Value="Valid">
-                                                        <Setter Property="Foreground" Value="#0F5132" />
+                                                        <Setter Property="Foreground" Value="#107C41" />
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding CompileState}" Value="Invalid">
                                                         <Setter Property="Foreground" Value="#DC2626" />
@@ -2746,7 +3001,7 @@
                                                 <Setter Property="Foreground" Value="#9C4221" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding CompileState}" Value="Valid">
-                                                        <Setter Property="Foreground" Value="#0F5132" />
+                                                        <Setter Property="Foreground" Value="#107C41" />
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding CompileState}" Value="Invalid">
                                                         <Setter Property="Foreground" Value="#DC2626" />

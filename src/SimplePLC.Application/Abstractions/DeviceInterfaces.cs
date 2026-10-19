@@ -77,7 +77,32 @@ public interface IRuleTableWriter
         MqttBrokerConfigDto? brokerConfig,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, cancellationToken);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, cancellationToken);
+
+    Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
+        CancellationToken cancellationToken = default) =>
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, cancellationToken, null);
+
+    Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers,
+        IReadOnlyList<FbCounterRecordDto>? counters,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
+        MqttBrokerConfigDto? brokerConfig,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
+        CancellationToken cancellationToken,
+        Action<string>? progressLogger) =>
+        DeployRulesAsync(slaveId, rules, cancellationToken);
 }
 
 /// <summary>

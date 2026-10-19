@@ -1,5 +1,43 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.7.0] - 2026-10-19 (ACTUATION SUITE: MODBUS WRITE & DIRECT WRITE, FAIL-SAFE DEPLOY, INDUSTRIAL SLATE PALETTE & SPEC UNIFICATION)
+
+### Added
+- **Phân Hệ Điều Khiển Chấp Hành Modbus Master RTU (`MB_WRITE`, `0x1100..0x11FF`)**:
+  - Định nghĩa vùng nhớ cấu hình 4 kênh Modbus Master Write tại `0x1100..0x11FF` (256 Holding Registers = 4 kênh $\times$ 64 thanh ghi = 128 bytes/kênh).
+  - Bổ sung cấu trúc chuẩn C firmware `SPLC_ModbusMasterWriteBlock_t` (128 bytes/kênh) trong [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h).
+  - Hỗ trợ 2 chế độ ghi linh hoạt: `Direct Addressing` (ghi cố định giá trị từ các chân logic) và `Channel-Indexed Addressing` (ghi theo kênh động, tính toán địa chỉ `base_addr + channel_idx * offset`).
+  - Hỗ trợ 4 hàm ghi Modbus tiêu chuẩn: FC05 (Write Single Coil), FC06 (Write Single Register), FC15 (Write Multiple Coils), FC16 (Write Multiple Registers).
+  - 3 chế độ kích hoạt: `Rising Edge (Trig)`, `On Change`, `Cyclic Interval` kèm các chân trạng thái `Done`, `Busy`, `Error`, `ErrCode`.
+  - Ban hành tài liệu đặc tả ICD: [`docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md).
+- **Phân Hệ Điều Khiển Phần Cứng Cục Bộ (`DIRECT_WRITE`, `0x1200..0x12FF`)**:
+  - Hỗ trợ điều khiển trực tiếp 8 cọc đầu ra vật lý `DO0..DO7` theo 4 chế độ: `Digital Output` (0/1), `PWM Duty Cycle` (0..100%), `Pulse Train Output (PTO)` cho động cơ bước/servo, và `Addressable Bus` cho dải LED địa chỉ UCS16703 / WS2812.
+  - Ban hành tài liệu đặc tả ICD: [`docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md).
+- **Phân Hệ Thu Thập Cảm Biến Modbus Master RTU (`MB_READ`, `0x1000..0x10FF`)**:
+  - Định nghĩa vùng nhớ cấu hình 4 kênh Modbus Master Read tại `0x1000..0x10FF` (256 Holding Registers = 4 kênh $\times$ 64 thanh ghi = 128 bytes/kênh).
+  - Bổ sung cấu trúc chuẩn C firmware `SPLC_ModbusMasterPinBinding_t` (24 bytes/pin, tối đa 4 pins/kênh) và `SPLC_ModbusMasterReadBlock_t` (128 bytes/kênh) trong [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h).
+  - Hỗ trợ đầy đủ 4 hàm đọc tiêu chuẩn Modbus: FC03 (Holding Registers), FC04 (Input Registers), FC01 (Coils), FC02 (Discrete Inputs) và 4 quy ước Endianness.
+  - Ban hành tài liệu đặc tả ICD: [`docs/firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md).
+- **Cơ Chế Khóa An Toàn Khi Nạp Cấu Hình (Fail-Safe Capabilities Deploy Gate)**:
+  - Ngăn chặn hoàn toàn lỗi nuốt exception khi đọc thanh ghi `0x0A08` (`HardwareCapabilities`).
+  - Tự động kiểm tra và khóa an toàn, báo lỗi tường minh khi nạp sơ đồ logic có cấu hình MQTT/Modbus vào vi điều khiển không hỗ trợ phần cứng tương ứng.
+- **Thư Viện Dự Án Mẫu Công Nghiệp Chuẩn Quốc Tế (`examples/`)**:
+  - Cung cấp 3 dự án mẫu công nghiệp hoàn chỉnh: `SPX_Sort_To_Light_Logistics_Center.synx`, `IIoT_Cold_Chain_Smart_Gateway.synx`, `Modbus_RTU_Master_VFD_And_Sensor_Loop.synx`.
+- **Hệ Thống Kiểm Thử Tự Động Toàn Diện (1.264 / 1.264 Unit Tests + Full UART COM7/COM9 Pass 100%)**:
+  - 100% test coverage trên toàn bộ 5 project test (Protocol, Domain, Infrastructure, Application, Studio) và bộ Hardware Automation Test (7/7 steps full, 5/5 diag scenarios, 10/10 mqtt cases).
+
+### Changed
+- **Quy Hoạch Tài Liệu Chuẩn Master V2.0 & Dọn Dẹp Bản Nháp**:
+  - Hợp nhất toàn bộ bản đồ bộ nhớ, 15 cấu trúc nhị phân và danh mục kiểm tra nghiệm thu vào tài liệu chuẩn duy nhất: [`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md).
+  - Đồng bộ file header C firmware duy nhất: [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h).
+  - Di chuyển các bản đặc tả cũ v1.9 vào `docs/history/` và xóa bỏ các tài liệu phân mảnh trùng lặp.
+- **Chuẩn Hóa Bảng Màu Công Nghiệp Toàn Diện (Industrial Slate Gray - ISA-101 / IEC 60073)**:
+  - Loại bỏ hoàn toàn mã màu neon web, chuẩn hóa toàn bộ các màn hình Studio, FBD Canvas, NodeTemplates, và các hộp thoại cấu hình sang bảng màu công nghiệp ANSI/ISA-101.01-2015.
+- **Chuẩn Hóa Thuật Ngữ Quốc Tế Theo Đặc Tả Modbus.org**:
+  - Đồng bộ thuật ngữ chuẩn Modbus: `Starting Address` và `Quantity of Registers` kèm cơ chế Smart Auto-Fit.
+- **Đồng Bộ Kích Thước Khối Canvas FBD (185px)**:
+  - Căn chỉnh chiều ngang khối `MB_READ`, `MB_WRITE`, `DIRECT_WRITE` đồng bộ pixel hoàn hảo với khối `MQTT PUB`, `MQTT SUB` (185px).
+
 ## [2.6.0] - 2026-10-14 (IEC 61131-3 DATA TYPES STANDARDIZATION & NATIVE TELEMETRY WIRE PROFILE)
 
 ### Added
@@ -16,7 +54,7 @@
   - Hỗ trợ cơ chế hàng đợi lệnh (`Fifo` vs `LatestWins`) và chính sách an toàn Fail-Safe Timeout (`KeepLastValue`, `SetToDefault`, `ZeroOutput`) khi mất kết nối Broker.
   - Ban hành tài liệu ICD: `docs/firmware/SPLC_SPEC_MQTT_002_SUBSCRIBE_ICD.md`.
 - **Giải Pháp Công Nghiệp Đóng Gói SPX Logistics Sort-to-Light**:
-  - Ban hành Hồ sơ đề xuất giải pháp kỹ thuật chuẩn quốc tế: `docs/SPX_Sort_to_Light_Solution_Proposal_V2.docx`.
+  - Ban hành Hồ sơ đề xuất giải pháp kỹ thuật chuẩn quốc tế: `docs/proposals/SPX_Sort_to_Light_Solution_Proposal_V2.docx`.
   - Dự án mẫu `SPX_SortToLight_Standard.synx` tích hợp 2 luồng logic trực giao: Nhận lệnh WMS qua MQTT SUB (Timer TON 5s auto-off) và Cảm biến xác nhận (DI0) gửi viễn trắc MQTT PUB.
 
 

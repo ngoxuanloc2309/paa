@@ -157,12 +157,18 @@
                         </Grid.RowDefinitions>
 
                         <!-- Payload Test Header -->
-                        <StackPanel Grid.Row="0" Margin="0,0,0,8">
-                            <TextBlock Text="{Binding [MqttSubTestSection], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" Margin="0,0,0,3" />
-                            <TextBlock Text="{Binding [MqttSubTestSectionDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
-                        </StackPanel>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Content="{Binding [MqttSubBtnResetSample], Source={x:Static services:LocalizationService.Instance}}" 
+                                    Command="{Binding ResetSamplePayloadCommand}"
+                                    Style="{StaticResource TiaTactileBtnStyle}"
+                                    Padding="8,3" FontSize="10" VerticalAlignment="Top" />
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="{Binding [MqttSubTestSection], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" Margin="0,0,0,3" />
+                                <TextBlock Text="{Binding [MqttSubTestSectionDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DockPanel>
 
                         <!-- Payload Test Input Box (Expanded for Standard Envelope) -->
                         <TextBox Grid.Row="1" Text="{Binding SimulationInput, UpdateSourceTrigger=PropertyChanged}" 
@@ -183,54 +189,64 @@
                                     Style="{StaticResource BtnPrimary}"
                                     Padding="12,6" FontSize="11" HorizontalAlignment="Stretch" Margin="0,0,0,8" />
 
-                            <!-- Result Display Card -->
-                            <Border Grid.Row="1" BorderThickness="1" CornerRadius="3" Padding="10">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasRunSimulation}" Value="True">
-                                                <Setter Property="Background" Value="#F0FDF4" />
-                                                <Setter Property="BorderBrush" Value="#86EFAC" />
-                                            </DataTrigger>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding HasRunSimulation}" Value="True" />
-                                                    <Condition Binding="{Binding IsSimulationSuccess}" Value="False" />
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter Property="Background" Value="#FEF2F2" />
-                                                <Setter Property="BorderBrush" Value="#FCA5A5" />
-                                            </MultiDataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-
+                            <!-- Result Display Card (Neutral Slate with ISA-101 Diagnostic Box) -->
+                            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="10">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding SimulationStatusMessage}" FontWeight="SemiBold" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#64748B" />
+                                        <!-- Status Banner (ISA-101 / TIA Portal Diagnostic Box) -->
+                                        <Border Visibility="{Binding HasRunSimulation, Converter={StaticResource BoolToVis}}" 
+                                                BorderThickness="1" CornerRadius="2" Padding="7,5" Margin="0,0,0,6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#F1F5F9" />
+                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
                                                     <Style.Triggers>
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding HasRunSimulation}" Value="True" />
-                                                                <Condition Binding="{Binding IsSimulationSuccess}" Value="True" />
-                                                            </MultiDataTrigger.Conditions>
-                                                            <Setter Property="Foreground" Value="#15803D" />
-                                                        </MultiDataTrigger>
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding HasRunSimulation}" Value="True" />
-                                                                <Condition Binding="{Binding IsSimulationSuccess}" Value="False" />
-                                                            </MultiDataTrigger.Conditions>
-                                                            <Setter Property="Foreground" Value="#B91C1C" />
-                                                        </MultiDataTrigger>
+                                                        <DataTrigger Binding="{Binding IsSimulationSuccess}" Value="False">
+                                                            <Setter Property="Background" Value="#FEF2F2" />
+                                                            <Setter Property="BorderBrush" Value="#FCA5A5" />
+                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </Border.Style>
+                                            <DockPanel LastChildFill="True">
+                                                <Border Width="3" CornerRadius="1" Margin="0,0,7,0" DockPanel.Dock="Left">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#107C41" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSimulationSuccess}" Value="False">
+                                                                    <Setter Property="Background" Value="#B91C1C" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center" Margin="0,0,6,0" DockPanel.Dock="Left">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="#107C41" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSimulationSuccess}" Value="False">
+                                                                    <Setter Property="Fill" Value="#B91C1C" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="{Binding SimulationStatusMessage}" FontWeight="SemiBold" FontSize="10.5" TextWrapping="Wrap" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#0F172A" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSimulationSuccess}" Value="False">
+                                                                    <Setter Property="Foreground" Value="#B91C1C" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </Border>
 
                                         <!-- Extracted Values List (only when success) -->
                                         <StackPanel Visibility="{Binding HasRunSimulation, Converter={StaticResource BoolToVis}}">
@@ -242,9 +258,14 @@
                                                     <DataTemplate>
                                                         <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,0,0,3">
                                                             <DockPanel LastChildFill="True">
-                                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                                                                     <TextBlock Text="• " FontSize="11" Foreground="#64748B" />
                                                                     <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="Bold" Foreground="#0F172A" />
+                                                                    <Border Visibility="{Binding HasCustomResolvedPath, Converter={StaticResource BoolToVis}}"
+                                                                            Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                                            CornerRadius="2" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ResolvedPath}" FontFamily="Consolas" FontSize="9.5" Foreground="#334155" />
+                                                                    </Border>
                                                                     <TextBlock Text=" ➔" FontSize="11" Foreground="#64748B" Margin="4,0" />
                                                                 </StackPanel>
                                                                 <TextBlock Text="{Binding CurrentStringValue}" FontFamily="Consolas" FontWeight="Bold" FontSize="11.5" Foreground="#0F766E" HorizontalAlignment="Right" />

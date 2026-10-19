@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "projectName": "IIoT_Cold_Chain_Smart_Gateway",
+    "author": "Cold Chain Bio-Logistics Engineering",
+    "createdAt": "2026-10-16T10:26:54.018595+00:00",
+    "lastModified": "2026-10-16T10:26:54.018595+00:00",
+    "schemaVersion": 1,
+    "targetDevice": "SynaptiX GatewayV2 (SYNX-RIO-884)",
+    "description": "Hệ thống giám sát nhiệt độ kho lạnh dược phẩm GSP thời gian thực. Tự động thu thập đầu dò PT100, truyền bản tin JSON đo xa chu kỳ 30 giây qua MQTT_PUB (QoS 1 có Timestamp), và nhận ngưỡng cài đặt nhiệt độ cảnh báo từ trung tâm SCADA qua MQTT_SUB.",
+    "deviceClass": 1,
+    "productVariant": 1,
+    "digitalInputs": 8,
+    "digitalOutputs": 8,
+    "analogInputs": 4,
+    "virtualFlags": 32,
+    "virtualRegisters": 32,
+    "retentiveRegisters": 32,
+    "counters": 8,
+    "maxRules": 100,
+    "mqttBrokerEnabled": true,
+    "mqttBrokerHost": "iot.pharma-coldchain.com",
+    "mqttBrokerPort": 1883,
+    "mqttClientId": "synaptix-coldchain-wh01",
+    "mqttUsername": "gsp_monitor_bot",
+    "mqttPassword": "token_bio_protect",
+    "mqttTlsEnabled": false,
+    "mqttCleanSession": true,
+    "mqttKeepAliveSec": 60
+  },
+  "tags": [
+    {
+      "index": 16,
+      "name": "AI0",
+      "alias": "PT100_CHAMBER_1",
+      "kind": "AnalogInput",
+      "channel": 0,
+      "group": "Cold Chamber",
+      "value": -185,
+      "dataType": "Float32"
+    },
+    {
+      "index": 17,
+      "name": "AI1",
+      "alias": "HUMIDITY_RH",
+      "kind": "AnalogInput",
+      "channel": 1,
+      "group": "Cold Chamber",
+      "value": 65,
+      "dataType": "Float32"
+    },
+    {
+      "index": 8,
+      "name": "DO0",
+      "alias": "COOLING_COMPRESSOR",
+      "kind": "DiscreteOutput",
+      "channel": 0,
+      "group": "HVAC",
+      "value": 1,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 9,
+      "name": "DO1",
+      "alias": "DEFROST_HEATER",
+      "kind": "DiscreteOutput",
+      "channel": 1,
+      "group": "HVAC",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 10,
+      "name": "DO2",
+      "alias": "TEMP_ALARM_SIREN",
+      "kind": "DiscreteOutput",
+      "channel": 2,
+      "group": "Safety",
+      "value": 0,
+      "dataType": "Boolean"
+    },
+    {
+      "index": 20,
+      "name": "VREG0",
+      "alias": "SETPOINT_TEMP_HIGH",
+      "kind": "VirtualRegister",
+      "channel": 0,
+      "group": "Remote Setpoint",
+      "value": -150,
+      "dataType": "Int32"
+    },
+    {
+      "index": 40,
+      "name": "VFLAG0",
+      "alias": "OVERTEMP_WARNING",
+      "kind": "VirtualFlag",
+      "channel": 0,
+      "group": "Alarms",
+      "value": 0,
+      "dataType": "Boolean"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node-mqtt-sub-setpoint",
+      "type": "MqttSubscribe",
+      "locationX": 60,
+      "locationY": 140,
+      "customLabel": "Remote Setpoint Inbound (SCADA)",
+      "mqttSubTopic": "pharma/wh01/setpoints/temperature",
+      "mqttSubQos": 1,
+      "mqttSubQueueMode": "LatestWins",
+      "mqttSubIgnoreRetained": false,
+      "mqttSubPins": [
+        {
+          "id": "pin-sp-hi",
+          "label": "TempHighLimit",
+          "jsonPath": "temp_high_limit",
+          "dataType": "Int32",
+          "targetTagName": "VREG0",
+          "targetTagIndex": 20,
+          "minValue": -30.0,
+          "maxValue": 10.0,
+          "defaultValue": -15.0
+        }
+      ]
+    },
+    {
+      "id": "node-mqtt-pub-telemetry",
+      "type": "MqttPublish",
+      "locationX": 550,
+      "locationY": 140,
+      "customLabel": "Cold Chain Cloud Telemetry (QoS 1)",
+      "mqttTopic": "pharma/wh01/telemetry/chamber",
+      "mqttPayloadMode": "JSON",
+      "mqttQos": 1,
+      "mqttRetain": true,
+      "mqttPublishMode": "Cyclic",
+      "mqttIncludeDevice": true,
+      "mqttIncludeTimestamp": true,
+      "mqttFields": [
+        {
+          "key": "temperature_c",
+          "tagName": "AI0",
+          "unit": "degC"
+        },
+        {
+          "key": "humidity_rh",
+          "tagName": "AI1",
+          "unit": "%"
+        },
+        {
+          "key": "compressor_on",
+          "tagName": "DO0",
+          "unit": ""
+        },
+        {
+          "key": "overtemp_flag",
+          "tagName": "VFLAG0",
+          "unit": ""
+        }
+      ]
+    }
+  ],
+  "connections": [],
+  "rules": [
+    {
+      "ruleId": 1,
+      "triggerTagIndex": 16,
+      "triggerType": "ON_RISE",
+      "triggerForMs": 3000,
+      "guardTagIndex": 20,
+      "guardCompareOp": "GT",
+      "guardThresholdLo": -150.0,
+      "guardThresholdHi": -150.0,
+      "actionType": "SET_TAG",
+      "actionTargetIndex": 10,
+      "actionParam": 1,
+      "enabled": true,
+      "triggerSummary": "KHI Nhiệt độ kho lạnh tăng cao liên tục 3 giây",
+      "guardSummary": "NẾU Vượt ngưỡng cài đặt Setpoint",
+      "actionSummary": "THÌ Bật còi báo động khẩn [DO2: TEMP_ALARM_SIREN]"
+    }
+  ]
+}

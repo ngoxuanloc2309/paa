@@ -92,9 +92,9 @@ public class LogicEditorViewModelTests : IDisposable
 
         foreach (var bp in blueprintsVM.Blueprints)
         {
-            if (bp.Id is "mqtt_pub" or "mqtt_sub")
+            if (bp.Id is "mqtt_pub" or "mqtt_sub" or "mb_read" or "mb_write_vfd" or "spx_sort_to_light")
             {
-                // MQTT IIoT blueprints use dedicated multi-tier grid layout tested in MqttBlueprintTests
+                // Communication & Modbus subsystem blueprints use dedicated multi-tier grid layout tested in MqttBlueprintTests & ModbusBlueprintTests
                 continue;
             }
 

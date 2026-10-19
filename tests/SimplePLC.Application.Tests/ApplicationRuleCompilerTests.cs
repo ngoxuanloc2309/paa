@@ -220,4 +220,52 @@ public class ApplicationRuleCompilerTests
         Assert.Equal(do1.TagIndex, run1.Program.Rules[1].Action.TargetTag.TagIndex);
         Assert.Equal(do2.TagIndex, run1.Program.Rules[2].Action.TargetTag.TagIndex);
     }
+
+    [Fact]
+    public void Compile_ModbusWriteNode_ExtractsConfigsCorrectly()
+    {
+        var di0 = _product.FindTagByName("DI0")!;
+        var graph = new LogicGraph();
+        graph.Nodes.Add(LogicNode.CreateInput("IN0", di0.TagIndex));
+        graph.Nodes.Add(LogicNode.CreateTrigger("TR0"));
+        var mbw = LogicNode.CreateModbusWrite(
+            "MBW1",
+            trigTag: di0.TagIndex,
+            slaveId: 2,
+            writeMode: SimplePLC.Protocol.Enums.ModbusWriteMode.ChannelIndexed,
+            functionCode: SimplePLC.Protocol.Enums.ModbusMasterWriteFunctionCode.WriteSingleRegister,
+            baseAddressCommand: 0x0100,
+            baseAddressParam: 0x0120,
+            channelCount: 9,
+            isExclusiveChannel: true,
+            triggerMode: SimplePLC.Protocol.Enums.ModbusWriteTriggerMode.OnTriggerRisingEdge,
+            channelTag: 10,
+            commandTag: 11,
+            paramTag: 12,
+            label: "SortToLight_LED_Actuator");
+
+        graph.Nodes.Add(mbw);
+        graph.Edges.Add(new LogicEdge("IN0", "TR0"));
+        graph.Edges.Add(new LogicEdge("TR0", "MBW1"));
+
+        var result = _compiler.Compile(graph, _product);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Program);
+        Assert.Single(result.Program.ModbusMasterWriteConfigs);
+
+        var cfg = result.Program.ModbusMasterWriteConfigs[0];
+        Assert.Equal("MBW1", cfg.NodeId);
+        Assert.Equal(2, cfg.SlaveId);
+        Assert.Equal(SimplePLC.Protocol.Enums.ModbusWriteMode.ChannelIndexed, cfg.WriteMode);
+        Assert.Equal((ushort)0x0100, cfg.BaseAddressCommand);
+        Assert.Equal((ushort)0x0120, cfg.BaseAddressParam);
+        Assert.Equal((ushort)9, cfg.ChannelCount);
+        Assert.True(cfg.IsExclusiveChannel);
+        Assert.Equal(di0.TagIndex, cfg.TrigTagIndex);
+        Assert.Equal((ushort)10, cfg.ChannelTagIndex);
+        Assert.Equal((ushort)11, cfg.CommandTagIndex);
+        Assert.Equal((ushort)12, cfg.ParamTagIndex);
+    }
 }
+

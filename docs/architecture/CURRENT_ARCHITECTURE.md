@@ -54,9 +54,10 @@ SimplePLC.sln
 │
 └── tests/
     ├── SimplePLC.Domain.Tests/        # Kiểm thử bất biến nghiệp vụ, kiểm tra ràng buộc quy tắc
-    ├── SimplePLC.Protocol.Tests/      # Kiểm thử Wire Contract V1.9, Register Codec, CRC-16, Golden Vectors
+    ├── SimplePLC.Protocol.Tests/      # Kiểm thử Wire Contract V1.9/V2.0, Register Codec, CRC-16, Golden Vectors
     ├── SimplePLC.Infrastructure.Tests/# Kiểm thử Transport, Frame Assembler, Simulator Register Memory
-    └── SimplePLC.Application.Tests/   # Kiểm thử Use Cases, Recovery Lifecycle, RuntimeStateStore, Phase D Seal Tests
+    ├── SimplePLC.Application.Tests/   # Kiểm thử Use Cases, Recovery Lifecycle, RuntimeStateStore, Phase D Seal Tests
+    └── SimplePLC.Studio.Tests/        # Kiểm thử MVVM ViewModels, Dialogs, Nodify Canvas Logic, Node Templates (678 tests)
 ```
 
 ---
@@ -101,9 +102,15 @@ sequenceDiagram
 | **`0x0810..0x0813`** | 4 | **RTC Clock** | RW | Đồng hồ thời gian thực MCU: `epoch_utc_s` (u32), `tz_offset_min` (i16), `rtc_flags` (u16: SYNCED, HW_PRESENT, BATTERY_LOW). Hỗ trợ Read-Before-Write. |
 | **`0x0900..0x09FF`** | 256 | **Runtime Tag Values** | RO/RW | Trạng thái 128 Tag công nghiệp (mỗi Tag chiếm 2 thanh ghi = `int32` Big-Endian). Ghi trực tiếp được bảo vệ bởi Diag Safety Interlock. |
 | **`0x0A00..0x0A02`** | 3 | **System Command & Result**| RW | Điều khiển hệ thống: Ghi lệnh (`1 = REBOOT`, `2 = CLEAR_FAULTS`, `3 = FACTORY_RESET`), đọc Result và Error Code. |
+| **`0x0A08..0x0A09`** | 2 | **Hardware Capabilities** | RO | 32-bit bitmask năng lực phần cứng thực tế: Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100). |
 | **`0x0A20..0x0A24`** | 5 | **Diagnostic Control Block**| RW | Quản lý phiên chẩn đoán V2.0: Command (`1=ENTER`, `2=EXIT`, `3=HEARTBEAT`, `4=COMMIT_RETAIN`), State, Flags (`LEASE_ACTIVE`, `RETAIN_DIRTY`), Watchdog Lease (3000ms), Error Code. |
 | **`0x0B00..0x0B3F`** | 64 | **Dedicated FB Timers** | RW | 8 Dedicated Timers (TON, TOF, TP) chuyên dụng (mỗi Timer 8 registers = 16 bytes). |
 | **`0x0B40..0x0B7F`** | 64 | **Dedicated FB Counters** | RW | 8 Dedicated Counters (CTU, CTD, CTUD) chuyên dụng (mỗi Counter 8 registers = 16 bytes). |
+| **`0x0C00..0x0D7F`** | 384 | **MQTT Telemetry Blocks** | RW | 4 khối xuất bản dữ liệu viễn trắc MQTT IIoT (SPLC-SPEC-MQTT-001, mỗi khối 96 registers = 192 bytes). |
+| **`0x0D80..0x0DFF`** | 128 | **MQTT Subscribe Blocks** | RW | 2 khối nhận lệnh điều khiển Inbound MQTT SUB (SPLC-SPEC-MQTT-002, mỗi khối 64 registers = 128 bytes). |
+| **`0x0E00..0x0E5F`** | 96 | **MQTT Broker Config** | RW | Cấu hình máy chủ MQTT Broker TCP/TLS cấp hệ thống và 12 registers phản hồi trạng thái Live. |
+| **`0x0F00..0x0F43`** | 68 | **MQTT TLS Certificate** | RW | Vùng đệm nạp phân đoạn chứng chỉ bảo mật TLS X.509 Root CA (SPLC-SPEC-MQTT-003). |
+| **`0x1000..0x10FF`** | 256 | **Modbus Master (MB_READ)**| RW | 4 kênh Modbus RTU Master thu thập dữ liệu cảm biến ngoại vi RS-485 (SPLC-SPEC-MBM-001, mỗi kênh 64 registers = 128 bytes). |
 | **`0x9000..0x9005`** | 6 | **Staging Control & Info** | RW | Quản lý nạp quy tắc: Status (`0=IDLE, 1=READY, 2=COMMITTING, 3=ERROR`), Error Code, Rule Count, Expected CRC-16, Active CRC & Count. |
 | **`0x9010..0x964F`** | 1600 | **Staging Buffer** | RW | Vùng nhớ đệm tạm tiếp nhận dữ liệu nạp trước khi ghi vào Flash. |
 | **`0xA000`** | 1 | **Commit Command** | WO | Ghi Magic Number `0xA5A5` để MCU tiến hành Atomic Commit sang Active & Flash. |

@@ -46,6 +46,9 @@ public sealed class RuleCompiler : IRuleCompiler
         var scaleNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Scale).ToList();
         var mqttNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttPublish).ToList();
         var mqttSubNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttSubscribe).ToList();
+        var modbusReadNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusRead).ToList();
+        var modbusWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusWrite).ToList();
+        var directWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.DirectWrite).ToList();
 
         // Extract MQTT Telemetry Configs
         var compiledMqttConfigs = new List<MqttTelemetryConfigDto>();
@@ -159,12 +162,88 @@ public sealed class RuleCompiler : IRuleCompiler
             });
         }
 
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0 && mqttSubNodes.Count == 0)
+        // Extract Modbus Master Read Configs
+        var compiledModbusConfigs = new List<ModbusMasterReadConfigDto>();
+        for (int i = 0; i < modbusReadNodes.Count; i++)
+        {
+            var mbNode = modbusReadNodes[i];
+            var mbData = mbNode.ModbusReadData ?? new ModbusReadNodeData();
+            compiledModbusConfigs.Add(new ModbusMasterReadConfigDto
+            {
+                NodeId = mbNode.Id,
+                BlockIndex = i,
+                Enabled = true,
+                SlaveId = mbData.SlaveId,
+                FunctionCode = mbData.FunctionCode,
+                StartAddress = mbData.StartAddress,
+                RegCount = mbData.RegCount,
+                PollIntervalMs = mbData.PollIntervalMs,
+                TimeoutMs = mbData.TimeoutMs,
+                EnTagIndex = mbData.EnTagIndex,
+                Pins = new List<ModbusMasterPinBindingDto>(mbData.Pins)
+            });
+        }
+
+        // Extract Modbus Master Write Configs
+        var compiledModbusWriteConfigs = new List<ModbusMasterWriteConfigDto>();
+        for (int i = 0; i < modbusWriteNodes.Count; i++)
+        {
+            var mbNode = modbusWriteNodes[i];
+            var mbData = mbNode.ModbusWriteData ?? new ModbusWriteNodeData();
+            compiledModbusWriteConfigs.Add(new ModbusMasterWriteConfigDto
+            {
+                NodeId = mbNode.Id,
+                BlockIndex = i,
+                Enabled = true,
+                SlaveId = mbData.SlaveId,
+                WriteMode = mbData.WriteMode,
+                FunctionCode = mbData.FunctionCode,
+                StartAddress = mbData.StartAddress,
+                PointCount = mbData.PointCount,
+                BaseAddressCommand = mbData.BaseAddressCommand,
+                BaseAddressParam = mbData.BaseAddressParam,
+                ChannelCount = mbData.ChannelCount,
+                IsExclusiveChannel = mbData.IsExclusiveChannel,
+                TriggerMode = mbData.TriggerMode,
+                CyclicIntervalMs = mbData.CyclicIntervalMs,
+                TimeoutMs = mbData.TimeoutMs,
+                TrigTagIndex = mbData.TrigTagIndex,
+                ChannelTagIndex = mbData.ChannelTagIndex,
+                CommandTagIndex = mbData.CommandTagIndex,
+                ParamTagIndex = mbData.ParamTagIndex,
+                Pins = new List<ModbusMasterPinBindingDto>(mbData.Pins)
+            });
+        }
+
+        // Extract Direct Write Configs (Direct Physical Output Actuators)
+        var compiledDirectWriteConfigs = new List<DirectWriteConfigDto>();
+        for (int i = 0; i < directWriteNodes.Count; i++)
+        {
+            var dwNode = directWriteNodes[i];
+            var dwData = dwNode.DirectWriteData ?? new DirectWriteNodeData();
+            compiledDirectWriteConfigs.Add(new DirectWriteConfigDto
+            {
+                Id = dwNode.Id,
+                TargetPin = dwData.TargetPin,
+                Mode = dwData.Mode,
+                ChannelCount = dwData.ChannelCount,
+                IsExclusiveChannel = dwData.IsExclusiveChannel,
+                PulseWidthUs = dwData.PulseWidthUs,
+                PwmFrequencyHz = dwData.PwmFrequencyHz,
+                TriggerMode = dwData.TriggerMode,
+                TimeoutMs = dwData.TimeoutMs,
+                ChannelTagIndex = dwData.ChannelTagIndex,
+                ParamTagIndex = dwData.ParamTagIndex,
+                DefaultColorRgb = dwData.DefaultColorRgb
+            });
+        }
+
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0 && mqttSubNodes.Count == 0 && modbusReadNodes.Count == 0 && modbusWriteNodes.Count == 0 && directWriteNodes.Count == 0)
         {
             diagnostics.Add(new CompileDiagnostic(
                 WarnNoActions,
                 DiagnosticSeverity.Warning,
-                "Graph does not contain any Action, Timer, Counter, Scale, or MQTT nodes. 0 rules produced."));
+                "Graph does not contain any Action, Timer, Counter, Scale, MQTT, Modbus, or Direct Write nodes. 0 rules produced."));
 
             var emptyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -184,7 +263,10 @@ public sealed class RuleCompiler : IRuleCompiler
                 null,
                 null,
                 compiledMqttConfigs,
-                compiledMqttSubConfigs);
+                compiledMqttSubConfigs,
+                compiledModbusConfigs,
+                compiledModbusWriteConfigs,
+                compiledDirectWriteConfigs);
 
             return CompileResult.Success(telemetryOnlyProgram, diagnostics);
         }
@@ -206,10 +288,10 @@ public sealed class RuleCompiler : IRuleCompiler
                 continue;
             }
 
-            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.MqttSubscribe)
+            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
             {
-                // Action node connects from Counter, Timer, Scale or MQTT port as visual destination.
-                // The rules are fully expanded in Step 2b / 2c / 2d (Macro Expansion) or handled by MQTT subsystem.
+                // Action node connects from Counter, Timer, Scale, MQTT, Modbus, or Direct Write port as visual destination.
+                // The rules are fully expanded in Step 2b / 2c / 2d (Macro Expansion) or handled by communication subsystems.
                 continue;
             }
 
@@ -1096,7 +1178,10 @@ public sealed class RuleCompiler : IRuleCompiler
             compiledFbTimers,
             compiledFbCounters,
             compiledMqttConfigs,
-            compiledMqttSubConfigs);
+            compiledMqttSubConfigs,
+            compiledModbusConfigs,
+            compiledModbusWriteConfigs,
+            compiledDirectWriteConfigs);
 
         return CompileResult.Success(program, diagnostics);
     }
