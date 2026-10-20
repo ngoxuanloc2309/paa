@@ -92,4 +92,24 @@ public class MqttSubscriptionCodecTests
 
         Assert.Throws<ArgumentException>(() => MqttSubscriptionCodec.EncodeBlock(config, tooSmall));
     }
+
+    [Fact]
+    public void Encode_Decode_ResetToZero_Roundtrip()
+    {
+        var config = new MqttSubscriptionConfigDto
+        {
+            Topic = "test/sub",
+            FailSafeAction = MqttFailSafeAction.ResetToZero
+        };
+
+        var buffer = new ushort[ModbusRegisterMap.MqttSubscribeRegistersPerBlock];
+        MqttSubscriptionCodec.EncodeBlock(config, buffer);
+
+        // FailSafe bit 5..6 = 1 << 5 = 0x0020
+        int failSafeCode = (buffer[0] & ModbusRegisterMap.MqttSubControlFailSafeMask) >> ModbusRegisterMap.MqttSubControlFailSafeShift;
+        Assert.Equal(1, failSafeCode);
+
+        var decoded = MqttSubscriptionCodec.DecodeBlock(buffer);
+        Assert.Equal(MqttFailSafeAction.ResetToZero, decoded.FailSafeAction);
+    }
 }

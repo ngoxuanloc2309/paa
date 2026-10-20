@@ -24,6 +24,7 @@ public interface IDeviceSession : IAsyncDisposable
     IFunctionBlockGateway FunctionBlocks { get; }
     IDiagnosticGateway Diagnostics { get; }
     IRtcClockClient RtcClock { get; }
+    IWifiClient Wifi { get; }
 
     bool IsActive { get; }
 }

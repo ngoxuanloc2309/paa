@@ -580,23 +580,23 @@ public partial class BlueprintsViewModel : ObservableObject
             TagsSummaryEn = "DI0 (Trigger), VREG1 (Speed Setpoint), DO0 (Tx Acknowledge)"
         });
 
-        // 26. SPX Sort-to-Light 18-Bin Parcel Sorting Hub (DIRECT_WRITE Direct Output)
+        // 26. SPX Sort-to-Light 18-Bin Parcel Sorting Hub (PULSE_OUT Pulse Generator)
         Blueprints.Add(new BlueprintModel
         {
             Id = "spx_sort_to_light",
-            TitleVi = "SPX Sort-to-Light 18 Ô Phân Loại (DIRECT_WRITE)",
-            TitleEn = "SPX 18-Bin Sort-to-Light (DIRECT_WRITE)",
-            SubtitleVi = "Nhận lệnh WMS qua MQTT SUB, xuất trực tiếp dải LED 18 ô cọc DO3",
-            SubtitleEn = "Ingest WMS put commands via MQTT SUB, drive 18-bin LEDs on terminal DO3",
-            DescriptionVi = "Hệ thống Sort-to-Light 18 ô phân loại cho SPX Logistics: Khối MQTT SUB nhận mã ô từ WMS qua JSON bin_id, kích hoạt khối DIRECT_WRITE (Target Pin: DO3, 18 Kênh, Chế độ độc quyền Exclusive) xuất xung trực tiếp điều khiển dải LED 18 ô (UCS16703/WS2812B) không cần Modbus ID, đồng thời kích hoạt còi báo nhả hàng DO4.",
-            DescriptionEn = "SPX Logistics 18-bin Sort-to-Light: MQTT SUB unpacks target bin_id from WMS command, triggering DIRECT_WRITE (Target Pin: DO3, 18 Channels, Exclusive) to directly drive 18-bin LED strip (UCS16703/WS2812B) on terminal DO3 without Modbus ID, sounding DO4 chime.",
+            TitleVi = "SPX Sort-to-Light 18 Ô Phân Loại (PULSE_OUT)",
+            TitleEn = "SPX 18-Bin Sort-to-Light (PULSE_OUT)",
+            SubtitleVi = "Nhận lệnh WMS qua MQTT SUB, phát xung bus điều khiển dải LED 18 ô trên ngõ ra DO3",
+            SubtitleEn = "Ingest WMS put commands via MQTT SUB, drive 18-bin LEDs via pulse bus on DO3",
+            DescriptionVi = "Hệ thống Sort-to-Light 18 ô phân loại cho SPX Logistics: Khối MQTT SUB nhận mã ô từ WMS qua JSON bin_id, kích hoạt khối PULSE_OUT (Target Pin: DO3, 18 Kênh, Chế độ độc quyền Exclusive) phát xung trực tiếp điều khiển dải LED 18 ô (UCS16703/WS2812B) không cần Modbus ID, đồng thời kích hoạt còi báo nhả hàng DO4.",
+            DescriptionEn = "SPX Logistics 18-bin Sort-to-Light: MQTT SUB unpacks target bin_id from WMS command, triggering PULSE_OUT (Target Pin: DO3, 18 Channels, Exclusive) to directly drive 18-bin LED strip (UCS16703/WS2812B) on terminal DO3 without Modbus ID, sounding DO4 chime.",
             BadgeVi = "Logistics / SPX",
             BadgeEn = "Logistics / SPX",
             BadgeColor = "#C05621",
             Icon = "📦",
             RuleCount = 0,
-            TagsSummaryVi = "MQTT SUB, VREG0 (Mã ô 1..18), DIRECT_WRITE (DO3), DO4 (Còi)",
-            TagsSummaryEn = "MQTT SUB, VREG0 (Bin ID 1..18), DIRECT_WRITE (DO3), DO4 (Buzzer)"
+            TagsSummaryVi = "MQTT SUB, VREG0 (Mã ô 1..18), PULSE_OUT (DO3), DO4 (Còi)",
+            TagsSummaryEn = "MQTT SUB, VREG0 (Bin ID 1..18), PULSE_OUT (DO3), DO4 (Buzzer)"
         });
     }
 

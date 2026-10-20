@@ -1,5 +1,38 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.8.1] - 2026-10-19 (PULSE_OUT STANDARDIZATION, MULTI-SUBSYSTEM DEPLOYMENT SEQUENCE & FIRMWARE CONFORMANCE)
+
+### Added & Standardized
+- **Chuẩn Hóa Khối `PULSE_OUT` (Pulse Output / Bộ Phát Xung Phần Cứng)**:
+  - Chuẩn hóa tên gọi khối logic từ `DIRECT_WRITE` sang `PULSE_OUT`, huy hiệu Canvas đổi sang **`PULSE`** (thay cho `DIR_WR` bị tràn mép).
+  - Loại bỏ hoàn toàn thuật ngữ "cọc", thay bằng "chân ngõ ra số phần cứng" / "ngõ ra số vật lý DO0..DO7".
+  - Bổ sung typedef aliases trong [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h):
+    `SPLC_ADDR_PULSE_OUT`, `SPLC_LEN_PULSE_OUT`, `SPLC_PulsePin_t`, `SPLC_PulseMode_t`, `SPLC_PulseTrigger_t`, `SPLC_PulseOutBlock_t` kèm `_Static_assert` 32 bytes compile-time.
+  - Cập nhật tài liệu ICD [`docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md) sang mã `SPLC-SPEC-PULSE-003`.
+- **Đặc Tả Quy Trình Nạp Cấu Hình Đa Phân Hệ (Multi-Subsystem Staged Deployment Sequence)**:
+  - Bổ sung quy trình nạp 6 bước chuẩn vào [`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md) và [`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md):
+    Khảo sát Capabilities (`0x0A08`) $\to$ Ghi Holding Registers ngoại vi (`0x0B00`, `0x0B40`, `0x0E00`, `0x0C00`, `0x0D80`, `0x1000`, `0x1100`, `0x1200`, `0x1300`) $\to$ Nạp Rule Staging (`0x9010`) $\to$ Ghi CRC-16 (`0x9003`) $\to$ Atomic Commit (`0xA000 = 0xA5A5`) $\to$ MCU tráo bảng nguyên tử và xuất log `app_configured=1 generation=N`.
+  - Mở rộng bảng tiêu chí nghiệm thu Firmware lên 21 tiêu chí chuẩn (bổ sung CHKL-20 `PULSE_OUT` và CHKL-21 `ST67 Wi-Fi`).
+- **Bảo Vệ Tính Toàn Vẹn Hợp Đồng Triển Khai (Deploy Contract Enforcement)**:
+  - Loại bỏ Default Interface Methods gây nuốt tham số trong `IRuleTableWriter`, chuyển toàn bộ overloads tiện ích thành static extension methods.
+  - Ép buộc `RuleTableGateway` override và chuyển tiếp đầy đủ 10 tham số xuống `RuleTableWriter`.
+
+## [2.8.0] - 2026-10-19 (ST67 WI-FI SUBSYSTEM, WIRELESS ICD & UNIFIED STUDIO CONFIGURATION)
+
+### Added
+- **Phân Hệ Truyền Thông Không Dây Wi-Fi ST67 (`0x1300..0x13FF`)**:
+  - Định nghĩa vùng nhớ 256 Holding Registers (512 Bytes) phân làm 3 vùng:
+    - `0x1300..0x133F`: Cấu hình mạng (SSID, Password, DHCP/Static IP) và Live Telemetry (Status, RSSI, Current IP, MAC).
+    - `0x1340..0x134F`: Bắt tay lệnh (`START_SCAN`, `CONNECT`, `DISCONNECT`, `FORGET`) và trạng thái tiến độ quét sóng.
+    - `0x1350..0x13FF`: Bảng kết quả tối đa 8 Access Points quét được (22 registers/AP = 44 bytes/AP).
+  - Khai báo bit năng lực phần cứng `SPLC_CAP_WIFI = 0x0200` tại thanh ghi `0x0A08`.
+  - Bổ sung các cấu trúc C chuẩn pack(1) trong [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h):
+    `SPLC_WifiConfig_t` (128 bytes), `SPLC_WifiScanControl_t` (32 bytes), `SPLC_WifiApInfo_t` (44 bytes), `SPLC_WifiScanTable_t` (352 bytes) kèm `_Static_assert` byte-exact compile-time.
+  - Ban hành tài liệu đặc tả ICD hoàn chỉnh: [`docs/firmware/SPLC_SPEC_WIFI_004_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_WIFI_004_ICD.md).
+- **Giao Diện Cấu Hình Wi-Fi Tinh Gọn (Unified Industrial Flow)**:
+  - Hộp thoại cấu hình 1 trang duy nhất không chia tab, tích hợp luồng: Quét sóng trực tiếp $\to$ Click chọn mạng tự điền SSID $\to$ Nhập mật khẩu $\to$ Lưu & Kết nối.
+  - Thẻ Live Telemetry giám sát trạng thái sóng, IP thực tế và MAC theo thời gian thực (Polling 1500ms).
+
 ## [2.7.0] - 2026-10-19 (ACTUATION SUITE: MODBUS WRITE & DIRECT WRITE, FAIL-SAFE DEPLOY, INDUSTRIAL SLATE PALETTE & SPEC UNIFICATION)
 
 ### Added

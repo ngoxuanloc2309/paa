@@ -4,6 +4,7 @@ using SimplePLC.Application.Services;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Studio.Converters;
+using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
@@ -662,6 +663,8 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         var di0Node = editor.Nodes.OfType<InputNodeViewModel>().First(n => n.Tag?.Name == "DI0");
         var trigNode = editor.Nodes.OfType<TriggerNodeViewModel>().First();
+        trigNode.TriggerType = TriggerType.ON_RISE;
+        trigNode.ForMs = 0;
         var guardNode = editor.Nodes.OfType<GuardNodeViewModel>().First();
         var actNode = editor.Nodes.OfType<ActionNodeViewModel>().First();
 
@@ -708,6 +711,9 @@ public class LogicEditorLiveDebuggingTests : IDisposable
         var editor = CreateEditor(catalog, store);
 
         var di0Node = editor.Nodes.OfType<InputNodeViewModel>().First(n => n.Tag?.Name == "DI0");
+        var trigNode = editor.Nodes.OfType<TriggerNodeViewModel>().First();
+        trigNode.TriggerType = TriggerType.ON_RISE;
+        trigNode.ForMs = 0;
         var guardNode = editor.Nodes.OfType<GuardNodeViewModel>().First();
         var actNode = editor.Nodes.OfType<ActionNodeViewModel>().First();
 
@@ -748,4 +754,96 @@ public class LogicEditorLiveDebuggingTests : IDisposable
         Assert.All(editor.Connections, c => Assert.False(c.IsActive));
         Assert.All(editor.Nodes, n => Assert.False(n.IsSimActive));
     }
+
+    [Fact]
+    public void LiveDebug_RisingAndFallingEdgeRules_OnlySatisfiedRuleLightsUp()
+    {
+        // Arrange: 2 rules
+        // Rule 1: DI0 -> Rising Edge (0 -> 1) -> DO0 = 1
+        // Rule 2: DI0 -> Falling Edge (1 -> 0) -> DO0 = 0
+        var catalog = new TagCatalogViewModel();
+        var di0Tag = catalog.AllTags.First(t => t.Name == "DI0");
+        var do0Tag = catalog.AllTags.First(t => t.Name == "DO0");
+
+        var store = new RuntimeStateStore();
+        store.UpdateConnection(null, ConnectionStatus.Connected);
+        var editor = new LogicEditorViewModel(catalog, stateStore: store, uiDispatcher: a => a());
+        editor.Nodes.Clear();
+        editor.Connections.Clear();
+
+        var in1 = new InputNodeViewModel(di0Tag) { Id = "in1" };
+        var trg1 = new TriggerNodeViewModel { Id = "trg1", TriggerType = TriggerType.ON_RISE };
+        var act1 = new ActionNodeViewModel(do0Tag) { Id = "act1", ActionType = ActionType.SET_TAG, ActionParam = 1 };
+
+        var in2 = new InputNodeViewModel(di0Tag) { Id = "in2" };
+        var trg2 = new TriggerNodeViewModel { Id = "trg2", TriggerType = TriggerType.ON_FALL };
+        var act2 = new ActionNodeViewModel(do0Tag) { Id = "act2", ActionType = ActionType.SET_TAG, ActionParam = 0 };
+
+        editor.Nodes.Add(in1);
+        editor.Nodes.Add(trg1);
+        editor.Nodes.Add(act1);
+        var connIn1Trg1 = new ConnectionViewModel(in1.OutputConnectors[0], trg1.InputConnectors[0]);
+        var connTrg1Act1 = new ConnectionViewModel(trg1.OutputConnectors[0], act1.InputConnectors[0]);
+        editor.Connections.Add(connIn1Trg1);
+        editor.Connections.Add(connTrg1Act1);
+
+        editor.Nodes.Add(in2);
+        editor.Nodes.Add(trg2);
+        editor.Nodes.Add(act2);
+        var connIn2Trg2 = new ConnectionViewModel(in2.OutputConnectors[0], trg2.InputConnectors[0]);
+        var connTrg2Act2 = new ConnectionViewModel(trg2.OutputConnectors[0], act2.InputConnectors[0]);
+        editor.Connections.Add(connIn2Trg2);
+        editor.Connections.Add(connTrg2Act2);
+
+        editor.MarkGraphDeployed();
+        editor.IsLiveDebugActive = true;
+
+        // Step 1: Initial state DI0 = 0
+        di0Tag.Value = 0;
+        editor.ApplyLiveOnlinePropagation();
+
+        // Neither rule should be triggered initially
+        Assert.False(trg1.IsSimTriggered, "Rule 1 should not trigger when DI0 is 0");
+        Assert.False(trg2.IsSimTriggered, "Rule 2 should not trigger when DI0 is 0");
+        Assert.False(connTrg1Act1.IsActive, "Conn 1 should not be active");
+        Assert.False(connTrg2Act2.IsActive, "Conn 2 should not be active");
+
+        // Step 2: DI0 transitions from 0 -> 1 (Rising Edge)
+        di0Tag.Value = 1;
+        editor.ApplyLiveOnlinePropagation();
+
+        // Rule 1 (Rising Edge) should trigger!
+        // Rule 2 (Falling Edge) MUST NOT trigger!
+        Assert.True(trg1.IsSimTriggered, "Rule 1 should trigger on Rising Edge");
+        Assert.True(connTrg1Act1.IsActive, "Conn 1 should be active on Rising Edge");
+        Assert.True(act1.IsSimActive, "Action 1 should be active on Rising Edge");
+        Assert.False(trg2.IsSimTriggered, "Rule 2 (Falling Edge) must NOT trigger when DI0 is 1");
+        Assert.False(connTrg2Act2.IsActive, "Conn 2 must NOT be active when DI0 is 1");
+        Assert.False(act2.IsSimActive, "Action 2 must NOT be active when DI0 is 1");
+
+        // Wait out pulse stretch window (>250ms) to verify edge pulse clears
+        Thread.Sleep(300);
+        editor.ApplyLiveOnlinePropagation();
+        Assert.False(trg1.IsSimTriggered, "Rule 1 should return to idle after pulse duration");
+        Assert.False(connTrg1Act1.IsActive, "Conn 1 should return to idle");
+
+        // Step 3: DI0 transitions from 1 -> 0 (Falling Edge)
+        di0Tag.Value = 0;
+        editor.ApplyLiveOnlinePropagation();
+
+        // Rule 1 (Rising Edge) MUST NOT trigger!
+        // Rule 2 (Falling Edge) SHOULD trigger!
+        Assert.False(trg1.IsSimTriggered, "Rule 1 (Rising Edge) must NOT trigger when falling 1 -> 0");
+        Assert.False(connTrg1Act1.IsActive, "Conn 1 must NOT be active on falling edge");
+        Assert.True(trg2.IsSimTriggered, "Rule 2 (Falling Edge) should trigger on Falling Edge 1 -> 0");
+        Assert.True(connTrg2Act2.IsActive, "Conn 2 should be active on Falling Edge");
+        Assert.True(act2.IsSimActive, "Action 2 should be active on Falling Edge");
+
+        // Wait out pulse stretch window (>250ms)
+        Thread.Sleep(300);
+        editor.ApplyLiveOnlinePropagation();
+        Assert.False(trg2.IsSimTriggered, "Rule 2 should return to idle after pulse duration");
+        Assert.False(connTrg2Act2.IsActive, "Conn 2 should return to idle");
+    }
 }
+

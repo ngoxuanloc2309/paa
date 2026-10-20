@@ -95,7 +95,11 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     // Compatibility getters
     public bool IsChannelIndexedMode => IsAddressableBusMode;
 
-    public string TargetPinDisplay => $"PIN: {TargetPinName}";
+    public bool IsHardwarePinOutOfRange => (byte)TargetPin >= DirectWriteConfigDialogViewModel.ResolveHardwareDigitalOutputCount();
+
+    public string TargetPinDisplay => IsHardwarePinOutOfRange 
+        ? $"PIN: {TargetPinName} (!)" 
+        : $"PIN: {TargetPinName}";
 
     public string TargetPinName => TargetPin switch
     {
@@ -169,20 +173,23 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     public ConnectorViewModel ErrorConnector { get; }
 
     public override string SummaryText => string.IsNullOrWhiteSpace(CustomLabel)
-        ? $"DIRECT_WRITE [{TargetPinDisplay} | {ModeSummaryDisplay}]"
+        ? $"PULSE_OUT [{TargetPinDisplay} | {ModeSummaryDisplay}]"
         : CustomLabel;
 
     public string StatusPillText
     {
         get
         {
+            if (IsHardwarePinOutOfRange)
+                return LocalizationService.Instance.IsVietnamese ? "LỖI: VƯỢT QUÁ DO" : "ERR: PIN EXCEEDED";
+
             if (IsErrorActive)
                 return string.IsNullOrWhiteSpace(LastErrorMessage)
                     ? (LocalizationService.Instance.IsVietnamese ? "LỖI" : "ERR")
                     : $"ERR: {LastErrorMessage}";
 
             if (IsBusyActive)
-                return LocalizationService.Instance.IsVietnamese ? "ĐANG XUẤT..." : "WRITING...";
+                return LocalizationService.Instance.IsVietnamese ? "ĐANG PHÁT..." : "PULSING...";
 
             if (IsDoneActive)
                 return LocalizationService.Instance.IsVietnamese ? $"HOÀN TẤT ({WriteCount})" : $"DONE ({WriteCount})";
@@ -195,7 +202,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     {
         _targetPin = targetPin;
         _mode = mode;
-        Title = LocalizationService.Instance.IsVietnamese ? "Xuất Cọc Trực Tiếp" : "Direct Hardware Output";
+        Title = LocalizationService.Instance.IsVietnamese ? "Bộ Phát Xung" : "Pulse Output";
 
         // Input Connectors
         TrigConnector = new ConnectorViewModel
@@ -285,7 +292,8 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     [RelayCommand]
     private void OpenConfigDialog()
     {
-        var vm = new DirectWriteConfigDialogViewModel(this);
+        int availableDos = DirectWriteConfigDialogViewModel.ResolveHardwareDigitalOutputCount();
+        var vm = new DirectWriteConfigDialogViewModel(this, availableDos);
         var dlg = new Views.DirectWriteConfigDialogView(vm)
         {
             Owner = System.Windows.Application.Current?.MainWindow

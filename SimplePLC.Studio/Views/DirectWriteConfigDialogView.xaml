@@ -54,7 +54,7 @@
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding [DirectWriteDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontSize="14.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="{Binding [DirectWriteDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
+                    <TextBlock Text="{Binding Subtitle}" 
                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
@@ -252,6 +252,7 @@
                     <!-- Right: Apply and Cancel Buttons -->
                     <Button Content="{Binding [BtnApply], Source={x:Static services:LocalizationService.Instance}}" 
                             DockPanel.Dock="Right" Click="Apply_Click"
+                            IsEnabled="{Binding HasAvailablePins}"
                             Style="{StaticResource BtnPrimary}"
                             FontSize="11.5" Height="28" Padding="18,4" Margin="8,0,0,0" />
                     <Button Content="{Binding [BtnCancel], Source={x:Static services:LocalizationService.Instance}}" 

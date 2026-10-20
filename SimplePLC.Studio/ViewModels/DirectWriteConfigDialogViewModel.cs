@@ -145,19 +145,31 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         _ => "24VDC"
     };
 
+    public int MaxDigitalOutputs { get; }
+
+    public bool HasAvailablePins => AvailableTargetPins.Count > 0;
+
+    public string Subtitle
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            string rangeText = MaxDigitalOutputs switch
+            {
+                <= 0 => isVi ? "(Không có ngõ ra DO)" : "(No DO available)",
+                1 => "DO0",
+                _ => $"DO0..DO{Math.Min(7, MaxDigitalOutputs - 1)}"
+            };
+
+            return isVi
+                ? $"Điều khiển bộ phát xung tốc độ cao, PWM và bus chấp hành thông minh trên {rangeText}"
+                : $"High-speed pulse, PWM, PTO, and smart actuator bus on {rangeText}";
+        }
+    }
+
     public ObservableCollection<DirectWriteSignalBreakdownItem> SignalBreakdownItems { get; } = new();
 
-    public IReadOnlyList<OptionItem<DirectWriteTargetPin>> AvailableTargetPins { get; } = new List<OptionItem<DirectWriteTargetPin>>
-    {
-        new(DirectWriteTargetPin.Do0, "DO0"),
-        new(DirectWriteTargetPin.Do1, "DO1"),
-        new(DirectWriteTargetPin.Do2, "DO2"),
-        new(DirectWriteTargetPin.Do3, "DO3"),
-        new(DirectWriteTargetPin.Do4, "DO4"),
-        new(DirectWriteTargetPin.Do5, "DO5"),
-        new(DirectWriteTargetPin.Do6, "DO6"),
-        new(DirectWriteTargetPin.Do7, "DO7")
-    };
+    public IReadOnlyList<OptionItem<DirectWriteTargetPin>> AvailableTargetPins { get; }
 
     public IReadOnlyList<OptionItem<DirectWriteMode>> AvailableModes { get; } = new List<OptionItem<DirectWriteMode>>
     {
@@ -187,10 +199,29 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
     public event Action<bool>? RequestClose;
 
-    public DirectWriteConfigDialogViewModel(DirectWriteNodeViewModel node)
+    public DirectWriteConfigDialogViewModel(DirectWriteNodeViewModel node, int? maxDigitalOutputs = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
+
+        MaxDigitalOutputs = maxDigitalOutputs.HasValue && maxDigitalOutputs.Value >= 0
+            ? maxDigitalOutputs.Value
+            : ResolveHardwareDigitalOutputCount();
+
+        var pins = new List<OptionItem<DirectWriteTargetPin>>();
+        int limit = Math.Clamp(MaxDigitalOutputs, 0, 8);
+        for (int i = 0; i < limit; i++)
+        {
+            var pinEnum = (DirectWriteTargetPin)i;
+            pins.Add(new OptionItem<DirectWriteTargetPin>(pinEnum, $"DO{i}"));
+        }
+        AvailableTargetPins = pins;
+
         TargetPin = node.TargetPin;
+        if ((int)TargetPin >= limit && limit > 0)
+        {
+            TargetPin = DirectWriteTargetPin.Do0;
+        }
+
         Mode = node.Mode;
         TriggerMode = node.TriggerMode;
 
@@ -210,6 +241,23 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         DefaultColorHex = $"#{node.DefaultColorRgb:X6}";
 
         GenerateSignalPreview();
+    }
+
+    public static int ResolveHardwareDigitalOutputCount()
+    {
+        var session = AppServices.Instance.SessionManager.CurrentSession;
+        if (session?.ResourceInfo != null && session.ResourceInfo.DigitalOutputCount > 0)
+        {
+            return session.ResourceInfo.DigitalOutputCount;
+        }
+
+        var product = AppServices.Instance.CurrentProduct;
+        if (product?.Resources != null && product.Resources.DigitalOutputs > 0)
+        {
+            return product.Resources.DigitalOutputs;
+        }
+
+        return 8;
     }
 
     partial void OnTargetPinChanged(DirectWriteTargetPin value) => GenerateSignalPreview();
@@ -248,7 +296,7 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         string pinDisplay = FormatTargetPin(TargetPin);
 
         SimStatusMessage = isVi
-            ? $"SẴN SÀNG: Tín hiệu xuất trực tiếp tới cọc [{pinDisplay}], độ trễ đáp ứng vi điều khiển < 1 chu kỳ quét."
+            ? $"SẴN SÀNG: Tín hiệu xuất trực tiếp tới chân [{pinDisplay}], độ trễ đáp ứng vi điều khiển < 1 chu kỳ quét."
             : $"READY: Direct deterministic output to pin [{pinDisplay}], microcontroller latency < 1 scan cycle.";
 
         SignalBreakdownItems.Clear();
@@ -260,9 +308,9 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
-                FieldName = isVi ? "Cọc phần cứng đích:" : "Target Hardware Pin:",
+                FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Cọc ngõ ra số {pinDisplay} trên bo mạch (Local IO)" : $"Local digital output pin {pinDisplay}"
+                Interpretation = isVi ? $"Chân ngõ ra số {pinDisplay} trên bo mạch (Local IO)" : $"Local digital output pin {pinDisplay}"
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -305,9 +353,9 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
-                FieldName = isVi ? "Cọc phần cứng đích:" : "Target Hardware Pin:",
+                FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Cọc ngõ ra điều chế xung {pinDisplay}" : $"Pulse width modulated terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân ngõ ra điều chế xung {pinDisplay}" : $"Pulse width modulated terminal {pinDisplay}"
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -337,9 +385,9 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
-                FieldName = isVi ? "Cọc phần cứng đích:" : "Target Hardware Pin:",
+                FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Cọc phát xung tốc độ cao {pinDisplay}" : $"High-speed pulse train terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân phát xung tốc độ cao {pinDisplay}" : $"High-speed pulse train terminal {pinDisplay}"
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -370,9 +418,9 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
-                FieldName = isVi ? "Cọc phần cứng đích:" : "Target Hardware Pin:",
+                FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Cọc truyền dữ liệu nối tiếp {pinDisplay}" : $"Serial data bus terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân truyền dữ liệu nối tiếp {pinDisplay}" : $"Serial data bus terminal {pinDisplay}"
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -402,7 +450,7 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Tham số tải xuất:" : "Dispatched Payload:",
                 RawHex = $"0x{cleanParam.ToUpperInvariant()}",
-                Interpretation = isVi ? "Tham số điều khiển cọc (RGB Color / Mã lệnh)" : "Dispatched parameter (Color / Command)"
+                Interpretation = isVi ? "Tham số điều khiển ngõ ra (RGB Color / Mã lệnh)" : "Dispatched parameter (Color / Command)"
             });
         }
 

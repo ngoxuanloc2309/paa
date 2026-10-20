@@ -45,7 +45,12 @@ public sealed class SimulatorRegisterMemory : IDisposable
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttSubscribeTableBaseAddress, ModbusRegisterMap.MqttSubscribeTableTotalLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters) ||
-                IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterTableBaseAddress, ModbusRegisterMap.ModbusMasterTableTotalLength);
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterTableBaseAddress, ModbusRegisterMap.ModbusMasterTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterWriteTableBaseAddress, ModbusRegisterMap.ModbusMasterWriteTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.DirectWriteTableBaseAddress, ModbusRegisterMap.DirectWriteTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiConfigBaseAddress, ModbusRegisterMap.WifiConfigRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiControlAddress, ModbusRegisterMap.WifiControlRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiScanTableBaseAddress, ModbusRegisterMap.WifiScanTableRegisters);
     }
 
     /// <summary>
@@ -70,7 +75,11 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttTelemetryTableBaseAddress, ModbusRegisterMap.MqttTableTotalLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttSubscribeTableBaseAddress, ModbusRegisterMap.MqttSubscribeTableTotalLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters) ||
-               IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterTableBaseAddress, ModbusRegisterMap.ModbusMasterTableTotalLength);
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterTableBaseAddress, ModbusRegisterMap.ModbusMasterTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusMasterWriteTableBaseAddress, ModbusRegisterMap.ModbusMasterWriteTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.DirectWriteTableBaseAddress, ModbusRegisterMap.DirectWriteTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiConfigBaseAddress, ModbusRegisterMap.WifiConfigRegisters) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiControlAddress, ModbusRegisterMap.WifiControlRegisters);
     }
 
     private static bool IsWithin(int start, int end, int rangeStart, int rangeLength)

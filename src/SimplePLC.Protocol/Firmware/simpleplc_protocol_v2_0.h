@@ -31,6 +31,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #if defined(__GNUC__) || defined(__clang__)
   #define SPLC_PACKED __attribute__((packed))
@@ -230,7 +231,59 @@ extern "C" {
 #define SPLC_MBM_ENDIAN_BADC              2
 #define SPLC_MBM_ENDIAN_DCBA              3
 
-/* --- 2.9 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
+/* --- 2.10 Modbus RTU Master Writer Space (0x1100 - 0x11FF) --- */
+#define SPLC_ADDR_MODBUS_MASTER_WRITE     0x1100  /* 256 regs: 4 Blocks * 64 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MODBUS_MASTER_WRITE      256
+
+/* --- 2.11 Direct Hardware Output / Pulse Output Space (0x1200 - 0x12FF) --- */
+#define SPLC_ADDR_DIRECT_WRITE            0x1200  /* 256 regs: 8 Blocks * 16 regs (FC03/FC16, RW) */
+#define SPLC_LEN_DIRECT_WRITE             256
+#define SPLC_ADDR_PULSE_OUT               SPLC_ADDR_DIRECT_WRITE
+#define SPLC_LEN_PULSE_OUT                SPLC_LEN_DIRECT_WRITE
+
+/* --- 2.12 Wi-Fi Subsystem (ST67 Module) Space (0x1300 - 0x13FF) --- */
+#define SPLC_ADDR_WIFI_CONFIG             0x1300  /* 64 regs (128 B): SPLC_WifiConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_WIFI_CONFIG              64
+#define SPLC_ADDR_WIFI_CONTROL            0x1340  /* 16 regs (32 B): SPLC_WifiScanControl_t (FC03/FC06/FC16, RW) */
+#define SPLC_LEN_WIFI_CONTROL             16
+#define SPLC_ADDR_WIFI_SCAN_TABLE         0x1350  /* 176 regs (352 B): 8 APs * 22 regs (FC03, RO) */
+#define SPLC_LEN_WIFI_SCAN_TABLE          176
+#define SPLC_WIFI_MAX_SCAN_APS            8
+#define SPLC_WIFI_REGS_PER_AP             22
+#define SPLC_WIFI_BYTES_PER_AP            44
+
+/* Wi-Fi Command codes at 0x1340 */
+#define SPLC_WIFI_CMD_IDLE                0x0000
+#define SPLC_WIFI_CMD_START_SCAN          0x0001
+#define SPLC_WIFI_CMD_CONNECT             0x0002
+#define SPLC_WIFI_CMD_DISCONNECT          0x0003
+#define SPLC_WIFI_CMD_FORGET              0x0004
+
+/* Wi-Fi Scan state at 0x1341 */
+#define SPLC_WIFI_SCAN_STATE_IDLE         0
+#define SPLC_WIFI_SCAN_STATE_SCANNING     1
+#define SPLC_WIFI_SCAN_STATE_COMPLETED    2
+#define SPLC_WIFI_SCAN_STATE_FAILED       3
+
+/* Wi-Fi Connection status at 0x133A */
+#define SPLC_WIFI_CONN_DISCONNECTED       0
+#define SPLC_WIFI_CONN_CONNECTING         1
+#define SPLC_WIFI_CONN_CONNECTED          2
+#define SPLC_WIFI_CONN_GOT_IP             3
+#define SPLC_WIFI_CONN_AUTH_FAILED        4
+#define SPLC_WIFI_CONN_SSID_NOT_FOUND     5
+#define SPLC_WIFI_CONN_AP_MODE_ACTIVE     6
+
+/* Wi-Fi Auth modes */
+#define SPLC_WIFI_AUTH_OPEN               0
+#define SPLC_WIFI_AUTH_WEP                1
+#define SPLC_WIFI_AUTH_WPA_PSK            2
+#define SPLC_WIFI_AUTH_WPA2_PSK           3
+#define SPLC_WIFI_AUTH_WPA_WPA2_MIXED     4
+#define SPLC_WIFI_AUTH_WPA2_ENTERPRISE    5
+#define SPLC_WIFI_AUTH_WPA3_PSK           6
+
+/* --- 2.13 Rule Staging Buffer & Commit Space (0x9000 - 0xA001) --- */
 #define SPLC_ADDR_CONFIG_STATUS           0x9000  /* 1 reg: SPLC_CommandStatus_t (FC03, RO) */
 #define SPLC_ADDR_CONFIG_ERROR_CODE       0x9001  /* 1 reg: SPLC_ErrorCode_t (FC03, RO) */
 #define SPLC_ADDR_RULE_COUNT_STAGED       0x9002  /* 1 reg: Number of rules staged (FC03/FC16, RW) */
@@ -379,7 +432,8 @@ typedef enum {
     SPLC_CAP_MQTT_SUB     = 0x0020, /* Bit 5: Hỗ trợ phân hệ nhận bản tin điều khiển MQTT SUB (0x0D80) */
     SPLC_CAP_SD_DATALOG   = 0x0040, /* Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD */
     SPLC_CAP_MQTT_TLS_CERT = 0x0080, /* Bit 7: Hỗ trợ nạp và giải mã chứng chỉ TLS/SSL theo khối struct (0x0F00) */
-    SPLC_CAP_MODBUS_MASTER = 0x0100  /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
+    SPLC_CAP_MODBUS_MASTER = 0x0100, /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
+    SPLC_CAP_WIFI          = 0x0200  /* Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF) */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -821,7 +875,7 @@ typedef struct SPLC_PACKED {
     uint16_t error_tag_index;
     uint16_t err_code_tag_index;
     uint16_t pin_count;
-    uint16_t reserved[3];
+    uint16_t reserved[4];
     SPLC_ModbusMasterPinBinding_t pins[SPLC_MBM_MAX_PINS_PER_BLOCK]; /* 4 pins * 24 bytes = 96 bytes */
 } SPLC_ModbusMasterReadBlock_t;
 
@@ -899,6 +953,56 @@ typedef struct {
     uint8_t  reserved[10];      /* Padding to align to exactly 32 bytes */
 } SPLC_DirectWriteBlock_t;
 
+/* Standardized aliases for PULSE_OUT (Pulse Output / Hardware Pulse Actuator) */
+typedef SPLC_DirectPin_t        SPLC_PulsePin_t;
+typedef SPLC_DirectMode_t       SPLC_PulseMode_t;
+typedef SPLC_DirectTrigger_t    SPLC_PulseTrigger_t;
+typedef SPLC_DirectWriteBlock_t SPLC_PulseOutBlock_t;
+
+/**
+ * @brief Wi-Fi Configuration & Live Telemetry Record (64 registers = 128 bytes at 0x1300).
+ * SPLC-SPEC-WIFI-004-ICD: ST67 (ST67W611M1) Wi-Fi 6 subsystem settings & live status.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;     /* Bit 0: Enable, Bit 1..2: Mode (0=STA, 1=AP), Bit 3: DHCP, Bit 4: Auto-reconnect */
+    uint16_t reserved_flags;    /* Reserved (0x0000) */
+    char     ssid[32];          /* SSID ASCII null-terminated */
+    char     password[64];      /* WPA2/WPA3 password ASCII null-terminated */
+    uint32_t static_ip;         /* Static IPv4 (Network byte order / Big-Endian) */
+    uint32_t static_subnet;     /* Static Subnet Mask */
+    uint32_t static_gateway;    /* Static Gateway */
+    uint32_t static_dns;        /* Static DNS */
+    uint16_t conn_status;       /* SPLC_WIFI_CONN_* (RO) */
+    int16_t  rssi_dbm;          /* Live signal strength dBm (-100..0) (RO) */
+    uint32_t current_ip;        /* Assigned IP from DHCP or static (RO) */
+    uint8_t  mac_addr[6];       /* Hardware MAC address of ST67 (RO) */
+} SPLC_WifiConfig_t;
+
+/**
+ * @brief Wi-Fi Command & Scan Control Record (16 registers = 32 bytes at 0x1340).
+ * SPLC-SPEC-WIFI-004-ICD: Command handshake & background scan progress.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t command;           /* W: SPLC_WIFI_CMD_* (0x0001=Scan, 0x0002=Connect, 0x0003=Disconnect, 0x0004=Forget) */
+    uint16_t scan_state;        /* R: SPLC_WIFI_SCAN_STATE_* (0=Idle, 1=Scanning, 2=Completed, 3=Failed) */
+    uint16_t ap_found_count;    /* R: AP count found (0..8) */
+    uint16_t error_code;        /* R: Error code (0=None, 1=Busy, 2=Timeout, 3=DriverError) */
+    uint8_t  reserved[24];      /* Padding to align to exactly 32 bytes */
+} SPLC_WifiScanControl_t;
+
+/**
+ * @brief Wi-Fi Access Point Info Record (22 registers = 44 bytes at 0x1350 + idx * 22).
+ * SPLC-SPEC-WIFI-004-ICD: Scanned network details from ST67.
+ */
+typedef struct SPLC_PACKED {
+    char    ssid[32];           /* SSID ASCII null-terminated */
+    int16_t rssi_dbm;           /* Signal strength in dBm */
+    uint8_t auth_mode;          /* SPLC_WIFI_AUTH_* (0=Open, 1=WEP, 2=WPA, 3=WPA2, 4=WPA2/3, 5=Ent, 6=WPA3) */
+    uint8_t channel;            /* RF Channel (1..14) */
+    uint8_t bssid[6];           /* BSSID MAC address of AP */
+    uint8_t reserved[2];        /* Padding to align to exactly 44 bytes */
+} SPLC_WifiApInfo_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
@@ -920,6 +1024,10 @@ _Static_assert(sizeof(SPLC_ModbusMasterPinBinding_t)== 24,  "ModbusMasterPinBind
 _Static_assert(sizeof(SPLC_ModbusMasterReadBlock_t) == 128, "ModbusMasterReadBlock must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_ModbusMasterWriteBlock_t)== 128, "ModbusMasterWriteBlock must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_DirectWriteBlock_t)      == 32,  "DirectWriteBlock must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_PulseOutBlock_t)         == 32,  "PulseOutBlock must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_WifiConfig_t)            == 128, "WifiConfig must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_WifiScanControl_t)       == 32,  "WifiScanControl must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_WifiApInfo_t)            == 44,  "WifiApInfo must be 44 bytes (22 regs)");
 #endif
 
 /* ========================================================================= */

@@ -119,7 +119,11 @@ public partial class LogicEditorViewModel : ObservableObject
         var targetNode = node ?? SelectedDirectWriteNode;
         if (targetNode == null) return;
 
-        var dialogVm = new DirectWriteConfigDialogViewModel(targetNode);
+        int availableDos = TagCatalog?.AllTags.Count(t => t.Kind == TagKind.DiscreteOutput)
+            ?? AppServices.Instance.CurrentProduct?.Resources.DigitalOutputs
+            ?? 8;
+
+        var dialogVm = new DirectWriteConfigDialogViewModel(targetNode, availableDos);
         var dialog = new Views.DirectWriteConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -1164,6 +1168,8 @@ public partial class LogicEditorViewModel : ObservableObject
     private int _isUpdateScheduled;
     private readonly Dictionary<string, DateTime> _liveTimerStartTimes = new();
     private readonly Dictionary<string, bool> _liveTimerPrevIn = new();
+    private readonly Dictionary<string, int> _liveTriggerPrevIn = new();
+    private readonly Dictionary<string, DateTime> _liveTriggerPulseTimes = new();
 
     public IReadOnlyDictionary<ushort, List<ILiveTagBoundNode>> TagToNodesIndex => _tagToNodesIndex;
 
@@ -1399,15 +1405,21 @@ public partial class LogicEditorViewModel : ObservableObject
                 bool cmpConnActive = cmpVal != 0;
                 if (cmpConn.IsActive != cmpConnActive) cmpConn.IsActive = cmpConnActive;
             }
-            else if (cmpConn?.Source?.Node is ScaleNodeViewModel scl && (scl.OutputTag != null || scl.InputTag != null))
+            else if (cmpConn?.Source?.Node is ScaleNodeViewModel scl)
             {
-                var targetTag = scl.OutputTag ?? scl.InputTag;
-                if (cmpNode.InputTag != targetTag) cmpNode.InputTag = targetTag;
-                cmpVal = cmpNode.InputTag != null ? cmpNode.InputTag.Value : 0;
+                if (scl.OutputTag != null)
+                {
+                    if (cmpNode.InputTag != scl.OutputTag) cmpNode.InputTag = scl.OutputTag;
+                    cmpVal = scl.OutputTag.Value;
+                }
+                else
+                {
+                    cmpVal = (int)Math.Round(scl.LiveScaledValue);
+                }
                 if (cmpConn.IsActive != scl.IsLiveActive) cmpConn.IsActive = scl.IsLiveActive;
             }
 
-            if (cmpNode.InputTag != null)
+            if (cmpNode.InputTag != null || cmpConn?.Source?.Node is ScaleNodeViewModel)
             {
                 bool condMet = cmpNode.Evaluate(cmpVal);
                 if (cmpNode.IsConditionMet != condMet) cmpNode.IsConditionMet = condMet;
@@ -1418,31 +1430,89 @@ public partial class LogicEditorViewModel : ObservableObject
             }
         }
 
-        // 4. Trigger Nodes: Đánh giá điều kiện Trigger (ngưỡng so sánh hoặc mức tín hiệu)
+        // 4. Trigger Nodes: Đánh giá điều kiện Trigger (sườn lên/xuống, biến thiên, so sánh ngưỡng)
         foreach (var trigNode in Nodes.OfType<TriggerNodeViewModel>())
         {
             var trigConn = Connections.FirstOrDefault(c => c.Target?.Node == trigNode);
-            bool trigMet = false;
+            int inpVal = 0;
+            bool hasInp = false;
             if (trigConn?.Source?.Node is InputNodeViewModel inp)
             {
-                int inpVal = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+                inpVal = inp.IsLiveOnline ? inp.LiveRawValue : (inp.Tag?.Value ?? 0);
+                hasInp = true;
                 bool inpActive = inpVal != 0;
                 if (trigConn.IsActive != inpActive) trigConn.IsActive = inpActive;
-                trigMet = trigNode.EvaluateCondition(inpVal);
             }
             else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmp)
             {
+                inpVal = cmp.IsConditionMet ? 1 : 0;
+                hasInp = true;
                 if (trigConn.IsActive != cmp.IsConditionMet) trigConn.IsActive = cmp.IsConditionMet;
-                trigMet = cmp.IsConditionMet;
+            }
+
+            bool trigMet = false;
+            bool hasPrev = _liveTriggerPrevIn.TryGetValue(trigNode.Id, out int prevVal);
+
+            if (hasInp)
+            {
+                int prev = hasPrev ? prevVal : 0;
+                bool edgeFired = trigNode.EvaluateCondition(inpVal, prev);
+                _liveTriggerPrevIn[trigNode.Id] = inpVal;
+
+                if (edgeFired)
+                {
+                    _liveTriggerPulseTimes[trigNode.Id] = DateTime.UtcNow;
+                    trigMet = true;
+                }
+                else if (_liveTriggerPulseTimes.TryGetValue(trigNode.Id, out var pulseTime))
+                {
+                    if ((DateTime.UtcNow - pulseTime).TotalMilliseconds < 250)
+                    {
+                        trigMet = true;
+                    }
+                    else
+                    {
+                        _liveTriggerPulseTimes.Remove(trigNode.Id);
+                    }
+                }
+            }
+            else
+            {
+                trigMet = trigNode.EvaluateCondition(0);
             }
 
             if (trigNode.IsSimTriggered != trigMet) trigNode.IsSimTriggered = trigMet;
             if (trigNode.IsSimActive != trigMet) trigNode.IsSimActive = trigMet;
             if (!trigNode.IsSimEvaluated) trigNode.IsSimEvaluated = true;
 
-            string expectedDiag = trigMet
-                ? LocalizationService.Instance.Get("SimStatusTrue")
-                : LocalizationService.Instance.Get("SimDiagFalse");
+            string expectedDiag;
+            if (trigMet)
+            {
+                expectedDiag = LocalizationService.Instance.Get("SimStatusTrue");
+            }
+            else
+            {
+                if (trigNode.HasComparison)
+                {
+                    expectedDiag = string.Format(LocalizationService.Tr("SimDiagNotMet"), inpVal);
+                }
+                else if (trigNode.TriggerType == TriggerType.ON_RISE)
+                {
+                    expectedDiag = inpVal == 0
+                        ? LocalizationService.Tr("SimDiagWaitRise")
+                        : LocalizationService.Tr("SimDiagNoEdge");
+                }
+                else if (trigNode.TriggerType == TriggerType.ON_FALL)
+                {
+                    expectedDiag = inpVal != 0
+                        ? LocalizationService.Tr("SimDiagWaitFall")
+                        : LocalizationService.Tr("SimDiagNoEdge");
+                }
+                else
+                {
+                    expectedDiag = LocalizationService.Instance.Get("SimDiagFalse");
+                }
+            }
             if (trigNode.SimDiagText != expectedDiag) trigNode.SimDiagText = expectedDiag;
 
             foreach (var outConn in Connections.Where(c => c.Source?.Node == trigNode))
@@ -1766,6 +1836,102 @@ public partial class LogicEditorViewModel : ObservableObject
                     mqttNode.LiveValue = currentTag.Value;
                     mqttNode.LiveValueText = currentTag.Value.ToString();
                 }
+            }
+        }
+
+        // 10. MQTT Subscribe Nodes: Nhận dữ liệu live và truyền xuống downstream Actions
+        foreach (var subNode in Nodes.OfType<MqttSubscribeNodeViewModel>())
+        {
+            var enConn = Connections.FirstOrDefault(c => c.Target?.Node == subNode && (c.Target == subNode.EnableConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
+            bool enActive = enConn == null || enConn.IsActive;
+            if (enConn != null && enConn.IsActive != enActive) enConn.IsActive = enActive;
+
+            foreach (var pin in subNode.Pins)
+            {
+                int pinVal = pin.TargetTag != null ? (TagCatalog.AllTags.FirstOrDefault(t => t.Index == pin.TargetTag.Index)?.Value ?? pin.TargetTag.Value) : 0;
+                bool pinActive = enActive && (pinVal != 0);
+
+                foreach (var outConn in Connections.Where(c => c.Source?.Node == subNode && (c.Source == pin.Connector || string.Equals(c.Source.Title, pin.Label, StringComparison.OrdinalIgnoreCase))))
+                {
+                    if (outConn.IsActive != pinActive) outConn.IsActive = pinActive;
+                    if (outConn.Target?.Node is ActionNodeViewModel act)
+                    {
+                        if (act.IsSimActive != pinActive) act.IsSimActive = pinActive;
+                        if (act.IsSimFired != pinActive) act.IsSimFired = pinActive;
+                        string liveText = $"{pin.Label}: {pinVal}";
+                        if (act.SimTargetLiveText != liveText) act.SimTargetLiveText = liveText;
+                    }
+                }
+            }
+        }
+
+        // 11. Direct Write Nodes (PULSE_OUT): Cập nhật dây kích hoạt và trạng thái cọc DO vật lý
+        foreach (var dwNode in Nodes.OfType<DirectWriteNodeViewModel>())
+        {
+            var dwConn = Connections.FirstOrDefault(c => c.Target?.Node == dwNode &&
+                (c.Target == dwNode.TrigConnector || string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || c.Target == dwNode.InputConnectors.FirstOrDefault()));
+            bool trigActive = dwConn != null && dwConn.IsActive;
+            if (dwConn != null && dwConn.IsActive != trigActive) dwConn.IsActive = trigActive;
+
+            byte pinIdx = (byte)dwNode.TargetPin;
+            var doTag = TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput && t.Index == pinIdx);
+            bool isHardwarePinActive = doTag != null && doTag.Value != 0;
+
+            bool isDwActive = trigActive || isHardwarePinActive;
+            if (dwNode.IsSimActive != isDwActive) dwNode.IsSimActive = isDwActive;
+            if (dwNode.IsLiveActive != isDwActive) dwNode.IsLiveActive = isDwActive;
+            if (dwNode.IsDoneActive != isHardwarePinActive) dwNode.IsDoneActive = isHardwarePinActive;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == dwNode && (c.Source == dwNode.DoneConnector || string.Equals(c.Source.Title, "Done", StringComparison.OrdinalIgnoreCase))))
+            {
+                if (outConn.IsActive != isHardwarePinActive) outConn.IsActive = isHardwarePinActive;
+            }
+        }
+
+        // 12. Modbus Master Read Nodes: Cập nhật EN, dữ liệu đọc và truyền xuống các chân ra
+        foreach (var mbNode in Nodes.OfType<ModbusReadNodeViewModel>())
+        {
+            var enConn = Connections.FirstOrDefault(c => c.Target?.Node == mbNode &&
+                (c.Target == mbNode.EnableConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) || c.Target == mbNode.InputConnectors.FirstOrDefault()));
+            bool enActive = enConn == null || enConn.IsActive;
+            if (enConn != null && enConn.IsActive != enActive) enConn.IsActive = enActive;
+
+            if (mbNode.IsSimActive != enActive) mbNode.IsSimActive = enActive;
+            if (mbNode.IsLiveActive != enActive) mbNode.IsLiveActive = enActive;
+
+            foreach (var pin in mbNode.Pins)
+            {
+                int pinVal = pin.TargetTag != null ? (TagCatalog.AllTags.FirstOrDefault(t => t.Index == pin.TargetTag.Index)?.Value ?? pin.TargetTag.Value) : 0;
+                bool pinActive = enActive && (pinVal != 0);
+
+                foreach (var outConn in Connections.Where(c => c.Source?.Node == mbNode && (c.Source == pin.Connector || string.Equals(c.Source.Title, pin.Label, StringComparison.OrdinalIgnoreCase))))
+                {
+                    if (outConn.IsActive != pinActive) outConn.IsActive = pinActive;
+                    if (outConn.Target?.Node is ActionNodeViewModel act)
+                    {
+                        if (act.IsSimActive != pinActive) act.IsSimActive = pinActive;
+                        if (act.IsSimFired != pinActive) act.IsSimFired = pinActive;
+                        string liveText = $"{pin.Label}: {pinVal}";
+                        if (act.SimTargetLiveText != liveText) act.SimTargetLiveText = liveText;
+                    }
+                }
+            }
+        }
+
+        // 13. Modbus Master Write Nodes: Cập nhật Trig và tín hiệu Done
+        foreach (var mbwNode in Nodes.OfType<ModbusWriteNodeViewModel>())
+        {
+            var trigConn = Connections.FirstOrDefault(c => c.Target?.Node == mbwNode &&
+                (c.Target == mbwNode.TrigConnector || string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || c.Target == mbwNode.InputConnectors.FirstOrDefault()));
+            bool trigActive = trigConn != null && trigConn.IsActive;
+            if (trigConn != null && trigConn.IsActive != trigActive) trigConn.IsActive = trigActive;
+
+            if (mbwNode.IsSimActive != trigActive) mbwNode.IsSimActive = trigActive;
+            if (mbwNode.IsLiveActive != trigActive) mbwNode.IsLiveActive = trigActive;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == mbwNode && (c.Source == mbwNode.DoneConnector || string.Equals(c.Source.Title, "Done", StringComparison.OrdinalIgnoreCase))))
+            {
+                if (outConn.IsActive != trigActive) outConn.IsActive = trigActive;
             }
         }
     }
@@ -2353,7 +2519,7 @@ public partial class LogicEditorViewModel : ObservableObject
             "MqttSubscribe" or "MqttSub" => new MqttSubscribeNodeViewModel(),
             "MB_READ" or "ModbusRead" or "Modbus" or "MbRead" or "MB_RD" => new ModbusReadNodeViewModel(),
             "MB_WRITE" or "ModbusWrite" or "MbWrite" or "MB_WR" => new ModbusWriteNodeViewModel(),
-            "DIRECT_WRITE" or "DirectWrite" or "DirWrite" or "DIR_WR" => new DirectWriteNodeViewModel(),
+            "PULSE_OUT" or "PulseOut" or "PULSE" or "DIRECT_WRITE" or "DirectWrite" or "DirWrite" or "DIR_WR" => new DirectWriteNodeViewModel(),
             "Comparator" or "CMP" => new ComparatorNodeViewModel(
                 tag,
                 CompareOp.GT,
@@ -3496,7 +3662,10 @@ public partial class LogicEditorViewModel : ObservableObject
             mbw.SyncConnectors();
             node = mbw;
         }
-        else if (string.Equals(type, "DIRECT_WRITE", StringComparison.OrdinalIgnoreCase) ||
+        else if (string.Equals(type, "PULSE_OUT", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "PulseOut", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "PULSE", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DIRECT_WRITE", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(type, "DirectWrite", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(type, "DirWrite", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(type, "DIR_WR", StringComparison.OrdinalIgnoreCase))
@@ -5729,6 +5898,8 @@ public partial class LogicEditorViewModel : ObservableObject
 
         _liveTimerStartTimes.Clear();
         _liveTimerPrevIn.Clear();
+        _liveTriggerPrevIn.Clear();
+        _liveTriggerPulseTimes.Clear();
 
         foreach (var conn in Connections)
         {
@@ -5784,6 +5955,26 @@ public partial class LogicEditorViewModel : ObservableObject
                 sub.IsLiveActive = false;
                 sub.IsValidActive = false;
                 sub.HasSubscribeError = false;
+            }
+            else if (node is DirectWriteNodeViewModel dw)
+            {
+                dw.IsLiveActive = false;
+                dw.IsDoneActive = false;
+                dw.IsBusyActive = false;
+                dw.IsErrorActive = false;
+            }
+            else if (node is ModbusReadNodeViewModel mbr)
+            {
+                mbr.IsLiveActive = false;
+                mbr.IsValidActive = false;
+                mbr.IsErrorActive = false;
+            }
+            else if (node is ModbusWriteNodeViewModel mbw)
+            {
+                mbw.IsLiveActive = false;
+                mbw.IsDoneActive = false;
+                mbw.IsBusyActive = false;
+                mbw.IsErrorActive = false;
             }
         }
     }

@@ -20,6 +20,8 @@ Tài liệu kỹ thuật này được biên soạn và kiểm soát phiên bả
 | **v2.0.0** | 10/2026 | Nhóm Hệ thống Công nghiệp | Kiến trúc sư Trưởng | Tích hợp IIoT MQTT Gateway (PUB/SUB), khối hàm IEC TON/TOF/CTU, nạp an toàn 2 pha. |
 | **v2.5.0** | 10/2026 | Khối Tự động hóa & Trợ lý AI | Phó Chủ tịch Kỹ thuật | Tái cấu trúc 6 Module công việc, quy trình từng bước, bảng tra cứu giao diện và hộp thoại popup độc lập. |
 | **v2.6.0** | 10/2026 | Khối Kỹ thuật Hệ thống | Giám đốc Kỹ thuật | Chuẩn hóa bảng màu công nghiệp ISA-101/IEC 60073, bổ sung khối MB_WRITE (Modbus RTU) & khối DIRECT_WRITE (Cọc DO0..DO7 cho dải LED UCS16703, PWM, Pulse Train) và Thư viện Dự án Mẫu SPX Logistics. |
+| **v2.8.0** | 10/2026 | Khối Kỹ thuật Hệ thống | Giám đốc Kỹ thuật | Tích hợp Phân hệ Truyền thông Không dây Wi-Fi (0x1300..0x13FF, SPLC-SPEC-WIFI-004-ICD), Hộp thoại Cấu hình Wi-Fi Unified Flow trực quan (Ctrl+Shift+W) và giám sát Live Telemetry RSSI/IP/MAC. |
+
 
 > [!NOTICE]
 > **QUYỀN SỞ HỮU TRÍ TUỆ & BẢN QUYỀN**  
@@ -79,8 +81,9 @@ Tài liệu kỹ thuật này được biên soạn và kiểm soát phiên bả
   - [6.3 Bản tin Nhận lệnh Điều khiển Từ xa (MQTT SUB) & Chốt An toàn](#63-bản-tin-nhận-lệnh-điều-khiển-từ-xa-mqtt-sub--chốt-an-toàn)
   - [6.4 Thu thập Dữ liệu Cảm biến RS-485 Modbus Master (MB_READ)](#64-thu-thập-dữ-liệu-cảm-biến-rs-485-modbus-master-mb_read)
   - [6.5 Điều khiển Cơ Cấu Chấp Hành RS-485 Modbus Master (MB_WRITE)](#65-điều-khiển-cơ-cấu-chấp-hành-rs-485-modbus-master-mb_write)
-  - [6.6 Điều khiển Cơ Cấu Chấp Hành Đầu Ra Trực Tiếp (DIRECT_WRITE)](#66-điều-khiển-cơ-cấu-chấp-hành-đầu-ra-trực-tiếp-direct_write)
-  - [6.7 Bảng Tra cứu Sự cố Chẩn đoán & Quy chuẩn An toàn Phần cứng](#67-bảng-tra-cứu-sự-cố-chẩn-đoán--quy-chuẩn-an-toàn-phần-cứng)
+  - [6.6 Bộ Phát Xung Tốc Độ Cao & Điều Khiển Chấp Hành (PULSE_OUT)](#66-bộ-phát-xung-tốc-độ-cao--điều-khiển-chấp-hành-pulse_out)
+  - [6.7 Cấu Hình Truyền Thông Không Dây Wi-Fi (Wi-Fi Configuration Dialog)](#67-cấu-hình-truyền-thông-không-dây-wi-fi-wi-fi-configuration-dialog)
+  - [6.8 Bảng Tra cứu Sự cố Chẩn đoán & Quy chuẩn An toàn Phần cứng](#68-bảng-tra-cứu-sự-cố-chẩn-đoán--quy-chuẩn-an-toàn-phần-cứng)
 - [Phần 7: Thư Viện Dự Án Mẫu & Nghiên Cứu Điển Hình](#phần-7-thư-viện-dự-án-mẫu--nghiên-cứu-điển-hình)
   - [7.1 Dự Án SPX Express: Hệ Thống Phân Loại Bưu Kiện Sort-to-Light 18 Ô](#71-dự-án-spx-express-hệ-thống-phân-loại-bưu-kiện-sort-to-light-18-ô)
   - [7.2 Dự Án Trạm Bơm Tăng Áp Điều Áp Biến Tần VFD Khép Kín](#72-dự-án-trạm-bơm-tăng-áp-điều-áp-biến-tần-vfd-khép-kín)
@@ -210,6 +213,26 @@ Tab 0 (Logic Graph) áp dụng đường ống 4 giai đoạn trực giao nghiê
 | **Giai đoạn 3: Chốt An toàn** | Chuỗi liên động bảo vệ an toàn. Đánh giá điều kiện cho phép (ví dụ E-Stop không bị nhấn, bảo vệ nhiệt tốt). |
 | **Giai đoạn 4: Chấp hành Đầu ra** | Điều khiển chấp hành: Đóng rơ-le DO (SET), ngắt DO (RESET), đảo trạng thái, tăng bộ đếm hoặc ghi thanh ghi. |
 
+#### Danh mục 13 Khối Chức năng Toàn diện (13 Function Blocks Master Catalog)
+
+SynaptiX IDE hỗ trợ 13 khối chức năng chuẩn hóa, phân thành 4 nhóm chính theo chuẩn IEC 61131-3 và tự động hóa công nghiệp IIoT:
+
+| STT | Tên Khối & Huy hiệu | Nhóm Chức năng | Cổng Nối (Pins In/Out) | Vai trò & Ứng dụng Điển hình |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **`INPUT`** `[INPUT]` | Tín hiệu ngõ vào (Giai đoạn 1) | Ra: `Out` (Data) | Đọc giá trị ngõ vào vật lý DI0..DI7, AI0..AI3, biến nội bộ VREG0..31, bộ nhớ duy trì RETAIN0..31 hoặc hằng số. |
+| **2** | **`TRIGGER`** `[TRIG]` | Kích hoạt sự kiện (Giai đoạn 2) | Vào: `In` (Data)<br>Ra: `Trig` (Event) | Bắt sự kiện chuyển trạng thái: Cạnh lên (`ON_RISE`), Cạnh xuống (`ON_FALL`), Mức logic (`ON_HIGH`, `ON_LOW`), hoặc Khung giờ thực RTC (`TIME_WINDOW`). |
+| **3** | **`COMPARATOR`** `[CMP]` | Đánh giá & So sánh (Giai đoạn 2) | Vào: `In` (Data)<br>Ra: `Pass` (Logic) | So sánh giá trị số nguyên hoặc số thực Float32 với ngưỡng: `>`, `>=`, `==`, `!=`, `<=`, `<` (phù hợp giám sát áp suất, nhiệt độ, mức bồn). |
+| **4** | **`GUARD`** `[GUARD]` | Chốt an toàn liên động (Giai đoạn 3) | Vào: `In` (Logic)<br>Ra: `Permit` (Logic) | Chuỗi liên động bảo vệ an toàn (Safety Interlock). Cho phép tín hiệu đi qua khi điều kiện an toàn thỏa mãn (`E-Stop = 1`, `Cửa đóng = 1`, `Nhiệt độ OK`). |
+| **5** | **`ACTION`** `[ACTION]` | Chấp hành đầu ra (Giai đoạn 4) | Vào: `Exec` (Event/Logic)<br>Ra: Trạng thái DO/VREG | Thực thi thao tác điều khiển: `SET` (bật), `RESET` (tắt), `TOGGLE` (đảo) rơ-le DO0..DO7, gán giá trị số vào VREG hoặc tăng/giảm bộ đếm. |
+| **6** | **`TIMER`** `[TON / TOF / TP]` | Định thời IEC 61131-3 | Vào: `IN`, `PT` (ms)<br>Ra: `Q` (Logic), `ET` (ms) | Bộ định thời chuẩn: `TON` (Trễ bật cuộn dây), `TOF` (Trễ ngắt quạt làm mát), `TP` (Phát xung đơn định lượng thời gian cho van khí nén). |
+| **7** | **`COUNTER`** `[CTU / CTD]` | Bộ đếm IEC 61131-3 | Vào: `CU`/`CD`, `R`/`LD`, `PV`<br>Ra: `Q` (Logic), `CV` (Int) | Bộ đếm công nghiệp: `CTU` (Đếm tiến sản lượng đóng thùng), `CTD` (Đếm lùi phôi dập còn lại). Lưu trữ an toàn trong vùng Flash Retentive. |
+| **8** | **`SCALE`** `[SCALE]` | Chuẩn hóa đo lường tuyến tính | Vào: `In` (Raw ADC)<br>Ra: `Out` (Scaled Float) | Chuyển đổi tỉ lệ tuyến tính $y = k \cdot x + b$: Chuẩn hóa ADC 0..4095 hoặc dòng 4-20mA sang đơn vị kỹ thuật (0..10 bar, -20..80 °C, 0..100%). |
+| **9** | **`PULSE_OUT`** `[PULSE]` | Phát xung cao tốc & Chấp hành | Vào: `Trig`, `In/Chan`, `En/Param`<br>Ra: `Done`, `Err` | Điều khiển xung cao tốc & chấp hành cấp thấp trên DO0..DO7: DO Logic, PWM băm xung (1..20 kHz), PTO phát chuỗi xung động cơ bước, Bus 1-dây LED Sort-to-Light (1..18 ô). *(Tương thích ngược DIRECT_WRITE)*. |
+| **10** | **`MB_READ`** `[MB_READ]` | Modbus RTU Master Đọc | Vào: `En` (Cho phép)<br>Ra: `Done`, `Err`, `Data` (VREG) | Thu thập dữ liệu cảm biến RS-485 Modbus RTU qua FC01, FC02, FC03, FC04; ghi tự động vào thanh ghi đích VREG theo chu kỳ hoặc sự kiện. |
+| **11** | **`MB_WRITE`** `[MB_WRITE]` | Modbus RTU Master Ghi | Vào: `Trig`, `In/Val`<br>Ra: `Done`, `Err` | Điều khiển thiết bị RS-485 Modbus RTU (Biến tần, rơ-le thông minh) qua FC05, FC06, FC15, FC16; hỗ trợ chế độ đa kênh Sort-to-Light logistics. |
+| **12** | **`MQTT_PUB`** `[MQTT_PUB]` | Xuất bản Viễn trắc IIoT | Vào: `Trig`, `In0..In3` (Data)<br>Ra: `Done`, `Err` | Đóng gói dữ liệu đo lường thành bản tin JSON gửi lên MQTT Broker qua mạng LAN/Wi-Fi (QoS 0/1/2, Retain) chu kỳ tuần hoàn hoặc theo sự kiện. |
+| **13** | **`MQTT_SUB`** `[MQTT_SUB]` | Đăng ký Lệnh Điều khiển IIoT | Ra: `Out0..Out3` (Data), `NewMsg` (Event) | Lắng nghe topic chỉ thị từ Cloud/WMS qua broker MQTT, trích xuất các trường dữ liệu JSON vào chân ngõ ra và phát xung thông báo bản tin mới. |
+
 ### 3.2 Bảng Luật Logic Kép & Trình Biên dịch Cú pháp AST
 Tab 2 (Rule Table) hiển thị song song hai góc nhìn đồng bộ: Cột bên trái diễn giải câu lệnh kỹ thuật bằng tiếng người rõ ràng, cột bên phải là các tham số mã máy 32-byte nhị phân:
 
@@ -234,7 +257,7 @@ SynaptiX IDE cung cấp đầy đủ các khối lệnh tiêu chuẩn IEC 61131-
 | **Nhóm 4: Bộ Đếm Sản Lượng & Đóng Thùng CTU/CTD** | 3 | Đóng thùng tự động đếm tiến (CTU), Đếm lùi phôi dập (CTD), Quản lý dung lượng bãi đỗ xe (CTUD). |
 | **Nhóm 5: Chuẩn Hóa Đo Lường & Tỉ Lệ Tuyến Tính** | 5 | Đọc áp suất 4-20mA, Cảm biến nhiệt PT100/NTC, Can mức bồn chứa chất lỏng, Đo dòng động cơ CT. |
 | **Nhóm 6: Truyền Thông Đám Mây & IIoT MQTT** | 2 | Xuất bản đo lường IIoT lên Broker (MQTT PUB), Điều phối lệnh điều khiển từ xa (MQTT SUB). |
-| **Nhóm 7: Modbus RTU Master & Logistics SPX** | 3 | **Thu thập Cảm biến RS-485 (MB_READ)**: Đọc định kỳ FC04 áp suất vào VREG0.<br>**Điều khiển Biến tần VFD (MB_WRITE)**: Ghi trực tiếp tần số 50.00 Hz qua FC06.<br>**SPX Sort-to-Light 18 Ô**: Tích hợp MQTT SUB nhận mã ô và DIRECT_WRITE (Cọc DO3) điều phối dải LED 18 ô trực tiếp không cần Modbus ID. |
+| **Nhóm 7: Modbus RTU Master & Logistics SPX** | 3 | **Thu thập Cảm biến RS-485 (MB_READ)**: Đọc định kỳ FC04 áp suất vào VREG0.<br>**Điều khiển Biến tần VFD (MB_WRITE)**: Ghi trực tiếp tần số 50.00 Hz qua FC06.<br>**SPX Sort-to-Light 18 Ô**: Tích hợp MQTT SUB nhận mã ô và PULSE_OUT (DIRECT_WRITE) (Cọc DO3) điều phối dải LED 18 ô trực tiếp không cần Modbus ID. |
 
 - **Bước 1: Chọn Mẫu Thiết kế —** Mở Tab 3 (Blueprints) và duyệt danh mục (Khóa chốt E-Stop, Trạm phân loại Sort-to-Light SPX, Đảo chiều động cơ, Biến tần VFD).
 - **Bước 2: Nạp Mẫu vào Canvas —** Bấm nút 'Apply Blueprint' để tự động tạo lập toàn bộ mạng logic, gán Tag và thiết lập liên động lên canvas mà không cần vẽ thủ công từ đầu.
@@ -441,19 +464,19 @@ Khối **`MB_WRITE`** cho phép SimplePLC chủ động phát lệnh ghi điều
 
 ---
 
-### 6.6 Điều khiển Cơ Cấu Chấp Hành Đầu Ra Trực Tiếp (DIRECT_WRITE)
-Khối **`DIRECT_WRITE`** (ký hiệu huy hiệu `DIR_WR`) cho phép SynaptiX IDE điều khiển trực tiếp các cọc phần cứng công suất và xuất tín hiệu chấp hành cấp thấp (dải LED ma trận/chia chọn, điều chế xung PWM, phát chuỗi xung định lượng, hoặc điều khiển mức tải số) **hoàn toàn độc lập, không phụ thuộc vào giao thức Modbus RTU và không yêu cầu cấu hình Slave ID**:
+### 6.6 Bộ Phát Xung Tốc Độ Cao & Điều Khiển Chấp Hành (PULSE_OUT)
+Khối **`PULSE_OUT`** (ký hiệu huy hiệu `PULSE`) là khối chức năng phần cứng đặc biệt (Special Function / Pulse Generator) cho phép SynaptiX IDE điều khiển trực tiếp các chế độ phát xung tần số cao và tín hiệu chấp hành cấp thấp trên 8 ngõ ra số bo mạch (`DO0..DO7`) mà logic chu kỳ scan 10ms thông thường không thể thực hiện: điều chế xung PWM (1..20 kHz), phát chuỗi xung định lượng PTO cho động cơ bước, điều khiển dải đèn LED chia chọn Sort-to-Light (UCS16703/WS2812B), hoặc kích phát xung logic có kiểm soát bắt tay:
 
-#### 1. Cấu Trúc Cổng Nối của Khối DIRECT_WRITE trên Canvas:
-- **Cổng vào `Trig` (Event Input):** Tín hiệu kích hoạt chu trình xuất lệnh (xung cạnh lên từ `MQTT_SUB`, cảm biến `DI` hoặc khối logic).
-- **Cổng vào `Chan` (Data Input):** Chỉ số kênh mục tiêu (Target Channel, ví dụ: ô phân loại 1..18 trong hệ thống Sort-to-Light). Khi ở chế độ chỉ số kênh, giá trị này quyết định vị trí chính xác trên dải chấp hành phần cứng.
-- **Cổng vào `Param` (Data Input):** Tham số điều khiển bổ sung (mã màu RGB 24-bit cho dải LED, độ rộng xung PWM, số lượng xung phát hoặc giá trị thô).
-- **Cổng ra `Done` (Event Output):** Phát xung logic 1 chu kỳ quét khi khối hoàn tất chu trình xuất dữ liệu ra cọc phần cứng đích.
-- **Cổng ra `Err` (Event Output):** Bật mức TRUE khi có sự cố tham số ngoài dải, quá tải hoặc xung đột phần cứng.
+#### 1. Cấu Trúc Cổng Nối của Khối PULSE_OUT trên Canvas:
+- **Cổng vào `Trig` (Event Input):** Tín hiệu kích hoạt chu trình phát xung (xung cạnh lên từ `MQTT_SUB`, cảm biến `DI` hoặc khối logic).
+- **Cổng vào `In` / `Chan` (Data Input):** Giá trị logic, tỷ lệ băm xung Duty %, số lượng xung PTO hoặc chỉ số ô phân loại (1..18).
+- **Cổng vào `En` / `Param` (Data Input):** Tín hiệu cho phép phát xung En, tần số phát Freq (Hz), hoặc mã màu RGB 24-bit cho dải LED.
+- **Cổng ra `Done` (Event Output):** Phát xung logic 1 chu kỳ quét khi khối hoàn tất chu trình phát tín hiệu ra ngõ ra phần cứng.
+- **Cổng ra `Err` (Event Output):** Bật mức TRUE khi có sự cố tham số phát xung ngoài dải an toàn hoặc quá tải phần cứng.
 
-#### 2. Lựa Chọn Cọc Ngõ Ra Số Vật Lý (Target Pin Selection):
-Khối `DIRECT_WRITE` ánh xạ trực tiếp tới một trong các cọc ngõ ra số tiêu chuẩn của bộ điều khiển SimplePLC:
-- **`DO0` .. `DO7` (Cọc Ngõ Ra Số Chuẩn Công Nghiệp):** Các cổng ngõ ra số vật lý trên bo mạch PLC (Transistor/MOSFET/Relay). Hệ thống tuân thủ nghiêm ngặt chuẩn định danh phần cứng công nghiệp `DO0..DO7`, không sử dụng các định danh alias dư thừa.
+#### 2. Lựa Chọn Ngõ Ra Số Phần Cứng (Target Pin Selection):
+Khối `PULSE_OUT` ánh xạ trực tiếp tới một trong các ngõ ra số phần cứng của bộ điều khiển:
+- **`DO0` .. `DO7`:** Các cổng ngõ ra số vật lý trên bo mạch PLC (Transistor/MOSFET/Relay). Hệ thống tuân thủ nghiêm ngặt chuẩn định danh phần cứng công nghiệp `DO0..DO7`.
 
 #### 3. Bốn Chế Độ Hoạt Động Chấp Hành (Actuator Modes):
 1. **Ngõ Ra Số Logic Trực Tiếp (Digital Output - DO):**
@@ -476,7 +499,26 @@ Khối `DIRECT_WRITE` ánh xạ trực tiếp tới một trong các cọc ngõ 
 
 ---
 
-### 6.7 Bảng Tra cứu Sự cố Chẩn đoán & Quy chuẩn An toàn Phần cứng
+### 6.7 Cấu Hình Truyền Thông Không Dây Wi-Fi (Wi-Fi Configuration Dialog)
+Chọn menu **Thiết bị -> Cấu hình Wi-Fi... (Ctrl+Shift+W)** để mở hộp thoại quản trị và kết nối mạng Wi-Fi công nghiệp:
+
+- **1. Giám sát Viễn trắc Trực tiếp (Live Telemetry):**
+  - Hiển thị theo thời gian thực (chu kỳ cập nhật 1500ms): Trạng thái kết nối (`DISCONNECTED`, `CONNECTING`, `CONNECTED`, `GOT_IP`, `AUTH_FAILED`), Cường độ sóng vô tuyến (`RSSI dBm` kèm thanh tiến độ trực quan), Địa chỉ IP thực tế MCU đang hoạt động và Địa chỉ MAC phần cứng của module truyền thông.
+- **2. Dò Sóng & Đăng Nhập Mạng (Scan & Credentials):**
+  - Nhấp nút **"Quét mạng" (Scan)**: Bộ điều khiển kích hoạt quét sóng không đồng bộ trong nền (FreeRTOS Worker Task) mà không làm gián đoạn chu kỳ quét thời gian thực 10ms của PLC.
+  - Bảng danh sách mạng lân cận hiển thị tối đa 8 Access Points kèm cường độ sóng và chuẩn mã hóa (WPA2/WPA3).
+  - Nhấp đúp hoặc chọn một mạng trong bảng để tự động điền tên mạng vào ô **Tên mạng Wi-Fi (SSID)**.
+  - Nhập **Mật khẩu** bảo mật WPA2/WPA3.
+- **3. Cấu hình Cấp phát Địa chỉ IP (IP Addressing):**
+  - **Tự động nhận IP (DHCP):** Mặc định kích hoạt, bộ điều khiển tự động nhận địa chỉ IPv4 từ router/switch mạng nhà máy.
+  - **IP Tĩnh (Static IP):** Tắt tùy chọn DHCP để thiết lập cố định Địa chỉ IP, Mặt nạ mạng (Subnet Mask), Cổng mặc định (Gateway) và Máy chủ DNS cho các mạng cô lập OT/SCADA.
+- **4. Thao tác Điều khiển:**
+  - Nhấp **"Lưu & Kết nối"**: Ghi tham số cấu hình xuống thanh ghi `0x1300`, phát lệnh kết nối `0x0002` vào `0x1340`. Khi kết nối thành công, MCU tự động lưu SSID/Password vào Flash/NVS nội bộ để tự kết nối lại sau mỗi lần khởi động lại nguồn.
+  - Nhấp **"Ngắt kết nối"**: Phát lệnh ngắt liên kết `0x0003` vào `0x1340` để chuyển trạng thái mạng về `DISCONNECTED`.
+
+---
+
+### 6.8 Bảng Tra cứu Sự cố Chẩn đoán & Quy chuẩn An toàn Phần cứng
 Tra cứu bảng chẩn đoán sự cố dưới đây để xử lý nhanh các tình huống thực địa trong quá trình chạy máy:
 
 | Hiện tượng Sự cố | Nguyên nhân Cốt lõi | Hành động Khắc phục Khuyến nghị |
@@ -506,7 +548,7 @@ Từ phiên bản v2.6.0, SynaptiX IDE cung cấp thư viện dự án mẫu ti�
 - **Bối cảnh Ứng dụng:** Giải pháp tự động hóa chia chọn bưu kiện thương mại điện tử tốc độ cao tại Trung tâm Khai thác Phân loại (Fulfillment Center / SOC) của SPX Express (Hà Nội Hub).
 - **Kiến trúc Tích hợp:**
   - **Khối `MQTT_SUB`:** Lắng nghe chỉ thị từ hệ thống quản lý kho WMS qua topic `spx/hub_hn/rack_01/put_command`, giải mã JSON để trích xuất `bin_id` (1..18) vào `VREG0` và mã màu LED RGB `color_rgb` vào `VREG1`.
-  - **Khối `DIRECT_WRITE` (Cọc DO3, Addressable Bus):** Điều phối trực tiếp dải đèn LED 18 ô (UCS16703/WS2812B) từ cọc ngõ ra số `DO3` mà không cần Modbus Slave ID hay bo đệm ngoài, kích hoạt cờ `ExclusiveChannel = True` để tự động tắt 17 ô còn lại khi một ô mới sáng.
+  - **Khối `PULSE_OUT` (tương thích `DIRECT_WRITE`) (Cọc DO3, Addressable Bus):** Điều phối trực tiếp dải đèn LED 18 ô (UCS16703/WS2812B) từ cọc ngõ ra số `DO3` mà không cần Modbus Slave ID hay bo đệm ngoài, kích hoạt cờ `ExclusiveChannel = True` để tự động tắt 17 ô còn lại khi một ô mới sáng.
   - **Khối `TON` (15s Watchdog):** Canh chừng thời gian thả hàng; nếu quá 15 giây nhân viên không thả bưu kiện, hệ thống tự động bật đèn tháp đỏ (`DO3: TOWER_RED_ALARM`) và báo cảnh báo về trung tâm.
   - **Cảm biến quang học xác nhận (`DI1: PE_BIN_CONFIRM`):** Đặt tại miệng mỗi giỏ hàng, nhận biết bưu kiện rơi qua và phát xung cạnh lên.
   - **Khối `CTU` (Shift Sorter Counter):** Đếm tổng số bưu kiện đã phân loại thành công trong ca trực, lưu trữ vào `VREG2`.

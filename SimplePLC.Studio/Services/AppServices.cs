@@ -41,6 +41,7 @@ public sealed class AppServices
     public IDiagnosticGateway DiagnosticGateway { get; private set; } = null!;
     public DiagnosticControlService DiagnosticController { get; private set; } = null!;
     public IRtcClockClient RtcClockClient { get; private set; } = null!;
+    public IWifiClient WifiClient { get; private set; } = null!;
 
     public ConnectDeviceUseCase ConnectUseCase { get; private set; } = null!;
     public DeployRulesUseCase DeployUseCase { get; private set; } = null!;
@@ -96,6 +97,7 @@ public sealed class AppServices
             DiagnosticGateway = session.Diagnostics;
             DiagnosticController = new DiagnosticControlService(DiagnosticGateway, Coordinator);
             RtcClockClient = session.RtcClock;
+            WifiClient = session.Wifi;
 
             // D3.1: Attach session mới vào monitor (stop vòng lặp cũ → swap readers → start mới)
             _ = MonitorService.AttachSessionAsync(session, CurrentProduct);
@@ -111,6 +113,7 @@ public sealed class AppServices
             DiagnosticGateway = new SimplePLC.Infrastructure.Devices.DiagnosticGateway(ModbusClient);
             DiagnosticController = new DiagnosticControlService(DiagnosticGateway, Coordinator);
             RtcClockClient = new SimplePLC.Infrastructure.Devices.RtcClockClient(ModbusClient);
+            WifiClient = new SimplePLC.Infrastructure.Devices.WifiClient(ModbusClient);
 
             // D3.1: Detach monitor khi session bị đóng
             _ = MonitorService.DetachSessionAsync();
@@ -166,6 +169,7 @@ public sealed class AppServices
         DiagnosticGateway = new SimplePLC.Infrastructure.Devices.DiagnosticGateway(ModbusClient);
         DiagnosticController = new DiagnosticControlService(DiagnosticGateway, Coordinator);
         RtcClockClient = new SimplePLC.Infrastructure.Devices.RtcClockClient(ModbusClient);
+        WifiClient = new SimplePLC.Infrastructure.Devices.WifiClient(ModbusClient);
 
         // D3.3: ConnectUseCase vẫn giữ — nhưng ToggleConnect trong MainViewModel sẽ
         // dùng LifecycleManager.ConnectAsync thay vì ConnectUseCase trực tiếp

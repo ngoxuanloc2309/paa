@@ -31,6 +31,7 @@ public sealed class DeviceSession : IDeviceSession
     public IFunctionBlockGateway FunctionBlocks { get; }
     public IDiagnosticGateway Diagnostics { get; }
     public IRtcClockClient RtcClock { get; }
+    public IWifiClient Wifi { get; }
 
     public bool IsActive => !_isDisposed && _transport.IsOpen;
 
@@ -52,7 +53,8 @@ public sealed class DeviceSession : IDeviceSession
         ProductDefinition? product = null,
         IFunctionBlockGateway? functionBlocks = null,
         IDiagnosticGateway? diagnostics = null,
-        IRtcClockClient? rtcClock = null)
+        IRtcClockClient? rtcClock = null,
+        IWifiClient? wifi = null)
     {
         Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
         Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
@@ -66,6 +68,7 @@ public sealed class DeviceSession : IDeviceSession
         FunctionBlocks = functionBlocks ?? new FunctionBlockGateway(_modbusClient);
         Diagnostics = diagnostics ?? new SimplePLC.Infrastructure.Devices.DiagnosticGateway(_modbusClient);
         RtcClock = rtcClock ?? new SimplePLC.Infrastructure.Devices.RtcClockClient(_modbusClient);
+        Wifi = wifi ?? new SimplePLC.Infrastructure.Devices.WifiClient(_modbusClient);
         ResourceInfo = resourceInfo ?? DeviceResourceInfoDto.CreateRemoteIo8Di8Do4Ai();
         Product = product ?? ProductDefinition.CreateRemoteIo8Di8Do4Ai();
     }

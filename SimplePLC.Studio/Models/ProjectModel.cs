@@ -41,6 +41,17 @@ public class ProjectMetadata
     public string MqttTlsCaCertPath { get; set; } = string.Empty;
     public string MqttTlsCaCertPem { get; set; } = string.Empty;
     public bool MqttTlsAllowSelfSigned { get; set; } = false;
+
+    // Wi-Fi Configuration Settings (SPLC-SPEC-WIFI-004)
+    public bool WifiEnabled { get; set; } = false;
+    public bool WifiAutoReconnect { get; set; } = true;
+    public string WifiSsid { get; set; } = string.Empty;
+    public string WifiPassword { get; set; } = string.Empty;
+    public bool WifiDhcpEnabled { get; set; } = true;
+    public string WifiStaticIp { get; set; } = "192.168.1.50";
+    public string WifiSubnetMask { get; set; } = "255.255.255.0";
+    public string WifiGateway { get; set; } = "192.168.1.1";
+    public string WifiDns { get; set; } = "8.8.8.8";
 }
 
 public class ProjectTagData

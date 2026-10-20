@@ -202,7 +202,7 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 
     public bool Evaluate(int rawValue)
     {
-        bool isFloat = (InputTag != null && InputTag.Kind == TagKind.AnalogInput) ||
+        bool isFloat = (InputTag != null && InputTag.DataType == TagDataType.Float32) ||
                        Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
                        Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
 

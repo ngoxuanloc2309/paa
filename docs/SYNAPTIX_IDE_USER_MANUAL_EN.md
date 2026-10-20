@@ -20,6 +20,8 @@ This technical manual adheres to IEC/IEEE 82079-1:2019 principles. Any changes i
 | **v2.0.0** | Oct 2026 | Industrial Systems Team | Lead Systems Architect | Integrated MQTT IIoT Gateway (PUB/SUB), IEC Timers/Counters, and 2-Phase Staged Deployment. |
 | **v2.5.0** | Oct 2026 | AI & Automation Group | VP of Engineering | 6-Module workflow architecture, step-by-step procedures, UI callout tables, and pure popup dialogs. |
 | **v2.6.0** | Oct 2026 | Systems Engineering Team | Engineering Director | ISA-101/IEC 60073 industrial color refactoring, MB_WRITE (Modbus RTU) & DIRECT_WRITE (Terminals DO0..DO7 for UCS16703 LED strip, PWM, Pulse Train) blocks, and SPX Logistics Example Library. |
+| **v2.8.0** | Oct 2026 | Systems Engineering Team | Engineering Director | Added Wi-Fi Subsystem (0x1300..0x13FF, SPLC-SPEC-WIFI-004-ICD), Unified Industrial Wi-Fi Configuration Dialog (Ctrl+Shift+W) and Live Telemetry RSSI/IP/MAC. |
+
 
 > [!NOTICE]
 > **PROPRIETARY NOTICE & SOFTWARE LICENSING**  
@@ -79,8 +81,9 @@ This technical manual adheres to IEC/IEEE 82079-1:2019 principles. Any changes i
   - [6.3 Inbound Supervisory Command Ingestion (MQTT SUB)](#63-inbound-supervisory-command-ingestion-mqtt-sub)
   - [6.4 RS-485 Modbus RTU Master Polling & Sensor Ingestion (MB_READ)](#64-rs-485-modbus-rtu-master-polling--sensor-ingestion-mb_read)
   - [6.5 RS-485 Modbus RTU Master Actuator Controller (MB_WRITE)](#65-rs-485-modbus-rtu-master-actuator-controller-mb_write)
-  - [6.6 Direct Hardware Actuator Controller (DIRECT_WRITE)](#66-direct-hardware-actuator-controller-direct_write)
-  - [6.7 Diagnostics Fault Directory & Safety Mandate](#67-diagnostics-fault-directory--safety-mandate)
+  - [6.6 High-Speed Pulse Generator & Actuator Controller (PULSE_OUT)](#66-high-speed-pulse-generator--actuator-controller-pulse_out)
+  - [6.7 Wireless Wi-Fi Communication Configuration (Wi-Fi Configuration Dialog)](#67-wireless-wi-fi-communication-configuration-wi-fi-configuration-dialog)
+  - [6.8 Diagnostics Fault Directory & Safety Mandate](#68-diagnostics-fault-directory--safety-mandate)
 - [Part 7: Example Projects Library & Industrial Case Studies](#part-7-example-projects-library--industrial-case-studies)
   - [7.1 SPX Express: Sort-to-Light 18-Bin Parcel Sorting Hub](#71-spx-express-sort-to-light-18-bin-parcel-sorting-hub)
   - [7.2 Closed-Loop VFD Pressure Booster Pump Station](#72-closed-loop-vfd-pressure-booster-pump-station)
@@ -210,6 +213,26 @@ Tab 0 (Logic Graph) enforces a strict 4-stage pipeline where signals flow unidir
 | **Stage 3: Guard Interlock** | Safety interlock chain. Evaluates secondary permissive guards (e.g. E-Stop, Door Guard, Thermal OK). |
 | **Stage 4: Actuator Action** | Drives physical DO actuators (SET/RESET/TOGGLE), increments counters, or writes registers. |
 
+#### Comprehensive 13 Function Blocks Master Catalog
+
+SynaptiX IDE standardizes on 13 modular Function Blocks classified into 4 functional groups compliant with IEC 61131-3 and industrial IIoT:
+
+| # | Block & Badge | Functional Group | Terminal Pins (In / Out) | Operational Role & Typical Application |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **`INPUT`** `[INPUT]` | Signal Ingestion (Stage 1) | Out: `Out` (Data) | Reads physical inputs DI0..DI7, AI0..AI3, internal variables VREG0..31, non-volatile RETAIN0..31, or static constants. |
+| **2** | **`TRIGGER`** `[TRIG]` | Event Detection (Stage 2) | In: `In` (Data)<br>Out: `Trig` (Event) | Detects state transitions: Rising edge (`ON_RISE`), Falling edge (`ON_FALL`), Logic level (`ON_HIGH`, `ON_LOW`), or RTC Schedule (`TIME_WINDOW`). |
+| **3** | **`COMPARATOR`** `[CMP]` | Evaluation & Threshold (Stage 2) | In: `In` (Data)<br>Out: `Pass` (Logic) | Compares integer or Float32 values against threshold: `>`, `>=`, `==`, `!=`, `<=`, `<` (pressure, temperature, tank level supervision). |
+| **4** | **`GUARD`** `[GUARD]` | Permissive Interlock (Stage 3) | In: `In` (Logic)<br>Out: `Permit` (Logic) | Series safety interlock chain. Passes execution signal only when permissive condition is satisfied (`E-Stop = 1`, `Door Closed = 1`, `Thermal OK = 1`). |
+| **5** | **`ACTION`** `[ACTION]` | Actuator Command (Stage 4) | In: `Exec` (Event/Logic)<br>Out: Terminal DO/VREG | Executes control actions: `SET` (energize), `RESET` (de-energize), `TOGGLE` relay outputs DO0..DO7, assigns numeric value to VREG, or adjusts counters. |
+| **6** | **`TIMER`** `[TON / TOF / TP]` | IEC 61131-3 Timers | In: `IN`, `PT` (ms)<br>Out: `Q` (Logic), `ET` (ms) | Standard timers: `TON` (On-delay pump spin-up), `TOF` (Off-delay cooling fan), `TP` (Monostable single pulse duration for pneumatic ejectors). |
+| **7** | **`COUNTER`** `[CTU / CTD]` | IEC 61131-3 Counters | In: `CU`/`CD`, `R`/`LD`, `PV`<br>Out: `Q` (Logic), `CV` (Int) | Industrial counters: `CTU` (Up-count batch production), `CTD` (Down-count remaining blanks). Retained in non-volatile Flash. |
+| **8** | **`SCALE`** `[SCALE]` | Linear Engineering Scaling | In: `In` (Raw ADC)<br>Out: `Out` (Scaled Float) | Linear transformation $y = k \cdot x + b$: Maps raw ADC 0..4095 or 4-20mA current to engineering units (0..10 bar, -20..80 °C, 0..100%). |
+| **9** | **`PULSE_OUT`** `[PULSE]` | High-Speed Waveform & Actuator | In: `Trig`, `In/Chan`, `En/Param`<br>Out: `Done`, `Err` | Direct high-speed control on DO0..DO7: Discrete DO, PWM duty cycle (1..20 kHz), PTO stepper pulses, WS2812B/UCS16703 18-bin Sort-to-Light addressable LED bus. *(Backward compatible with DIRECT_WRITE)*. |
+| **10** | **`MB_READ`** `[MB_READ]` | Modbus RTU Master Read | In: `En` (Enable)<br>Out: `Done`, `Err`, `Data` (VREG) | Ingests RS-485 Modbus RTU slave devices via FC01, FC02, FC03, FC04; automatically updates destination VREG registers periodically or on-demand. |
+| **11** | **`MB_WRITE`** `[MB_WRITE]` | Modbus RTU Master Write | In: `Trig`, `In/Val`<br>Out: `Done`, `Err` | Commands RS-485 Modbus RTU slaves (VFD inverters, smart relays) via FC05, FC06, FC15, FC16; supports channel-indexed Sort-to-Light logistics. |
+| **12** | **`MQTT_PUB`** `[MQTT_PUB]` | IIoT Telemetry Publisher | In: `Trig`, `In0..In3` (Data)<br>Out: `Done`, `Err` | Encapsulates process telemetry into structured JSON payloads published to MQTT Broker over TCP/TLS (QoS 0/1/2, Retain) cyclically or on event. |
+| **13** | **`MQTT_SUB`** `[MQTT_SUB]` | IIoT Inbound Command Ingest | Out: `Out0..Out3` (Data), `NewMsg` (Event) | Subscribes to Cloud/WMS supervisory topics, extracts JSON payload key-value fields onto connector pins, and asserts 1-scan notification pulse. |
+
 ### 3.2 Dual Rule Table & AST Syntax Validation
 Tab 2 (Rule Table) presents logic in two synchronized perspectives: Left view provides human-readable engineering narratives, while right view displays compiled 32-byte bytecode parameters:
 
@@ -234,7 +257,7 @@ SynaptiX IDE provides standard IEC 61131-3 instruction blocks (TON, TOF, TP time
 | **Group 4: IEC 61131-3 Batch Counters (CTU/CTD)** | 3 | Automatic boxing up-counter (CTU), Blank feeder countdown (CTD), Parking garage up-down counter (CTUD). |
 | **Group 5: Analog Signal Normalization & Linear Scaling** | 5 | 4-20mA pressure transmitter, PT100/NTC RTD temperature, Hydrostatic tank level, CT current transformer. |
 | **Group 6: Cloud Telemetry & Industrial IIoT (MQTT)** | 2 | Cloud Telemetry Publisher (MQTT PUB), Remote Supervisory Command Dispatcher (MQTT SUB). |
-| **Group 7: RS-485 Modbus RTU Master & SPX Logistics** | 3 | **RS-485 Sensor Ingestion (MB_READ)**: Cyclic polling FC04 pressure transmitter into VREG0.<br>**VFD Speed Controller (MB_WRITE)**: Direct register write 50.00 Hz speed setpoint via FC06.<br>**SPX 18-Bin Sort-to-Light Hub**: Ingest WMS put commands via MQTT SUB and drive 18-bin LEDs via DIRECT_WRITE (Terminal DO3) without Modbus ID. |
+| **Group 7: RS-485 Modbus RTU Master & SPX Logistics** | 3 | **RS-485 Sensor Ingestion (MB_READ)**: Cyclic polling FC04 pressure transmitter into VREG0.<br>**VFD Speed Controller (MB_WRITE)**: Direct register write 50.00 Hz speed setpoint via FC06.<br>**SPX 18-Bin Sort-to-Light Hub**: Ingest WMS put commands via MQTT SUB and drive 18-bin LEDs via PULSE_OUT (DIRECT_WRITE) (Terminal DO3) without Modbus ID. |
 
 - **Step 1: Browse Library —** Navigate to Tab 3 (Blueprints) and browse catalog (Emergency Stop Latch, SPX Sort-to-Light, Motor Reverse, VFD Speed Control).
 - **Step 2: Apply Template —** Click 'Apply Blueprint' to instantiate the complete network, automatic tags, and interlocks onto canvas without manual wiring from scratch.
@@ -441,19 +464,19 @@ The **`MB_WRITE`** block enables SimplePLC to act as an active Modbus RTU Master
 
 ---
 
-### 6.6 Direct Hardware Actuator Controller (DIRECT_WRITE)
-The **`DIRECT_WRITE`** block (visual badge `DIR_WR`) empowers SynaptiX IDE to directly command physical controller hardware terminals and drive low-level industrial actuators (matrix/zoned LED strips, pulse-width modulated drivers, metering pulse trains, or discrete power outputs) **autonomously, without depending on Modbus RTU communications or requiring Slave IDs**:
+### 6.6 High-Speed Pulse Generator & Actuator Controller (PULSE_OUT)
+The **`PULSE_OUT`** block (visual badge `PULSE`) operates as a specialized hardware function block (Special Function / Pulse Generator) enabling SynaptiX IDE to command high-speed waveforms and low-level actuators directly on the controller's 8 onboard outputs (`DO0..DO7`) that exceed ordinary 10ms PLC scan cycle capabilities: high-frequency PWM (1..20 kHz), calibrated PTO pulse trains for stepping motors, addressable LED serial bus drivers (UCS16703/WS2812B), or edge-triggered digital pulse dispatches:
 
-#### 1. DIRECT_WRITE Canvas Connector Topology:
+#### 1. PULSE_OUT Canvas Connector Topology:
 - **Input Pin `Trig` (Event Input):** Execution trigger pulse (rising edge from `MQTT_SUB`, photoelectric sensors `DI`, or upstream logic).
-- **Input Pin `Chan` (Data Input):** Target actuator channel index (e.g., target bin 1..18 in Sort-to-Light fulfillment racks). In channel-indexed mode, this value addresses the precise actuator segment.
-- **Input Pin `Param` (Data Input):** Additional actuator parameter (24-bit RGB color code for LED strings, PWM duty percentage, pulse count, or raw binary value).
-- **Output Pin `Done` (Event Output):** Emits a single-scan 1-shot pulse upon completing direct hardware pin transmission.
+- **Input Pin `In` / `Chan` (Data Input):** Logic value In, PWM duty percentage, PTO pulse count, or target channel index (1..18).
+- **Input Pin `En` / `Param` (Data Input):** Pulse enable signal En, output frequency Freq (Hz), or 24-bit RGB color code for addressable LEDs.
+- **Output Pin `Done` (Event Output):** Emits a single-scan 1-shot pulse upon completing hardware pin transmission.
 - **Output Pin `Err` (Event Output):** Latches TRUE upon parameter out-of-range, channel saturation, or hardware conflict.
 
-#### 2. Target Hardware Terminal Selection (Target Pin):
-The `DIRECT_WRITE` block maps directly to physical controller output terminals:
-- **`DO0` .. `DO7` (Industrial Standard Digital Output Terminals):** Physical digital output terminals on the controller chassis (Transistor/MOSFET/Relay). The platform strictly enforces standard industrial identifiers `DO0..DO7` without arbitrary or legacy aliases.
+#### 2. Target Hardware Pin Selection (Target Pin):
+The `PULSE_OUT` block maps directly to physical controller output terminals:
+- **`DO0` .. `DO7`:** Physical digital output terminals on the controller chassis (Transistor/MOSFET/Relay). The platform strictly enforces standard industrial identifiers `DO0..DO7`.
 
 #### 3. Four Operating Actuator Modes:
 1. **Digital Output (Direct Logic DO):**
@@ -476,7 +499,26 @@ The `DIRECT_WRITE` block maps directly to physical controller output terminals:
 
 ---
 
-### 6.7 Diagnostics Fault Directory & Safety Mandate
+### 6.7 Wireless Wi-Fi Communication Configuration (Wi-Fi Configuration Dialog)
+Select **Device -> Wi-Fi Configuration... (Ctrl+Shift+W)** from the top menu to open the unified wireless network management dialog:
+
+- **1. Live Network Telemetry:**
+  - Real-time telemetry monitoring (1500ms poll cycle): Connection Status (`DISCONNECTED`, `CONNECTING`, `CONNECTED`, `GOT_IP`, `AUTH_FAILED`), Radio Signal Strength (`RSSI dBm` with visual strength bar), Assigned IPv4 Address, and Network Interface Physical MAC Address.
+- **2. AP Scanning & Network Credentials:**
+  - Click **"Scan"**: Triggers an asynchronous, non-blocking background scan (FreeRTOS Worker Task) on the controller without interrupting the real-time 10ms PLC scan cycle.
+  - The nearby network table displays up to 8 discovered Access Points with signal strength (dBm) and security type (WPA2/WPA3).
+  - Double-click or select any discovered network row to automatically populate the **SSID** input field.
+  - Enter the network security **Password** (WPA2/WPA3).
+- **3. IP Addressing Mode:**
+  - **Automatic IP (DHCP):** Enabled by default; the controller obtains an IPv4 lease automatically from the plant network router or DHCP server.
+  - **Static IP:** Disable DHCP to configure deterministic Static IP, Subnet Mask, Default Gateway, and Primary DNS for isolated OT/SCADA automation subnets.
+- **4. Operational Controls:**
+  - Click **"Save & Connect"**: Writes configuration parameters to holding registers `0x1300`, then issues command `0x0002` (`CONNECT`) to `0x1340`. Upon successful link negotiation and IP acquisition, credentials are saved to non-volatile Flash/NVS memory for automatic power-loss recovery.
+  - Click **"Disconnect"**: Issues command `0x0003` (`DISCONNECT`) to `0x1340` to cleanly tear down the association.
+
+---
+
+### 6.8 Diagnostics Fault Directory & Safety Mandate
 Refer to this diagnostic directory to rapidly resolve common field issues encountered during machine commissioning:
 
 | Fault Symptom | Probable Root Cause | Recommended Engineering Action |
@@ -506,7 +548,7 @@ Starting with v2.6.0, SynaptiX IDE ships with an industrial example library loca
 - **Application Scope:** High-speed parcel sorting at SPX Express Sorting & Fulfillment Centers (Hanoi SOC Hub).
 - **Architecture Integration:**
   - **`MQTT_SUB` Block:** Ingests dispatch commands from warehouse WMS over `spx/hub_hn/rack_01/put_command`, unpacking `bin_id` (1..18) into `VREG0` and `color_rgb` into `VREG1`.
-  - **`DIRECT_WRITE` Block (Terminal DO3, Addressable Bus):** Directly commands 18-bin addressable RGB LED indicator strips (UCS16703/WS2812B) from digital output terminal `DO3` without requiring Modbus Slave IDs or auxiliary driver boards, asserting `ExclusiveChannel = True` to clear all other 17 bins whenever an active bin changes.
+  - **`PULSE_OUT` Block (backward compatible with `DIRECT_WRITE`) (Terminal DO3, Addressable Bus):** Directly commands 18-bin addressable RGB LED indicator strips (UCS16703/WS2812B) from digital output terminal `DO3` without requiring Modbus Slave IDs or auxiliary driver boards, asserting `ExclusiveChannel = True` to clear all other 17 bins whenever an active bin changes.
   - **`TON` Block (15s Watchdog):** Drop timeout supervisor; illuminates red tower beacon (`DO3: TOWER_RED_ALARM`) if an operator fails to drop the parcel within 15 seconds.
   - **Photoelectric Drop Sensor (`DI1: PE_BIN_CONFIRM`):** Mounted at the chute opening to register parcel entry via rising-edge pulse.
   - **`CTU` Block (Shift Sorter Counter):** Tracks cumulative processed parcel volume per shift into non-volatile memory `VREG2`.

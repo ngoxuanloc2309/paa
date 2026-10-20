@@ -80,35 +80,47 @@ Mỗi khối 64 thanh ghi được phân tách rõ ràng:
 - **Header cấu hình điều khiển (Offset `+0..+15`):** 16 Registers (32 Bytes).
 - **Danh sách chân ghi động Pin Binding (Offset `+16..+63`):** 4 Pins $\times$ 12 Registers = 48 Registers (96 Bytes).
 
-### 3.1. Header Cấu hình Khối (`+0..+15`)
+### 3.1. Header Cấu hình Khối (`+0..+15` = 16 Registers = 32 Bytes)
+
+Chuẩn hóa đồng bộ 100% với `ModbusMasterCodec.cs` và struct `SPLC_ModbusMasterWriteBlock_t`:
 
 | Offset | Tên trường | Kiểu dữ liệu | Phạm vi giá trị | Mô tả kỹ thuật |
 | :--- | :--- | :--- | :--- | :--- |
-| `+0` | `CONTROL_FLAGS` | `uint16` | Bitmask | **Bit 0:** Block Enabled (1 = Bật, 0 = Tắt)<br>**Bit 1:** Exclusive Channel (1 = Tự động xóa kênh khác khi bật kênh mới)<br>**Bit 2..3:** Trigger Mode:<br>`0` = OnTriggerRisingEdge (Xung cạnh lên)<br>`1` = OnDataChange (Ghi khi dữ liệu thay đổi)<br>`2` = Cyclic (Ghi tuần hoàn)<br>**Bit 4..15:** Dự phòng |
+| `+0` | `CONTROL_FLAGS` | `uint16` | Bitmask | **Bit 0:** Block Enabled (1 = Bật, 0 = Tắt)<br>**Bit 1:** Exclusive Channel (1 = Tự động xóa kênh khác khi bật kênh mới)<br>**Bit 2..3:** Write Mode (`0` = DirectRegisters, `1` = ChannelIndexed)<br>**Bit 4..15:** Dự phòng (0x0000) |
 | `+1` | `FC_AND_SLAVE_ID` | `uint16` | Pack Byte | **High Byte:** Function Code (`0x05`, `0x06`, `0x0F`, `0x10`)<br>**Low Byte:** Slave ID (`1..247`) |
-| `+2` | `WRITE_MODE` | `uint16` | Enum | `0` = DirectRegisters (Ghi theo thanh ghi cố định)<br>`1` = ChannelIndexed (Ghi theo chỉ số kênh Sort-to-Light) |
-| `+3` | `START_OR_BASE_CMD`| `uint16` | `0..65535` | Direct: Starting Address.<br>Channel-Indexed: Base Command Address (VD: `0x0100`). |
-| `+4` | `BASE_PARAM_ADDR` | `uint16` | `0..65535` | Channel-Indexed: Base Parameter Address (VD: `0x0120` cho màu RGB). Direct: Không sử dụng (`0x0000`). |
-| `+5` | `POINTS_OR_CHANNELS`| `uint16` | `1..256` | Direct: Quantity of Coils/Registers.<br>Channel-Indexed: Total Channel Count (VD: `18`). |
-| `+6..+7`| `INTERVAL_MS` | `uint32` | `50..60000` | Chu kỳ gửi lệnh lặp lại nếu ở chế độ Cyclic (ms), Big-Endian Word |
-| `+8..+9`| `TIMEOUT_MS` | `uint32` | `50..10000` | Thời gian chờ phản hồi tối đa trước khi báo lỗi Timeout (ms) |
-| `+10` | `DONE_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận xung TRUE khi ghi thành công (`0xFFFF` = Unmapped) |
-| `+11` | `ERR_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận cờ báo lỗi (`0xFFFF` = Unmapped) |
-| `+12` | `ERR_CODE_TAG_INDEX`| `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag lưu mã lỗi chẩn đoán (`0xFFFF` = Unmapped) |
-| `+13` | `PIN_COUNT` | `uint16` | `0..4` | Số lượng chân dữ liệu được ánh xạ |
-| `+14..+15`| `RESERVED` | `uint16[2]` | `0x0000` | Vùng đệm mở rộng tương lai |
+| `+2` | `START_OR_BASE_CMD`| `uint16` | `0..65535` | Direct: Starting Address.<br>Channel-Indexed: Base Command Address (VD: `0x0100`). |
+| `+3` | `COUNT_OR_CHANNELS`| `uint16` | `1..256` | Direct: Point Count (Quantity of Coils/Registers).<br>Channel-Indexed: Total Channel Count (VD: `18`). |
+| `+4..+5`| `BASE_PARAM_ADDR` | `uint32` | `0..0xFFFFFFFF` | Channel-Indexed: Base Parameter Address (VD: `0x0120` cho màu RGB, High Word first). Direct: `0x00000000`. |
+| `+6..+7`| `INTERVAL_MS` | `uint32` | `0..60000` | Chu kỳ gửi lệnh lặp lại nếu ở chế độ Cyclic (ms), Big-Endian High Word first. |
+| `+8..+9`| `TIMEOUT_MS` | `uint32` | `50..10000` | Thời gian chờ phản hồi tối đa trước khi báo lỗi Timeout (ms), High Word first. |
+| `+10` | `TRIGGER_MODE` | `uint16` | Enum | `0` = OnTriggerRisingEdge (Xung sườn lên Trig)<br>`1` = OnDataChange (Tự phát khi giá trị thay đổi)<br>`2` = Cyclic (Ghi tuần hoàn theo chu kỳ) |
+| `+11` | `TRIG_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag kích hoạt sườn lên (`0xFFFF` = Unmapped) |
+| `+12` | `DONE_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận xung TRUE khi ghi thành công (`0xFFFF` = Unmapped) |
+| `+13` | `BUSY_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag báo trạng thái đang bận giao tiếp (`0xFFFF` = Unmapped) |
+| `+14` | `ERR_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận cờ báo lỗi (`0xFFFF` = Unmapped) |
+| `+15` | `ERR_CODE_TAG_INDEX`| `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag lưu mã lỗi chẩn đoán (`0xFFFF` = Unmapped) |
 
 ---
 
-### 3.2. Cấu trúc Mỗi Chân Dữ Liệu Ghi Pin Binding (12 Registers = 24 Bytes)
+### 3.2. Cấu trúc Payload Dữ liệu (`+16..+63` = 48 Registers = 96 Bytes)
 
+Tùy theo giá trị của `WRITE_MODE` tại `CONTROL_FLAGS` (Bit 2..3):
+
+#### A. Chế độ Channel-Indexed (`WRITE_MODE = 1`):
+- `+16`: `CHANNEL_TAG_INDEX` (`uint16`) — Tag cung cấp chỉ số ô / kênh (1..18).
+- `+17`: `COMMAND_TAG_INDEX` (`uint16`) — Tag cung cấp lệnh kích hoạt ô.
+- `+18`: `PARAM_TAG_INDEX` (`uint16`) — Tag cung cấp tham số (mã màu RGB 24-bit).
+- `+19..+63`: `RESERVED[45]` (`uint16[45]`) — Đệm 45 registers điền `0x0000`.
+
+#### B. Chế độ DirectRegisters (`WRITE_MODE = 0`):
+4 Pins $\times$ 12 Registers = 48 Registers (`+16..+63`):
 Mỗi chân $i \in [0..3]$ bắt đầu tại offset $16 + (i \times 12)$:
 
 | Offset trong Pin | Tên trường | Kiểu dữ liệu | Mô tả kỹ thuật |
 | :--- | :--- | :--- | :--- |
 | `+0` | `SOURCE_TAG_INDEX` | `uint16` | Chỉ số Tag trong `Tag Catalog` chứa giá trị cần ghi (`0xFFFF` = Không gán) |
 | `+1` | `REG_OFFSET` | `uint16` | Vị trí thanh ghi tương đối tính từ địa chỉ bắt đầu ($0 \le \text{Offset} < \text{Quantity}$) |
-| `+2` | `DATA_TYPE` | `uint16` | `0` = Bool, `1` = Int16, `2` = UInt16, `3` = Float32 (2 regs), `4` = Int32 (2 regs) |
+| `+2` | `DATA_TYPE` | `uint16` | `1` = Bool, `2` = Int16, `3` = UInt16, `4` = Int32, `5` = UInt32, `6` = Real (Float32) |
 | `+3` | `ENDIANNESS` | `uint16` | `0` = Big-Endian (ABCD), `1` = Word-Swap (CDAB), `2` = Byte-Swap (BADC), `3` = Little-Endian (DCBA) |
 | `+4..+5` | `MULTIPLIER` | `float32` | Hệ số chia/nhân nghịch đảo trước khi gửi (IEEE 754 Big-Endian) |
 | `+6..+11` | `PIN_LABEL` | `char[12]` | Tên nhãn kỹ thuật của chân (Tối đa 12 ký tự ASCII) |

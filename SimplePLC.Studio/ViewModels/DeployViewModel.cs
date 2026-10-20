@@ -522,12 +522,12 @@ public partial class DeployViewModel : ObservableObject
             ProgressPercent = 30;
             AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
             var meta = _getMetadata?.Invoke();
-            if (totalFbs > 0 || totalMqtt > 0)
+            if (totalFbs > 0 || totalMqtt > 0 || totalModbus > 0 || totalDirectWrite > 0)
             {
                 bool isVi = LocalizationService.Instance.IsVietnamese;
                 AppendLog(isVi
-                    ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots)."
-                    : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks (0 rule slots).");
+                    ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks."
+                    : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks.");
 
                 int subCount = mqttSubConfigs?.Count ?? 0;
                 if (subCount > 0)
@@ -544,6 +544,22 @@ public partial class DeployViewModel : ObservableObject
                             ? $"[MQTT SUB] {subCount} khối Subscribe đang vận hành ở chế độ Host Simulation & Sandbox (MCU chưa kích hoạt cờ 0x0020)."
                             : $"[MQTT SUB] {subCount} Subscribe block(s) running in Host Simulation & Sandbox mode (MCU flag 0x0020 inactive).");
                     }
+                }
+
+                int mbWriteCount = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0;
+                if (mbWriteCount > 0)
+                {
+                    AppendLog(isVi
+                        ? $"[MB WRITE] Phát hiện {mbWriteCount} khối Modbus Write -> Nạp cấu hình xuống phân vùng 0x1100 của MCU."
+                        : $"[MB WRITE] Detected {mbWriteCount} Modbus Write block(s) -> Deploying config to MCU partition 0x1100.");
+                }
+
+                int dwCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
+                if (dwCount > 0)
+                {
+                    AppendLog(isVi
+                        ? $"[PULSE_OUT] Phát hiện {dwCount} khối phát xung / chấp hành -> Nạp cấu hình xuống phân vùng 0x1200 của MCU."
+                        : $"[PULSE_OUT] Detected {dwCount} Pulse Output block(s) -> Deploying config to MCU partition 0x1200.");
                 }
 
                 if (product != null && !product.SupportsMqttPublish && (mqttConfigs?.Count > 0 || meta?.MqttBrokerEnabled == true))
@@ -583,6 +599,8 @@ public partial class DeployViewModel : ObservableObject
             ProgressPercent = 45;
             AppendLog(LocalizationService.Tr("DeployLogStaging"));
 
+            var modbusWriteConfigs = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
+            var directWriteConfigs = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs;
             var deployUseCase = GetDeployUseCase();
             var deployResult = await deployUseCase.ExecuteAsync(
                 ruleTable,
@@ -592,6 +610,8 @@ public partial class DeployViewModel : ObservableObject
                 brokerConfig,
                 mqttSubConfigs,
                 modbusMasterConfigs,
+                modbusWriteConfigs,
+                directWriteConfigs,
                 slaveId: 1,
                 ct: default,
                 progressLogger: AppendLog).ConfigureAwait(true);

@@ -105,7 +105,7 @@ Mỗi chân tại vị trí $i \in [0..3]$ bắt đầu tại offset $16 + (i \t
 | :--- | :--- | :--- | :--- |
 | `+0` | `TARGET_TAG_INDEX` | `uint16` | Chỉ số Tag trong `Tag Catalog` được ghi giá trị tự động (`0xFFFF` = Unmapped) |
 | `+1` | `REG_OFFSET` | `uint16` | Vị trí thanh ghi tương đối tính từ `START_ADDRESS` ($0 \le \text{Offset} < \text{Quantity}$) |
-| `+2` | `DATA_TYPE` | `uint16` | Mã kiểu dữ liệu giải mã:<br>`0` = Bool<br>`1` = Int16 (Signed 16-bit)<br>`2` = UInt16 (Unsigned 16-bit)<br>`3` = Real (Float32 IEEE 754, 2 regs)<br>`4` = Int32 (Signed 32-bit, 2 regs)<br>`5` = UInt32 (Unsigned 32-bit, 2 regs) |
+| `+2` | `DATA_TYPE` | `uint16` | Mã kiểu dữ liệu giải mã (chuẩn hóa theo Codec & Header V2.0):<br>`1` = Bool (1-bit / 1 reg)<br>`2` = Int16 (Signed 16-bit)<br>`3` = UInt16 (Unsigned 16-bit)<br>`4` = Int32 (Signed 32-bit, 2 regs)<br>`5` = UInt32 (Unsigned 32-bit, 2 regs)<br>`6` = Real (Float32 IEEE 754, 2 regs) |
 | `+3` | `ENDIANNESS` | `uint16` | Thứ tự sắp xếp byte & word:<br>`0` = Big-Endian (ABCD)<br>`1` = Word-Swap (CDAB - Phổ biến trong PLC/Modbus)<br>`2` = Byte-Swap (BADC)<br>`3` = Little-Endian (DCBA) |
 | `+4..+5` | `MULTIPLIER` | `float32` | Hệ số tỷ lệ nhân tuyến tính (IEEE 754 Big-Endian Word). Ví dụ: `0.1` để đổi $250 \rightarrow 25.0^\circ\text{C}$ |
 | `+6..+11` | `PIN_LABEL` | `char[12]` | Tên nhãn kỹ thuật của chân (Tối đa 12 ký tự ASCII, đóng gói 2 ký tự/thanh ghi) |

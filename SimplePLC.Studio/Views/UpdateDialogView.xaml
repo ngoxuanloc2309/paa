@@ -266,7 +266,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="SPLC-AF-003 // Update Client" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" />
+                        
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">

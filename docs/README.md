@@ -54,15 +54,16 @@ Tập tài liệu đặc tả giao diện kỹ thuật (Interface Control Docume
 * [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](firmware/SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md): **[MQTT TLS ICD]** Khế ước nhị phân truyền tải Chứng chỉ bảo mật TLS X.509 phân đoạn Chunked (`0x0F00..0x0F43`) nạp vào bộ nhớ Flash an toàn.
 * [`SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md): **[MODBUS MASTER READ ICD]** Thu thập dữ liệu cảm biến ngoại vi RS-485 Modbus RTU Master (`MB_READ`, `0x1000..0x10FF`), 4 kênh với 4 chuẩn Endianness.
 * [`SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md`](firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md): **[MODBUS MASTER WRITE ICD]** Phát lệnh chấp hành RS-485 Modbus RTU Master (`MB_WRITE`, `0x1100..0x11FF`).
-* [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md): **[DIRECT WRITE ICD]** Điều khiển trực tiếp 8 cọc ngõ ra DO vật lý và dải đèn LED địa chỉ hóa (`DIRECT_WRITE`, `0x1200..0x12FF`).
+* [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md): **[PULSE OUT ICD]** Khối phát xung phần cứng & điều khiển chấp hành chân ngõ ra số vật lý DO0..DO7 (`PULSE_OUT`, badge `PULSE`, tương thích `DIRECT_WRITE`, `0x1200..0x12FF`).
+* [`SPLC_SPEC_WIFI_004_ICD.md`](firmware/SPLC_SPEC_WIFI_004_ICD.md): **[WI-FI ST67 SUBSYSTEM ICD]** Đặc tả giao diện truyền thông nhị phân Wi-Fi module ST67W611M1 (`0x1300..0x13FF`, Cấu hình mạng, Bắt tay quét sóng không đồng bộ FreeRTOS và Bảng 8 AP lân cận).
 
 ---
 
 ### 4. 🔌 [Bản Đặc Tả Chuẩn Cốt Lõi Duy Nhất (`docs/platform/`)](platform/)
 Cổng đặc tả kỹ thuật nền tảng toàn diện và duy nhất dành cho Kỹ sư Firmware MCU & Kỹ sư Hệ thống:
 * 🌟 [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[BẢN ĐẶC TẢ MASTER CHUẨN CỐT LÕI DUY NHẤT]**  
-  Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x12FF`, `0x9000..0xA001`), tất cả 15 C binary structs, quy chuẩn an toàn Diag `0x0A20`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe, phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..20 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
-* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.7.0).
+  Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x13FF`, `0x9000..0xA001`), tất cả 16 C binary structs, quy chuẩn an toàn Diag `0x0A20`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe (`SPLC_CAP_WIFI`), phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..21 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
+* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.8.1).
 * [`STANDARD_RELEASE_PROCEDURE_SOP.md`](platform/STANDARD_RELEASE_PROCEDURE_SOP.md): Quy trình thao tác chuẩn (SOP) cho việc đóng gói, gắn thẻ phiên bản và phát hành hệ thống.
 * *(Các bản nháp cũ V1.9, V1 Register Map đã được lưu trữ an toàn trong `docs/history/`).*
 

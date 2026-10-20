@@ -63,6 +63,7 @@
         <KeyBinding Key="F8" Command="{Binding LogicEditorVM.ToggleLiveDebugCommand}" />
         <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
+        <KeyBinding Key="W" Modifiers="Ctrl+Shift" Command="{Binding OpenWifiConfigCommand}" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
     </Window.InputBindings>
     
@@ -215,6 +216,7 @@
                 <MenuItem Header="{Binding Loc[MenuCommit]}" Command="{Binding DeployToDeviceCommand}" InputGestureText="Ctrl+F5" />
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuMqttBrokerConfig]}" Command="{Binding OpenMqttBrokerConfigCommand}" InputGestureText="Ctrl+Shift+M" Icon="📡" />
+                <MenuItem Header="{Binding Loc[MenuWifiConfig]}" Command="{Binding OpenWifiConfigCommand}" InputGestureText="Ctrl+Shift+W" Icon="📶" />
                 <Separator />
                 <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}" Icon="⏰" />
                 <Separator />

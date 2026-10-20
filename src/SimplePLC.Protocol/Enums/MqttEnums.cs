@@ -36,14 +36,19 @@ public enum MqttQueueMode
 public enum MqttFailSafeAction
 {
     /// <summary>
-    /// Giữ nguyên giá trị nhận được gần nhất.
+    /// Giữ nguyên giá trị nhận được gần nhất (0).
     /// </summary>
-    KeepLastValue,
+    KeepLastValue = 0,
 
     /// <summary>
-    /// Rơi về giá trị mặc định an toàn (DefaultValue).
+    /// Đặt lại toàn bộ giá trị chân ngõ ra về 0 (1).
     /// </summary>
-    ResetToDefault
+    ResetToZero = 1,
+
+    /// <summary>
+    /// Rơi về giá trị mặc định an toàn DefaultValue (2).
+    /// </summary>
+    ResetToDefault = 2
 }
 
 /// <summary>

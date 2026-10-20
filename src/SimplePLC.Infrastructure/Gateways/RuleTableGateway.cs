@@ -38,4 +38,31 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<FbCounterRecordDto>? counters,
         CancellationToken cancellationToken = default) =>
         _writer.DeployRulesAsync(slaveId, rules, timers, counters, cancellationToken);
+
+    public Task<RuleDeployResult> DeployRulesAsync(
+        byte slaveId,
+        IReadOnlyList<RuleRecordDto> rules,
+        IReadOnlyList<FbTimerRecordDto>? timers = null,
+        IReadOnlyList<FbCounterRecordDto>? counters = null,
+        IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null,
+        MqttBrokerConfigDto? brokerConfig = null,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null,
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
+        IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
+        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        CancellationToken cancellationToken = default,
+        Action<string>? progressLogger = null) =>
+        _writer.DeployRulesAsync(
+            slaveId,
+            rules,
+            timers,
+            counters,
+            mqttConfigs,
+            brokerConfig,
+            mqttSubConfigs,
+            modbusMasterConfigs,
+            modbusMasterWriteConfigs,
+            directWriteConfigs,
+            cancellationToken,
+            progressLogger);
 }

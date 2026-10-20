@@ -62,7 +62,8 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0F00..0x0F43` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 68 regs (136 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`). |
 | `0x1000..0x10FF` | **Modbus Master Poller (MB_READ)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh Modbus RTU Master thu thập dữ liệu cảm biến ngoại vi RS-485 (SPLC-SPEC-MBM-001, mỗi kênh 64 registers = 128 bytes). |
 | `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
-| `0x1200..0x12FF` | **Direct Hardware Output (DIRECT_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối điều khiển cọc ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-DIRECT-WRITE-003, mỗi khối 16 registers = 32 bytes). |
+| `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
+| `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
 | `0x9000..0x9005` | **Staging Config Handshake**| R/W | FC03/FC16 | 6 regs (12 B) | `Status`, `ErrorCode`, `RuleCountStaged`, `ExpectedCrc16`, `ActiveRuleCount`, `ActiveRuleCrc16`. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | Vùng đệm nạp Rule mới (ghi từng block tối đa 120 registers). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và tráo bảng (atomic swap). |
@@ -551,30 +552,135 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * Tự động chuyển đổi thứ tự byte theo cấu hình Endianness (`ABCD`, `CDAB`, `BADC`, `DCBA`) và nhân hệ số `Multiplier`.
    * Cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét, phát xung mức 1 cho chân `Valid` và xuất mã chẩn đoán `Err_Code` (1=Timeout, 2=CRC, 3=Exception, 4=Malformed).
 
-### 13.8. Quy Chuẩn Điều Khiển Trực Tiếp Cọc Ngõ Ra Vật Lý DIRECT_WRITE (`0x1200..0x12FF`)
-* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md).
+### 13.8. Quy Chuẩn Khối Phát Xung Phần Cứng & Điều Khiển Chấp Hành PULSE_OUT (`0x1200..0x12FF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md) (Mã tài liệu: `SPLC-SPEC-PULSE-003`).
 1. **Phân vùng thanh ghi:**
    * `0x1200 - 0x12FF` (256 registers = 512 bytes): Tối đa 8 khối cấu hình độc lập (mỗi khối 16 registers = 32 bytes, định dạng nhị phân `#pragma pack(1)`).
    * Khối $k$ ($0 \le k \le 7$) bắt đầu tại địa chỉ $\text{Address} = 0\text{x}1200 + (k \times 16)$.
-2. **Cấu trúc nhị phân `SPLC_DirectWriteBlock_t` (32 bytes):**
-   * `control_flags` (2B): Bit 0: Enabled, Bit 1: IsExclusiveChannel, Bit 2: ActiveHigh.
-   * `target_pin` (1B): Cọc ngõ ra số vật lý mục tiêu `DO0..DO7` (`SPLC_DirectPin_t`: `0=DO0` .. `7=DO7`). Toàn hệ thống sử dụng duy nhất chuẩn cọc số DO.
+2. **Cấu trúc nhị phân `SPLC_PulseOutBlock_t` / `SPLC_DirectWriteBlock_t` (32 bytes):**
+   * `target_pin` (1B): Chỉ số chân ngõ ra số phần cứng `DO0..DO7` (`SPLC_PulsePin_t`: `0=DO0` .. `7=DO7`). Toàn hệ sinh thái sử dụng duy nhất chuẩn chân ngõ ra số DO.
    * `mode` (1B): Chế độ hoạt động (`0=DIGITAL_OUTPUT`, `1=PWM_DUTY`, `2=PULSE_TRAIN`, `3=ADDRESSABLE_BUS`).
-   * `trig_tag_index` (2B): TagIndex xung kích hoạt (0xFFFF nếu không nối, chạy liên tục).
-   * `channel_tag_index` (2B): TagIndex kênh chọn (Channel) hoặc chu kỳ xung Duty / Tần số.
-   * `param_tag_index` (2B): TagIndex tham số phụ trợ (Màu sắc, số xung PTO, v.v.).
    * `channel_count` (2B): Tổng số kênh hoặc số lượng phần tử chấp hành (1..256).
-   * `pulse_width_us` (4B): Độ rộng xung micro-giây cho PTO / Trigger pulse.
-   * `pwm_frequency_hz` (4B): Tần số băm xung PWM phần cứng (Hz, uint32 Big-Endian).
+   * `flags` (1B): Bit 0: IsActiveHigh, Bit 1: IsExclusiveChannel, Bit 2: FailSafeState.
    * `trigger_mode` (1B): Chế độ kích hoạt (`0=OnTriggerRisingEdge`, `1=Continuous`).
-   * `failsafe_state` (1B): Trạng thái an toàn ngõ ra khi mất tín hiệu hoặc dừng Engine (0=Mức thấp, 1=Mức cao).
-   * `default_color_rgb` (4B): Màu sắc mặc định định dạng 24-bit 0x00RRGGBB (chế độ Bus Addressable).
-   * `timeout_ms` (4B): Thời gian Watchdog an toàn (ms, uint32 Big-Endian).
-   * `reserved` (2B): Dự phòng căn chỉnh 32 bytes.
+   * `pulse_width_us` (2B): Độ rộng xung cơ sở tính bằng micro-giây ($\mu\text{s}$). Mặc định 50 $\mu\text{s}$.
+   * `pwm_freq_hz` (4B): Tần số sóng mang PWM phần cứng (Hz, uint32 Little-Endian).
+   * `duty_min` (1B): Giới hạn Duty nhỏ nhất % (0..100).
+   * `duty_max` (1B): Giới hạn Duty lớn nhất % (0..100).
+   * `channel_tag_index` (2B): TagIndex cung cấp giá trị logic In / Duty % / Kênh.
+   * `param_tag_index` (2B): TagIndex tham số phụ trợ (Enable En / Tần số Freq / Màu RGB).
+   * `default_color_rgb` (4B): Màu sắc mặc định 24-bit 0x00RRGGBB (chế độ Bus Addressable).
+   * `reserved[10]` (10B): Dự phòng căn chỉnh đúng 32 bytes.
 3. **Nguyên tắc vận hành thời gian thực trên MCU:**
-   * **Định danh cọc ngõ ra**: Thiết bị chỉ sở hữu duy nhất các cọc ngõ ra số `DO0..DO7`. Firmware ánh xạ trực tiếp `target_pin` vào GPIO/Timer phần cứng tương ứng của MCU (STM32 HAL GPIO/TIM, ESP32 GPIO/LEDC/RMT).
+   * **Định danh chân ngõ ra**: Thiết bị chỉ sở hữu các chân ngõ ra số `DO0..DO7`. Firmware ánh xạ trực tiếp `target_pin` vào GPIO/Timer phần cứng tương ứng của MCU (STM32 HAL GPIO/TIM, ESP32 GPIO/LEDC/RMT).
    * **Thực thi Deterministic**: Việc xuất xung sườn lên hoặc cập nhật PWM Duty được xử lý ngay tại scan pass 10ms của PLC Engine, đảm bảo phản hồi tức thì dưới 1ms mà không gây nghẽn CPU.
-   * **Fail-Safe Watchdog**: Nếu cấu hình `timeout_ms > 0` và không có xung kích hoạt mới quá thời gian này, ngõ ra sẽ tự động rơi về trạng thái `failsafe_state`.
+   * **Fail-Safe Watchdog**: Nếu ngắt kết nối hoặc chuyển về chế độ an toàn, ngõ ra tự động rơi về trạng thái `fail_safe_state` (0 = Tắt, 1 = Bật).
+
+---
+
+### 13.9. Quy Chuẩn Phân Hệ Wi-Fi ST67 (`0x1300..0x13FF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_WIFI_004_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_WIFI_004_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x1300..0x133F` (64 registers = 128 bytes): Cấu hình mạng (`SPLC_WifiConfig_t`) và viễn trắc trực tiếp (Connection Status, RSSI, Current IP, MAC).
+   * `0x1340..0x134F` (16 registers = 32 bytes): Bắt tay điều khiển lệnh (`SPLC_WifiScanControl_t`: START_SCAN `0x0001`, CONNECT `0x0002`, DISCONNECT `0x0003`, FORGET `0x0004`).
+   * `0x1350..0x13FF` (176 registers = 352 bytes): Danh sách tối đa 8 Access Points quét được (`SPLC_WifiApInfo_t`, 22 regs/AP).
+2. **Khai báo năng lực phần cứng (`0x0A08`):**
+   * Khi MCU tích hợp chip ST67 (ST67W611M1), BẮT BUỘC bật bit `SPLC_CAP_WIFI = 0x0200` (Bit 9) trong `SPLC_HardwareCapabilities_t`.
+3. **Nguyên tắc Non-blocking chu kỳ quét 10ms:**
+   * Lệnh Modbus ghi vào `0x1340` chỉ đẩy message vào FreeRTOS Queue và lập tức trả về ACK trong $< 10$ms.
+   * Một task nền riêng (`wifi_worker_task`) xử lý quét mạng hoặc kết nối, sau đó cập nhật kết quả vào `0x1341` (`scan_state`) và `0x133A` (`conn_status`).
+
+---
+
+### 13.10. Quy Trình Nạp Cấu Hình Đa Phân Hệ Từ SynaptiX IDE Xuống MCU (Multi-Subsystem Staged Deployment Sequence)
+
+Quy trình nạp luật và cấu hình hoàn chỉnh từ SynaptiX IDE xuống MCU được thiết kế bảo vệ 6 bước nghiêm ngặt:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor IDE as SynaptiX IDE (App)
+    participant MCU as MCU Firmware (Modbus Slave)
+    participant ENG as Rule Engine (10ms Scan)
+
+    Note over IDE,MCU: BƯỚC 1: KHẢO SÁT NĂNG LỰC PHẦN CỨNG
+    IDE->>MCU: FC03 Read 0x0A08 (SPLC_HardwareCapabilities_t)
+    MCU-->>IDE: Trả về Capabilities Mask (0x02FF...)
+    Note over IDE: Nếu thiếu cờ năng lực tương ứng -> Fail-Safe ABORT
+
+    Note over IDE,MCU: BƯỚC 2: NẠP CẤU HÌNH NGOẠI VI (HOLDING REGISTERS)
+    opt Có Timer / Counter
+        IDE->>MCU: FC16 Write 0x0B00.. (Timers 8 blocks * 8 regs)
+        IDE->>MCU: FC16 Write 0x0B40.. (Counters 8 blocks * 8 regs)
+    end
+    opt Có MQTT Broker & Telemetry
+        IDE->>MCU: FC16 Write 0x0E00.. (Broker Config 96 regs)
+        IDE->>MCU: FC16 Write 0x0C00.. (PUB Blocks up to 384 regs)
+        IDE->>MCU: FC16 Write 0x0D80.. (SUB Blocks up to 128 regs)
+    end
+    opt Có Modbus Master RTU
+        IDE->>MCU: FC16 Write 0x1000.. (MB Read up to 256 regs)
+        IDE->>MCU: FC16 Write 0x1100.. (MB Write up to 256 regs)
+    end
+    opt Có Phát Xung PULSE_OUT
+        IDE->>MCU: FC16 Write 0x1200.. (Pulse Out up to 256 regs)
+    end
+
+    Note over IDE,MCU: BƯỚC 3: NẠP LUẬT VÀO STAGING BUFFER
+    IDE->>MCU: FC16 Write 0x9002 (RuleCountStaged = N)
+    loop Nạp từng block (tối đa 120 regs / lệnh)
+        IDE->>MCU: FC16 Write 0x9010 + Offset (Rule Staging Buffer)
+        MCU-->>IDE: ACK (Số thanh ghi đã nhận)
+    end
+
+    Note over IDE,MCU: BƯỚC 4: GHI MÃ KIỂM TRA TOÀN VẸN CRC-16
+    IDE->>MCU: FC16 Write 0x9003 (ExpectedCrc16 của toàn bộ bảng luật)
+
+    Note over IDE,MCU: BƯỚC 5: PHÁT LỆNH CHỐT NGUYÊN TỬ (ATOMIC COMMIT)
+    IDE->>MCU: FC06 Write 0xA000 = 0xA5A5 (SPLC_COMMIT_MAGIC)
+
+    Note over MCU,ENG: BƯỚC 6: XÁC THỰC VÀ HOÁN ĐỔI BẢNG (ATOMIC SWAP)
+    MCU->>MCU: Tính toán CRC-16 của Staging Buffer vs ExpectedCrc16
+    alt CRC hợp lệ
+        MCU->>ENG: Hoán đổi con trỏ bảng luật tại ranh giới chu kỳ quét 10ms
+        MCU->>MCU: ActiveRuleVersion (0xA001) += 1
+        MCU->>MCU: Lưu cấu hình xuống Flash / NVS
+        Note over MCU: Log UART: "app_configured=1 generation=N"
+        MCU-->>IDE: ACK Commit SUCCESS
+    else CRC sai lệch
+        MCU->>MCU: Giữ nguyên Active Table cũ, hủy Staging Buffer
+        MCU-->>IDE: Exception 0x02 / Error Code 0x0001 (CRC_MISMATCH)
+    end
+```
+
+---
+
+## 14. Bảng Tiêu Chí Nghiệm Thu Firmware Chuẩn Công Nghiệp (Conformance Checklist)
+
+Trước khi nghiệm thu hoặc xuất xưởng firmware tích hợp cùng SimplePLC Studio, kỹ sư phát triển BẮT BUỘC kiểm tra đạt toàn bộ 21 tiêu chí sau:
+
+- [ ] **CHKL-01: Word Endianness & FC Compliance**: Hỗ trợ đầy đủ FC03, FC06, FC16; Big-Endian cho thanh ghi 16-bit và số 32-bit (High Word trước).
+- [ ] **CHKL-02: Cyclic Determinism (10ms Scan)**: Chu kỳ quét danh định 10ms cố định, tính `scan_time_ms` và `max_scan_time_ms` chuẩn xác.
+- [ ] **CHKL-03: Mutual Exclusion Tag Store**: Từ chối ghi vào `0x0900..0x09FF` khi ở `ENGINE_RUNNING`, chỉ cho phép ghi cưỡng bức trong `DIAG_CONTROL`.
+- [ ] **CHKL-04: Atomic Staging & Commit**: Quy trình 3 pha Staging (`0x9010`) $\to$ CRC-16 (`0x9003`) $\to$ Atomic Commit (`0xA000 = 0xA5A5`) tráo bảng nguyên tử không gián đoạn máy.
+- [ ] **CHKL-05: Diagnostic Heartbeat Watchdog**: Hết hạn 3000ms mất kết nối Studio tự động trả quyền điều khiển về `ENGINE_RUNNING`.
+- [ ] **CHKL-06: Retentive Data Integrity**: Lưu các Tag `VREG_RETAIN` vào EEPROM/Flash, khôi phục nguyên vẹn sau khi mất nguồn đột ngột.
+- [ ] **CHKL-07: Dynamic Tag Index Layout**: Tự động đóng gói chỉ số Tag liên tục dựa trên số lượng I/O trong `DeviceResourceInfo` (`0x0020`).
+- [ ] **CHKL-08: IEC Timers Conformance (0x0B00)**: Thực thi chính xác 8 khối Timer TON, TOF, TP; cập nhật ET và cờ trạng thái Q.
+- [ ] **CHKL-09: IEC Counters Conformance (0x0B40)**: Thực thi chính xác 8 khối Counter CTU, CTD; cập nhật CV và cờ trạng thái Q.
+- [ ] **CHKL-10: Scaler Linear Transformation**: Biến đổi tuyến tính $y = k \cdot x + b$ chính xác, bão hòa tại giới hạn Max/Min.
+- [ ] **CHKL-11: Hardware Watchdog (IWDG)**: Kick watchdog định kỳ, tự động reset an toàn nếu firmware bị treo quá 50ms.
+- [ ] **CHKL-12: RTC Synchronization (0x0810)**: Đồng bộ thời gian thực Epoch UTC và múi giờ, duy trì nhịp thời gian chính xác.
+- [ ] **CHKL-13: System Maintenance Commands (0x0A00)**: Thực thi lệnh REBOOT, FACTORY_RESET, CLEAR_RULES, CLEAR_RETAIN an toàn.
+- [ ] **CHKL-14: Hardware Capabilities Reporting (0x0A08)**: Khai báo trung thực mặt nạ `SPLC_HardwareCapabilities_t` phản ánh đúng tính năng MCU hỗ trợ.
+- [ ] **CHKL-15: Safe Boot State**: Khởi động ban đầu ở chế độ an toàn, tất cả ngõ ra DO ở mức 0 trước khi Engine nạp luật hợp lệ.
+- [ ] **CHKL-16: MQTT Telemetry Outbound Conformance (0x0C00)**: Xuất bản đúng định dạng JSON theo chu kỳ hoặc biến thiên dữ liệu.
+- [ ] **CHKL-17: MQTT Broker & Network Conformance (0x0E00)**: Kết nối MQTT Broker ổn định, hỗ trợ xác thực TLS/SSL và tự động kết nối lại.
+- [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging (0x0F00)**: Nạp phân đoạn chứng chỉ X.509 Root CA theo khối 128 bytes, kiểm tra CRC từng khối.
+- [ ] **CHKL-19: Modbus Master RTU Sensor Poller (0x1000..0x10FF)**: Polling cảm biến RS-485 ngầm không nghẽn chu kỳ quét 10ms, hỗ trợ 4 chuẩn Endianness.
+- [ ] **CHKL-20: Pulse Output & Hardware Actuator (0x1200..0x12FF)**: Hỗ trợ cấu hình tối đa 8 khối `PULSE_OUT` (DO, PWM, PTO, Bus Addressable) theo chuẩn ICD SPLC-SPEC-PULSE-003.
+- [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD), bật cờ `0x0200` tại `0x0A08`, quét sóng và kết nối qua worker task nền non-blocking.
+
 
 
 

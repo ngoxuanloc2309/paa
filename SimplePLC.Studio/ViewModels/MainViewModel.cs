@@ -1116,6 +1116,20 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void OpenWifiConfig()
+    {
+        var vm = new WifiConfigViewModel(CurrentProjectMetadata);
+        var dialog = new Views.WifiConfigDialogView(vm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            IsProjectDirty = true;
+        }
+    }
+
     private void UpdateLanguageTexts()
     {
         bool isVi = Loc.IsVietnamese;

@@ -288,6 +288,86 @@ public static class ModbusRegisterMap
         (ushort)(ModbusMasterWriteTableBaseAddress + (blockIndex * ModbusMasterWriteRegistersPerBlock));
 
     // ==========================================
+    // 2.8 PHÂN VÙNG DIRECT HARDWARE OUTPUT (0x1200 - 0x12FF)
+    // SPLC-SPEC-DIRECT-WRITE-003: 8 Blocks x 16 Registers = 128 Registers (256 Bytes)
+    // ==========================================
+    public const ushort DirectWriteTableBaseAddress = 0x1200;
+    public const int DirectWriteRegistersPerBlock = 16;
+    public const int DirectWriteBytesPerBlock = 32;
+    public const int DirectWriteMaxBlocks = 8;
+    public const ushort DirectWriteTableTotalLength = DirectWriteMaxBlocks * DirectWriteRegistersPerBlock; // 128 registers
+
+    public static ushort GetDirectWriteBlockAddress(int blockIndex) =>
+        (ushort)(DirectWriteTableBaseAddress + (blockIndex * DirectWriteRegistersPerBlock));
+
+    // ==========================================
+    // 2.9 PHÂN VÙNG WI-FI ST67 SUBSYSTEM (0x1300 - 0x13FF)
+    // SPLC-SPEC-WIFI-004-ICD: 256 Registers = 512 Bytes
+    // ==========================================
+    public const ushort WifiConfigBaseAddress = 0x1300;
+    public const int WifiConfigRegisters = 64;
+    public const int WifiConfigBytes = 128;
+    public const int WifiMaxSsidChars = 32;
+    public const int WifiMaxPasswordChars = 64;
+
+    public const ushort WifiControlAddress = 0x1340;
+    public const int WifiControlRegisters = 16;
+    public const int WifiControlBytes = 32;
+
+    public const ushort WifiScanTableBaseAddress = 0x1350;
+    public const int WifiScanTableRegisters = 176;
+    public const int WifiScanTableBytes = 352;
+    public const int WifiMaxScanAps = 8;
+    public const int WifiRegistersPerAp = 22;
+    public const int WifiBytesPerAp = 44;
+
+    // Control flags bitmask
+    public const ushort WifiControlBitEnable = 0x0001;
+    public const ushort WifiControlModeMask = 0x0006;
+    public const ushort WifiControlModeShift = 1;
+    public const ushort WifiControlBitDhcp = 0x0008;
+    public const ushort WifiControlBitAutoReconnect = 0x0010;
+
+    // Commands at 0x1340
+    public const ushort WifiCmdIdle = 0x0000;
+    public const ushort WifiCmdStartScan = 0x0001;
+    public const ushort WifiCmdConnect = 0x0002;
+    public const ushort WifiCmdDisconnect = 0x0003;
+    public const ushort WifiCmdForget = 0x0004;
+
+    // Scan State at 0x1341
+    public const ushort WifiScanStateIdle = 0;
+    public const ushort WifiScanStateScanning = 1;
+    public const ushort WifiScanStateCompleted = 2;
+    public const ushort WifiScanStateFailed = 3;
+
+    // Connection Status at 0x133A
+    public const ushort WifiConnDisconnected = 0;
+    public const ushort WifiConnConnecting = 1;
+    public const ushort WifiConnConnected = 2;
+    public const ushort WifiConnGotIp = 3;
+    public const ushort WifiConnAuthFailed = 4;
+    public const ushort WifiConnSsidNotFound = 5;
+    public const ushort WifiConnApModeActive = 6;
+
+    // Auth Modes
+    public const byte WifiAuthOpen = 0;
+    public const byte WifiAuthWep = 1;
+    public const byte WifiAuthWpaPsk = 2;
+    public const byte WifiAuthWpa2Psk = 3;
+    public const byte WifiAuthWpaWpa2Mixed = 4;
+    public const byte WifiAuthWpa2Enterprise = 5;
+    public const byte WifiAuthWpa3Psk = 6;
+
+    public static ushort GetWifiApAddress(int apIndex)
+    {
+        if (apIndex < 0 || apIndex >= WifiMaxScanAps)
+            throw new ArgumentOutOfRangeException(nameof(apIndex), $"AP index must be between 0 and {WifiMaxScanAps - 1}.");
+
+        return (ushort)(WifiScanTableBaseAddress + (apIndex * WifiRegistersPerAp));
+    }
+
+    // ==========================================
     // 3. PHÂN VÙNG RULE TRANSFER & COMMIT (0x9000 - 0xA001)
     // ==========================================
     public const ushort ConfigStatusAddress = 0x9000;

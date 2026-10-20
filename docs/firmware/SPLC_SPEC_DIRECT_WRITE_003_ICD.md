@@ -1,8 +1,8 @@
 # TÀI LIỆU ĐẶC TẢ GIAO DIỆN PHẦN CỨNG & PHẦN SỤN (ICD)
-## SPLC-SPEC-DIR-003: KHỐI XUẤT LỆNH CHẤP HÀNH TRỰC TIẾP CỌC NGÕ RA (DIRECT_WRITE)
+## SPLC-SPEC-PULSE-003: KHỐI PHÁT XUNG PHẦN CỨNG & ĐIỀU KHIỂN CHẤP HÀNH (PULSE_OUT)
 
-**Mã tài liệu:** `SPLC-SPEC-DIR-003`  
-**Phiên bản:** `v2.0.0` (Cập nhật chuẩn hóa DO0..DO7 theo kiến trúc SimplePLC V2.0)  
+**Mã tài liệu:** `SPLC-SPEC-PULSE-003` (Kế thừa và chuẩn hóa từ `SPLC-SPEC-DIR-003`)  
+**Phiên bản:** `v2.1.0` (Chuẩn hóa tên gọi PULSE_OUT, badge PULSE, ngõ ra DO0..DO7)  
 **Ngày phát hành:** `2026-10-19`  
 **Trạng thái:** `APPROVED / AUTHORITATIVE SPECIFICATION`  
 **Phạm vi áp dụng:** Firmware vi điều khiển SimplePLC / SynaptiX (STM32H5/G4/F4, ESP32-S3, RP2040, GD32), SynaptiX IDE Studio, Bo mạch Remote I/O RIO-884, Smart PLC Controller.
@@ -11,11 +11,11 @@
 
 ### 1. Tổng Quan Kiến Trúc (Architecture Overview)
 
-Khối chức năng **`DIRECT_WRITE` (Huy hiệu Canvas: `DIR_WR`)** cho phép bộ điều khiển xuất dữ liệu hoặc lệnh chấp hành trực tiếp tới **một cọc ngõ ra số vật lý duy nhất (`DO0..DO7`)** của thiết bị mà **không cần thông qua giao thức truyền thông mạng Modbus RTU Slave ID**:
+Khối chức năng **`PULSE_OUT` (Pulse Output / Bộ Phát Xung Phần Cứng - Huy hiệu Canvas: `PULSE`, mã nhị phân tương thích: `DIRECT_WRITE`)** cho phép bộ điều khiển phát xung định lượng hoặc xuất lệnh chấp hành trực tiếp tới **một chân ngõ ra số phần cứng duy nhất (`DO0..DO7`)** của thiết bị mà **không cần thông qua giao thức truyền thông mạng Modbus RTU Slave ID**:
 
-1. **Chuẩn hóa danh mục cọc theo thiết bị (`DO0..DO7`):**
+1. **Chuẩn hóa danh mục chân ngõ ra theo thiết bị (`DO0..DO7`):**
    - Không sử dụng các định danh tùy biến hoặc không đồng nhất (như `OUT1..4` hay `FAST_IO`).
-   - Mọi chân ngõ ra số trong hệ thống SimplePLC đều tuân thủ định danh duy nhất là **`DO`** (`DO0`, `DO1`, `DO2`, `DO3`, `DO4`, `DO5`, `DO6`, `DO7`...), đồng bộ 100% với Bảng Tag Catalog, Bàn I/O ảo và Bảng quy tắc logic (Rule Table).
+   - Mọi chân ngõ ra số trong hệ sinh thái SimplePLC đều tuân thủ định danh duy nhất là **`DO`** (`DO0`, `DO1`, `DO2`, `DO3`, `DO4`, `DO5`, `DO6`, `DO7`...), đồng bộ 100% với Bảng Tag Catalog, Bàn I/O ảo và Bảng quy tắc logic (Rule Table).
 2. **Các chế độ vận hành hỗ trợ:**
    - **Mode 0: Digital Output (`DO`):** Đóng/ngắt trực tiếp mức logic 0/1 (Relay, Van điện từ Solenoid, Đèn báo trạng thái), hỗ trợ cấu hình cực tính `Active High / Active Low` và trạng thái an toàn `Fail-Safe (0 - OFF / 1 - ON)`.
    - **Mode 1: PWM Duty Cycle (`PWM`):** Điều chế độ rộng xung công suất $0 \dots 100\%$ điều khiển độ sáng LED dimmer, van tỉ lệ khí nén/thủy lực, hoặc bộ điều tốc động cơ DC.
@@ -24,9 +24,9 @@ Khối chức năng **`DIRECT_WRITE` (Huy hiệu Canvas: `DIR_WR`)** cho phép b
 
 ```mermaid
 flowchart LR
-    IDE["SynaptiX IDE Canvas<br>(Khối DIRECT_WRITE)"] -->|Gói Cấu Hình 32 Bytes<br>Modbus 0x1200..0x12FF| RAM["Staging RAM Buffer<br>(SPLC_DirectWriteBlock_t)"]
+    IDE["SynaptiX IDE Canvas<br>(Khối PULSE_OUT / Badge PULSE)"] -->|Gói Cấu Hình 32 Bytes<br>Modbus 0x1200..0x12FF| RAM["Staging RAM Buffer<br>(SPLC_PulseOutBlock_t)"]
     RAM -->|Atomic Commit A5A5| RUNTIME["Firmware Execution Engine<br>(Scan Cycle 10ms)"]
-    RUNTIME -->|GPIO / Hardware Timer / DMA| PIN["Cọc Ngõ Ra Thiết Bị<br>(DO0 .. DO7)"]
+    RUNTIME -->|GPIO / Hardware Timer / DMA| PIN["Chân Ngõ Ra Phần Cứng<br>(DO0 .. DO7)"]
     PIN -->|24VDC / Xung Điều Khiển| LOAD["Tải Công Nghiệp / Cơ Cấu Chấp Hành<br>(Relay, Van, Motor, Dải LED)"]
 ```
 
@@ -34,27 +34,31 @@ flowchart LR
 
 ### 2. Bản Đồ Bộ Nhớ Thanh Ghi Modbus (Memory Map)
 
-Vùng nhớ cấu hình cho các khối `DIRECT_WRITE` được định vị tại dải thanh ghi **`0x1200` $\dots$ `0x12FF`** (tối đa **8 khối độc lập**, mỗi khối chiếm **16 thanh ghi Modbus = 32 bytes nhị phân**):
+Vùng nhớ cấu hình cho các khối `PULSE_OUT` (tương thích `DIRECT_WRITE`) được định vị tại dải thanh ghi **`0x1200` $\dots$ `0x12FF`** (tối đa **8 khối độc lập**, mỗi khối chiếm **16 thanh ghi Modbus = 32 bytes nhị phân**):
 
 $$\text{Base Address} = 0\text{x}1200 + (\text{BlockIndex} \times 16) \quad (\text{BlockIndex} = 0 \dots 7)$$
 
-#### Bảng cấu trúc chi tiết từng khối (32 Bytes / Block)
+#### Bảng cấu trúc chi tiết từng khối (32 Bytes / 16 Modbus Registers)
 
-| Offset Byte | Thanh ghi | Tên trường | Kiểu dữ liệu | Diễn giải kỹ thuật & Giới hạn giá trị |
+> [!IMPORTANT]
+> **Quy chuẩn Endianness trên Bus Modbus RTU:**  
+> Toàn bộ các thanh ghi Modbus Holding Registers của SimplePLC đều là **Big-Endian**:  
+> - Dữ liệu 16-bit: High Byte (MSB) truyền trước, Low Byte (LSB) truyền sau.
+> - Các thanh ghi ghép 2 biến byte: Biến khai báo trước nằm ở Byte Cao (Bits 15..8), biến khai báo sau nằm ở Byte Thấp (Bits 7..0).
+> - Dữ liệu 32-bit: Trải trên 2 thanh ghi liên tiếp với **High Word trước (Reg N), Low Word sau (Reg N+1)**.
+
+| Offset Byte | Thanh ghi Modbus | Tên trường | Kiểu dữ liệu | Diễn giải kỹ thuật & Phân bổ Byte |
 | :---: | :---: | :--- | :--- | :--- |
-| `0x00` | Reg 0 (Lo) | `target_pin` | `uint8_t` | Chỉ số cọc ngõ ra số phần cứng: **`0` = DO0, `1` = DO1, $\dots$, `7` = DO7**. |
-| `0x01` | Reg 0 (Hi) | `mode` | `uint8_t` | Chế độ ngõ ra: `0` = DigitalOutput, `1` = PwmDuty, `2` = PulseTrain, `3` = AddressableBus. |
-| `0x02..0x03` | Reg 1 | `channel_count` | `uint16_t` (LE)| Số lượng kênh/ô địa chỉ trong chế độ Bus (1..64), hoặc số xung cơ sở. |
-| `0x04` | Reg 2 (Lo) | `flags` | `uint8_t` | Bit 0: `is_active_high` (1=High, 0=Low)<br>Bit 1: `is_exclusive_channel`<br>Bit 2: `fail_safe_state` (0=OFF, 1=ON) |
-| `0x05` | Reg 2 (Hi) | `trigger_mode` | `uint8_t` | `0` = OnTriggerRisingEdge (Sườn lên), `1` = Continuous (Liên tục chu kỳ quét). |
-| `0x06..0x07` | Reg 3 | `pulse_width_us`| `uint16_t` (LE)| Độ rộng xung cơ sở tính bằng micro-giây ($\mu\text{s}$). Mặc định 50 $\mu\text{s}$. |
-| `0x08..0x0B` | Reg 4..5 | `pwm_freq_hz` | `uint32_t` (LE)| Tần số sóng mang PWM tính bằng Hz (Ví dụ: `1000` Hz). |
-| `0x0C` | Reg 6 (Lo) | `duty_min` | `uint8_t` | Giới hạn độ rộng Duty nhỏ nhất (%) (Ví dụ: `0`%). |
-| `0x0D` | Reg 6 (Hi) | `duty_max` | `uint8_t` | Giới hạn độ rộng Duty lớn nhất (%) (Ví dụ: `100`%). |
-| `0x0E..0x0F` | Reg 7 | `channel_tag` | `uint16_t` (LE)| TagIndex cấp giá trị đầu vào (Logic In cho DO / Duty % cho PWM / Kênh cho Bus). |
-| `0x10..0x11` | Reg 8 | `param_tag` | `uint16_t` (LE)| TagIndex cấp tham số phụ (Enable En cho DO / Tần số Freq cho PTO / Mã màu RGB). |
-| `0x12..0x15` | Reg 9..10 | `default_color`| `uint32_t` (LE)| Tham số mặc định 24-bit RGB (Ví dụ: `0x0000FF00` = Xanh lục). |
-| `0x16..0x1F` | Reg 11..15| `reserved[10]` | `uint8_t[10]` | Vùng đệm dự phòng mở rộng (Luôn điền `0x00`). |
+| `0x00..0x01` | Reg 0 | `mode` / `target_pin` | `uint16_t` | **High Byte (15..8):** `mode` (0=DO, 1=PWM, 2=PTO, 3=Bus)<br>**Low Byte (7..0):** `target_pin` (0=DO0 .. 7=DO7) |
+| `0x02..0x03` | Reg 1 | `channel_count` | `uint16_t` | Số lượng kênh/ô địa chỉ trong chế độ Bus (1..64), hoặc số xung cơ sở (Big-Endian). |
+| `0x04..0x05` | Reg 2 | `trigger_mode` / `flags` | `uint16_t` | **High Byte (15..8):** `trigger_mode` (0=RisingEdge, 1=Continuous)<br>**Low Byte (7..0):** `flags` (Bit 0: ActiveHigh, Bit 1: Exclusive, Bit 2: FailSafe) |
+| `0x06..0x07` | Reg 3 | `pulse_width_us` | `uint16_t` | Độ rộng xung cơ sở tính bằng micro-giây ($\mu\text{s}$, Big-Endian). Mặc định 50 $\mu\text{s}$. |
+| `0x08..0x0B` | Reg 4..5 | `pwm_freq_hz` | `uint32_t` | Tần số sóng mang PWM tính bằng Hz (VD: `1000` Hz). Reg 4 = High Word, Reg 5 = Low Word. |
+| `0x0C..0x0D` | Reg 6 | `duty_max` / `duty_min` | `uint16_t` | **High Byte (15..8):** `duty_max` % (0..100)<br>**Low Byte (7..0):** `duty_min` % (0..100) |
+| `0x0E..0x0F` | Reg 7 | `channel_tag` | `uint16_t` | TagIndex cấp giá trị đầu vào (Logic In / Duty % / Kênh) (Big-Endian, 0xFFFF = Unmapped). |
+| `0x10..0x11` | Reg 8 | `param_tag` | `uint16_t` | TagIndex cấp tham số phụ (Enable En / Tần số Freq / Mã màu RGB) (Big-Endian, 0xFFFF = Unmapped). |
+| `0x12..0x15` | Reg 9..10 | `default_color` | `uint32_t` | Tham số mặc định 24-bit RGB (VD: `0x0000FF00` = Xanh lục). Reg 9 = High Word, Reg 10 = Low Word. |
+| `0x16..0x1F` | Reg 11..15| `reserved[5]` | `uint16_t[5]` | Vùng đệm dự phòng mở rộng (5 thanh ghi = 10 bytes, luôn điền `0x0000`). |
 
 ---
 
@@ -63,8 +67,8 @@ $$\text{Base Address} = 0\text{x}1200 + (\text{BlockIndex} \times 16) \quad (\te
 Được khai báo chính thức tại header chuẩn [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h):
 
 ```c
-#ifndef SPLC_DIRECT_WRITE_ICD_H
-#define SPLC_DIRECT_WRITE_ICD_H
+#ifndef SPLC_PULSE_OUT_ICD_H
+#define SPLC_PULSE_OUT_ICD_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -86,7 +90,7 @@ typedef enum {
 } SPLC_DirectPin_t;
 
 /**
- * @brief Chế độ điều khiển cọc ngõ ra
+ * @brief Chế độ điều khiển ngõ ra / phát xung
  */
 typedef enum {
     SPLC_DIR_MODE_DIGITAL_OUTPUT  = 0, /* Xuất mức logic 0/1 (Relay / Van Solenoid / Đèn báo) */
@@ -104,7 +108,7 @@ typedef enum {
 } SPLC_DirectTrigger_t;
 
 /**
- * @brief Cấu trúc dữ liệu nhị phân 32-byte của khối DIRECT_WRITE
+ * @brief Cấu trúc dữ liệu nhị phân 32-byte của khối PULSE_OUT / DIRECT_WRITE
  */
 typedef struct {
     uint8_t  target_pin;        /* SPLC_DirectPin_t: DO0..DO7 (0..7) */
@@ -122,9 +126,15 @@ typedef struct {
     uint8_t  reserved[10];      /* Đệm căn chỉnh đúng 32 bytes */
 } SPLC_DirectWriteBlock_t;
 
+/* Chuẩn hóa định danh tương thích cho PULSE_OUT */
+typedef SPLC_DirectPin_t        SPLC_PulsePin_t;
+typedef SPLC_DirectMode_t       SPLC_PulseMode_t;
+typedef SPLC_DirectTrigger_t    SPLC_PulseTrigger_t;
+typedef SPLC_DirectWriteBlock_t SPLC_PulseOutBlock_t;
+
 #pragma pack(pop)
 
-#endif // SPLC_DIRECT_WRITE_ICD_H
+#endif // SPLC_PULSE_OUT_ICD_H
 ```
 
 ---
@@ -132,12 +142,12 @@ typedef struct {
 ### 4. Thuật Toán Thực Thi Chi Tiết Trên Firmware MCU
 
 #### 4.1. Chế độ 0: Digital Output (`DO`)
-1. **Kiểm tra cờ cho phép (Enable):** Nếu `param_tag_index` hợp lệ, đọc giá trị Tag tương ứng. Nếu giá trị $= 0$, tắt ngõ ra cọc (về trạng thái nghỉ an toàn).
+1. **Kiểm tra cờ cho phép (Enable):** Nếu `param_tag_index` hợp lệ, đọc giá trị Tag tương ứng. Nếu giá trị $= 0$, tắt chân ngõ ra (về trạng thái nghỉ an toàn).
 2. **Đọc mức logic yêu cầu:** Đọc giá trị từ `channel_tag_index`. Mức $1$ là yêu cầu kích hoạt, $0$ là yêu cầu ngắt.
 3. **Áp dụng cực tính (`is_active_high`):**
    - Nếu `is_active_high == true`: Mức 1 xuất điện áp $24\text{ VDC}$ (BẬT), Mức 0 ngắt điện áp $0\text{ VDC}$ (TẮT).
    - Nếu `is_active_high == false` (Active Low): Mức 0 xuất $24\text{ VDC}$, Mức 1 ngắt $0\text{ VDC}$.
-4. **Xử lý Fail-Safe:** Khi hệ thống khởi động hoặc xảy ra mất kết nối / Watchdog timeout, cọc tự động duy trì giá trị `fail_safe_state` (0 = Ngắt tải hoàn toàn, 1 = Duy trì cấp tải).
+4. **Xử lý Fail-Safe:** Khi hệ thống khởi động hoặc xảy ra mất kết nối / Watchdog timeout, chân ngõ ra tự động duy trì giá trị `fail_safe_state` (0 = Ngắt tải hoàn toàn, 1 = Duy trì cấp tải).
 
 #### 4.2. Chế độ 1: PWM Duty Cycle (`PWM`)
 1. **Đọc giá trị Duty:** Đọc giá trị phần trăm từ `channel_tag_index` ($0 \dots 100\%$).
@@ -155,7 +165,7 @@ typedef struct {
 #### 4.4. Chế độ 3: Addressable Actuator Bus (`BUS` / UCS16703, WS2812B)
 1. **Xử lý độc quyền kênh (`is_exclusive_channel == true`):** Tự động xóa bộ đệm hiển thị của $N$ kênh (`channel_count`) về màu đen (`0x000000`).
 2. **Ánh xạ kênh & màu:** Đọc mã kênh từ `channel_tag_index` ($1 \dots N$) và mã màu RGB từ `param_tag_index` (hoặc dùng `default_color_rgb`).
-3. **Truyền dữ liệu bằng DMA:** Khởi động DMA xuất luồng bit 800 kHz ra cọc vật lý mà **không làm chậm hoặc khóa vòng quét PLC 10ms**.
+3. **Truyền dữ liệu bằng DMA:** Khởi động DMA xuất luồng bit 800 kHz ra chân ngõ ra vật lý mà **không làm chậm hoặc khóa vòng quét PLC 10ms**.
 
 ---
 
@@ -167,7 +177,7 @@ typedef struct {
 #include "simpleplc_protocol_v2_0.h"
 #include "main.h"
 
-// Bảng ánh xạ cọc DO0..DO7 sang GPIO Pin & Timer Channel phần cứng
+// Bảng ánh xạ chân ngõ ra DO0..DO7 sang GPIO Pin & Timer Channel phần cứng
 typedef struct {
     GPIO_TypeDef* port;
     uint16_t      pin;
@@ -186,7 +196,7 @@ static const splc_mcu_do_mapping_t g_do_pins[8] = {
     { DO7_GPIO_Port, DO7_Pin, NULL,   0             }
 };
 
-void splc_direct_write_execute(const SPLC_DirectWriteBlock_t* cfg, uint32_t in_val, uint32_t param_val) {
+void splc_pulse_out_execute(const SPLC_PulseOutBlock_t* cfg, uint32_t in_val, uint32_t param_val) {
     if (cfg->target_pin >= 8) return;
     const splc_mcu_do_mapping_t* hw = &g_do_pins[cfg->target_pin];
 
@@ -227,7 +237,7 @@ void splc_direct_write_execute(const SPLC_DirectWriteBlock_t* cfg, uint32_t in_v
 
 ### 6. Bảng Tiêu Chí Nghiệm Thu Phần Sụn (Firmware Conformance Checklist)
 
-- [x] **Ánh xạ cọc DO0..DO7:** Firmware nhận diện chính xác các giá trị `target_pin` từ 0 đến 7 tương ứng với các cọc `DO0` đến `DO7` trên vỏ thiết bị.
-- [x] **Thời gian đáp ứng:** Độ trễ từ khi logic cập nhật đến khi cọc phần cứng đổi trạng thái nhỏ hơn một chu kỳ quét ($\le 10\text{ ms}$).
+- [x] **Ánh xạ chân ngõ ra DO0..DO7:** Firmware nhận diện chính xác các giá trị `target_pin` từ 0 đến 7 tương ứng với các chân ngõ ra `DO0` đến `DO7` trên vỏ thiết bị.
+- [x] **Thời gian đáp ứng:** Độ trễ từ khi logic cập nhật đến khi chân phần cứng đổi trạng thái nhỏ hơn một chu kỳ quét ($\le 10\text{ ms}$).
 - [x] **An toàn Fail-Safe:** Khi kích hoạt lệnh khẩn cấp hoặc mất kết nối Studio, ngõ ra tự động trở về mức an toàn được chỉ định trong `fail_safe_state`.
 - [x] **Không nghẽn chu kỳ quét:** Việc phát xung PWM cao tốc hoặc truyền chuỗi dữ liệu 800 kHz qua DMA không làm kéo dài thời gian quét danh định 10ms của bộ điều khiển.

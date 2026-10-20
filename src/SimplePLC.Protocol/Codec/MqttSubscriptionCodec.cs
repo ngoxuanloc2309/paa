@@ -43,6 +43,7 @@ public static class MqttSubscriptionCodec
 
         int failSafeVal = config.FailSafeAction switch
         {
+            MqttFailSafeAction.ResetToZero => 1,
             MqttFailSafeAction.ResetToDefault => 2,
             _ => 0
         };
@@ -129,7 +130,12 @@ public static class MqttSubscriptionCodec
         bool ignoreRetained = (control & ModbusRegisterMap.MqttSubControlBitIgnoreRetain) != 0;
         int failSafeCode = (control & ModbusRegisterMap.MqttSubControlFailSafeMask) >> ModbusRegisterMap.MqttSubControlFailSafeShift;
 
-        var failSafeAction = failSafeCode == 2 ? MqttFailSafeAction.ResetToDefault : MqttFailSafeAction.KeepLastValue;
+        var failSafeAction = failSafeCode switch
+        {
+            1 => MqttFailSafeAction.ResetToZero,
+            2 => MqttFailSafeAction.ResetToDefault,
+            _ => MqttFailSafeAction.KeepLastValue
+        };
 
         uint timeoutMs = RegisterCodec.DecodeUInt32(source.Slice(2, 2));
         ushort declaredPinCount = source[4];

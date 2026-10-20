@@ -22,7 +22,7 @@
   3. *Nạp Chứng chỉ TLS Root CA (0x0F00):* [`docs/firmware/SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md)
   4. *Đọc Cảm biến Modbus Master (0x1000):* [`docs/firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md)
   5. *Xuất Lệnh Chấp hành Modbus Master (0x1100):* [`docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md)
-  6. *Điều khiển Cọc DO Trực tiếp Addressable Bus (0x1200):* [`docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md)
+  6. *Khối Phát Xung & Chấp Hành Phần Cứng PULSE_OUT (0x1200):* [`docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md)
 
 ---
 
@@ -91,7 +91,7 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x0900..0x09FF` | **Runtime Tag Values** | R/W | FC03/FC16 | 256 regs (128 tags)| Giá trị nhị phân 32-bit của 128 Tags. Chỉ được phép ghi khi ở trạng thái `DIAG_CONTROL`. |
 | `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo dưỡng: REBOOT (1), FACTORY_RESET (2), CLEAR_RULES (3), CLEAR_RETAIN (4). |
 | `0x0A01..0x0A02` | **System Command Result** | R | FC03 | 2 regs (4 B) | Kết quả lệnh bảo dưỡng: `[0]=CommandStatus`, `[1]=ErrorCode`. |
-| `0x0A08..0x0A09` | **Hardware Capabilities** | R | FC03 | 2 regs (4 B) | Khai báo 32-bit năng lực phần cứng thực tế (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100). |
+| `0x0A08..0x0A09` | **Hardware Capabilities** | R | FC03 | 2 regs (4 B) | Khai báo 32-bit năng lực phần cứng thực tế (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100), WiFi ST67 (0x200). |
 | `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16| 5 regs (10 B) | Phân hệ chẩn đoán: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseMs` (0x0A23), `ErrorCode` (0x0A24). |
 | `0x0B00..0x0B3F` | **FB Timers (TON/TOF/TP)**| R/W | FC03/FC16 | 64 regs (128 B) | 8 Timers IEC 61131-3, mỗi khối 8 thanh ghi. Ghi cấu hình (Mode, PT) qua FC16; đọc viễn trắc (Status, ET) qua FC03. |
 | `0x0B40..0x0B7F` | **FB Counters (CTU/CTD)** | R/W | FC03/FC16 | 64 regs (128 B) | 8 Counters IEC 61131-3, mỗi khối 8 thanh ghi. Ghi cấu hình (Mode, PV, RetainTag) qua FC16; đọc viễn trắc (Status, CV) qua FC03. |
@@ -101,7 +101,8 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x0F00..0x0F43` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 68 regs (136 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`). |
 | `0x1000..0x10FF` | **Modbus Master Poller (MB_READ)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh Modbus RTU Master thu thập cảm biến (SPLC-SPEC-MBM-001). Mỗi kênh 64 thanh ghi (128 bytes) gồm: Header cấu hình (+0..+15) và 4 Dynamic Pin Bindings (+16..+63). |
 | `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
-| `0x1200..0x12FF` | **Direct Hardware Output (DIRECT_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối điều khiển cọc ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-DIRECT-WRITE-003, mỗi khối 16 registers = 32 bytes). |
+| `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
+| `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
 | `0x9000..0x9005` | **Staging Handshake** | R/W | FC03/FC16 | 6 regs (12 B) | Trạng thái bắt tay nạp Rule: Status, ErrorCode, StagedCount, ExpectedCRC, ActiveCount, ActiveCRC. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | RAM đệm nạp Rule mới (nạp theo từng block tối đa 120 thanh ghi). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và hoán đổi con trỏ bảng Rule. |
@@ -456,22 +457,29 @@ typedef struct SPLC_PACKED {
 
 ---
 
-### 3.14. `SPLC_DirectWriteBlock_t` (0x1200..0x12FF, SPLC-SPEC-DIRECT-WRITE-003)
-Cấu trúc tối đa 8 khối điều khiển cọc ngõ ra số vật lý DO0..DO7 (Addressable Bus UCS16703/WS2812B hoặc Direct Terminal). Mỗi khối chiếm 16 thanh ghi (32 bytes):
+### 3.14. `SPLC_PulseOutBlock_t` / `SPLC_DirectWriteBlock_t` (0x1200..0x12FF, SPLC-SPEC-PULSE-003)
+Cấu trúc tối đa 8 khối phát xung & chấp hành ngõ ra số phần cứng DO0..DO7 (Addressable Bus UCS16703/WS2812B, PWM Duty, PTO, hoặc Digital Output). Huy hiệu hiển thị Canvas: `PULSE`. Mỗi khối chiếm 16 thanh ghi (32 bytes):
 
 ```c
 #pragma pack(push, 1)
 
 typedef struct SPLC_PACKED {
-    uint16_t control_flags;       /* +0: Bit 0=Enabled, Bit 1=PulseMode, Bit 2=InvertPolarity, Bit 3=AddressableBus */
-    uint16_t target_terminal_id;  /* +1: Cọc ngõ ra vật lý (0=DO0 .. 7=DO7) */
-    uint16_t trig_tag_index;      /* +2: Tag kích hoạt (xung cạnh lên hoặc liên tục) */
-    uint16_t duration_ms;         /* +3: Độ rộng xung phát ra (ms, dùng khi PulseMode=1) */
-    uint16_t data_source_tag;     /* +4: Tag nguồn dữ liệu (ví dụ: RGB color hoặc Index) */
-    uint16_t dynamic_channel_tag; /* +5: Tag chọn kênh động (Addressable LED index 1..N) */
-    uint16_t max_channel_count;   /* +6: Số lượng kênh LED tối đa (ví dụ: 18 ô Sort-to-Light) */
-    uint16_t reserved[9];         /* +7..+15: Dự phòng (= 0x0000) */
-} SPLC_DirectWriteBlock_t;
+    uint8_t  target_pin;        /* +0 (Lo): Chỉ số chân ngõ ra số DO0..DO7 (0..7) */
+    uint8_t  mode;              /* +0 (Hi): 0=DO, 1=PWM, 2=PTO, 3=Bus */
+    uint16_t channel_count;     /* +1: Số kênh Bus hoặc số xung phát PTO */
+    uint8_t  flags;             /* +2 (Lo): Bit 0: IsActiveHigh, Bit 1: IsExclusive, Bit 2: FailSafe */
+    uint8_t  trigger_mode;      /* +2 (Hi): 0=RisingEdge, 1=Continuous */
+    uint16_t pulse_width_us;    /* +3: Độ rộng xung cơ sở (µs) */
+    uint32_t pwm_freq_hz;       /* +4..+5: Tần số sóng mang PWM (Hz, uint32 LE) */
+    uint8_t  duty_min;          /* +6 (Lo): Giới hạn Duty nhỏ nhất % (0..100) */
+    uint8_t  duty_max;          /* +6 (Hi): Giới hạn Duty lớn nhất % (0..100) */
+    uint16_t channel_tag_index; /* +7: TagIndex giá trị logic In / Duty % / Kênh */
+    uint16_t param_tag_index;   /* +8: TagIndex tham số phụ trợ (Enable En / Tần số / Màu RGB) */
+    uint32_t default_color_rgb; /* +9..+10: Tham số màu mặc định 24-bit RGB */
+    uint8_t  reserved[10];      /* +11..+15: Dự phòng căn chỉnh đúng 32 bytes */
+} SPLC_PulseOutBlock_t;
+
+typedef SPLC_PulseOutBlock_t SPLC_DirectWriteBlock_t; /* Alias tương thích ngược */
 
 #pragma pack(pop)
 ```
@@ -491,11 +499,59 @@ Bitmask định nghĩa (`SPLC_HardwareCapabilities_t` trong `simpleplc_protocol_
 * `0x0040` (`SPLC_CAP_SD_DATALOG`): Có khe cắm thẻ nhớ MicroSD.
 * `0x0080` (`SPLC_CAP_MQTT_TLS_CERT`): Hỗ trợ nạp chứng chỉ TLS/SSL qua struct chunk (`0x0F00`).
 * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master (`0x1000..0x11FF`).
+* `0x0200` (`SPLC_CAP_WIFI`): Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (`0x1300..0x13FF`).
 
 **Quy chuẩn Fail-Safe khi Deploy từ App (SimplePLC Studio):**
 1. **Bắt buộc đọc 0x0A08 trước khi Deploy:** App luôn gửi lệnh FC03 đọc `0x0A08..0x0A09` để xác minh cờ hỗ trợ trên vi điều khiển.
 2. **Fail-Fast (Chống nạp ảo):** Nếu sơ đồ có dùng khối MQTT (hoặc Broker Enabled) mà đọc `0x0A08` lỗi (Timeout, CRC) hoặc firmware thiếu cờ `0x0010 / 0x0020`, App lập tức **DỪNG NẠP**, trả về mã lỗi `UNSUPPORTED (0x0002)` và báo Deploy THẤT BẠI. App không nuốt lỗi, không bỏ rơi cấu hình MQTT và không commit `0xA000`.
 3. **Tương thích ngược bo mạch cũ:** Nếu sơ đồ không dùng MQTT và thiết bị cũ không có thanh ghi `0x0A08` (phản hồi Modbus Exception `0x02`), App cảnh báo và vẫn nạp logic FBD bình thường.
+
+---
+
+### 3.16. Phân Hệ Wi-Fi ST67 (`0x1300..0x13FF`, SPLC-SPEC-WIFI-004)
+Bao gồm 3 phân vùng thanh ghi chuyên biệt quản lý module Wi-Fi 6 ST67W611M1:
+
+```c
+#pragma pack(push, 1)
+
+/* 1. Cấu hình & Giám sát Live Status (0x1300..0x133F, 64 thanh ghi = 128 Bytes) */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;     /* Bit 0: Enable, Bit 1..2: Mode (0=STA, 1=AP), Bit 3: DHCP, Bit 4: Auto-reconnect */
+    uint16_t reserved_flags;    /* Dự phòng (0x0000) */
+    char     ssid[32];          /* Tên mạng (ASCII null-terminated) */
+    char     password[64];      /* Mật khẩu WPA2/WPA3 (ASCII null-terminated) */
+    uint32_t static_ip;         /* Static IPv4 (Network byte order / Big-Endian) */
+    uint32_t static_subnet;     /* Static Subnet Mask */
+    uint32_t static_gateway;    /* Static Gateway */
+    uint32_t static_dns;        /* Static DNS */
+    /* Phản hồi thời gian thực từ ST67 (RO) */
+    uint16_t conn_status;       /* 0=Idle, 1=Connecting, 2=Connected, 3=Got IP, 4=Auth Failed, 5=SSID Not Found */
+    int16_t  rssi_dbm;          /* Cường độ sóng thực tế (-100..0 dBm) */
+    uint32_t current_ip;        /* IP thực tế MCU đang sử dụng */
+    uint8_t  mac_addr[6];       /* Địa chỉ MAC phần cứng của module ST67 */
+} SPLC_WifiConfig_t;
+
+/* 2. Bắt tay Điều khiển Quét sóng (0x1340..0x134F, 16 thanh ghi = 32 Bytes) */
+typedef struct SPLC_PACKED {
+    uint16_t command;           /* W: 0x0001=START_SCAN, 0x0002=CONNECT, 0x0003=DISCONNECT, 0x0004=FORGET */
+    uint16_t scan_state;        /* R: 0=Idle, 1=Scanning, 2=Completed, 3=Failed */
+    uint16_t ap_found_count;    /* R: Số AP phát hiện được (0 .. 8) */
+    uint16_t error_code;        /* R: Mã lỗi chi tiết */
+    uint8_t  reserved[24];
+} SPLC_WifiScanControl_t;
+
+/* 3. Bản ghi 1 Access Point quét được (0x1350..0x13FF, 8 APs * 22 regs = 176 thanh ghi = 352 Bytes) */
+typedef struct SPLC_PACKED {
+    char    ssid[32];           /* Tên mạng Wi-Fi */
+    int16_t rssi_dbm;           /* Cường độ tín hiệu */
+    uint8_t auth_mode;          /* 0=Open, 1=WEP, 2=WPA, 3=WPA2, 4=WPA3 */
+    uint8_t channel;            /* Kênh phát sóng (1..14) */
+    uint8_t bssid[6];           /* Địa chỉ MAC trạm phát */
+    uint8_t reserved[2];
+} SPLC_WifiApInfo_t;
+
+#pragma pack(pop)
+```
 
 ---
 
@@ -666,7 +722,8 @@ Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio,
 - [ ] **CHKL-17: MQTT Inbound Subscribe Conformance (0x0D80)**: Lắng nghe bản tin JSON, giải mã key-value vào buffer RTOS Queue và cập nhật vào `g_tag_store` tại đầu chu kỳ quét 10ms. Tự động đưa chân tín hiệu về giá trị mặc định khi quá `failsafe_timeout_ms`.
 - [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging Conformance (0x0F00)**: Hỗ trợ nạp phân đoạn chứng chỉ số X.509 Root CA theo khối struct chuẩn 128 bytes (64 thanh ghi Modbus `SPLC_CertChunk_t`) qua Staging Buffer `0x0F00..0x0F3F`. Phản hồi ACK `0x0F40` chỉ số khối nhận thành công; kiểm tra CRC-16 của từng khối; chốt lưu Flash vĩnh viễn và nạp vào TLS stack khi nhận lệnh Atomic Commit `0x0F42` với giá trị `0xA5A5`.
 - [ ] **CHKL-19: Modbus Master RTU Sensor Poller Conformance (0x1000..0x10FF)**: Hỗ trợ nạp cấu hình 4 kênh Modbus Master tại `0x1000..0x10FF` (256 regs, SPLC-SPEC-MBM-001). Thực thi polling không nghẽn (Non-blocking RTOS Task), xác thực CRC-16 của frame phản hồi, phân giải 4 chuẩn Endianness (ABCD, CDAB, BADC, DCBA), cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét 10ms.
-- [ ] **CHKL-20: Direct Hardware Output Conformance (0x1200..0x12FF)**: Hỗ trợ nạp cấu hình điều khiển 8 cọc ngõ ra DO vật lý và dải đèn LED địa chỉ hóa (Addressable Bus UCS16703/WS2812B) theo đúng ICD SPLC-SPEC-DIRECT-WRITE-003.
+- [ ] **CHKL-20: Pulse Output & Hardware Actuator (0x1200..0x12FF)**: Hỗ trợ nạp cấu hình tối đa 8 khối `PULSE_OUT` (DO, PWM, PTO, Bus Addressable) điều khiển chân ngõ ra số phần cứng DO0..DO7 theo chuẩn ICD SPLC-SPEC-PULSE-003 (tương thích DIRECT_WRITE).
+- [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD). Khi MCU có chip ST67, BẮT BUỘC bật cờ `SPLC_CAP_WIFI (0x0200)` tại `0x0A08`. Thực thi quét sóng (START_SCAN `0x0001`) và kết nối mạng (CONNECT `0x0002`) qua FreeRTOS Worker Task nền không làm nghẽn (non-blocking) chu kỳ quét 10ms của PLC; nạp danh sách tối đa 8 AP lân cận vào `0x1350`; phản hồi đúng trạng thái `GOT_IP (3)` và IP thực tế tại `0x133C`. Tự động lưu SSID/Password vào Flash/NVS để tự kết nối lại sau khi mất nguồn.
 
 ---
 
@@ -724,3 +781,37 @@ Khi sinh chuỗi JSON từ `payload_template`:
 * Giới hạn `topic`: Tối đa 32 bytes (đã bao gồm byte null).
 * Giới hạn `payload_template`: Tối đa 128 bytes.
 * Giới hạn buffer xuất bản: Khuyến nghị tối thiểu 256 bytes để đủ dung lượng ghép chuỗi JSON hoàn chỉnh.
+
+### 10.4. Hướng Dẫn Tích Hợp Phân Hệ Wi-Fi ST67 (`0x1300..0x13FF`)
+Kỹ sư Firmware cần thực hiện các nguyên tắc cốt lõi sau để đảm bảo tính thời gian thực của PLC:
+1. **Khai báo năng lực phần cứng (`0x0A08`):**
+   * Khi MCU tích hợp chip ST67 (ST67W611M1), BẮT BUỘC gán bit `SPLC_CAP_WIFI = 0x0200` (Bit 9) vào `SPLC_HardwareCapabilities_t` tại `0x0A08`.
+2. **Không nghẽn luồng PLC (Non-Blocking FreeRTOS Task):**
+   * Quá trình quét sóng (`AT+CWLAP` / `ST67_Wifi_ScanAsync`) và kết nối WPA2/WPA3 (`AT+CWJAP` / `ST67_Wifi_ConnectAsync`) mất từ 1.5 đến 3 giây.
+   * Modbus RTU Slave nhận lệnh tại `0x1340` (START_SCAN `0x0001`, CONNECT `0x0002`, DISCONNECT `0x0003`, FORGET `0x0004`) chỉ đẩy message vào FreeRTOS Queue và lập tức trả về `0x0000` cho Host trong $< 10$ms.
+   * Một task nền riêng (`wifi_worker_task`) nhận event từ Queue, tương tác với ST67 qua SPI/UART, cập nhật `scan_state` (`0x1341`), `ap_found_count` (`0x1342`), nạp danh sách AP vào `0x1350`, và cập nhật `conn_status` (`0x133A`).
+3. **Lưu trữ cấu hình bền vững (NVS/Flash Retention):**
+   * Khi kết nối thành công (`conn_status = SPLC_WIFI_CONN_GOT_IP`), MCU tự động lưu `ssid` và `password` vào sector NVS nội bộ. Khi mất nguồn và khởi động lại, worker task tự động kết nối lại mạng mà không cần Host can thiệp.
+
+### 10.5. Quy Trình Nạp Cấu Hình Toàn Diện Đa Phân Hệ (Multi-Subsystem Staged Deployment Sequence)
+Kỹ sư Firmware cần lưu ý trình tự chuẩn mà SynaptiX IDE (C# App) sẽ giao tiếp khi người dùng nhấn nút **Deploy**:
+1. **Đọc Capabilities (`0x0A08`):** Host kiểm tra các bit năng lực (`SPLC_HardwareCapabilities_t`). Nếu dự án có MQTT, Timer, Wi-Fi,... mà MCU thiếu bit tương ứng, Host sẽ lập tức dừng và cảnh báo `UNSUPPORTED`.
+2. **Ghi cấu hình các phân hệ ngoại vi (Holding Registers):** Trước khi nạp bảng luật, Host gửi các gói lệnh Modbus FC16 ghi thẳng vào vùng Holding Registers của từng phân hệ:
+   * Timers (`0x0B00..0x0B3F`): 8 khối TON/TOF/TP (mỗi khối 8 regs).
+   * Counters (`0x0B40..0x0B7F`): 8 khối CTU/CTD (mỗi khối 8 regs).
+   * MQTT Broker (`0x0E00..0x0E5F`): 96 regs.
+   * MQTT PUB (`0x0C00..0x0D7F`): Tối đa 4 blocks $\times$ 96 regs.
+   * MQTT SUB (`0x0D80..0x0DFF`): Tối đa 2 blocks $\times$ 64 regs.
+   * Modbus Master Read (`0x1000..0x10FF`) & Write (`0x1100..0x11FF`): Tối đa 4 blocks $\times$ 64 regs.
+   * Pulse Out (`0x1200..0x12FF`): Tối đa 8 blocks $\times$ 16 regs.
+   * Wi-Fi ST67 (`0x1300..0x133F`): 64 regs.
+3. **Nạp luật vào Staging Buffer (`0x9010`):** Host ghi số lượng rule (`0x9002`) và nạp nhị phân từng mảng rule 16-regs vào `0x9010` (chia từng gói $\le 120$ regs).
+4. **Ghi CRC-16 (`0x9003`):** Host ghi mã kiểm tra CRC-16 của toàn bộ bảng luật.
+5. **Atomic Commit (`0xA000 = 0xA5A5`):** Host gửi FC06/FC16 ghi mã chốt ma thuật `0xA5A5`.
+6. **MCU Commit Handshake:** Firmware kiểm tra CRC của Staging Buffer. Nếu trùng khớp, Firmware thực hiện:
+   * Tráo con trỏ Active Rule Table tại ranh giới chu kỳ quét 10ms (`Atomic Swap`).
+   * Tăng biến phiên bản `active_rule_version` (`0xA001`) thêm 1.
+   * Lưu toàn bộ cấu hình mới vào Flash/NVS nội bộ.
+   * Bật cờ `app_configured=1` và xuất log gỡ lỗi qua UART: `app_configured=1 generation=N`.
+
+

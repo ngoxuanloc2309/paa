@@ -761,9 +761,44 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
 
     /// <summary>
     /// Đánh giá điều kiện Trigger dựa trên giá trị thời gian thực (cho Live Debug / Online Monitor).
+    /// Hỗ trợ đầy đủ phát hiện sườn lên (ON_RISE), sườn xuống (ON_FALL), biến thiên (ON_CHANGE),
+    /// so sánh ngưỡng và khung giờ RTC.
     /// </summary>
-    public bool EvaluateCondition(int value)
+    public bool EvaluateCondition(int value, int? prevValue = null)
     {
+        if (TriggerType == TriggerType.ON_RISE)
+        {
+            if (prevValue == null) return false;
+            return prevValue.Value == 0 && value != 0;
+        }
+
+        if (TriggerType == TriggerType.ON_FALL)
+        {
+            if (prevValue == null) return false;
+            return prevValue.Value != 0 && value == 0;
+        }
+
+        if (TriggerType == TriggerType.ON_CHANGE && !HasComparison)
+        {
+            if (prevValue == null) return false;
+            return prevValue.Value != value;
+        }
+
+        if (TriggerType == TriggerType.TIME_WINDOW)
+        {
+            var now = DateTime.Now;
+            int currentHhmm = now.Hour * 100 + now.Minute;
+            if (CompareOp == CompareOp.EQ)
+            {
+                return currentHhmm == (int)Math.Round(ThresholdLo);
+            }
+            int start = (int)Math.Round(ThresholdLo);
+            int end = (int)Math.Round(ThresholdHi);
+            return start <= end
+                ? (currentHhmm >= start && currentHhmm <= end)
+                : (currentHhmm >= start || currentHhmm <= end);
+        }
+
         if (HasComparison)
         {
             bool isFloat = Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
@@ -801,6 +836,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
                 _ => value != 0
             };
         }
+
         return value != 0;
     }
 }

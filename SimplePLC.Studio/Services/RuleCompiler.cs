@@ -579,6 +579,17 @@ public sealed class RuleCompiler : IRuleCompiler
                     break;
 
                 case DirectWriteNodeViewModel dw:
+                    int maxDo = targetProduct?.Resources?.DigitalOutputs ?? 8;
+                    if ((byte)dw.TargetPin >= maxDo)
+                    {
+                        studioDiagnostics.Add(new(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                            LocalizationService.Instance.IsVietnamese
+                                ? $"Chân ngõ ra DO{(byte)dw.TargetPin} vượt quá số lượng DO phần cứng hỗ trợ ({maxDo} DO)."
+                                : $"Hardware pin DO{(byte)dw.TargetPin} exceeds device limit ({maxDo} DO).",
+                            NodeId: dw.Id));
+                    }
+
                     ushort? dwTrigTag = null;
                     var dwTrigConn = connectionList.FirstOrDefault(c => c.Target?.Node == dw &&
                         (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||

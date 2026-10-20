@@ -121,4 +121,48 @@ public class DirectWriteConfigDialogViewModelTests
             Assert.False(string.IsNullOrWhiteSpace(item.Interpretation));
         }
     }
+
+    [Fact]
+    public void AvailableTargetPins_WhenHardwareHas2DigitalOutputs_OnlyExposesDo0AndDo1_AndClampsOutOfRangePin()
+    {
+        // Target hardware has only 2 DO (like Datalogger 4DI/2DO/4AI)
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do5, DirectWriteMode.DigitalOutput);
+        var vm = new DirectWriteConfigDialogViewModel(node, maxDigitalOutputs: 2);
+
+        Assert.Equal(2, vm.AvailableTargetPins.Count);
+        var pinNames = vm.AvailableTargetPins.Select(p => p.DisplayName).ToList();
+        Assert.Equal(["DO0", "DO1"], pinNames);
+
+        // Subtitle must reflect actual hardware DO range
+        Assert.Contains("DO0..DO1", vm.Subtitle);
+
+        // Out of range pin DO5 must be clamped to Do0
+        Assert.Equal(DirectWriteTargetPin.Do0, vm.TargetPin);
+        Assert.True(vm.HasAvailablePins);
+    }
+
+    [Fact]
+    public void AvailableTargetPins_WhenHardwareHas4DigitalOutputs_OnlyExposesDo0To3()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do2, DirectWriteMode.DigitalOutput);
+        var vm = new DirectWriteConfigDialogViewModel(node, maxDigitalOutputs: 4);
+
+        Assert.Equal(4, vm.AvailableTargetPins.Count);
+        var pinNames = vm.AvailableTargetPins.Select(p => p.DisplayName).ToList();
+        Assert.Equal(["DO0", "DO1", "DO2", "DO3"], pinNames);
+        Assert.Contains("DO0..DO3", vm.Subtitle);
+        Assert.Equal(DirectWriteTargetPin.Do2, vm.TargetPin);
+    }
+
+    [Fact]
+    public void AvailableTargetPins_WhenHardwareHas1DigitalOutput_ShowsOnlyDo0()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do0, DirectWriteMode.DigitalOutput);
+        var vm = new DirectWriteConfigDialogViewModel(node, maxDigitalOutputs: 1);
+
+        Assert.Single(vm.AvailableTargetPins);
+        Assert.Equal("DO0", vm.AvailableTargetPins[0].DisplayName);
+        Assert.Contains("DO0", vm.Subtitle);
+        Assert.DoesNotContain("DO0..", vm.Subtitle);
+    }
 }

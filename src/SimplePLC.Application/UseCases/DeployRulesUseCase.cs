@@ -70,7 +70,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         byte slaveId = 1,
         CancellationToken ct = default) =>
-        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, slaveId, ct);
+        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, slaveId, ct);
 
     public async Task<DeployRulesResult> ExecuteAsync(
         RuleTable ruleTable,
@@ -80,6 +80,8 @@ public sealed class DeployRulesUseCase
         MqttBrokerConfigDto? brokerConfig,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
+        IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
+        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
         byte slaveId = 1,
         CancellationToken ct = default,
         Action<string>? progressLogger = null)
@@ -106,7 +108,19 @@ public sealed class DeployRulesUseCase
         RuleDeployResult deployResult;
         try
         {
-            deployResult = await _ruleTableWriter.DeployRulesAsync(slaveId, dtos, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, ct, progressLogger).ConfigureAwait(false);
+            deployResult = await _ruleTableWriter.DeployRulesAsync(
+                slaveId,
+                dtos,
+                timers,
+                counters,
+                mqttConfigs,
+                brokerConfig,
+                mqttSubConfigs,
+                modbusMasterConfigs,
+                modbusMasterWriteConfigs,
+                directWriteConfigs,
+                ct,
+                progressLogger).ConfigureAwait(false);
         }
         finally
         {

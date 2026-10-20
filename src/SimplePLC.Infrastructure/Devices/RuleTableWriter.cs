@@ -69,7 +69,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, cancellationToken, null);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, cancellationToken, null);
 
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
@@ -79,9 +79,11 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
-        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
-        CancellationToken cancellationToken,
-        Action<string>? progressLogger)
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
+        IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
+        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        CancellationToken cancellationToken = default,
+        Action<string>? progressLogger = null)
     {
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
         // Giới hạn tối đa 3 khối (24 thanh ghi = 48 bytes payload, frame 57 bytes <= 64 bytes RX buffer của MCU)
@@ -313,6 +315,64 @@ public sealed class RuleTableWriter : IRuleTableWriter
             for (int j = blockCount; j < ModbusRegisterMap.ModbusMasterMaxBlocks; j++)
             {
                 ushort staleBlockAddr = ModbusRegisterMap.GetModbusMasterBlockAddress(j);
+                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 4.2 Nạp cấu hình Modbus RTU Master Write blocks (0x1100) nếu có
+        if (modbusMasterWriteConfigs != null && modbusMasterWriteConfigs.Count > 0)
+        {
+            int blockCount = Math.Min(modbusMasterWriteConfigs.Count, ModbusRegisterMap.ModbusMasterWriteMaxBlocks);
+            for (int i = 0; i < blockCount; i++)
+            {
+                var blockRegs = new ushort[ModbusRegisterMap.ModbusMasterRegistersPerBlock];
+                ModbusMasterCodec.EncodeWriteBlock(modbusMasterWriteConfigs[i], blockRegs);
+
+                ushort blockStartAddr = ModbusRegisterMap.GetModbusMasterWriteBlockAddress(i);
+                progressLogger?.Invoke($"[MB WRITE] Writing {blockRegs.Length} registers to 0x{blockStartAddr:X04} (Block {i})...");
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    blockStartAddr,
+                    blockRegs.AsMemory());
+
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Vô hiệu hóa các khối Modbus Master Write cũ không còn trong cấu hình
+            for (int j = blockCount; j < ModbusRegisterMap.ModbusMasterWriteMaxBlocks; j++)
+            {
+                ushort staleBlockAddr = ModbusRegisterMap.GetModbusMasterWriteBlockAddress(j);
+                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 4.3 Nạp cấu hình PULSE_OUT / Direct Write blocks (0x1200) nếu có
+        if (directWriteConfigs != null && directWriteConfigs.Count > 0)
+        {
+            int blockCount = Math.Min(directWriteConfigs.Count, ModbusRegisterMap.DirectWriteMaxBlocks);
+            for (int i = 0; i < blockCount; i++)
+            {
+                var blockRegs = new ushort[ModbusRegisterMap.DirectWriteRegistersPerBlock];
+                DirectWriteCodec.EncodeBlock(directWriteConfigs[i], blockRegs);
+
+                ushort blockStartAddr = ModbusRegisterMap.GetDirectWriteBlockAddress(i);
+                progressLogger?.Invoke($"[PULSE_OUT] Writing {blockRegs.Length} registers to 0x{blockStartAddr:X04} (Block {i})...");
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    blockStartAddr,
+                    blockRegs.AsMemory());
+
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Vô hiệu hóa các khối PULSE_OUT cũ không còn trong cấu hình
+            for (int j = blockCount; j < ModbusRegisterMap.DirectWriteMaxBlocks; j++)
+            {
+                ushort staleBlockAddr = ModbusRegisterMap.GetDirectWriteBlockAddress(j);
                 await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
             }
         }

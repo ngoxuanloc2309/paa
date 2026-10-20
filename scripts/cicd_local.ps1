@@ -154,11 +154,12 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.5.0)
-- **Hỗ trợ Đa chủng loại Thiết bị V2.0 (Multi-Class MCU Capability Profiles)**: Tương thích hoàn chỉnh với IoT Gateway (`0x0003`), Datalogger (`0x0002`), Controller (`0x0004`) và Remote I/O (`0x0001`).
-- **Chuẩn hóa Toàn diện Hệ sinh thái V2.0**: Chuẩn giao tiếp thuần `simpleplc_protocol_v2_0.h` (WireProfile 2, ProtocolVersion 2, RuleFormatVersion 7, Firmware 2.0.0), loại bỏ toàn bộ mã nguồn legacy.
-- **Phân hệ MQTT IIoT Toàn diện (Publish & Subscribe)**: Tích hợp đầy đủ MQTT Pub/Sub với các chế độ đóng gói công nghiệp, giải mã JSON an toàn (Atomic All-or-Nothing), hỗ trợ Dynamic Output Pins và 2 dự án ví dụ mẫu chuyên sâu.
-- **Tương thích & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,116 bài kiểm thử tự động trên toàn giải pháp.
+## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
+- **Chuẩn hóa khối PULSE_OUT (Direct Hardware Pulse Output)**: Chuẩn hóa tên gọi khối logic từ DIRECT_WRITE sang PULSE_OUT, badge Canvas 'PULSE', hỗ trợ đầy đủ 4 chế độ Digital Output, PWM Duty, Pulse Train Output (PTO) và Addressable LED bus.
+- **Phân hệ ST67 Wi-Fi Subsystem (0x1300..0x13FF)**: Hỗ trợ cấu hình Wi-Fi trọn vẹn, quét sóng Access Point trực tiếp, Live Telemetry và đối ứng chuẩn MCU SPLC_SPEC_WIFI_004_ICD.
+- **Quy trình nạp cấu hình đa phân hệ an toàn (Multi-Subsystem Staged Deploy)**: Đồng bộ trọn vẹn Holding Registers (0x1000 MB_READ, 0x1100 MB_WRITE, 0x1200 PULSE_OUT, 0x1300 Wi-Fi) trước Staging & Atomic Commit.
+- **Đồng bộ hóa MCU Conformance & Codecs**: Khớp nối hoàn chỉnh struct byte alignment C11 (SPLC_ModbusMasterReadBlock_t 128 bytes), mã hóa endianness chuẩn và 3 mức fail-safe MQTT.
+- **Tương thích & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,316 bài kiểm thử tự động trên toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

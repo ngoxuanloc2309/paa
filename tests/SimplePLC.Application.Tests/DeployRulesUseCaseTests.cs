@@ -117,4 +117,69 @@ public class DeployRulesUseCaseTests
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => useCase.ExecuteAsync(table, ct: cts.Token));
     }
+
+    [Fact]
+    public async Task ExecuteAsync_ThroughGateway_WithMqttAndTimers_DeploysAllHoldingRegisters()
+    {
+        // Arrange: Mô phỏng chính xác luồng Studio (DeployRulesUseCase -> RuleTableGateway -> RuleTableWriter)
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+
+        var gateway = new SimplePLC.Infrastructure.Gateways.RuleTableGateway(fakeClient);
+        var useCase = new DeployRulesUseCase(gateway);
+
+        var table = new RuleTable();
+        var di0 = _product.FindTagByName("DI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+        table.AddRule(new Rule(0, "R1", new TriggerModel(di0, TriggerKind.OnRise), new ActionModel(do0, ActionKind.SetTag, 1)));
+
+        var timers = new List<SimplePLC.Protocol.Dto.FbTimerRecordDto>
+        {
+            new() { Mode = SPLC_TimerMode.TON, PresetMs = 3000, RuleRef = 1 }
+        };
+
+        var mqttConfigs = new List<SimplePLC.Protocol.Dto.MqttTelemetryConfigDto>
+        {
+            new() { Topic = "factory/telemetry", IntervalMs = 500 }
+        };
+
+        var brokerConfig = new SimplePLC.Protocol.Dto.MqttBrokerConfigDto
+        {
+            Enabled = true,
+            Host = "10.0.0.1",
+            Port = 1883
+        };
+
+        var logs = new List<string>();
+
+        // Act
+        var result = await useCase.ExecuteAsync(
+            table,
+            timers: timers,
+            counters: null,
+            mqttConfigs: mqttConfigs,
+            brokerConfig: brokerConfig,
+            mqttSubConfigs: null,
+            modbusMasterConfigs: null,
+            slaveId: 1,
+            ct: default,
+            progressLogger: logs.Add);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.DeployedRuleCount);
+
+        // 1. Logs viễn trắc [CAPS] và [MQTT] phải được chuyển tiếp qua UseCase -> Gateway -> Writer
+        Assert.Contains(logs, l => l.Contains("[CAPS] Reading hardware capabilities at 0x0A08"));
+        Assert.Contains(logs, l => l.Contains("[MQTT PUB] Writing 96 registers to 0x0C00"));
+        Assert.Contains(logs, l => l.Contains("[MQTT Broker] Writing 96 registers to 0x0E00"));
+
+        // 2. Kiểm tra thanh ghi Timer 0x0B00 và MQTT 0x0C00 đã được ghi thực sự
+        var timerModeReg = await fakeClient.ReadHoldingRegistersAsync(1, (ushort)(ModbusRegisterMap.FbTimerTableBaseAddress + 1), 1);
+        Assert.Equal((ushort)SPLC_TimerMode.TON, timerModeReg[0]);
+
+        var mqttControlReg = await fakeClient.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttTelemetryTableBaseAddress, 1);
+        Assert.NotEqual(0, mqttControlReg[0]);
+    }
 }
+
