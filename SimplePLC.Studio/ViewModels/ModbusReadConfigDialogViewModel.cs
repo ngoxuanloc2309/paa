@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -20,6 +20,18 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 {
     public ModbusReadNodeViewModel Node { get; }
     public TagCatalogViewModel TagCatalog { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    private byte _portIndex;
+
+    public IReadOnlyList<OptionItem<byte>> AvailablePorts { get; } = new List<OptionItem<byte>>
+    {
+        new(0, "Cổng 1 (RS-485 #1)"),
+        new(1, "Cổng 2 (RS-485 #2)"),
+        new(2, "Cổng 3 (RS-485 #3)"),
+        new(3, "Cổng 4 (RS-485 #4)")
+    };
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -57,7 +69,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)")
     };
 
-    public string SummaryBadgeText => $"Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+    public string SummaryBadgeText => $"Port {PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
 
     public bool HasPins => Node.Pins.Count > 0;
     public bool HasNoPins => Node.Pins.Count == 0;
@@ -105,6 +117,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
 
+        _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
         _functionCode = node.FunctionCode;
         _startAddress = node.StartAddress;
@@ -218,8 +231,8 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         {
             IsSimulationSuccess = false;
             SimulationStatusMessage = isVi
-                ? "⚠️ Chưa có chân thanh ghi nào. Vui lòng thêm chân ở bảng bên trái."
-                : "⚠️ No register pins configured. Please add pins in the left table.";
+                ? "Chưa có chân thanh ghi nào. Vui lòng thêm chân ở bảng bên trái."
+                : "No register pins configured. Please add pins in the left table.";
             return;
         }
 
@@ -227,8 +240,8 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         {
             IsSimulationSuccess = false;
             SimulationStatusMessage = isVi
-                ? "⚠️ Vui lòng nhập chuỗi byte Hex phản hồi (hoặc nhấn 'Khung mẫu' để thử)."
-                : "⚠️ Please enter response hex frame (or click 'Sample Frame' to test).";
+                ? "Vui lòng nhập chuỗi byte Hex phản hồi (hoặc nhấn 'Khung mẫu' để thử)."
+                : "Please enter response hex frame (or click 'Sample Frame' to test).";
             return;
         }
 
@@ -236,8 +249,8 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         {
             IsSimulationSuccess = false;
             SimulationStatusMessage = isVi
-                ? $"❌ Chuỗi Hex không hợp lệ: {hexError}"
-                : $"❌ Invalid hex input: {hexError}";
+                ? $"Chuỗi Hex không hợp lệ: {hexError}"
+                : $"Invalid hex input: {hexError}";
             return;
         }
 
@@ -268,15 +281,15 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         {
             IsSimulationSuccess = true;
             SimulationStatusMessage = isVi
-                ? $"✔ Khung tin hợp lệ ({registers.Length} thanh ghi · CRC OK)! Đã giải mã: {string.Join(" | ", details)}"
-                : $"✔ Valid frame ({registers.Length} regs · CRC OK)! Decoded: {string.Join(" | ", details)}";
+                ? $"Khung tin hợp lệ ({registers.Length} thanh ghi · CRC OK)! Đã giải mã: {string.Join(" | ", details)}"
+                : $"Valid frame ({registers.Length} regs · CRC OK)! Decoded: {string.Join(" | ", details)}";
         }
         else
         {
             IsSimulationSuccess = false;
             SimulationStatusMessage = isVi
-                ? $"⚠️ Độ dài khung tin chỉ có {registers.Length} thanh ghi, không đủ cho tất cả các chân. Chi tiết: {string.Join(" | ", details)}"
-                : $"⚠️ Frame length is only {registers.Length} registers, insufficient for all pins. Details: {string.Join(" | ", details)}";
+                ? $"Độ dài khung tin chỉ có {registers.Length} thanh ghi, không đủ cho tất cả các chân. Chi tiết: {string.Join(" | ", details)}"
+                : $"Frame length is only {registers.Length} registers, insufficient for all pins. Details: {string.Join(" | ", details)}";
         }
     }
 
@@ -293,6 +306,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     public void Apply()
     {
         UpdateRegCountFromPins();
+        Node.PortIndex = PortIndex;
         Node.SlaveId = Math.Clamp(SlaveId, (byte)1, (byte)247);
         Node.FunctionCode = FunctionCode;
         Node.StartAddress = StartAddress;

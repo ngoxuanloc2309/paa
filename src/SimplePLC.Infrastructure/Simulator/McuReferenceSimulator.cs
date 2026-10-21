@@ -140,13 +140,25 @@ public sealed class McuReferenceSimulator
                        SPLC_HardwareCapabilities.RETENTIVE |
                        SPLC_HardwareCapabilities.RTC |
                        SPLC_HardwareCapabilities.ETHERNET |
+                       SPLC_HardwareCapabilities.WIFI |
                        SPLC_HardwareCapabilities.MQTT_PUB |
-                       SPLC_HardwareCapabilities.MQTT_SUB;
+                       SPLC_HardwareCapabilities.MQTT_SUB |
+                       SPLC_HardwareCapabilities.MODBUS_MASTER |
+                       SPLC_HardwareCapabilities.MODBUS_TCP |
+                       SPLC_HardwareCapabilities.SD_DATALOG;
             Span<ushort> capsRegs = stackalloc ushort[2];
             RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
             _memory.InternalWrite(ModbusRegisterMap.HardwareCapabilitiesAddress, capsRegs[0]);
             _memory.InternalWrite((ushort)(ModbusRegisterMap.HardwareCapabilitiesAddress + 1), capsRegs[1]);
         }
+    }
+
+    public void SetHardwareCapabilities(SPLC_HardwareCapabilities caps)
+    {
+        Span<ushort> capsRegs = stackalloc ushort[2];
+        RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
+        _memory.InternalWrite(ModbusRegisterMap.HardwareCapabilitiesAddress, capsRegs[0]);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.HardwareCapabilitiesAddress + 1), capsRegs[1]);
     }
 
     private void InitializeDefaultState()

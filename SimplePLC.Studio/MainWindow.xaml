@@ -1,4 +1,4 @@
-<Window x:Class="SimplePLC.Studio.MainWindow"
+﻿<Window x:Class="SimplePLC.Studio.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
@@ -64,6 +64,7 @@
         <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
         <KeyBinding Key="W" Modifiers="Ctrl+Shift" Command="{Binding OpenWifiConfigCommand}" />
+        <KeyBinding Key="B" Modifiers="Ctrl+Shift" Command="{Binding OpenModbusPortConfigCommand}" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
     </Window.InputBindings>
     
@@ -218,6 +219,7 @@
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuMqttBrokerConfig]}" Command="{Binding OpenMqttBrokerConfigCommand}" InputGestureText="Ctrl+Shift+M" Icon="📡" />
                 <MenuItem Header="{Binding Loc[MenuWifiConfig]}" Command="{Binding OpenWifiConfigCommand}" InputGestureText="Ctrl+Shift+W" Icon="📶" />
+                <MenuItem Header="{Binding Loc[MenuModbusPortConfig]}" Command="{Binding OpenModbusPortConfigCommand}" InputGestureText="Ctrl+Shift+B" Icon="🔄" />
                 <Separator />
                 <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}" Icon="⏰" />
                 <Separator />

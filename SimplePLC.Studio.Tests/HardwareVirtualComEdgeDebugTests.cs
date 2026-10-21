@@ -1,4 +1,4 @@
-using System.IO.Ports;
+﻿using System.IO.Ports;
 using SimplePLC.Application.Abstractions;
 using SimplePLC.Application.Enums;
 using SimplePLC.Application.Models;
@@ -45,26 +45,35 @@ public class HardwareVirtualComEdgeDebugTests : IDisposable
         using var cts = new CancellationTokenSource();
         SerialPort? serverPort = null;
         IUsbCdcTransport? testTransport = null;
-        DeviceEndpoint endpoint;
+        DeviceEndpoint endpoint = new UsbCdcEndpoint("COM_VIRTUAL");
 
+        bool useRealCom = false;
         if (hasComPair)
         {
-            // Run MCU on COM9, App on COM7
-            serverPort = new SerialPort("COM9", 115200, Parity.None, 8, StopBits.One)
+            try
             {
-                DtrEnable = true,
-                RtsEnable = true,
-                ReadTimeout = 500,
-                WriteTimeout = 500
-            };
-            serverPort.Open();
-            _ = Task.Run(() => mcuServer.RunAsync(serverPort.BaseStream, serverPort.BaseStream, cts.Token));
-
-            endpoint = new UsbCdcEndpoint("COM7");
+                serverPort = new SerialPort("COM9", 115200, Parity.None, 8, StopBits.One)
+                {
+                    DtrEnable = true,
+                    RtsEnable = true,
+                    ReadTimeout = 500,
+                    WriteTimeout = 500
+                };
+                serverPort.Open();
+                _ = Task.Run(() => mcuServer.RunAsync(serverPort.BaseStream, serverPort.BaseStream, cts.Token));
+                endpoint = new UsbCdcEndpoint("COM7");
+                useRealCom = true;
+            }
+            catch
+            {
+                serverPort?.Dispose();
+                serverPort = null;
+                useRealCom = false;
+            }
         }
-        else
+
+        if (!useRealCom)
         {
-            // Fallback in-memory Virtual COM transport if physical COM7/COM9 loopback is absent
             var vTransport = new VirtualComMcuTransport(mcuServer) { MaxPacketSize = 64 };
             testTransport = vTransport;
             endpoint = new UsbCdcEndpoint("COM_VIRTUAL");

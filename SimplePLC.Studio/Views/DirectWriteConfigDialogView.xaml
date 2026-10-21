@@ -431,7 +431,6 @@
                                     <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="7,5" Margin="0,0,0,6">
                                         <DockPanel LastChildFill="True">
                                             <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,7,0" DockPanel.Dock="Left" />
-                                            <Ellipse Width="6" Height="6" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" DockPanel.Dock="Left" />
                                             <TextBlock Text="{Binding SimStatusMessage}" FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" TextWrapping="Wrap" VerticalAlignment="Center" />
                                         </DockPanel>
                                     </Border>

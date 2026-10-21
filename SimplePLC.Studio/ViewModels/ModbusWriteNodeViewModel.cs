@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.ObjectModel;
@@ -19,6 +19,13 @@ namespace SimplePLC.Studio.ViewModels;
 /// </summary>
 public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
 {
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(PortDisplayName))]
+    private byte _portIndex = 0;
+
+    public string PortDisplayName => $"RS-485 #{PortIndex + 1}";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NodeInfoSummary))]

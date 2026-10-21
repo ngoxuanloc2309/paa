@@ -1,4 +1,4 @@
-using SimplePLC.Application.Abstractions;
+﻿using SimplePLC.Application.Abstractions;
 using SimplePLC.Infrastructure.Abstractions;
 using SimplePLC.Infrastructure.Transport;
 using SimplePLC.Protocol.Codec;
@@ -69,7 +69,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, cancellationToken, null);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, cancellationToken, null);
 
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
@@ -82,6 +82,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null)
     {
@@ -380,6 +381,23 @@ public sealed class RuleTableWriter : IRuleTableWriter
             {
                 ushort staleBlockAddr = ModbusRegisterMap.GetDirectWriteBlockAddress(j);
                 await _client.WriteMultipleRegistersAsync(slaveId, staleBlockAddr, zeroPulseBlock, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // 4.4 Nạp cấu hình Cổng RS-485 Modbus Master (0x1400) nếu có (SPLC-SPEC-MBM-003)
+        if (modbusPortConfigs != null && modbusPortConfigs.Count > 0)
+        {
+            var portRegs = new ushort[ModbusRegisterMap.ModbusPortConfigTableTotalLength];
+            ModbusPortConfigCodec.EncodeAllPorts(modbusPortConfigs, portRegs);
+
+            progressLogger?.Invoke($"[RS-485 Ports] Writing {portRegs.Length} registers to 0x{ModbusRegisterMap.ModbusPortConfigBaseAddress:X04} (Multi-Port Config)...");
+            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                ModbusRegisterMap.ModbusPortConfigBaseAddress,
+                portRegs.AsMemory());
+
+            foreach (var (chunkAddress, chunkMemory) in chunks)
+            {
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
             }
         }
 

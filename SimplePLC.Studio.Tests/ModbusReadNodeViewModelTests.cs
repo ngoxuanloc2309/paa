@@ -14,16 +14,14 @@ public class ModbusReadNodeViewModelTests
         Assert.Equal("MB_READ", node.Title);
         Assert.Contains("MB_READ", node.SummaryText);
         Assert.Equal("ID:1 | FC03", node.NodeInfoSummary);
-        Assert.Single(node.InputConnectors);
-        Assert.Equal("EN", node.InputConnectors[0].Title);
-        Assert.Equal("PinTooltipMbEn", node.InputConnectors[0].TooltipKey);
+        Assert.Empty(node.InputConnectors);
 
         Assert.Equal(3, node.OutputConnectors.Count);
         Assert.Equal("Valid", node.OutputConnectors[0].Title);
         Assert.Equal("PinTooltipMbValid", node.OutputConnectors[0].TooltipKey);
-        Assert.Equal("Err", node.OutputConnectors[1].Title);
+        Assert.Equal("Error", node.OutputConnectors[1].Title);
         Assert.Equal("PinTooltipMbErr", node.OutputConnectors[1].TooltipKey);
-        Assert.Equal("Err_Code", node.OutputConnectors[2].Title);
+        Assert.Equal("ErrCode", node.OutputConnectors[2].Title);
         Assert.Equal("PinTooltipMbErrCode", node.OutputConnectors[2].TooltipKey);
     }
 
@@ -106,7 +104,7 @@ public class ModbusReadNodeViewModelTests
     public void StatusPillText_ReflectsStateTransitions_AndErrors()
     {
         var node = new ModbusReadNodeViewModel { PollIntervalMs = 500 };
-        Assert.Equal("POLL (500ms)", node.StatusPillText);
+        Assert.Equal("READY", node.StatusPillText);
         Assert.False(node.IsErrorActive);
 
         node.PollCount = 42;
@@ -179,14 +177,13 @@ public class ModbusReadNodeViewModelTests
     }
 
     [Fact]
-    public void ReadMode_SwitchingBetweenCyclicAndTrigger_SwapsEnAndTrigConnectors()
+    public void ReadMode_SwitchingBetweenCyclicAndTrigger_ShowsTrigOnlyInTriggerMode()
     {
         var node = new ModbusReadNodeViewModel { PollIntervalMs = 500 };
         Assert.Equal(ModbusReadMode.Cyclic, node.ReadMode);
-        Assert.Equal("500ms", node.ReadModeSummaryText);
+        Assert.Equal("Cyclic (500ms)", node.ReadModeSummaryText);
         Assert.False(node.IsTriggerMode);
-        Assert.Single(node.InputConnectors);
-        Assert.Equal("EN", node.InputConnectors[0].Title);
+        Assert.Empty(node.InputConnectors);
 
         // Switch to OnTriggerRisingEdge
         node.ReadMode = ModbusReadMode.OnTriggerRisingEdge;
@@ -198,10 +195,9 @@ public class ModbusReadNodeViewModelTests
 
         // Switch back to Cyclic
         node.ReadMode = ModbusReadMode.Cyclic;
-        Assert.Equal("500ms", node.ReadModeSummaryText);
+        Assert.Equal("Cyclic (500ms)", node.ReadModeSummaryText);
         Assert.False(node.IsTriggerMode);
-        Assert.Single(node.InputConnectors);
-        Assert.Equal("EN", node.InputConnectors[0].Title);
+        Assert.Empty(node.InputConnectors);
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Application.Models;
 using SimplePLC.Studio.Services;
@@ -437,6 +437,8 @@ public partial class MainViewModel : ObservableObject
             LogicEditorVM.ClearSimVisuals();
             UpdateConnectionStatus();
             NotifyAllDeviceCommands();
+            // Khôi phục profile tự do (Sandbox Design Mode) để người dùng mở khóa toàn bộ các khối khi ngoại tuyến
+            TagCatalogVM.SyncWithProductDefinition(TagCatalogVM.BuildProductFromCurrentTags());
             return;
         }
 
@@ -1170,6 +1172,20 @@ public partial class MainViewModel : ObservableObject
     {
         var vm = new MqttBrokerConfigViewModel(CurrentProjectMetadata);
         var dialog = new Views.MqttBrokerConfigDialogView(vm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            IsProjectDirty = true;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenModbusPortConfig()
+    {
+        var vm = new ModbusPortConfigViewModel(CurrentProjectMetadata);
+        var dialog = new Views.ModbusPortConfigDialogView(vm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
         };

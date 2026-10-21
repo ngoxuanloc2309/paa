@@ -26,6 +26,7 @@ public sealed class HardwareDevicePreset
     public ushort RetentiveRegisters { get; init; } = 32;
     public ushort Counters { get; init; } = 8;
     public ushort MaxRules { get; init; } = 100;
+    public SPLC_HardwareCapabilities HardwareCapabilities { get; init; } = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE;
 
     public int TotalTags => DigitalInputs + DigitalOutputs + AnalogInputs + VirtualFlags + VirtualRegisters + RetentiveRegisters + Counters;
 
@@ -48,7 +49,8 @@ public sealed class HardwareDevicePreset
             wireProfile: DeviceProfileBuilder.WireProfileV2,
             maxRules: MaxRules,
             runtimeTagCount: (ushort)resources.TotalTags,
-            resources: resources);
+            resources: resources,
+            hardwareCapabilities: HardwareCapabilities);
     }
 
     /// <summary>
@@ -72,7 +74,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 8,
-            MaxRules = 100
+            MaxRules = 100,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
         },
 
         // 2. REMOTE_IO - Compact 4DI / 4DO
@@ -91,7 +94,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 16,
             RetentiveRegisters = 16,
             Counters = 4,
-            MaxRules = 50
+            MaxRules = 50,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
         },
 
         // 3. REMOTE_IO - Discrete 8DI / 8DO
@@ -110,7 +114,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 8,
-            MaxRules = 100
+            MaxRules = 100,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
         },
 
         // 4. DATALOGGER - Sensor Hub 4DI / 2DO / 4AI
@@ -129,7 +134,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 4,
-            MaxRules = 50
+            MaxRules = 50,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.SD_DATALOG
         },
 
         // 5. GATEWAY - RS485 / Ethernet
@@ -148,7 +154,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 4,
-            MaxRules = 50
+            MaxRules = 50,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_TCP
         },
 
         // 6. CONTROLLER - Programmable Controller
@@ -167,7 +174,8 @@ public sealed class HardwareDevicePreset
             VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 8,
-            MaxRules = 100
+            MaxRules = 100,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.SD_DATALOG
         }
     };
 }

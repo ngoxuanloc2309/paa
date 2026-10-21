@@ -406,17 +406,18 @@ typedef struct SPLC_PACKED {
 
 typedef struct SPLC_PACKED {
     /* --- HEADER (16 thanh ghi = 32 Bytes tại Offset +0..+15) --- */
-    uint16_t control_flags;     /* +0: Bit 0 = Enabled (1=Bật, 0=Tắt) */
+    uint16_t control_flags;     /* +0: Bit 0 = Enabled (1=Bật, 0=Tắt), Bit 1 = Mode (0=Cyclic, 1=OnTriggerRisingEdge) */
     uint16_t fc_and_slave_id;   /* +1: High Byte = FunctionCode, Low Byte = SlaveID (1..247) */
     uint16_t start_address;     /* +2: Starting Address trên Slave */
     uint16_t reg_count;         /* +3: Quantity of Registers (1..125) */
-    uint32_t poll_interval_ms;  /* +4..+5: Chu kỳ quét (ms), uint32 Big-Endian */
+    uint32_t poll_interval_ms;  /* +4..+5: Chu kỳ quét (ms), uint32 Big-Endian (khi ở Cyclic) */
     uint32_t timeout_ms;        /* +6..+7: Thời gian chờ phản hồi tối đa (ms) */
     uint16_t valid_tag_index;   /* +8: Tag nhận xung Valid (0xFFFF = Unmapped) */
     uint16_t error_tag_index;   /* +9: Tag nhận cờ Err (0xFFFF = Unmapped) */
     uint16_t err_code_tag_index;/* +10: Tag nhận mã lỗi ErrCode (1=Timeout, 2=CRC, 3=Exc, 4=Malformed) */
     uint16_t pin_count;         /* +11: Số lượng chân cấu hình (0..4) */
-    uint16_t reserved[4];       /* +12..+15: Dự phòng (= 0x0000) */
+    uint16_t trig_tag_index;    /* +12: Tag nhận xung kích hoạt sườn lên (0xFFFF = Unmapped / Chế độ Cyclic) */
+    uint16_t reserved[3];       /* +13..+15: Dự phòng (= 0x0000) */
 
     /* --- PINS (48 thanh ghi = 96 Bytes tại Offset +16..+63) --- */
     SPLC_ModbusMasterPinBinding_t pins[4];

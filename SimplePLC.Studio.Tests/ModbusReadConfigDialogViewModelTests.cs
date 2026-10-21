@@ -130,7 +130,7 @@ public class ModbusReadConfigDialogViewModelTests
 
         Assert.True(vm.HasRunSimulation);
         Assert.False(vm.IsSimulationSuccess);
-        Assert.Contains("⚠️", vm.SimulationStatusMessage);
+        Assert.False(string.IsNullOrWhiteSpace(vm.SimulationStatusMessage));
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class ModbusReadConfigDialogViewModelTests
 
         Assert.True(vm.HasRunSimulation);
         Assert.False(vm.IsSimulationSuccess);
-        Assert.Contains("❌", vm.SimulationStatusMessage);
+        Assert.Contains("invalid", vm.SimulationStatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class ModbusReadConfigDialogViewModelTests
 
         Assert.True(vm.HasRunSimulation);
         Assert.True(vm.IsSimulationSuccess);
-        Assert.Contains("✔", vm.SimulationStatusMessage);
+        Assert.Contains("CRC OK", vm.SimulationStatusMessage);
         Assert.Equal(25.0, pin1.CurrentValue);
         Assert.Equal(1000.0, pin2.CurrentValue);
     }

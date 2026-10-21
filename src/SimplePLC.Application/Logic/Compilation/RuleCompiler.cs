@@ -1,4 +1,4 @@
-namespace SimplePLC.Application.Logic.Compilation;
+﻿namespace SimplePLC.Application.Logic.Compilation;
 
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Enums;
@@ -172,6 +172,7 @@ public sealed class RuleCompiler : IRuleCompiler
             {
                 NodeId = mbNode.Id,
                 BlockIndex = i,
+                PortIndex = mbData.PortIndex,
                 Enabled = true,
                 SlaveId = mbData.SlaveId,
                 FunctionCode = mbData.FunctionCode,
@@ -196,6 +197,7 @@ public sealed class RuleCompiler : IRuleCompiler
             {
                 NodeId = mbNode.Id,
                 BlockIndex = i,
+                PortIndex = mbData.PortIndex,
                 Enabled = true,
                 SlaveId = mbData.SlaveId,
                 WriteMode = mbData.WriteMode,

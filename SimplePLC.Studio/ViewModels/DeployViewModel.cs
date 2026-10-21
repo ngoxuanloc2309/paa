@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using SimplePLC.Application.Models;
@@ -6,6 +6,7 @@ using SimplePLC.Application.UseCases;
 using SimplePLC.Domain.Models;
 using SimplePLC.Domain.Validation;
 using SimplePLC.Protocol.Dto;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
@@ -599,6 +600,25 @@ public partial class DeployViewModel : ObservableObject
             ProgressPercent = 45;
             AppendLog(LocalizationService.Tr("DeployLogStaging"));
 
+            // Build Modbus Ports config if available (SPLC-SPEC-MBM-003)
+            IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null;
+            if (meta?.ModbusPorts != null && meta.ModbusPorts.Count > 0)
+            {
+                modbusPortConfigs = meta.ModbusPorts.Select(p => new ModbusPortConfigDto
+                {
+                    PortIndex = p.PortIndex,
+                    PortName = p.PortName,
+                    Enabled = p.Enabled,
+                    BaudRate = p.BaudRate,
+                    DataBits = p.DataBits,
+                    Parity = Enum.TryParse<ModbusParity>(p.Parity, true, out var par) ? par : ModbusParity.None,
+                    StopBits = p.StopBits,
+                    ResponseTimeoutMs = p.ResponseTimeoutMs,
+                    InterFrameDelayMs = p.InterFrameDelayMs,
+                    RetryCount = p.RetryCount
+                }).ToList();
+            }
+
             var modbusWriteConfigs = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
             var directWriteConfigs = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs;
             var deployUseCase = GetDeployUseCase();
@@ -612,6 +632,7 @@ public partial class DeployViewModel : ObservableObject
                 modbusMasterConfigs,
                 modbusWriteConfigs,
                 directWriteConfigs,
+                modbusPortConfigs,
                 slaveId: 1,
                 ct: default,
                 progressLogger: AppendLog).ConfigureAwait(true);

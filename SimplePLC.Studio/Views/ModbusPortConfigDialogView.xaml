@@ -1,0 +1,246 @@
+﻿<Window x:Class="SimplePLC.Studio.Views.ModbusPortConfigDialogView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+        xmlns:viewmodels="clr-namespace:SimplePLC.Studio.ViewModels"
+        Title="{Binding [ModbusPortDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
+        Width="840" Height="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#F8FAFC"
+        Icon="../Assets/app.png"
+        FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.ClearTypeHint="Enabled">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Styles/Colors.xaml" />
+                <ResourceDictionary Source="../Styles/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <!-- 0. Header -->
+                <RowDefinition Height="Auto" />
+                <!-- 1. Content Body -->
+                <RowDefinition Height="*" />
+                <!-- 2. Footer Action -->
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 0. Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Width="44" Height="44" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
+                    <TextBlock Text="🔄" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding [ModbusPortDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                               FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="{Binding [ModbusPortDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
+                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <!-- 1. Content Body: Left Port Selector & Right Settings Editor -->
+            <Grid Grid.Row="1" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column: Port List -->
+                <Border Grid.Column="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding [ModbusPortSelectorLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="4,4,4,8" />
+                        <ListBox ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}" 
+                                 BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="4" />
+                                    <Setter Property="Margin" Value="0,0,0,6" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="ItemBorder" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8">
+                                                    <ContentPresenter />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#F1F5F9" />
+                                                        <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#CBD5E1" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#EFF6FF" />
+                                                        <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3B82F6" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B" />
+                                            <Border Grid.Column="1" Background="{Binding StatusPillColor}" CornerRadius="2" Padding="5,1">
+                                                <TextBlock Text="{Binding StatusPill}" FontSize="9.5" FontWeight="Bold" Foreground="White" />
+                                            </Border>
+                                        </Grid>
+                                        <TextBlock Grid.Row="1" Text="{Binding SummaryBadge}" FontSize="10" Foreground="#64748B" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+
+                <!-- Right Column: Port Details Editor -->
+                <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16">
+                    <Grid DataContext="{Binding SelectedPort}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Header Details -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                            <CheckBox Grid.Column="1" Content="{Binding [ModbusPortEnabledLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                      IsChecked="{Binding Enabled}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Separator Grid.Row="1" Background="#E2E8F0" Margin="0,0,0,12" />
+
+                        <!-- Form Parameters -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <Grid Margin="0,0,4,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Port Name & Baud Rate -->
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortNameLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding PortName, UpdateSourceTrigger=PropertyChanged}" MaxLength="12" Height="26" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortBaudRateLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding DataContext.AvailableBaudRates, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedItem="{Binding BaudRate}" Height="26" />
+                                </StackPanel>
+
+                                <!-- Row 1: Parity & Stop Bits -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortParityLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding DataContext.AvailableParities, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedItem="{Binding Parity}" Height="26" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortStopBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding DataContext.AvailableStopBits, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedItem="{Binding StopBits}" Height="26" />
+                                </StackPanel>
+
+                                <!-- Row 2: Data Bits & Retry Count -->
+                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortDataBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding DataContext.AvailableDataBits, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedItem="{Binding DataBits}" Height="26" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortRetriesLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding RetryCount, UpdateSourceTrigger=PropertyChanged}" Height="26" />
+                                </StackPanel>
+
+                                <!-- Row 3: Timeout & Inter-Frame Delay -->
+                                <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortTimeoutLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding ResponseTimeoutMs, UpdateSourceTrigger=PropertyChanged}" Height="26" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding [ModbusPortDelayLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding InterFrameDelayMs, UpdateSourceTrigger=PropertyChanged}" Height="26" />
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Reset to defaults button -->
+                        <Button Grid.Row="3" Content="Khôi phục mặc định cổng này" 
+                                Command="{Binding DataContext.ResetDefaultsCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                HorizontalAlignment="Left" Style="{StaticResource SecondaryButtonStyle}" Height="26" Padding="10,2" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 2. Footer Action -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{Binding SelectedPort.SummaryBadge}" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" />
+
+                <Button Grid.Column="1" Content="{Binding [ModbusPortApplyBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                        Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="28" Padding="16,4" Margin="0,0,8,0" />
+
+                <Button Grid.Column="2" Content="{Binding [ModbusPortCloseBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                        Command="{Binding CancelCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="28" Padding="14,4" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

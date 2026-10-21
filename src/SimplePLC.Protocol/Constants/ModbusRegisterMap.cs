@@ -1,4 +1,4 @@
-namespace SimplePLC.Protocol.Constants;
+﻿namespace SimplePLC.Protocol.Constants;
 
 /// <summary>
 /// Nguồn chân lý duy nhất (R3) cho bản đồ địa chỉ thanh ghi Modbus V1 theo Data Contract V1.7.
@@ -277,6 +277,10 @@ public static class ModbusRegisterMap
     public const int ModbusMasterPinLabelMaxChars = 12;
     public const ushort ModbusMasterTableTotalLength = ModbusMasterMaxBlocks * ModbusMasterRegistersPerBlock; // 256 registers
 
+    public const ushort ModbusMasterControlPortMask = 0x00F0;
+    public const int ModbusMasterControlPortShift = 4;
+    public const int ModbusMasterReadHeaderPortIndexOffset = 14;
+
     public static ushort GetModbusMasterBlockAddress(int blockIndex) =>
         (ushort)(ModbusMasterTableBaseAddress + (blockIndex * ModbusMasterRegistersPerBlock));
 
@@ -371,6 +375,25 @@ public static class ModbusRegisterMap
             throw new ArgumentOutOfRangeException(nameof(apIndex), $"AP index must be between 0 and {WifiMaxScanAps - 1}.");
 
         return (ushort)(WifiScanTableBaseAddress + (apIndex * WifiRegistersPerAp));
+    }
+
+    // ==========================================
+    // 2.10 PHÂN VÙNG CẤU HÌNH CỔNG RS-485 MODBUS MASTER (0x1400 - 0x143F)
+    // SPLC-SPEC-MBM-003: 4 Ports x 16 Registers = 64 Registers (128 Bytes)
+    // ==========================================
+    public const ushort ModbusPortConfigBaseAddress = 0x1400;
+    public const int ModbusPortConfigRegistersPerPort = 16;
+    public const int ModbusPortConfigBytesPerPort = 32;
+    public const int ModbusPortConfigMaxPorts = 4;
+    public const ushort ModbusPortConfigTableTotalLength = ModbusPortConfigMaxPorts * ModbusPortConfigRegistersPerPort; // 64 registers
+    public const int ModbusPortNameMaxChars = 12;
+
+    public static ushort GetModbusPortConfigAddress(int portIndex)
+    {
+        if (portIndex < 0 || portIndex >= ModbusPortConfigMaxPorts)
+            throw new ArgumentOutOfRangeException(nameof(portIndex), $"Port index must be between 0 and {ModbusPortConfigMaxPorts - 1}.");
+
+        return (ushort)(ModbusPortConfigBaseAddress + (portIndex * ModbusPortConfigRegistersPerPort));
     }
 
     // ==========================================

@@ -1,4 +1,4 @@
-# SimplePLC Engineering Documentation (Tài Liệu Kỹ Thuật Dự Án)
+﻿# SimplePLC Engineering Documentation (Tài Liệu Kỹ Thuật Dự Án)
 
 Chào mừng đến với cổng tài liệu kỹ thuật chính thức của **SimplePLC / SynaptiX IDE Platform V2.0**.  
 Toàn bộ tài liệu được chuẩn hóa, phân loại rõ ràng theo từng lĩnh vực chuyên môn (User Manuals, Architecture, Firmware Specs, Wire Contracts, Solutions & Proposals, Design Audits, Hardware Testing, và Design Presentations).
@@ -34,6 +34,11 @@ Tài liệu hướng dẫn trực quan dành cho Kỹ sư Vận hành, Tích h�
 * 🇻🇳 [`SYNAPTIX_IDE_USER_MANUAL_VI.md`](SYNAPTIX_IDE_USER_MANUAL_VI.md) | 📄 [`SynaptiX_IDE_User_Manual_VI.docx`](SynaptiX_IDE_User_Manual_VI.docx): Hướng dẫn sử dụng IDE chi tiết Tiếng Việt (Tổng quan, Cài đặt, Logic Editor FBD, Quản lý Tag/Rule, Cấu hình IIoT MQTT, Khối Modbus Master `MB_READ`, Đồng bộ RTC, Chẩn đoán Diag, AI Copilot).
 * 🇬🇧 [`SYNAPTIX_IDE_USER_MANUAL_EN.md`](SYNAPTIX_IDE_USER_MANUAL_EN.md) | 📄 [`SynaptiX_IDE_User_Manual_EN.docx`](SynaptiX_IDE_User_Manual_EN.docx): Official User Manual in English (Full visual guide covering FBD logic engine, MQTT edge broker, Modbus Master poller, real-time diagnostics, and AI assistant).
 * ⚙️ [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md): 8 nguyên tắc kỹ thuật cốt lõi bất biến bảo đảm độ tin cậy thời gian thực, an toàn công nghiệp và chất lượng mã nguồn.
+* 📚 **Cẩm Nang Kỹ Thuật Từng Khối Chức Năng (`docs/manuals/`):**
+  * 📡 [`MQTT_PUB_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MQTT_PUB_FUNCTION_BLOCK_USER_MANUAL.md): Khối phát viễn trắc MQTT Telemetry (Chu kỳ, COV, Event, Custom JSON Template với Hybrid Auto-Parsing chân động).
+  * 📥 [`MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md): Khối nhận lệnh MQTT Subscribe (Source Node thường trực, bóc tách JSON, xung Valid, cờ lỗi Err).
+  * 🔄 [`MB_READ_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_READ_FUNCTION_BLOCK_USER_MANUAL.md): Khối đọc dữ liệu Modbus RTU Master.
+  * 💾 [`MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md): Khối phát lệnh ghi Modbus RTU Master.
 
 ---
 

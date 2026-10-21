@@ -83,17 +83,18 @@ Mỗi khối 64 thanh ghi được chia thành 2 phần:
 
 | Offset | Tên trường | Kiểu dữ liệu | Phạm vi giá trị | Mô tả kỹ thuật |
 | :--- | :--- | :--- | :--- | :--- |
-| `+0` | `CONTROL_FLAGS` | `uint16` | Bitmask | Bit 0: Block Enabled (1 = Bật, 0 = Tắt)<br>Bit 1..15: Dự phòng (Reserved = 0) |
+| `+0` | `CONTROL_FLAGS` | `uint16` | Bitmask | Bit 0: Block Enabled (1 = Bật, 0 = Tắt)<br>Bit 1: Read Mode (0 = Cyclic Polling, 1 = On Trigger Rising Edge)<br>Bit 2..15: Dự phòng (Reserved = 0) |
 | `+1` | `FC_AND_SLAVE_ID` | `uint16` | Pack Byte | **High Byte:** Function Code (`0x01`, `0x02`, `0x03`, `0x04`)<br>**Low Byte:** Slave ID (`1..247`) |
 | `+2` | `START_ADDRESS` | `uint16` | `0..65535` | Địa chỉ thanh ghi/coil bắt đầu trên Slave (0-based hoặc 1-based theo thiết bị) |
 | `+3` | `REG_COUNT` | `uint16` | `1..125` | **Quantity of Registers / Coils:** Số lượng phần tử cần đọc theo tiêu chuẩn Modbus |
-| `+4..+5`| `POLL_INTERVAL_MS`| `uint32` | `50..60000` | Chu kỳ gửi yêu cầu đọc (ms), mã hóa Big-Endian Word |
+| `+4..+5`| `POLL_INTERVAL_MS`| `uint32` | `50..60000` | Chu kỳ gửi yêu cầu đọc (ms), mã hóa Big-Endian Word (áp dụng khi ở chế độ Cyclic) |
 | `+6..+7`| `TIMEOUT_MS` | `uint32` | `50..10000` | Thời gian chờ phản hồi tối đa trước khi báo lỗi Timeout (ms) |
 | `+8` | `VALID_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận xung TRUE khi frame trả về hợp lệ (`0xFFFF` = Không nối) |
 | `+9` | `ERROR_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận cờ báo lỗi (`0xFFFF` = Không nối) |
 | `+10` | `ERR_CODE_TAG_INDEX`| `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag lưu mã lỗi chẩn đoán (1=Timeout, 2=CRC, 3=Exception, 4=Malformed) |
 | `+11` | `PIN_COUNT` | `uint16` | `0..4` | Số lượng chân động được cấu hình sử dụng trong khối |
-| `+12..+15`| `RESERVED` | `uint16[4]` | `0x0000` | Vùng đệm dự phòng tương lai |
+| `+12` | `TRIG_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag kích hoạt xung đọc sườn dương khi ở chế độ On Trigger (`0xFFFF` = Unmapped / Chế độ Cyclic) |
+| `+13..+15`| `RESERVED` | `uint16[3]` | `0x0000` | Vùng đệm dự phòng tương lai |
 
 ---
 

@@ -271,14 +271,14 @@ public class BlockSpecificationAcceptanceTests : IDisposable
 
         var di0Tag = catalog.AllTags.FirstOrDefault(t => t.Name == "DI0") ?? new TagModel { Index = 0, Name = "DI0", Kind = TagKind.DiscreteInput };
         var inNode = new InputNodeViewModel(di0Tag) { LiveRawValue = 1, IsLiveOnline = true };
-        var mbRead = new ModbusReadNodeViewModel();
+        var mbRead = new ModbusReadNodeViewModel { ReadMode = SimplePLC.Protocol.Enums.ModbusReadMode.OnTriggerRisingEdge };
         var mbWrite = new ModbusWriteNodeViewModel();
 
         editor.Nodes.Add(inNode);
         editor.Nodes.Add(mbRead);
         editor.Nodes.Add(mbWrite);
 
-        var connRead = new ConnectionViewModel(inNode.OutputConnectors[0], mbRead.EnableConnector);
+        var connRead = new ConnectionViewModel(inNode.OutputConnectors[0], mbRead.TrigConnector);
         var connWrite = new ConnectionViewModel(inNode.OutputConnectors[0], mbWrite.TrigConnector);
         editor.Connections.Add(connRead);
         editor.Connections.Add(connWrite);

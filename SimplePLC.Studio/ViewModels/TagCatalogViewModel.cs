@@ -14,6 +14,7 @@ using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Application.Models;
 using SimplePLC.Protocol.Models;
+using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Studio.ViewModels;
 
@@ -52,7 +53,18 @@ public partial class TagCatalogViewModel : ObservableObject
             productVariant: 1,
             maxRules: 100,
             resources: resources,
-            tags: tags);
+            tags: tags,
+            wireProfile: 2,
+            hardwareCapabilities: SPLC_HardwareCapabilities.BASE_LOGIC
+                | SPLC_HardwareCapabilities.RETENTIVE
+                | SPLC_HardwareCapabilities.RTC
+                | SPLC_HardwareCapabilities.ETHERNET
+                | SPLC_HardwareCapabilities.WIFI
+                | SPLC_HardwareCapabilities.MQTT_PUB
+                | SPLC_HardwareCapabilities.MQTT_SUB
+                | SPLC_HardwareCapabilities.MODBUS_MASTER
+                | SPLC_HardwareCapabilities.MODBUS_TCP
+                | SPLC_HardwareCapabilities.SD_DATALOG);
     }
 
     public ObservableCollection<TagModel> AllTags { get; } = new();

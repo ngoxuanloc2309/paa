@@ -1,4 +1,4 @@
-using SimplePLC.Application.Logic.Compilation;
+﻿using SimplePLC.Application.Logic.Compilation;
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
@@ -35,6 +35,41 @@ public sealed class RuleCompiler : IRuleCompiler
         var nodeList = nodes.ToList();
         var connectionList = connections.ToList();
         var studioDiagnostics = new List<SimplePLC.Studio.Models.Diagnostic>();
+
+        // Capability Interlock / Hardware Feature Gating Check
+        if (targetProduct.HardwareCapabilities != SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE)
+        {
+            foreach (var node in nodeList)
+            {
+                if (node is MqttPublishNodeViewModel && !targetProduct.SupportsMqttPublish)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ MQTT Publish."
+                            : "Target device '{0}' hardware profile does not support MQTT Publish.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
+                else if (node is MqttSubscribeNodeViewModel && !targetProduct.SupportsMqttSubscribe)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ MQTT Subscribe."
+                            : "Target device '{0}' hardware profile does not support MQTT Subscribe.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
+                else if ((node is ModbusReadNodeViewModel || node is ModbusWriteNodeViewModel) && !targetProduct.SupportsModbusMaster)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ Modbus Master."
+                            : "Target device '{0}' hardware profile does not support Modbus Master.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
+            }
+        }
 
         // 1. Build POCO Graph Nodes
         int actionOrder = 0;
@@ -358,6 +393,51 @@ public sealed class RuleCompiler : IRuleCompiler
                         };
                     }).ToList();
 
+                    if (mqtt.IsCustomTemplateVisible && mqtt.CustomConnectors.Count > 0)
+                    {
+                        var customDtos = new List<SimplePLC.Protocol.Dto.MqttPayloadFieldDto>();
+                        for (int i = 0; i < mqtt.CustomConnectors.Count; i++)
+                        {
+                            var c = mqtt.CustomConnectors[i];
+                            ushort tagIndex = 0xFFFF;
+                            var cConn = connectionList.FirstOrDefault(conn => conn.Target?.Node == mqtt &&
+                                (conn.Target == c || string.Equals(conn.Target.Title, c.Title, StringComparison.OrdinalIgnoreCase)));
+                            if (cConn?.Source?.Node is InputNodeViewModel cInVm && cInVm.Tag != null)
+                            {
+                                tagIndex = ResolveTagIndex(cInVm.Tag, targetProduct);
+                            }
+                            else if (cConn?.Source?.Node is ScaleNodeViewModel cScl && cScl.OutputTag != null)
+                            {
+                                tagIndex = ResolveTagIndex(cScl.OutputTag, targetProduct);
+                            }
+                            else
+                            {
+                                var mappedTag = mqtt.GetCustomConnectorTag(c.Title);
+                                if (mappedTag != null)
+                                {
+                                    tagIndex = ResolveTagIndex(mappedTag, targetProduct);
+                                }
+                            }
+
+                            if (tagIndex != 0xFFFF)
+                            {
+                                customDtos.Add(new SimplePLC.Protocol.Dto.MqttPayloadFieldDto
+                                {
+                                    Key = c.Title,
+                                    TagIndex = tagIndex
+                                });
+                                if (mqttDataTag == null)
+                                {
+                                    mqttDataTag = tagIndex;
+                                }
+                            }
+                        }
+                        if (customDtos.Count > 0)
+                        {
+                            fieldDtos = customDtos;
+                        }
+                    }
+
                     graph.Nodes.Add(LogicNode.CreateMqttPublish(
                         mqtt.Id,
                         mqttEnTag,
@@ -379,24 +459,8 @@ public sealed class RuleCompiler : IRuleCompiler
                     break;
 
                 case MqttSubscribeNodeViewModel sub:
+                    // MQTT Subscribe là tiến trình thường trực, không cần chân EN
                     ushort? subEnTag = null;
-                    var subEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == sub &&
-                        (string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) ||
-                         c.Target == sub.EnableConnector ||
-                         c.Target == sub.InputConnectors.FirstOrDefault()));
-                    if (subEnConn?.Source?.Node is InputNodeViewModel enInVm && enInVm.Tag != null)
-                    {
-                        subEnTag = ResolveTagIndex(enInVm.Tag, targetProduct);
-                    }
-                    else if (subEnConn?.Source?.Node is TriggerNodeViewModel trigSub)
-                    {
-                        var trigIn = connectionList.FirstOrDefault(c => c.Target?.Node == trigSub);
-                        if (trigIn?.Source?.Node is InputNodeViewModel trigInNode && trigInNode.Tag != null)
-                        {
-                            subEnTag = ResolveTagIndex(trigInNode.Tag, targetProduct);
-                        }
-                    }
-
                     var pinDtos = new List<SimplePLC.Protocol.Dto.MqttPinBindingDto>();
                     foreach (var pin in sub.Pins)
                     {
@@ -437,7 +501,9 @@ public sealed class RuleCompiler : IRuleCompiler
                 case ModbusReadNodeViewModel mb:
                     ushort? mbEnTag = null;
                     var mbEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == mb &&
-                        (string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) ||
+                        (string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) ||
+                         c.Target == mb.TrigConnector ||
                          c.Target == mb.EnableConnector ||
                          c.Target == mb.InputConnectors.FirstOrDefault()));
                     if (mbEnConn?.Source?.Node is InputNodeViewModel enMbInVm && enMbInVm.Tag != null)
@@ -485,6 +551,7 @@ public sealed class RuleCompiler : IRuleCompiler
                         mb.PollIntervalMs,
                         mb.TimeoutMs,
                         mbPinDtos,
+                        portIndex: mb.PortIndex,
                         executionOrder: actionOrder++,
                         label: mb.DisplayTitle));
                     break;
@@ -573,6 +640,7 @@ public sealed class RuleCompiler : IRuleCompiler
                         channelTag: mbwChannelTag,
                         commandTag: mbwCommandTag,
                         paramTag: mbwParamTag,
+                        portIndex: mbw.PortIndex,
                         executionOrder: actionOrder++,
                         label: mbw.DisplayTitle,
                         pins: mbwPinDtos));

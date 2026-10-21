@@ -67,6 +67,16 @@ public sealed class ProductDefinition
     public bool SupportsEthernet => (HardwareCapabilities & SPLC_HardwareCapabilities.ETHERNET) != 0;
 
     /// <summary>
+    /// Năng lực truyền thông không dây Wi-Fi (0x0200).
+    /// </summary>
+    public bool SupportsWifi => (HardwareCapabilities & SPLC_HardwareCapabilities.WIFI) != 0;
+
+    /// <summary>
+    /// Năng lực có kết nối mạng vật lý hoặc không dây (Ethernet hoặc Wi-Fi).
+    /// </summary>
+    public bool SupportsNetwork => SupportsEthernet || SupportsWifi;
+
+    /// <summary>
     /// Năng lực lưu trữ thẻ nhớ MicroSD datalogger.
     /// </summary>
     public bool SupportsSdDatalog => (HardwareCapabilities & SPLC_HardwareCapabilities.SD_DATALOG) != 0;
@@ -121,7 +131,7 @@ public sealed class ProductDefinition
     public static SPLC_HardwareCapabilities GetDefaultFallbackCapabilities(ushort wireProfile = 2)
     {
         // Tối thiểu an toàn cho mọi SimplePLC engine là thực thi logic quy tắc và bộ nhớ duy trì
-        return SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE;
+        return SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
     }
 
     /// <summary>
@@ -170,10 +180,15 @@ public sealed class ProductDefinition
     /// từ metadata thiết bị (0x0000 + 0x0020) thông qua <see cref="DeviceProfileBuilder"/>.
     /// </para>
     /// </summary>
-    public static ProductDefinition CreateRemoteIo8Di8Do4Ai(ushort wireProfile = 2)
+    public static ProductDefinition CreateRemoteIo8Di8Do4Ai(
+        ushort wireProfile = 2,
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
     {
         var profile = ProductResourceProfile.DefaultRemoteIo;
         var tags = DeviceProfileBuilder.GenerateTags(profile);
+        var effectiveCaps = hardwareCapabilities != SPLC_HardwareCapabilities.NONE
+            ? hardwareCapabilities
+            : (SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER);
         return new ProductDefinition(
             "Remote I/O (8DI-8DO-4AI)",
             deviceClass: 1, // REMOTE_IO
@@ -181,7 +196,8 @@ public sealed class ProductDefinition
             maxRules: 100,
             resources: profile,
             tags: tags,
-            wireProfile: wireProfile);
+            wireProfile: wireProfile,
+            hardwareCapabilities: effectiveCaps);
     }
 
     private static ProductResourceProfile DeriveProfileFromTags(IEnumerable<TagDefinition> tags)

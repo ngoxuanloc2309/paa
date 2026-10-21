@@ -285,7 +285,8 @@ public class MqttPublishNodeTests
 
         var catalog = new TagCatalogViewModel();
         catalog.AllTags.Add(diTag);
-        var product = ProductDefinition.CreateRemoteIo8Di8Do4Ai();
+        var product = ProductDefinition.CreateRemoteIo8Di8Do4Ai(
+            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_PUB | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.ETHERNET);
         var result = compiler.Compile(nodes, connections, catalog, product);
 
         // Đảm bảo không có lỗi DiagUnsupportedNode
@@ -443,5 +444,76 @@ public class MqttPublishNodeTests
         logicEditor.Connect(inpNode.OutputConnectors[0], fieldConn);
         Assert.Single(logicEditor.Connections);
         Assert.Same(aiTag, mqttNode.Fields[0].Tag);
+    }
+
+    [Fact]
+    public void MqttPublishNode_CustomTemplate_AutoGeneratesMatchingConnectors()
+    {
+        var node = new MqttPublishNodeViewModel
+        {
+            PayloadMode = "Custom",
+            CustomTemplate = "{\"dev\":\"{device}\",\"ts\":{ts},\"speed\":{speed},\"pressure\":{pressure}}"
+        };
+
+        // Event mode default: Trig + speed + pressure
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("speed", node.InputConnectors[1].Title);
+        Assert.Equal("pressure", node.InputConnectors[2].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Val");
+
+        // Change template to single {val}
+        node.CustomTemplate = "{\"value\":{val}}";
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Val", node.InputConnectors[1].Title);
+    }
+
+    [Fact]
+    public void MqttPublishNode_CustomTemplate_TokenLimits_CapsAt8Connectors()
+    {
+        var node = new MqttPublishNodeViewModel
+        {
+            PayloadMode = "Custom",
+            CustomTemplate = "{\"v1\":{v1},\"v2\":{v2},\"v3\":{v3},\"v4\":{v4},\"v5\":{v5},\"v6\":{v6},\"v7\":{v7},\"v8\":{v8},\"v9\":{v9},\"v10\":{v10}}"
+        };
+
+        // Max 8 custom value connectors + 1 Trig = 9 connectors
+        Assert.Equal(9, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        for (int i = 1; i <= 8; i++)
+        {
+            Assert.Contains(node.InputConnectors, c => c.Title == $"v{i}");
+        }
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "v9");
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "v10");
+    }
+
+    [Fact]
+    public void LogicEditor_ConnectToCustomConnector_MapsValueInPayload()
+    {
+        var catalog = new TagCatalogViewModel();
+        var tempTag = new TagModel { Name = "AI0_TEMP", Kind = TagKind.AnalogInput, Index = 0, Value = 6500 };
+        catalog.AllTags.Add(tempTag);
+
+        var logicEditor = new LogicEditorViewModel(catalog, uiDispatcher: act => act());
+        var inpNode = new InputNodeViewModel(tempTag);
+        var mqttNode = new MqttPublishNodeViewModel
+        {
+            PayloadMode = "Custom",
+            CustomTemplate = "{\"temperature\":{temp}}"
+        };
+
+        logicEditor.Nodes.Add(inpNode);
+        logicEditor.Nodes.Add(mqttNode);
+
+        var tempConn = mqttNode.InputConnectors.First(c => c.Title == "temp");
+        logicEditor.Connect(inpNode.OutputConnectors[0], tempConn);
+
+        Assert.Single(logicEditor.Connections);
+        Assert.Same(tempTag, mqttNode.GetCustomConnectorTag("temp"));
+
+        string payload = mqttNode.GeneratePayload(12.3);
+        Assert.Contains("\"temperature\":6500", payload);
     }
 }

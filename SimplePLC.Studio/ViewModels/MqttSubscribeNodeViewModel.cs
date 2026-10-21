@@ -31,10 +31,13 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(QosSummary))]
     [NotifyPropertyChangedFor(nameof(IsQos0))]
     [NotifyPropertyChangedFor(nameof(IsQos1))]
     [NotifyPropertyChangedFor(nameof(IsQos2))]
     private int _qos = 1; // 0, 1, 2
+
+    public string QosSummary => $"QoS {Qos}";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -136,7 +139,6 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
     [ObservableProperty]
     private string _simParseResultText = string.Empty;
 
-    public ConnectorViewModel EnableConnector { get; }
     public ConnectorViewModel ValidConnector { get; }
     public ConnectorViewModel ErrorConnector { get; }
 
@@ -171,15 +173,8 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         Icon = "📥";
         Topic = topic;
 
-        // Chân vào cố định
-        EnableConnector = new ConnectorViewModel
-        {
-            Title = "EN",
-            TooltipKey = "PinTooltipMqttSubEn",
-            IsInput = true,
-            Node = this
-        };
-        InputConnectors.Add(EnableConnector);
+        // Khối MQTT Subscribe là Source node thuần túy (Luôn lắng nghe ngầm, không cần chân EN)
+        // Chân vào cố định: Rỗng
 
         // Chân ra cố định
         ValidConnector = new ConnectorViewModel

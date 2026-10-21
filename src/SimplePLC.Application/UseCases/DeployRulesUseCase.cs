@@ -1,4 +1,4 @@
-namespace SimplePLC.Application.UseCases;
+﻿namespace SimplePLC.Application.UseCases;
 
 using SimplePLC.Application.Abstractions;
 using SimplePLC.Application.Mapping;
@@ -70,7 +70,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         byte slaveId = 1,
         CancellationToken ct = default) =>
-        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, slaveId, ct);
+        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, slaveId, ct);
 
     public async Task<DeployRulesResult> ExecuteAsync(
         RuleTable ruleTable,
@@ -82,6 +82,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         byte slaveId = 1,
         CancellationToken ct = default,
         Action<string>? progressLogger = null)
@@ -119,6 +120,7 @@ public sealed class DeployRulesUseCase
                 modbusMasterConfigs,
                 modbusMasterWriteConfigs,
                 directWriteConfigs,
+                modbusPortConfigs,
                 ct,
                 progressLogger).ConfigureAwait(false);
         }

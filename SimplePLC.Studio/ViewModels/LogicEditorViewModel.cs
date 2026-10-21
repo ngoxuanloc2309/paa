@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -18,7 +18,7 @@ namespace SimplePLC.Studio.ViewModels;
 
 public partial class LogicEditorViewModel : ObservableObject
 {
-    public TagCatalogViewModel TagCatalog { get; }
+    public TagCatalogViewModel TagCatalog { get; } = null!;
 
     public ObservableCollection<GraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<ConnectionViewModel> Connections { get; } = new();
@@ -130,6 +130,50 @@ public partial class LogicEditorViewModel : ObservableObject
         };
         dialog.ShowDialog();
         NotifyGraphModified();
+    }
+
+    public bool IsMqttPublishSupported => (TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
+    public bool IsMqttSubscribeSupported => (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
+    public bool IsModbusMasterSupported => TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false;
+
+    public string MqttPublishDisabledTooltip => IsMqttPublishSupported
+        ? LocalizationService.Tr("ToolboxMqttDesc")
+        : (LocalizationService.Instance.IsVietnamese
+            ? "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Publish."
+            : "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Publish capability.");
+
+    public string MqttSubscribeDisabledTooltip => IsMqttSubscribeSupported
+        ? LocalizationService.Tr("ToolboxMqttSubDesc")
+        : (LocalizationService.Instance.IsVietnamese
+            ? "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Subscribe."
+            : "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Subscribe capability.");
+
+    public string ModbusReadDisabledTooltip => IsModbusMasterSupported
+        ? LocalizationService.Tr("ToolboxModbusReadDesc")
+        : (LocalizationService.Instance.IsVietnamese
+            ? "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
+            : "Requires hardware Modbus Master Poller capability.");
+
+    public string ModbusDisabledTooltip => ModbusReadDisabledTooltip;
+
+    public string ModbusWriteDisabledTooltip => IsModbusMasterSupported
+        ? LocalizationService.Tr("ToolboxModbusWriteDesc")
+        : (LocalizationService.Instance.IsVietnamese
+            ? "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
+            : "Requires hardware Modbus Master Poller capability.");
+
+    private void OnTagCatalogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TagCatalogViewModel.CurrentProduct))
+        {
+            OnPropertyChanged(nameof(IsMqttPublishSupported));
+            OnPropertyChanged(nameof(IsMqttSubscribeSupported));
+            OnPropertyChanged(nameof(IsModbusMasterSupported));
+            OnPropertyChanged(nameof(MqttPublishDisabledTooltip));
+            OnPropertyChanged(nameof(MqttSubscribeDisabledTooltip));
+            OnPropertyChanged(nameof(ModbusReadDisabledTooltip));
+            OnPropertyChanged(nameof(ModbusWriteDisabledTooltip));
+        }
     }
 
     [ObservableProperty]
@@ -862,6 +906,10 @@ public partial class LogicEditorViewModel : ObservableObject
         FilteredSimScanHistory.Filter = FilterScanHistoryPredicate;
 
         TagCatalog = tagCatalog;
+        if (TagCatalog != null)
+        {
+            TagCatalog.PropertyChanged += OnTagCatalogPropertyChanged;
+        }
         _ruleTable = ruleTable;
         _navigateToTab = navigateToTab;
         _compiler = compiler ?? new RuleCompiler();
@@ -1839,12 +1887,10 @@ public partial class LogicEditorViewModel : ObservableObject
             }
         }
 
-        // 10. MQTT Subscribe Nodes: Nhận dữ liệu live và truyền xuống downstream Actions
+        // 10. MQTT Subscribe Nodes: Nhận dữ liệu live và truyền xuống downstream Actions (Always-on Source Node)
         foreach (var subNode in Nodes.OfType<MqttSubscribeNodeViewModel>())
         {
-            var enConn = Connections.FirstOrDefault(c => c.Target?.Node == subNode && (c.Target == subNode.EnableConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
-            bool enActive = enConn == null || enConn.IsActive;
-            if (enConn != null && enConn.IsActive != enActive) enConn.IsActive = enActive;
+            bool enActive = true;
 
             foreach (var pin in subNode.Pins)
             {
@@ -1892,7 +1938,7 @@ public partial class LogicEditorViewModel : ObservableObject
         foreach (var mbNode in Nodes.OfType<ModbusReadNodeViewModel>())
         {
             var enConn = Connections.FirstOrDefault(c => c.Target?.Node == mbNode &&
-                (c.Target == mbNode.EnableConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) || c.Target == mbNode.InputConnectors.FirstOrDefault()));
+                (c.Target == mbNode.TrigConnector || c.Target == mbNode.EnableConnector || string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase) || c.Target == mbNode.InputConnectors.FirstOrDefault()));
             bool enActive = enConn == null || enConn.IsActive;
             if (enConn != null && enConn.IsActive != enActive) enConn.IsActive = enActive;
 
@@ -2192,6 +2238,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 else if (target == mqttNode.DefaultValConnector || string.Equals(target.Title, "Val", StringComparison.OrdinalIgnoreCase))
                 {
                     mqttNode.DataTag = incomingTag;
+                }
+                else if (mqttNode.IsCustomTemplateVisible)
+                {
+                    mqttNode.SetCustomConnectorTag(target.Title, incomingTag);
                 }
                 else
                 {
@@ -3342,6 +3392,7 @@ public partial class LogicEditorViewModel : ObservableObject
         else if (node is ModbusReadNodeViewModel mb)
         {
             pNode.Type = "ModbusRead";
+            pNode.ModbusPortIndex = mb.PortIndex;
             pNode.ModbusSlaveId = mb.SlaveId;
             pNode.ModbusFunctionCode = mb.FunctionCode.ToString();
             pNode.ModbusReadMode = mb.ReadMode.ToString();
@@ -3364,6 +3415,7 @@ public partial class LogicEditorViewModel : ObservableObject
         else if (node is ModbusWriteNodeViewModel mbw)
         {
             pNode.Type = "ModbusWrite";
+            pNode.ModbusWritePortIndex = mbw.PortIndex;
             pNode.ModbusWriteSlaveId = mbw.SlaveId;
             pNode.ModbusWriteMode = mbw.WriteMode.ToString();
             pNode.ModbusWriteFunctionCode = mbw.FunctionCode.ToString();
@@ -3579,6 +3631,7 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             var mb = new ModbusReadNodeViewModel
             {
+                PortIndex = pNode.ModbusPortIndex,
                 SlaveId = pNode.ModbusSlaveId == 0 ? (byte)1 : pNode.ModbusSlaveId,
                 StartAddress = pNode.ModbusStartAddress,
                 RegCount = pNode.ModbusRegCount == 0 ? (ushort)2 : pNode.ModbusRegCount,
@@ -3623,6 +3676,7 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             var mbw = new ModbusWriteNodeViewModel
             {
+                PortIndex = pNode.ModbusWritePortIndex,
                 SlaveId = pNode.ModbusWriteSlaveId == 0 ? (byte)1 : pNode.ModbusWriteSlaveId,
                 StartAddress = pNode.ModbusWriteStartAddress,
                 PointCount = pNode.ModbusWritePointCount == 0 ? (ushort)1 : pNode.ModbusWritePointCount,

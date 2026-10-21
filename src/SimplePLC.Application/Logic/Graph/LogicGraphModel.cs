@@ -1,4 +1,4 @@
-namespace SimplePLC.Application.Logic.Graph;
+﻿namespace SimplePLC.Application.Logic.Graph;
 
 using SimplePLC.Domain.Enums;
 
@@ -131,6 +131,7 @@ public sealed class MqttSubscribeNodeData
 
 public sealed class ModbusReadNodeData
 {
+    public byte PortIndex { get; set; } = 0;
     public ushort? EnTagIndex { get; set; }
     public ushort? TrigTagIndex { get; set; }
     public byte SlaveId { get; set; } = 1;
@@ -145,6 +146,7 @@ public sealed class ModbusReadNodeData
 
 public sealed class ModbusWriteNodeData
 {
+    public byte PortIndex { get; set; } = 0;
     public ushort? TrigTagIndex { get; set; }
     public byte SlaveId { get; set; } = 1;
     public SimplePLC.Protocol.Enums.ModbusWriteMode WriteMode { get; set; } = SimplePLC.Protocol.Enums.ModbusWriteMode.ChannelIndexed;
@@ -449,6 +451,7 @@ public sealed class LogicNode
         uint pollIntervalMs = 500,
         uint timeoutMs = 300,
         IEnumerable<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>? pins = null,
+        byte portIndex = 0,
         int executionOrder = 0,
         string label = "") =>
         new()
@@ -459,6 +462,7 @@ public sealed class LogicNode
             Label = label,
             ModbusReadData = new ModbusReadNodeData
             {
+                PortIndex = portIndex,
                 EnTagIndex = enTag,
                 SlaveId = slaveId,
                 FunctionCode = functionCode,
@@ -488,6 +492,7 @@ public sealed class LogicNode
         ushort? channelTag = null,
         ushort? commandTag = null,
         ushort? paramTag = null,
+        byte portIndex = 0,
         int executionOrder = 0,
         string label = "",
         IEnumerable<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>? pins = null) =>
@@ -499,6 +504,7 @@ public sealed class LogicNode
             Label = label,
             ModbusWriteData = new ModbusWriteNodeData
             {
+                PortIndex = portIndex,
                 TrigTagIndex = trigTag,
                 SlaveId = slaveId,
                 WriteMode = writeMode,

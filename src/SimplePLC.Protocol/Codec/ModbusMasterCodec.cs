@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
@@ -27,8 +27,9 @@ public static class ModbusMasterCodec
         destination.Slice(0, ModbusRegisterMap.ModbusMasterRegistersPerBlock).Fill(0);
 
         // 1. Header (Offset +0..+15)
-        // Offset +0: CONTROL_FLAGS (Bit 0 = Enabled)
+        // Offset +0: CONTROL_FLAGS (Bit 0 = Enabled, Bit 4..7 = PortIndex)
         ushort control = config.Enabled ? (ushort)0x0001 : (ushort)0x0000;
+        control |= (ushort)((config.PortIndex & 0x0F) << ModbusRegisterMap.ModbusMasterControlPortShift);
         destination[0] = control;
 
         // Offset +1: FUNCTION_CODE (High Byte) | SLAVE_ID (Low Byte)
@@ -68,8 +69,10 @@ public static class ModbusMasterCodec
         // Offset +13: TRIG_TAG_INDEX
         destination[13] = config.TrigTagIndex ?? 0xFFFF;
 
-        // Offset +14..+15: RESERVED
-        destination[14] = 0;
+        // Offset +14: PORT_INDEX (Cổng Modbus Master 0..3)
+        destination[14] = config.PortIndex;
+
+        // Offset +15: RESERVED
         destination[15] = 0;
 
         // 2. Pin Bindings (Offset +16..+63, mỗi pin 12 thanh ghi = 24 bytes)
@@ -116,9 +119,16 @@ public static class ModbusMasterCodec
         if (source.Length < ModbusRegisterMap.ModbusMasterRegistersPerBlock)
             throw new ArgumentException($"Source span must have at least {ModbusRegisterMap.ModbusMasterRegistersPerBlock} registers.", nameof(source));
 
+        byte portIdx = (byte)((source[0] >> ModbusRegisterMap.ModbusMasterControlPortShift) & 0x0F);
+        if (portIdx == 0 && source[14] > 0 && source[14] < ModbusRegisterMap.ModbusPortConfigMaxPorts)
+        {
+            portIdx = (byte)source[14];
+        }
+
         var dto = new ModbusMasterReadConfigDto
         {
             BlockIndex = blockIndex,
+            PortIndex = portIdx,
             Enabled = (source[0] & 0x0001) != 0,
             SlaveId = (byte)(source[1] & 0xFF),
             FunctionCode = (ModbusMasterFunctionCode)(source[1] >> 8),
@@ -184,6 +194,7 @@ public static class ModbusMasterCodec
         if (config.Enabled) control |= 0x0001;
         if (config.IsExclusiveChannel) control |= 0x0002;
         control |= (ushort)(((byte)config.WriteMode & 0x03) << 2);
+        control |= (ushort)((config.PortIndex & 0x0F) << ModbusRegisterMap.ModbusMasterControlPortShift);
         destination[0] = control;
 
         // Offset +1: FUNCTION_CODE (High Byte) | SLAVE_ID (Low Byte)
@@ -273,6 +284,7 @@ public static class ModbusMasterCodec
         bool enabled = (control & 0x0001) != 0;
         bool isExclusive = (control & 0x0002) != 0;
         var writeMode = (ModbusWriteMode)((control >> 2) & 0x03);
+        byte writePortIdx = (byte)((control >> ModbusRegisterMap.ModbusMasterControlPortShift) & 0x0F);
 
         ushort fcAndSlave = source[1];
         byte fc = (byte)(fcAndSlave >> 8);
@@ -294,6 +306,7 @@ public static class ModbusMasterCodec
         var dto = new ModbusMasterWriteConfigDto
         {
             BlockIndex = blockIndex,
+            PortIndex = writePortIdx,
             Enabled = enabled,
             IsExclusiveChannel = isExclusive,
             WriteMode = writeMode,

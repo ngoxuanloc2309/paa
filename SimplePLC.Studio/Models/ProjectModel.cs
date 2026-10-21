@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Studio.Models;
 
@@ -52,6 +52,15 @@ public class ProjectMetadata
     public string WifiSubnetMask { get; set; } = "255.255.255.0";
     public string WifiGateway { get; set; } = "192.168.1.1";
     public string WifiDns { get; set; } = "8.8.8.8";
+
+    // Modbus Multi-Port RS-485 Configuration Settings (SPLC-SPEC-MBM-003)
+    public List<ModbusPortConfigModel> ModbusPorts { get; set; } = new()
+    {
+        new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, BaudRate = 19200, DataBits = 8, Parity = "Even", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 }
+    };
 }
 
 public class ProjectTagData
@@ -148,6 +157,7 @@ public class ProjectNodeData
     public List<MqttSubPinData> MqttSubPins { get; set; } = new();
 
     // Modbus Read node properties
+    public byte ModbusPortIndex { get; set; } = 0;
     public byte ModbusSlaveId { get; set; } = 1;
     public string ModbusFunctionCode { get; set; } = "ReadHoldingRegisters";
     public string ModbusReadMode { get; set; } = "Cyclic";
@@ -159,6 +169,7 @@ public class ProjectNodeData
     public List<ModbusPinData> ModbusPins { get; set; } = new();
 
     // Modbus Write node properties
+    public byte ModbusWritePortIndex { get; set; } = 0;
     public byte ModbusWriteSlaveId { get; set; } = 1;
     public string ModbusWriteMode { get; set; } = "ChannelIndexed";
     public string ModbusWriteFunctionCode { get; set; } = "WriteSingleRegister";
@@ -265,4 +276,35 @@ public class ProjectModel
     public string? CurrentEditingRuleId { get; set; }
     public string? CurrentDiagramId { get; set; }
     public List<int> WatchlistTagIndices { get; set; } = new();
+}
+
+public class ModbusPortConfigModel
+{
+    public byte PortIndex { get; set; } = 0;
+    public string PortName { get; set; } = "RS-485 #1";
+    public bool Enabled { get; set; } = true;
+    public uint BaudRate { get; set; } = 9600;
+    public byte DataBits { get; set; } = 8;
+    public string Parity { get; set; } = "None"; // "None", "Even", "Odd"
+    public byte StopBits { get; set; } = 1;
+    public ushort ResponseTimeoutMs { get; set; } = 200;
+    public ushort InterFrameDelayMs { get; set; } = 20;
+    public ushort RetryCount { get; set; } = 1;
+
+    public ModbusPortConfigModel Clone()
+    {
+        return new ModbusPortConfigModel
+        {
+            PortIndex = this.PortIndex,
+            PortName = this.PortName,
+            Enabled = this.Enabled,
+            BaudRate = this.BaudRate,
+            DataBits = this.DataBits,
+            Parity = this.Parity,
+            StopBits = this.StopBits,
+            ResponseTimeoutMs = this.ResponseTimeoutMs,
+            InterFrameDelayMs = this.InterFrameDelayMs,
+            RetryCount = this.RetryCount
+        };
+    }
 }

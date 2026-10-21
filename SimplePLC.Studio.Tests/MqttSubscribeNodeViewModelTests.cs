@@ -13,8 +13,7 @@ public class MqttSubscribeNodeViewModelTests
 
         Assert.Equal("MQTT SUB", node.Title);
         Assert.Equal("spx/rack_01/cmd", node.Topic);
-        Assert.Single(node.InputConnectors);
-        Assert.Equal("EN", node.InputConnectors[0].Title);
+        Assert.Empty(node.InputConnectors);
 
         Assert.Equal(2, node.OutputConnectors.Count);
         Assert.Equal("Valid", node.OutputConnectors[0].Title);

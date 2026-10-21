@@ -4,8 +4,9 @@
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
         Title="{Binding [MqttConfigDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="830" Height="520"
-        MinWidth="780" MinHeight="460"
+        Width="1040" Height="660"
+        MinWidth="980" MinHeight="600"
+        Icon="../Assets/app.png"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Background="#F8FAFC"
@@ -58,31 +59,220 @@
             <!-- 1. Two-Column Body -->
             <Grid Grid.Row="1" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
-                    <!-- Left: Payload Definition (Fields or Custom Template) -->
-                    <ColumnDefinition Width="1.25*" />
+                    <!-- Left: Communication & Payload Parameters (Wide: 1.4*) -->
+                    <ColumnDefinition Width="1.4*" />
                     <ColumnDefinition Width="14" />
-                    <!-- Right: Live Payload Preview -->
+                    <!-- Right: Live Payload Preview (1*) -->
                     <ColumnDefinition Width="1*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- LEFT PANE: PAYLOAD CONFIGURATION -->
+                <!-- LEFT PANE: COMMUNICATION & PAYLOAD CONFIGURATION -->
                 <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="14">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <!-- 0. Section Title -->
+                            <!-- 0. Section 1 Title: Communication & Triggering -->
                             <RowDefinition Height="Auto" />
-                            <!-- 1. Mode Selector (Separate line to prevent overlap) -->
+                            <!-- 1. Communication & Trigger Controls -->
                             <RowDefinition Height="Auto" />
-                            <!-- 2. Dynamic Content per Mode -->
+                            <!-- 2. Divider -->
+                            <RowDefinition Height="12" />
+                            <!-- 3. Section 2 Title: Payload Format -->
+                            <RowDefinition Height="Auto" />
+                            <!-- 4. Payload Mode Selector -->
+                            <RowDefinition Height="Auto" />
+                            <!-- 5. Dynamic Payload Content (Fields Table or Custom Template) -->
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- Row 0: Section Title -->
-                        <TextBlock Grid.Row="0" Text="{Binding [MqttConfigFieldSection], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" Margin="0,0,0,8" />
+                        <!-- Row 0: Section 1 Title -->
+                        <TextBlock Grid.Row="0" Text="THÔNG SỐ GIAO TIẾP &amp; KÍCH HOẠT (MQTT COMMUNICATION)" 
+                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
 
-                        <!-- Row 1: Payload Mode Selector (Distinct Row - Never Overlaps!) -->
-                        <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <!-- Row 1: Communication Controls Grid -->
+                        <Grid Grid.Row="1">
+                            <Grid.RowDefinitions>
+                                <!-- Topic -->
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <!-- Trigger Mode, Interval/Deadband, QoS, Retain -->
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Topic Row -->
+                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox Grid.Column="1" Text="{Binding Node.Topic, UpdateSourceTrigger=PropertyChanged}" 
+                                         ToolTip="{Binding [InspectorMqttTopicTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                         Padding="6,4" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" Command="{Binding Node.SanitizeTopicCommand}" 
+                                        ToolTip="{Binding [InspectorMqttTopicSanitizeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                        Content="🧹" Style="{StaticResource TiaTactileBtnStyle}" Padding="8,4" Margin="6,0,0,0" />
+                            </Grid>
+
+                            <!-- Topic Validation Error Warning -->
+                            <Border Grid.Row="1" Visibility="{Binding Node.HasTopicError, Converter={StaticResource BoolToVis}}"
+                                    Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,2,0,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="3" Background="#DC2626" CornerRadius="1" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding Node.TopicValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Trigger Mode, Interval/Deadband, QoS, Retain Grid -->
+                            <Grid Grid.Row="2" Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <!-- Mode -->
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="10" />
+                                    <!-- Interval / Deadband -->
+                                    <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="10" />
+                                    <!-- QoS -->
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="10" />
+                                    <!-- Retain -->
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Publish Mode -->
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="{Binding [InspectorMqttPublishMode], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                    <ComboBox SelectedValue="{Binding Node.PublishMode, Mode=TwoWay}" SelectedValuePath="Tag" 
+                                              ToolTip="{Binding [InspectorMqttPublishModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Padding="6,4" FontSize="11" Height="28">
+                                        <ComboBoxItem Content="{Binding [MqttPublishModeEvent], Source={x:Static services:LocalizationService.Instance}}" Tag="Event" />
+                                        <ComboBoxItem Content="{Binding [MqttPublishModeCyclic], Source={x:Static services:LocalizationService.Instance}}" Tag="Cyclic" />
+                                        <ComboBoxItem Content="{Binding [MqttPublishModeCov], Source={x:Static services:LocalizationService.Instance}}" Tag="COV" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <!-- Interval or Deadband -->
+                                <StackPanel Grid.Column="2">
+                                    <!-- When Cyclic: Interval -->
+                                    <StackPanel Visibility="{Binding Node.IsPeriodicMode, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding [InspectorIntervalMs], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                        <TextBox Text="{Binding Node.IntervalMs, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [InspectorMqttIntervalTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Padding="6,4" FontSize="11" FontFamily="Consolas" Height="28" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+                                    <!-- When COV: Deadband -->
+                                    <StackPanel Visibility="{Binding Node.IsCovMode, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding [InspectorMqttDeadband], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                        <TextBox Text="{Binding Node.DeadbandText, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [InspectorMqttDeadbandTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Padding="6,4" FontSize="11" FontFamily="Consolas" Height="28" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+                                    <!-- When Event: Placeholder -->
+                                    <StackPanel Visibility="{Binding Node.IsEventMode, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Kích hoạt" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" Margin="0,0,0,3" />
+                                        <Border Height="28" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2">
+                                            <TextBlock Text="Chân Trig (FBD)" FontSize="10.5" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- QoS Selector Buttons -->
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="QoS" 
+                                               ToolTip="{Binding [InspectorMqttQosTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                    <Grid Height="28">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="0" Command="{Binding Node.SetQos0Command}" 
+                                                ToolTip="{Binding [InspectorMqttQos0Tooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                Margin="0,0,2,0" FontSize="10.5" Cursor="Hand">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="FontWeight" Value="Normal" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Node.IsQos0}" Value="True">
+                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="1" Content="1" Command="{Binding Node.SetQos1Command}" 
+                                                ToolTip="{Binding [InspectorMqttQos1Tooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                Margin="1,0,1,0" FontSize="10.5" Cursor="Hand">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="FontWeight" Value="Normal" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Node.IsQos1}" Value="True">
+                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="2" Content="2" Command="{Binding Node.SetQos2Command}" 
+                                                ToolTip="{Binding [InspectorMqttQos2Tooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                Margin="2,0,0,0" FontSize="10.5" Cursor="Hand">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="FontWeight" Value="Normal" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Node.IsQos2}" Value="True">
+                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Retain CheckBox -->
+                                <StackPanel Grid.Column="6" VerticalAlignment="Bottom" Margin="4,0,0,4">
+                                    <CheckBox IsChecked="{Binding Node.Retain}" 
+                                              ToolTip="{Binding [InspectorMqttRetainTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Content="Retain" 
+                                              FontWeight="SemiBold" FontSize="11" Foreground="#334155" />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+
+                        <!-- Row 3: Section 2 Title: Payload Format -->
+                        <TextBlock Grid.Row="3" Text="{Binding [MqttConfigFieldSection], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
+
+                        <!-- Row 4: Payload Mode Selector -->
+                        <Grid Grid.Row="4" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
@@ -97,9 +287,9 @@
                             </ComboBox>
                         </Grid>
 
-                        <!-- Row 2: Dynamic Content per Mode -->
+                        <!-- Row 5: Dynamic Payload Content -->
                         <!-- MODE 1: VISUAL FIELD BUILDER (Standard IIoT Envelope: device, ts, values) -->
-                        <Grid Grid.Row="2" Visibility="{Binding Node.IsJsonMode, Converter={StaticResource BoolToVis}}">
+                        <Grid Grid.Row="5" Visibility="{Binding Node.IsJsonMode, Converter={StaticResource BoolToVis}}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -123,7 +313,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" MinWidth="85" />
                                             <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="135" />
+                                            <ColumnDefinition Width="180" />
                                             <ColumnDefinition Width="6" />
                                             <ColumnDefinition Width="90" />
                                             <ColumnDefinition Width="6" />
@@ -149,7 +339,7 @@
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*" MinWidth="85" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="135" />
+                                                            <ColumnDefinition Width="180" />
                                                             <ColumnDefinition Width="6" />
                                                             <ColumnDefinition Width="90" />
                                                             <ColumnDefinition Width="6" />
@@ -196,7 +386,7 @@
                         </Grid>
 
                         <!-- MODE 2: CUSTOM JSON TEMPLATE (User Freeform Payload) -->
-                        <Grid Grid.Row="2" Visibility="{Binding Node.IsCustomTemplateVisible, Converter={StaticResource BoolToVis}}">
+                        <Grid Grid.Row="5" Visibility="{Binding Node.IsCustomTemplateVisible, Converter={StaticResource BoolToVis}}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -238,7 +428,7 @@
                             <Border Grid.Row="3" Background="#FEF2F2" BorderBrush="#F87171" BorderThickness="1" CornerRadius="2" Padding="8,5" Margin="0,6,0,0"
                                     Visibility="{Binding Node.HasCustomTemplateError, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⚠ " Foreground="#DC2626" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Border Width="3" Background="#DC2626" CornerRadius="1" Margin="0,0,6,0" />
                                     <TextBlock Text="{Binding Node.CustomTemplateValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -272,17 +462,14 @@
                                      TextWrapping="NoWrap" Padding="8" />
                         </Border>
 
-                        <!-- Ready Status Banner (ISA-101 / TIA Portal Diagnostic Box) -->
-                        <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="7,6"
+                        <!-- Ready Status Banner (ISA-101 / TIA Portal Diagnostic Box - Option 1 Compliance) -->
+                        <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="8,6"
                                 ToolTip="{Binding [MqttReadyStatusTooltip], Source={x:Static services:LocalizationService.Instance}}">
                             <DockPanel LastChildFill="True">
-                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,7,0" DockPanel.Dock="Left" />
+                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,8,0" DockPanel.Dock="Left" />
                                 <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                                        <Ellipse Width="6" Height="6" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                        <TextBlock Text="{Binding [MqttConfigReadyTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                                   FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" />
-                                    </StackPanel>
+                                    <TextBlock Text="{Binding [MqttConfigReadyTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" Margin="0,0,0,2" />
                                     <TextBlock Text="{Binding [MqttConfigReadyDesc], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10" Foreground="#475569" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -293,20 +480,23 @@
             </Grid>
 
             <!-- 2. Footer Action -->
-            <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+            <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,10,0,0">
                 <DockPanel LastChildFill="False">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center"
                                 ToolTip="{Binding [MqttFooterTopicTooltip], Source={x:Static services:LocalizationService.Instance}}">
                         <TextBlock Text="{Binding [MqttConfigTargetTopic], Source={x:Static services:LocalizationService.Instance}}" 
                                    FontSize="11" Foreground="#64748B" Margin="0,0,6,0" />
-                        <TextBlock Text="{Binding Node.Topic}" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#334155" />
+                        <TextBlock Text="{Binding Node.Topic}" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#334155" Margin="0,0,10,0" />
+                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2">
+                            <TextBlock Text="{Binding Node.PublishModeSummaryText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="#475569" />
+                        </Border>
                     </StackPanel>
 
                     <Button Content="{Binding [MqttConfigBtnApply], Source={x:Static services:LocalizationService.Instance}}" 
                             DockPanel.Dock="Right" Click="ApplyButton_Click"
                             ToolTip="{Binding [MqttBtnApplyTooltip], Source={x:Static services:LocalizationService.Instance}}"
                             Style="{StaticResource BtnPrimary}"
-                            FontSize="11" Padding="20,5" />
+                            FontSize="11" Padding="24,6" />
                 </DockPanel>
             </Border>
         </Grid>

@@ -43,6 +43,11 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(IsRawMode))]
     private string _payloadMode = "JSON"; // "JSON", "Raw", "Custom"
 
+    partial void OnPayloadModeChanged(string value)
+    {
+        SynchronizeConnectors();
+    }
+
     public bool IsCustomTemplateVisible => string.Equals(PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase);
     public bool IsJsonMode => string.Equals(PayloadMode, "JSON", StringComparison.OrdinalIgnoreCase);
     public bool IsRawMode => string.Equals(PayloadMode, "Raw", StringComparison.OrdinalIgnoreCase);
@@ -61,6 +66,14 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(HasCustomTemplateError))]
     [NotifyPropertyChangedFor(nameof(CustomTemplateValidationError))]
     private string _customTemplate = "{\n  \"device\": \"{device}\",\n  \"ts\": {ts},\n  \"values\": {\n    \"{tag}\": {val}\n  }\n}";
+
+    partial void OnCustomTemplateChanged(string value)
+    {
+        if (IsCustomTemplateVisible)
+        {
+            SynchronizeConnectors();
+        }
+    }
 
     public int CustomTemplateLength => CustomTemplate?.Length ?? 0;
     public string CustomTemplateCounterText => $"{CustomTemplateLength} / 128 ký tự";
@@ -102,6 +115,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     [NotifyPropertyChangedFor(nameof(QosBadgeText))]
+    [NotifyPropertyChangedFor(nameof(QosRetainSummary))]
     [NotifyPropertyChangedFor(nameof(IsQos0))]
     [NotifyPropertyChangedFor(nameof(IsQos1))]
     [NotifyPropertyChangedFor(nameof(IsQos2))]
@@ -115,6 +129,7 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     [NotifyPropertyChangedFor(nameof(RetainBadgeText))]
+    [NotifyPropertyChangedFor(nameof(QosRetainSummary))]
     private bool _retain = false;
 
     [ObservableProperty]
@@ -265,6 +280,8 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
 
     public string RetainBadgeText => Retain ? "Retain: ON" : "Retain: OFF";
 
+    public string QosRetainSummary => $"{QosBadgeText} · {RetainBadgeText}";
+
     public string DataTagBadgeText => Fields.Count > 0
         ? $"{Fields.Count} Tags"
         : (DataTag != null ? DataTag.Name : "—");
@@ -306,6 +323,50 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     public ConnectorViewModel DefaultValConnector { get; }
     public ConnectorViewModel DoneConnector { get; }
     public ConnectorViewModel ErrorConnector { get; }
+
+    public ObservableCollection<ConnectorViewModel> CustomConnectors { get; } = new();
+    public Dictionary<string, TagModel?> CustomTagMap { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public static List<string> ExtractCustomTokens(string? template)
+    {
+        if (string.IsNullOrWhiteSpace(template)) return new List<string>();
+
+        var matches = System.Text.RegularExpressions.Regex.Matches(template, @"\{([^\{\}\s:]+)(?::[0-3])?\}");
+        var list = new List<string>();
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            string token = match.Groups[1].Value;
+            if (token is "device" or "ts" or "tag" or "unit" or "vals")
+                continue;
+            if (System.Text.RegularExpressions.Regex.IsMatch(token, @"^tag[1-8]$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                continue;
+
+            if (!list.Contains(token, StringComparer.OrdinalIgnoreCase))
+            {
+                list.Add(token);
+                if (list.Count >= 8) break;
+            }
+        }
+        return list;
+    }
+
+    public void SetCustomConnectorTag(string tokenOrTitle, TagModel? tag)
+    {
+        CustomTagMap[tokenOrTitle] = tag;
+        if (tag != null && DataTag == null)
+        {
+            DataTag = tag;
+        }
+        OnPropertyChanged(nameof(PreviewPayloadText));
+        OnPropertyChanged(nameof(NarrativeText));
+        OnPropertyChanged(nameof(SummaryText));
+    }
+
+    public TagModel? GetCustomConnectorTag(string tokenOrTitle)
+    {
+        if (CustomTagMap.TryGetValue(tokenOrTitle, out var t)) return t;
+        return null;
+    }
 
     public MqttPublishNodeViewModel(TagModel? dataTag = null, string topic = "synaptix/telemetry/data")
     {
@@ -426,7 +487,85 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
         }
 
         // 2. Đồng bộ chân dữ liệu giá trị (Val mặc định vs Dynamic Fields)
-        if (Fields.Count == 0)
+        // 2. Chế độ Tùy biến mẫu JSON (Custom Template) -> Option 3: Dynamic Auto-parsing
+        if (IsCustomTemplateVisible)
+        {
+            if (InputConnectors.Contains(DefaultValConnector))
+            {
+                InputConnectors.Remove(DefaultValConnector);
+            }
+
+            var tokens = ExtractCustomTokens(CustomTemplate);
+            if (tokens.Count == 0)
+            {
+                var toRemoveAll = InputConnectors.Where(c => c != TriggerConnector && c != DefaultValConnector).ToList();
+                foreach (var c in toRemoveAll) InputConnectors.Remove(c);
+                if (!InputConnectors.Contains(DefaultValConnector))
+                {
+                    InputConnectors.Add(DefaultValConnector);
+                }
+                CustomConnectors.Clear();
+                return;
+            }
+
+            var currentCustomByTitle = CustomConnectors.ToDictionary(c => c.Title, StringComparer.OrdinalIgnoreCase);
+            var updatedCustom = new List<ConnectorViewModel>();
+
+            foreach (var token in tokens)
+            {
+                string title = token;
+                if (string.Equals(token, "val", StringComparison.OrdinalIgnoreCase))
+                    title = "Val";
+
+                if (currentCustomByTitle.TryGetValue(title, out var existing))
+                {
+                    updatedCustom.Add(existing);
+                }
+                else
+                {
+                    var newConn = new ConnectorViewModel
+                    {
+                        Title = title,
+                        IsInput = true,
+                        Node = this
+                    };
+                    newConn.SetBilingualDescription(
+                        $"Ngõ vào dữ liệu cho biến '{{{token}}}' trong JSON template",
+                        $"Data input for token '{{{token}}}' in JSON template");
+                    updatedCustom.Add(newConn);
+                }
+            }
+
+            var obsoleteCustom = InputConnectors.Where(c => c != TriggerConnector && !updatedCustom.Contains(c)).ToList();
+            foreach (var c in obsoleteCustom)
+            {
+                InputConnectors.Remove(c);
+            }
+
+            CustomConnectors.Clear();
+            foreach (var c in updatedCustom)
+            {
+                CustomConnectors.Add(c);
+                if (!InputConnectors.Contains(c))
+                {
+                    InputConnectors.Add(c);
+                }
+            }
+            return;
+        }
+
+        // Gỡ CustomConnectors khi không ở chế độ Custom
+        if (CustomConnectors.Count > 0)
+        {
+            foreach (var c in CustomConnectors)
+            {
+                InputConnectors.Remove(c);
+            }
+            CustomConnectors.Clear();
+        }
+
+        // 3. Chế độ JSON / Raw
+        if (Fields.Count == 0 || IsRawMode)
         {
             var toRemove = InputConnectors.Where(c => c != TriggerConnector && c != DefaultValConnector).ToList();
             foreach (var c in toRemove)
@@ -534,6 +673,10 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
             {
                 int fIdx = k - 1;
                 TagModel? fTag = (fIdx < Fields.Count) ? Fields[fIdx].Tag : null;
+                if (fTag == null && fIdx < CustomConnectors.Count)
+                {
+                    fTag = GetCustomConnectorTag(CustomConnectors[fIdx].Title);
+                }
                 string fValStr = FormatTagValueString(fTag, k == 1 ? value : 0.0);
                 string fTagName = (fIdx < Fields.Count)
                     ? (Fields[fIdx].Tag?.Name ?? Fields[fIdx].Key)
@@ -563,6 +706,16 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
                 if (field.Tag != null && !string.IsNullOrWhiteSpace(field.Tag.Name))
                 {
                     result = result.Replace("{" + field.Tag.Name + "}", fVal);
+                }
+            }
+
+            // Thay thế cả các biến theo tên token trong CustomTagMap (Option 3 Dynamic Connectors)
+            foreach (var kvp in CustomTagMap)
+            {
+                if (!string.IsNullOrWhiteSpace(kvp.Key) && kvp.Value != null)
+                {
+                    string cVal = FormatTagValueString(kvp.Value, 0);
+                    result = result.Replace("{" + kvp.Key + "}", cVal);
                 }
             }
 

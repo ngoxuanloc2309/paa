@@ -1,4 +1,4 @@
-namespace SimplePLC.Protocol.Dto;
+﻿namespace SimplePLC.Protocol.Dto;
 
 using System.Collections.Generic;
 using SimplePLC.Protocol.Enums;
@@ -11,6 +11,7 @@ public sealed class ModbusMasterReadConfigDto
 {
     public string NodeId { get; set; } = string.Empty;
     public int BlockIndex { get; set; } = 0;
+    public byte PortIndex { get; set; } = 0;
     public bool Enabled { get; set; } = true;
     public byte SlaveId { get; set; } = 1;
     public ModbusMasterFunctionCode FunctionCode { get; set; } = ModbusMasterFunctionCode.ReadHoldingRegisters;

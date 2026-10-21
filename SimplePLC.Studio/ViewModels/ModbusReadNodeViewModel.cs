@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.ObjectModel;
@@ -18,6 +18,13 @@ namespace SimplePLC.Studio.ViewModels;
 /// </summary>
 public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 {
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(PortDisplayName))]
+    private byte _portIndex = 0;
+
+    public string PortDisplayName => $"RS-485 #{PortIndex + 1}";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NodeInfoSummary))]
@@ -79,7 +86,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
     public string ReadModeSummaryText => IsTriggerMode
         ? (LocalizationService.Tr("ModbusWriteTrigEdgeShort") ?? "On Trig")
-        : $"{PollIntervalMs}ms";
+        : $"Cyclic ({PollIntervalMs}ms)";
 
     // Chuỗi tóm tắt thông số truyền thông trên Canvas (ví dụ: ID:1 | FC03)
     public string NodeInfoSummary => $"ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
@@ -133,7 +140,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     public ConnectorViewModel ErrCodeConnector { get; }
 
     public override string SummaryText => string.IsNullOrWhiteSpace(CustomLabel)
-        ? $"MB_READ [ID:{SlaveId} | FC{(byte)FunctionCode:D2} | Addr:{StartAddress}] ({Pins.Count} Pins)"
+        ? $"MB_READ [Port {PortIndex + 1}|ID:{SlaveId}|FC{(byte)FunctionCode:D2}|Addr:{StartAddress}] ({Pins.Count} Pins)"
         : $"{CustomLabel} [ID:{SlaveId} | FC{(byte)FunctionCode:D2}] ({Pins.Count} Pins)";
 
     public string StatusPillText
@@ -141,8 +148,9 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         get
         {
             if (IsErrorActive) return !string.IsNullOrEmpty(LastErrorMessage) ? $"ERR: {LastErrorMessage}" : "ERR: TIMEOUT";
+            if (IsValidActive) return "VALID";
             if (PollCount > 0) return $"{PollCount} polls";
-            return IsTriggerMode ? "READY" : $"POLL ({PollIntervalMs}ms)";
+            return "READY";
         }
     }
 
@@ -182,7 +190,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
         ErrorConnector = new ConnectorViewModel
         {
-            Title = "Err",
+            Title = "Error",
             TooltipKey = "PinTooltipMbErr",
             IsInput = false,
             Node = this
@@ -191,7 +199,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
         ErrCodeConnector = new ConnectorViewModel
         {
-            Title = "Err_Code",
+            Title = "ErrCode",
             TooltipKey = "PinTooltipMbErrCode",
             IsInput = false,
             Node = this
@@ -269,7 +277,9 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     }
 
     /// <summary>
-    /// Đồng bộ hóa Input Connectors trên Canvas tương ứng với ReadMode.
+    /// Đồng bộ hóa Input Connectors trên Canvas tương ứng với ReadMode:
+    /// - Khi ở chế độ Cyclic: Khối tự động quét theo chu kỳ ngầm trên MCU, không hiển thị chân ngõ vào.
+    /// - Khi ở chế độ OnTriggerRisingEdge: Hiển thị chân 'Trig' để nhận xung kích hoạt (đồng bộ MB_WRITE và MQTT_PUB).
     /// </summary>
     public void SyncConnectors()
     {
@@ -278,9 +288,6 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         {
             InputConnectors.Add(TrigConnector);
         }
-        else
-        {
-            InputConnectors.Add(EnableConnector);
-        }
     }
 }
+

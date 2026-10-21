@@ -1120,7 +1120,7 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconComparatorOp}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
                         <TextBlock Text="CMP" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
@@ -1178,7 +1178,7 @@
     <!-- 9. MQTT Publish Node Template (Industrial IIoT Telemetry & Cloud Messaging Block) -->
     <DataTemplate DataType="{x:Type vm:MqttPublishNodeViewModel}">
         <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
-                     Width="185"
+                     Width="220"
                      HeaderBrush="{StaticResource NodeMqttBrush}"
                      Input="{Binding InputConnectors}"
                      Output="{Binding OutputConnectors}">
@@ -1186,7 +1186,7 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconMqttBroadcast}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
                         <TextBlock Text="PUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
@@ -1205,15 +1205,16 @@
             <nodify:Node.OutputConnectorTemplate>
                 <DataTemplate>
                     <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
-                                        IsConnected="{Binding IsConnected}"
-                                        Header="{Binding Title}"
-                                        ToolTip="{Binding TooltipText}"
-                                        Margin="0,1" />
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding TooltipText}"
+                                       Margin="0,1" />
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
-                <!-- Mode Summary (Clean Technical Parameter like TON / CTU) -->
-                <TextBlock Text="{Binding PublishModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,3" ToolTip="{Binding Topic}" />
+                <!-- Topic & Publish Mode Summary -->
+                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
+                <TextBlock Text="{Binding PublishModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
 
                 <!-- Status Pill (Live / Simulation) -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
@@ -1257,7 +1258,7 @@
                                 </Style>
                             </Ellipse.Style>
                         </Ellipse>
-                        <TextBlock Text="{Binding TelemetryStatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="85">
+                        <TextBlock Text="{Binding TelemetryStatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#475569" />
@@ -1284,7 +1285,7 @@
     <!-- 10. MQTT Subscribe Node Template (Dynamic Pins & Inbound Messaging Block) -->
     <DataTemplate DataType="{x:Type vm:MqttSubscribeNodeViewModel}">
         <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
-                     Width="185"
+                     Width="220"
                      HeaderBrush="{StaticResource NodeMqttBrush}"
                      Input="{Binding InputConnectors}"
                      Output="{Binding OutputConnectors}">
@@ -1292,7 +1293,7 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconMqttBroadcast}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
                         <TextBlock Text="SUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
@@ -1318,9 +1319,9 @@
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
-                <!-- Inbound Technical Parameters: Queue Mode & Out Pins -->
-                <TextBlock Text="{Binding QueueModeSummaryText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
-                <TextBlock Text="{Binding PinsCountSummary}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#475569" Margin="0,0,0,4" ToolTip="{Binding Topic}" />
+                <!-- Topic & Queue Mode Summary -->
+                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
+                <TextBlock Text="{Binding QueueModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding PinsCountSummary}" />
 
                 <!-- Status Pill (Live / Simulation) -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
@@ -1357,7 +1358,7 @@
                                 </Style>
                             </Ellipse.Style>
                         </Ellipse>
-                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="85">
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#475569" />
@@ -1381,7 +1382,7 @@
     <!-- 11. Modbus Master Read Node Template (Generic RS-485 Sensor & Device Poller) -->
     <DataTemplate DataType="{x:Type vm:ModbusReadNodeViewModel}">
         <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
-                     Width="185"
+                     Width="220"
                      HeaderBrush="{StaticResource NodeModbusBrush}"
                      Input="{Binding InputConnectors}"
                      Output="{Binding OutputConnectors}">
@@ -1389,7 +1390,7 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconModbusMaster}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
                     <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
                         <TextBlock Text="MB_RD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
@@ -1454,7 +1455,7 @@
                                 </Style>
                             </Ellipse.Style>
                         </Ellipse>
-                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="95">
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#475569" />

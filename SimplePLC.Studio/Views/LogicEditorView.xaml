@@ -231,6 +231,11 @@
                     <Setter Property="Background" Value="#F8FAFC" />
                     <Setter Property="BorderBrush" Value="#94A3B8" />
                 </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4" />
+                    <Setter Property="Cursor" Value="No" />
+                    <Setter Property="Background" Value="#F1F5F9" />
+                </Trigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
@@ -614,8 +619,9 @@
                             <StackPanel Margin="0,2,0,0">
                                 <!-- MQTT Publish Block -->
                                 <Border Tag="MqttPublish" Style="{StaticResource ToolboxCardStyle}"
+                                        IsEnabled="{Binding IsMqttPublishSupported}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxMqttDesc], Source={x:Static services:LocalizationService.Instance}}">
+                                        ToolTip="{Binding MqttPublishDisabledTooltip}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="3" />
@@ -636,8 +642,9 @@
 
                                 <!-- MQTT Subscribe Block -->
                                 <Border Tag="MqttSubscribe" Style="{StaticResource ToolboxCardStyle}"
+                                        IsEnabled="{Binding IsMqttSubscribeSupported}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxMqttSubDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        ToolTip="{Binding MqttSubscribeDisabledTooltip}"
                                         Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -659,8 +666,9 @@
 
                                 <!-- Modbus Master Read Block -->
                                 <Border Tag="MB_READ" Style="{StaticResource ToolboxCardStyle}"
+                                        IsEnabled="{Binding IsModbusMasterSupported}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxModbusReadDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        ToolTip="{Binding ModbusReadDisabledTooltip}"
                                         Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -682,8 +690,9 @@
 
                                 <!-- Modbus Master Write Block -->
                                 <Border Tag="MB_WRITE" Style="{StaticResource ToolboxCardStyle}"
+                                        IsEnabled="{Binding IsModbusMasterSupported}"
                                         PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding [ToolboxModbusWriteDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        ToolTip="{Binding ModbusWriteDisabledTooltip}"
                                         Margin="0,4,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -2437,152 +2446,40 @@
                                  ToolTip="{Binding [InspectorNodeLabelTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                  Padding="6,4" Margin="0,0,0,10" />
 
-                        <!-- MQTT TOPIC -->
-                        <TextBlock Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{Binding SelectedMqttNode.Topic, UpdateSourceTrigger=PropertyChanged}" 
-                                     ToolTip="{Binding [InspectorMqttTopicTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                     Padding="6,4" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Command="{Binding SelectedMqttNode.SanitizeTopicCommand}" 
-                                    ToolTip="{Binding [InspectorMqttTopicSanitizeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Content="🧹" Style="{StaticResource TiaTactileBtnStyle}" Padding="8,4" Margin="4,0,0,0" />
-                        </Grid>
-
-                        <!-- Topic Validation Error Warning -->
-                        <Border Visibility="{Binding SelectedMqttNode.HasTopicError, Converter={StaticResource BoolToVis}}"
-                                Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,0,0,8">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⚠ " Foreground="#DC2626" FontSize="11" FontWeight="Bold" />
-                                <TextBlock Text="{Binding SelectedMqttNode.TopicValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- PUBLISH TRIGGER MODE -->
-                        <TextBlock Text="{Binding [InspectorMqttPublishMode], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
-                        <ComboBox SelectedValue="{Binding SelectedMqttNode.PublishMode, Mode=TwoWay}" SelectedValuePath="Tag" 
-                                  ToolTip="{Binding [InspectorMqttPublishModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                  Padding="6,4" Margin="0,0,0,8">
-                            <ComboBoxItem Content="{Binding [MqttPublishModeEvent], Source={x:Static services:LocalizationService.Instance}}" Tag="Event" />
-                            <ComboBoxItem Content="{Binding [MqttPublishModeCyclic], Source={x:Static services:LocalizationService.Instance}}" Tag="Cyclic" />
-                            <ComboBoxItem Content="{Binding [MqttPublishModeCov], Source={x:Static services:LocalizationService.Instance}}" Tag="COV" />
-                        </ComboBox>
-
-                        <!-- Periodic Interval or COV Deadband -->
-                        <StackPanel Visibility="{Binding SelectedMqttNode.IsPeriodicMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
-                            <TextBlock Text="{Binding [InspectorIntervalMs], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="#64748B" Margin="0,0,0,2" />
-                            <TextBox Text="{Binding SelectedMqttNode.IntervalMs, UpdateSourceTrigger=PropertyChanged}" 
-                                     ToolTip="{Binding [InspectorMqttIntervalTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                     Padding="6,4" />
-                        </StackPanel>
-                        <StackPanel Visibility="{Binding SelectedMqttNode.IsCovMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
-                            <TextBlock Text="{Binding [InspectorMqttDeadband], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="#64748B" Margin="0,0,0,2" />
-                            <TextBox Text="{Binding SelectedMqttNode.DeadbandText, UpdateSourceTrigger=PropertyChanged}" 
-                                     ToolTip="{Binding [InspectorMqttDeadbandTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                     Padding="6,4" />
-                        </StackPanel>
-
-                        <!-- TRANSPORT (QoS & Retain) -->
-                        <TextBlock Text="{Binding [InspectorMqttQos], Source={x:Static services:LocalizationService.Instance}}" 
-                                   ToolTip="{Binding [InspectorMqttQosTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="QoS 0" Command="{Binding SelectedMqttNode.SetQos0Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos0Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="0,0,2,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                         <Style.Triggers>
-                                             <DataTrigger Binding="{Binding SelectedMqttNode.IsQos0}" Value="True">
-                                                 <Setter Property="Background" Value="#E0F2FE" />
-                                                 <Setter Property="Foreground" Value="#006487" />
-                                                 <Setter Property="BorderBrush" Value="#006487" />
-                                                 <Setter Property="FontWeight" Value="Bold" />
-                                             </DataTrigger>
-                                         </Style.Triggers>
-                                     </Style>
-                                 </Button.Style>
-                             </Button>
-                            <Button Grid.Column="1" Content="QoS 1" Command="{Binding SelectedMqttNode.SetQos1Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos1Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="2,0,2,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                        <Style.Triggers>
-                                             <DataTrigger Binding="{Binding SelectedMqttNode.IsQos1}" Value="True">
-                                                 <Setter Property="Background" Value="#E0F2FE" />
-                                                 <Setter Property="Foreground" Value="#006487" />
-                                                 <Setter Property="BorderBrush" Value="#006487" />
-                                                 <Setter Property="FontWeight" Value="Bold" />
-                                             </DataTrigger>
-                                         </Style.Triggers>
-                                     </Style>
-                                 </Button.Style>
-                             </Button>
-                            <Button Grid.Column="2" Content="QoS 2" Command="{Binding SelectedMqttNode.SetQos2Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos2Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="2,0,0,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                        <Style.Triggers>
-                                             <DataTrigger Binding="{Binding SelectedMqttNode.IsQos2}" Value="True">
-                                                 <Setter Property="Background" Value="#E0F2FE" />
-                                                 <Setter Property="Foreground" Value="#006487" />
-                                                 <Setter Property="BorderBrush" Value="#006487" />
-                                                 <Setter Property="FontWeight" Value="Bold" />
-                                             </DataTrigger>
-                                         </Style.Triggers>
-                                     </Style>
-                                 </Button.Style>
-                             </Button>
-                         </Grid>
-
-                        <CheckBox IsChecked="{Binding SelectedMqttNode.Retain}" 
-                                  ToolTip="{Binding [InspectorMqttRetainTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                  Content="{Binding [InspectorMqttRetain], Source={x:Static services:LocalizationService.Instance}}" 
-                                  FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,12" />
-
-                        <!-- DATA & JSON PAYLOAD CONFIGURATION CARD -->
+                        <!-- MQTT Publish Summary Card -->
                         <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="{Binding [InspectorMqttDataSectionTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,6" />
-                                
-                                <DockPanel Margin="0,0,0,10">
-                                    <TextBlock Text="{Binding [InspectorMqttFormatLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="#64748B" Margin="0,0,4,0" />
-                                    <TextBlock Text="{Binding SelectedMqttNode.PayloadMode}" FontSize="11" FontWeight="SemiBold" Foreground="#0F172A" />
-                                    <TextBlock Text="{Binding [InspectorMqttSourceLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="#64748B" Margin="8,0,4,0" />
-                                    <TextBlock Text="{Binding SelectedMqttNode.DataTagBadgeText}" FontSize="11" FontWeight="Bold" Foreground="#334155" />
+                                <!-- Topic -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttNode.Topic}" FontWeight="Bold" FontFamily="Consolas" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="155" ToolTip="{Binding SelectedMqttNode.Topic}" />
                                 </DockPanel>
 
-                                <!-- Nút mở Dialog cấu hình chuyên sâu -->
-                                <Button Content="{Binding [MqttConfigOpenBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                <!-- Publish Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorMqttPublishMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttNode.PublishModeSummaryText}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <!-- QoS & Retain -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="QoS / Retain" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttNode.QosRetainSummary}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Payload Format -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorMqttFormatLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttNode.PayloadMode}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Source / Fields Count -->
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding [InspectorMqttSourceLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttNode.DataTagBadgeText}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <Button Content="{Binding [InspectorMqttConfigureBtn], Source={x:Static services:LocalizationService.Instance}}" 
                                         Command="{Binding OpenMqttConfigCommand}"
                                         CommandParameter="{Binding SelectedMqttNode}"
                                         ToolTip="{Binding [InspectorMqttConfigureTooltip], Source={x:Static services:LocalizationService.Instance}}"
@@ -2609,118 +2506,34 @@
                                  ToolTip="{Binding [InspectorNodeLabelTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                  Padding="6,4" Margin="0,0,0,10" />
 
-                        <!-- MQTT TOPIC -->
-                        <TextBlock Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{Binding SelectedMqttSubNode.Topic, UpdateSourceTrigger=PropertyChanged}" 
-                                     ToolTip="{Binding [InspectorMqttSubTopicTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                     Padding="6,4" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Command="{Binding SelectedMqttSubNode.SanitizeTopicCommand}" 
-                                    ToolTip="{Binding [InspectorMqttTopicSanitizeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Content="🧹" Style="{StaticResource TiaTactileBtnStyle}" Padding="8,4" Margin="4,0,0,0" />
-                        </Grid>
-
-                        <!-- Topic Validation Error Warning -->
-                        <Border Visibility="{Binding SelectedMqttSubNode.HasTopicError, Converter={StaticResource BoolToVis}}"
-                                Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,0,0,8">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⚠ " Foreground="#DC2626" FontSize="11" FontWeight="Bold" />
-                                <TextBlock Text="{Binding SelectedMqttSubNode.TopicValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- MQTT QoS Selector (Identical to MQTT Publish) -->
-                        <TextBlock Text="{Binding [InspectorMqttQos], Source={x:Static services:LocalizationService.Instance}}" 
-                                   ToolTip="{Binding [InspectorMqttQosTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="QoS 0" Command="{Binding SelectedMqttSubNode.SetQos0Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos0Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="0,0,2,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding SelectedMqttSubNode.IsQos0}" Value="True">
-                                                <Setter Property="Background" Value="#E0F2FE" />
-                                                <Setter Property="Foreground" Value="#006487" />
-                                                <Setter Property="BorderBrush" Value="#006487" />
-                                                <Setter Property="FontWeight" Value="Bold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                            <Button Grid.Column="1" Content="QoS 1" Command="{Binding SelectedMqttSubNode.SetQos1Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos1Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="2,0,2,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding SelectedMqttSubNode.IsQos1}" Value="True">
-                                                <Setter Property="Background" Value="#E0F2FE" />
-                                                <Setter Property="Foreground" Value="#006487" />
-                                                <Setter Property="BorderBrush" Value="#006487" />
-                                                <Setter Property="FontWeight" Value="Bold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                            <Button Grid.Column="2" Content="QoS 2" Command="{Binding SelectedMqttSubNode.SetQos2Command}" 
-                                    ToolTip="{Binding [InspectorMqttQos2Tooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                    Margin="2,0,0,0" Padding="0,5" FontSize="11" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F8FAFC" />
-                                        <Setter Property="Foreground" Value="#475569" />
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="FontWeight" Value="Normal" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding SelectedMqttSubNode.IsQos2}" Value="True">
-                                                <Setter Property="Background" Value="#E0F2FE" />
-                                                <Setter Property="Foreground" Value="#006487" />
-                                                <Setter Property="BorderBrush" Value="#006487" />
-                                                <Setter Property="FontWeight" Value="Bold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                        </Grid>
-
-                        <!-- OUTPUT PINS & PAYLOAD EXTRACTION CARD -->
+                        <!-- MQTT Subscribe Summary Card (Golden Template Read-Only) -->
                         <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="{Binding [MqttSubPinsSectionTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="#334155" Margin="0,0,6,0" />
-
-                                <DockPanel Margin="0,0,0,10">
-                                    <TextBlock Text="{Binding [InspectorMqttPinsLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="#64748B" Margin="0,0,4,0" />
-                                    <TextBlock Text="{Binding SelectedMqttSubNode.PinsCountSummary}" FontSize="11" FontWeight="Bold" Foreground="#334155" />
+                                <!-- Topic -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttSubNode.Topic}" FontWeight="Bold" FontFamily="Consolas" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="155" ToolTip="{Binding SelectedMqttSubNode.Topic}" />
                                 </DockPanel>
 
-                                <!-- Nút mở Dialog cấu hình ngõ ra & Thử nghiệm -->
+                                <!-- Queue Mode -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [MqttSubColQueueMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttSubNode.QueueModeSummaryText}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <!-- QoS -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [InspectorMqttQos], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttSubNode.QosSummary}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- Output Pins Count -->
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding [InspectorMqttPinsLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedMqttSubNode.PinsCountSummary}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <!-- CTA Configure Button -->
                                 <Button Content="{Binding [InspectorMqttSubConfigureBtn], Source={x:Static services:LocalizationService.Instance}}" 
                                         Command="{Binding OpenMqttSubConfigCommand}"
                                         CommandParameter="{Binding SelectedMqttSubNode}"
@@ -2750,43 +2563,37 @@
                         <!-- Slave ID & Polling Summary Card -->
                         <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,10">
                             <StackPanel>
+                                <!-- Slave ID -->
                                 <DockPanel Margin="0,0,0,6">
                                     <TextBlock Text="{Binding [ModbusColSlaveId], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
                                     <TextBlock Text="{Binding SelectedModbusReadNode.SlaveId}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
                                 </DockPanel>
+
                                 <!-- Function Code -->
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding [ModbusColFunctionCode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" VerticalAlignment="Top" Margin="0,0,6,0" />
-                                    <TextBlock Grid.Column="1" Text="{Binding SelectedModbusReadNode.FunctionCodeName}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap" />
-                                </Grid>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusColFunctionCode], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.FunctionCodeDisplay}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <!-- Read Mode & Poll Interval -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding [ModbusReadModeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedModbusReadNode.ReadModeSummaryText}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <!-- Start Address -->
                                 <DockPanel Margin="0,0,0,6">
                                     <TextBlock Text="{Binding [ModbusColStartAddr], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
                                     <TextBlock Text="{Binding SelectedModbusReadNode.StartAddress}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
                                 </DockPanel>
+
+                                <!-- Register Count -->
                                 <DockPanel Margin="0,0,0,6">
                                     <TextBlock Text="{Binding [ModbusColRegCount], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
                                     <TextBlock Text="{Binding SelectedModbusReadNode.RegCount}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
                                 </DockPanel>
-                                <!-- Read Trigger Mode — Inline ComboBox -->
-                                <TextBlock Text="{Binding [ModbusReadModeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
-                                <ComboBox ItemsSource="{Binding SelectedModbusReadNode.AvailableReadModes}"
-                                          SelectedValue="{Binding SelectedModbusReadNode.ReadMode, Mode=TwoWay}"
-                                          SelectedValuePath="Value"
-                                          DisplayMemberPath="DisplayName"
-                                          ToolTip="{Binding [ModbusReadColModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                          Padding="6,4" Margin="0,0,0,6" />
 
-                                <!-- Poll Interval — visible only in Cyclic mode -->
-                                <StackPanel Visibility="{Binding SelectedModbusReadNode.IsCyclicMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding [ModbusColPollInterval], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" Margin="0,0,0,2" />
-                                    <TextBox Text="{Binding SelectedModbusReadNode.PollIntervalMs, UpdateSourceTrigger=PropertyChanged}" 
-                                             ToolTip="{Binding [ModbusReadColPollIntervalTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                             Padding="6,4" />
-                                </StackPanel>
+                                <!-- Target Summary Info -->
                                 <DockPanel Margin="0,0,0,10">
                                     <TextBlock Text="{Binding [InspectorModbusPinsLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" />
                                     <TextBlock Text="{Binding SelectedModbusReadNode.PinsCountSummary}" FontSize="11" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />

@@ -114,8 +114,7 @@ public class MqttBlueprintTests
             Assert.Contains("Err: Báo lỗi kết nối", mqttPub.OutputConnectors[1].TooltipText);
 
             // 2. MQTT Sub Pins (Chế độ Tiếng Việt: Hiển thị tiếng Việt hoàn chỉnh)
-            Assert.Contains("EN: Khóa cho phép khối hoạt động", mqttSub.EnableConnector.TooltipText);
-            Assert.False(string.IsNullOrWhiteSpace(mqttSub.EnableConnector.Description));
+            Assert.Empty(mqttSub.InputConnectors);
             Assert.Contains("Valid: Xung báo nhận được gói tin", mqttSub.ValidConnector.TooltipText);
             Assert.Contains("Err: Báo lỗi kết nối", mqttSub.ErrorConnector.TooltipText);
             Assert.NotNull(pin.Connector);
@@ -124,7 +123,7 @@ public class MqttBlueprintTests
             // 3. Kiểm tra chuyển đổi ngôn ngữ động sang Tiếng Anh khi chọn English
             loc.CurrentLanguage = "en";
             Assert.Contains("Trig: Pulse to publish MQTT message", mqttPub.InputConnectors[0].TooltipText);
-            Assert.Contains("EN: Block operation enable", mqttSub.EnableConnector.TooltipText);
+            Assert.Empty(mqttSub.InputConnectors);
             Assert.Contains("Valid: Pulse asserting a valid MQTT message", mqttSub.ValidConnector.TooltipText);
             Assert.NotNull(pin.Connector);
             Assert.Contains("TempPin: Extract JSON field 'temp' (Float)", pin.Connector.TooltipText);

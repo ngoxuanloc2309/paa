@@ -1,4 +1,4 @@
-using SimplePLC.Application.Abstractions;
+﻿using SimplePLC.Application.Abstractions;
 using SimplePLC.Infrastructure.Abstractions;
 using SimplePLC.Infrastructure.Devices;
 using SimplePLC.Protocol.Dto;
@@ -50,6 +50,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null) =>
         _writer.DeployRulesAsync(
@@ -63,6 +64,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
             modbusMasterConfigs,
             modbusMasterWriteConfigs,
             directWriteConfigs,
+            modbusPortConfigs,
             cancellationToken,
             progressLogger);
 }

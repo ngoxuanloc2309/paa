@@ -19,6 +19,7 @@ internal class Program
         ushort wireProfile = 2;
         bool hasCustomProfile = false;
         bool autoSignals = false;
+        string capsProfile = "remote-io";
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -59,6 +60,10 @@ internal class Program
                 hasCustomProfile = true;
                 i++;
             }
+            else if ((args[i] == "--caps" || args[i] == "-c") && i + 1 < args.Length)
+            {
+                capsProfile = args[++i].ToLowerInvariant();
+            }
             else if (args[i] == "--auto" || args[i] == "--auto-signals")
             {
                 autoSignals = true;
@@ -82,6 +87,7 @@ internal class Program
         Console.WriteLine($"Wire Profile: V{wireProfile} {(wireProfile == 2 ? "(Dedicated Function Blocks 0x0B00)" : "(Standard V1)")}");
         Console.WriteLine($"Firmware:     v2.0.0 (TinyUSB CDC + NanoModbus)");
         Console.WriteLine($"Profile:      DI={diCount}, DO={doCount}, AI={aiCount}");
+        Console.WriteLine($"Capabilities: {capsProfile.ToUpperInvariant()} (0x0A08 Feature Gating)");
         Console.WriteLine("------------------------------------------------------------------");
         Console.WriteLine("Controls:");
         Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs (DI0..DI7)");
@@ -90,12 +96,18 @@ internal class Program
         Console.WriteLine("  [A]     Toggle Auto Waveform Generator (All 23 App Blueprints)");
         Console.WriteLine("  [V]     Toggle VFLAG0 (Production Shift / Security Arm)");
         Console.WriteLine("  [S]     Sync RTC Clock with host computer");
+        Console.WriteLine("  [C]     Toggle Capabilities (Remote I/O <-> IoT Gateway)");
         Console.WriteLine("  [R]     Trigger Software Reboot");
         Console.WriteLine("  [F]     Trigger Factory Reset");
         Console.WriteLine("  [Q]     Quit");
         Console.WriteLine("==================================================================");
 
         var simulator = new McuReferenceSimulator(wireProfile);
+        bool isGateway = capsProfile != "remote-io" && capsProfile != "remoteio" && capsProfile != "no-mqtt";
+        var initialCaps = isGateway
+            ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER
+            : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
+        simulator.SetHardwareCapabilities(initialCaps);
         if (hasCustomProfile)
         {
             ushort vflagCount = 32;
@@ -227,6 +239,17 @@ internal class Program
                     simulator.Control.SetTagValue(layout.VflagBase, newV);
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine($"[FLAG] VFLAG0 (Shift / Arm) toggled -> {(newV == 1 ? "HIGH (1) [Ca sản xuất / Arm BẬT]" : "LOW (0) [Hết ca / Arm TẮT]")}");
+                    Console.ResetColor();
+                }
+                else if (key.Key == ConsoleKey.C)
+                {
+                    isGateway = !isGateway;
+                    var newCaps = isGateway
+                        ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER
+                        : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
+                    simulator.SetHardwareCapabilities(newCaps);
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    Console.WriteLine($"[CAPS] Toggled Hardware Profile -> {(isGateway ? "IoT Gateway (Ethernet + Wi-Fi + MQTT + Modbus)" : "Remote I/O (NO MQTT, NO Modbus)")}");
                     Console.ResetColor();
                 }
                 else if (key.Key == ConsoleKey.S)

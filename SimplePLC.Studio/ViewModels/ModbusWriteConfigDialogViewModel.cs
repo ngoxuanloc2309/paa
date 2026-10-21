@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -45,6 +45,18 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 {
     public ModbusWriteNodeViewModel Node { get; }
     public TagCatalogViewModel TagCatalog { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    private byte _portIndex;
+
+    public IReadOnlyList<OptionItem<byte>> AvailablePorts { get; } = new List<OptionItem<byte>>
+    {
+        new(0, "Cổng 1 (RS-485 #1)"),
+        new(1, "Cổng 2 (RS-485 #2)"),
+        new(2, "Cổng 3 (RS-485 #3)"),
+        new(3, "Cổng 4 (RS-485 #4)")
+    };
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -114,8 +126,8 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     public bool IsDirectRegistersMode => WriteMode == ModbusWriteMode.DirectRegisters;
 
     public string SummaryBadgeText => WriteMode == ModbusWriteMode.ChannelIndexed
-        ? $"Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}"
-        : $"Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+        ? $"Port {PortIndex + 1} | Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}"
+        : $"Port {PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
 
     public bool HasPins => Node.Pins.Count > 0;
     public bool HasNoPins => Node.Pins.Count == 0;
@@ -200,6 +212,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
 
+        _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
         _writeMode = node.WriteMode;
         _functionCode = node.FunctionCode;
@@ -402,7 +415,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             HasParamFrame = true;
 
             SimGeneratedFrames = string.Join(Environment.NewLine, frames);
-            SimStatusMessage = LocalizationService.Tr("ModbusWriteStatusSuccess") ?? "✔ Valid Modbus RTU frame (CRC-16 verified)";
+            SimStatusMessage = LocalizationService.Tr("ModbusWriteStatusSuccess") ?? "Valid Modbus RTU frame (CRC-16 verified)";
 
             // Breakdown
             ushort crcCmd = (ushort)(cmdFrame[6] | (cmdFrame[7] << 8));
@@ -516,7 +529,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             HasParamFrame = false;
             SimParamTxFrameHex = string.Empty;
             SimGeneratedFrames = string.Join(Environment.NewLine, frames);
-            SimStatusMessage = LocalizationService.Tr("ModbusWriteStatusSuccess") ?? "✔ Valid Modbus RTU frame (CRC-16 verified)";
+            SimStatusMessage = LocalizationService.Tr("ModbusWriteStatusSuccess") ?? "Valid Modbus RTU frame (CRC-16 verified)";
 
             if (frame.Length >= 6)
             {
@@ -703,6 +716,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void Apply()
     {
+        Node.PortIndex = PortIndex;
         Node.SlaveId = Math.Clamp(SlaveId, (byte)1, (byte)247);
         Node.WriteMode = WriteMode;
         Node.FunctionCode = FunctionCode;

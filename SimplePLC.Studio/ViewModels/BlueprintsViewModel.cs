@@ -1171,6 +1171,7 @@ public partial class BlueprintsViewModel : ObservableObject
                 StartAddress = 0,
                 RegCount = 1,
                 PollIntervalMs = 500,
+                ReadMode = ModbusReadMode.OnTriggerRisingEdge,
                 Location = new Point(340, 100)
             };
             var pinPress = new ModbusPinBindingViewModel
@@ -1190,7 +1191,7 @@ public partial class BlueprintsViewModel : ObservableObject
             _logicEditor.Nodes.Add(mbRead);
             _logicEditor.Nodes.Add(actValid);
 
-            _logicEditor.Connect(inpEn.OutputConnectors[0], mbRead.EnableConnector);
+            _logicEditor.Connect(inpEn.OutputConnectors[0], mbRead.TrigConnector);
             _logicEditor.Connect(mbRead.ValidConnector, actValid.InputConnectors[0]);
         }
         else if (bp.Id == "mb_write_vfd")

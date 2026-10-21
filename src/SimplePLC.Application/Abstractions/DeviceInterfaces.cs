@@ -1,4 +1,4 @@
-using SimplePLC.Protocol.Dto;
+﻿using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Application.Abstractions;
@@ -47,6 +47,7 @@ public interface IRuleTableWriter
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null);
 }
@@ -61,7 +62,7 @@ public static class RuleTableWriterExtensions
         byte slaveId,
         IReadOnlyList<RuleRecordDto> rules,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, null, null, null, null, null, null, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, null, null, null, null, null, null, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -70,7 +71,7 @@ public static class RuleTableWriterExtensions
         IReadOnlyList<FbTimerRecordDto>? timers,
         IReadOnlyList<FbCounterRecordDto>? counters,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, null, null, null, null, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, null, null, null, null, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -80,7 +81,7 @@ public static class RuleTableWriterExtensions
         IReadOnlyList<FbCounterRecordDto>? counters,
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, null, null, null, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, null, null, null, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -91,7 +92,7 @@ public static class RuleTableWriterExtensions
         IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs,
         MqttBrokerConfigDto? brokerConfig,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, null, null, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, null, null, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -103,7 +104,7 @@ public static class RuleTableWriterExtensions
         MqttBrokerConfigDto? brokerConfig,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -116,7 +117,7 @@ public static class RuleTableWriterExtensions
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, cancellationToken, null);
 
     public static Task<RuleDeployResult> DeployRulesAsync(
         this IRuleTableWriter writer,
@@ -131,7 +132,7 @@ public static class RuleTableWriterExtensions
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs,
         CancellationToken cancellationToken = default) =>
-        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, modbusMasterWriteConfigs, directWriteConfigs, cancellationToken, null);
+        writer.DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, modbusMasterWriteConfigs, directWriteConfigs, null, cancellationToken, null);
 }
 
 /// <summary>

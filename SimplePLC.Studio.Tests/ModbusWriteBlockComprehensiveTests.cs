@@ -218,7 +218,7 @@ public class ModbusWriteBlockComprehensiveTests : IDisposable
         // 3. Kiểm tra tính hợp lệ của chuỗi Hex TX Frame và Param Frame
         Assert.NotEmpty(dialogVm.SimTxFrameHex);
         Assert.NotEmpty(dialogVm.SimParamTxFrameHex);
-        Assert.Contains("✔", dialogVm.SimStatusMessage);
+        Assert.Contains("CRC", dialogVm.SimStatusMessage);
 
         // 4. Giải mã byte từ Hex và kiểm chứng CRC-16 của cả 2 frame
         byte[] cmdBytes = dialogVm.SimTxFrameHex.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();

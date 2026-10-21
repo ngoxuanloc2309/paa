@@ -315,6 +315,7 @@ public partial class LogicEditorView : UserControl
 
     private void ToolboxItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (sender is FrameworkElement elem && !elem.IsEnabled) return;
         _toolboxMouseDownPos = e.GetPosition(this);
 
         if (e.ClickCount == 2 && sender is FrameworkElement fe && fe.Tag is string tag)
@@ -329,6 +330,7 @@ public partial class LogicEditorView : UserControl
 
     private void ToolboxItem_MouseMove(object sender, MouseEventArgs e)
     {
+        if (sender is FrameworkElement elem && !elem.IsEnabled) return;
         if (e.LeftButton == MouseButtonState.Pressed && sender is FrameworkElement fe && fe.Tag is string tag)
         {
             Point currentPos = e.GetPosition(this);

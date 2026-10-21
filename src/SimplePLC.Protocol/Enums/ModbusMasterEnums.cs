@@ -1,4 +1,4 @@
-namespace SimplePLC.Protocol.Enums;
+﻿namespace SimplePLC.Protocol.Enums;
 
 /// <summary>
 /// Mã hàm đọc Modbus Master RTU chuẩn công nghiệp.
@@ -72,5 +72,15 @@ public enum ModbusWriteTriggerMode : byte
     OnTriggerRisingEdge = 0,    // Kích hoạt khi chân Trig chuyển từ 0 sang 1
     OnDataChange = 1,           // Tự động phát khi bất kỳ dữ liệu ngõ vào nào thay đổi
     Cyclic = 2                  // Ghi tuần hoàn định kỳ theo thời gian cài đặt
+}
+
+/// <summary>
+/// Chế độ kiểm tra chẵn lẻ (Parity) cho cổng nối tiếp RS-485 Modbus RTU.
+/// </summary>
+public enum ModbusParity : byte
+{
+    None = 0,   // Không kiểm tra (No Parity)
+    Even = 1,   // Kiểm tra chẵn (Even Parity - khuyến nghị chuẩn IEC 61131-3)
+    Odd = 2     // Kiểm tra lẻ (Odd Parity)
 }
 
