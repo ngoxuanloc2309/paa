@@ -53,6 +53,7 @@ public sealed class McuReferenceSimulator
 
     public bool IsOnline { get; private set; } = true;
     public bool IsRebooting { get; private set; } = false;
+    public bool SupportsFloatRules { get; set; } = true;
 
     /// <summary>
     /// Bề mặt điều khiển kiểm thử độc lập (Test & Simulation Control API).
@@ -1136,6 +1137,21 @@ public sealed class McuReferenceSimulator
 
         if (calculatedCrc == expectedCrc)
         {
+            if (!SupportsFloatRules)
+            {
+                for (int r = 0; r < _stagedRuleCount; r++)
+                {
+                    var ruleSpan = stagingSpan.Slice(r * ModbusRegisterMap.RegistersPerRule, ModbusRegisterMap.RegistersPerRule);
+                    var rule = RegisterCodec.DecodeRuleRecord(ruleSpan);
+                    if (rule.IsFloatData)
+                    {
+                        _memory.InternalWrite(ModbusRegisterMap.ConfigStatusAddress, 4); // ERROR
+                        _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.UNSUPPORTED);
+                        return;
+                    }
+                }
+            }
+
             // CRC KHỚP: Hoán đổi sang Active Table & Ghi Flash
             stagingSpan.CopyTo(_memory.InternalMutableSpan(ModbusRegisterMap.ActiveRuleTableBaseAddress, requiredRegisters));
 

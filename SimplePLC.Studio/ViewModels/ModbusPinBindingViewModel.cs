@@ -27,10 +27,29 @@ public partial class ModbusPinBindingViewModel : ObservableObject
     private ModbusEndianness _endianness = ModbusEndianness.BigEndian_ABCD;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMultiplierWarning))]
+    [NotifyPropertyChangedFor(nameof(MultiplierWarningText))]
+    [NotifyPropertyChangedFor(nameof(MultiplierBorderBrush))]
     private float _multiplier = 1.0f;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMultiplierWarning))]
+    [NotifyPropertyChangedFor(nameof(MultiplierWarningText))]
+    [NotifyPropertyChangedFor(nameof(MultiplierBorderBrush))]
     private TagModel? _targetTag;
+
+    public bool HasMultiplierWarning =>
+        TargetTag != null &&
+        TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Int32 &&
+        Math.Abs(Multiplier - Math.Round(Multiplier)) > 1e-5;
+
+    public string MultiplierBorderBrush => HasMultiplierWarning ? "#C05621" : "#E2E8F0";
+
+    public string? MultiplierWarningText => HasMultiplierWarning
+        ? (Services.LocalizationService.Instance.IsVietnamese
+            ? "⚠ Multiplier số lẻ sẽ làm tròn giá trị thành số nguyên trên tag INT32. Khuyến nghị đặt Multiplier = 1."
+            : "⚠ Fractional multiplier will round to integer on INT32 tag. Recommended: Multiplier = 1.")
+        : null;
 
     [ObservableProperty]
     private double _currentValue = 0.0;

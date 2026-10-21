@@ -81,11 +81,16 @@ public class ModbusWriteConfigDialogViewModelTests
             StartAddress = 200
         };
 
-        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel())
+        {
+            SimDirectValue = 291 // 0x0123
+        };
         vm.GenerateFramePreview();
 
         Assert.Contains("FC06", vm.SimGeneratedFrames);
         Assert.Contains("Addr 0x00C8", vm.SimGeneratedFrames);
+        Assert.Contains("01 23", vm.SimTxFrameHex); // 291 = 0x0123
+        Assert.Contains(vm.FrameBreakdownItems, item => item.RawHex == "01 23" && item.Interpretation.Contains("291"));
 
         // Switch to FC16
         vm.FunctionCode = ModbusMasterWriteFunctionCode.WriteMultipleRegisters;
@@ -94,6 +99,7 @@ public class ModbusWriteConfigDialogViewModelTests
 
         Assert.Contains("FC16", vm.SimGeneratedFrames);
         Assert.Contains("Count=2", vm.SimGeneratedFrames);
+        Assert.Contains("01 23", vm.SimTxFrameHex); // Starting with 291
     }
 
     [Fact]
@@ -200,5 +206,141 @@ public class ModbusWriteConfigDialogViewModelTests
             Assert.False(trig.DisplayName.Contains("(On Rising Edge)"), "Trigger mode options must not contain bilingual parentheses");
             Assert.False(trig.DisplayName.Contains("(On Data Change)"), "Trigger mode options must not contain bilingual parentheses");
         }
+    }
+
+    [Fact]
+    public void Constructor_LoadsTriggerModeAndDeadband_FromNode()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            TriggerMode = ModbusWriteTriggerMode.OnDataChange,
+            Deadband = 1.75f,
+            CyclicIntervalMs = 600
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+
+        Assert.Equal(ModbusWriteTriggerMode.OnDataChange, vm.TriggerMode);
+        Assert.Equal(1.75f, vm.Deadband, 3);
+        Assert.True(vm.IsOnDataChangeMode);
+        Assert.False(vm.IsCyclicMode);
+        Assert.False(vm.IsTriggerEdgeMode);
+    }
+
+    [Fact]
+    public void TriggerMode_PropertyChange_TogglesHelperFlags()
+    {
+        var node = new ModbusWriteNodeViewModel();
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+
+        vm.TriggerMode = ModbusWriteTriggerMode.Cyclic;
+        Assert.True(vm.IsCyclicMode);
+        Assert.False(vm.IsOnDataChangeMode);
+        Assert.False(vm.IsTriggerEdgeMode);
+        Assert.True(vm.HasTriggerParameter);
+
+        vm.TriggerMode = ModbusWriteTriggerMode.OnDataChange;
+        Assert.False(vm.IsCyclicMode);
+        Assert.True(vm.IsOnDataChangeMode);
+        Assert.False(vm.IsTriggerEdgeMode);
+        Assert.True(vm.HasTriggerParameter);
+
+        vm.TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge;
+        Assert.False(vm.IsCyclicMode);
+        Assert.False(vm.IsOnDataChangeMode);
+        Assert.True(vm.IsTriggerEdgeMode);
+        Assert.False(vm.HasTriggerParameter);
+    }
+
+    [Fact]
+    public void Apply_TransfersTriggerModeAndDeadband_ToNode()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge,
+            Deadband = 0.5f
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel())
+        {
+            TriggerMode = ModbusWriteTriggerMode.OnDataChange,
+            Deadband = 2.5f
+        };
+
+        vm.Apply();
+
+        Assert.Equal(ModbusWriteTriggerMode.OnDataChange, node.TriggerMode);
+        Assert.Equal(2.5f, node.Deadband, 3);
+    }
+
+    [Fact]
+    public void Node_TriggerModeName_ReflectsDeadbandAndInterval()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            TriggerMode = ModbusWriteTriggerMode.Cyclic,
+            CyclicIntervalMs = 750
+        };
+        Assert.Contains("750 ms", node.TriggerModeName);
+
+        node.TriggerMode = ModbusWriteTriggerMode.OnDataChange;
+        node.Deadband = 0.5f;
+        Assert.DoesNotContain("Δ", node.TriggerModeName); // default deadband does not show Δ
+
+        node.Deadband = 1.25f;
+        Assert.Contains("Δ1.25", node.TriggerModeName); // custom deadband shows Δ1.25
+
+        node.TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge;
+        Assert.True(node.IsTriggerMode);
+    }
+
+    [Fact]
+    public void GenerateFramePreview_PopulatesNonEmptyTooltips_InBothModes()
+    {
+        // 1. ChannelIndexed
+        var node1 = new ModbusWriteNodeViewModel
+        {
+            WriteMode = ModbusWriteMode.ChannelIndexed,
+            SlaveId = 1,
+            ChannelCount = 8
+        };
+        var vm1 = new ModbusWriteConfigDialogViewModel(node1, new TagCatalogViewModel());
+        vm1.GenerateFramePreview();
+
+        Assert.NotEmpty(vm1.FrameBreakdownItems);
+        Assert.All(vm1.FrameBreakdownItems, item =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.FieldName));
+            Assert.False(string.IsNullOrWhiteSpace(item.RawHex));
+            Assert.False(string.IsNullOrWhiteSpace(item.Interpretation));
+            Assert.False(string.IsNullOrWhiteSpace(item.Tooltip));
+        });
+
+        // 2. DirectRegisters Single Register
+        var node2 = new ModbusWriteNodeViewModel
+        {
+            WriteMode = ModbusWriteMode.DirectRegisters,
+            FunctionCode = ModbusMasterWriteFunctionCode.WriteSingleRegister,
+            SlaveId = 1
+        };
+        var vm2 = new ModbusWriteConfigDialogViewModel(node2, new TagCatalogViewModel());
+        vm2.GenerateFramePreview();
+
+        Assert.NotEmpty(vm2.FrameBreakdownItems);
+        Assert.All(vm2.FrameBreakdownItems, item =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.Tooltip));
+        });
+
+        // 3. DirectRegisters Multiple Registers
+        vm2.FunctionCode = ModbusMasterWriteFunctionCode.WriteMultipleRegisters;
+        vm2.PointCount = 4;
+        vm2.GenerateFramePreview();
+
+        Assert.NotEmpty(vm2.FrameBreakdownItems);
+        Assert.All(vm2.FrameBreakdownItems, item =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.Tooltip));
+        });
     }
 }

@@ -88,14 +88,14 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <!-- Row 0: Slave ID (90px) | Function Code (*) | Start Address (110px) -->
+                            <!-- Row 0: Slave ID (90px) | Read Mode (1.2*) | Function Code (1.4*) -->
                             <Grid Grid.Row="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="90" />
                                     <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="1.2*" />
                                     <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="1.4*" />
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Slave ID -->
@@ -103,62 +103,80 @@
                                     <TextBlock Text="{Binding [ModbusColSlaveId], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [ModbusReadColSlaveTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                              Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
                                              Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
                                 </StackPanel>
 
-                                <!-- Function Code -->
+                                <!-- Read Mode -->
                                 <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding [ModbusReadModeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableReadModes}" 
+                                              SelectedValue="{Binding ReadMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              ToolTip="{Binding [ModbusReadColModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+
+                                <!-- Function Code -->
+                                <StackPanel Grid.Column="4">
                                     <TextBlock Text="{Binding [ModbusColFunctionCode], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <ComboBox ItemsSource="{Binding AvailableFunctionCodes}" 
                                               SelectedValue="{Binding FunctionCode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              ToolTip="{Binding [ModbusReadColFcTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                               Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                                </StackPanel>
-
-                                <!-- Start Address -->
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="{Binding [ModbusColStartAddr], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding StartAddress, UpdateSourceTrigger=PropertyChanged}" 
-                                             Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                             Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Row 2: Poll Interval | Timeout | Register Span Badge -->
+                            <!-- Row 2: Start Address | Quantity | Timeout | Poll Interval (if Cyclic) -->
                             <Grid Grid.Row="2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Poll Interval -->
+                                <!-- Start Address -->
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="{Binding [ModbusColPollInterval], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Text="{Binding [ModbusColStartAddr], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding PollIntervalMs, UpdateSourceTrigger=PropertyChanged}" 
+                                    <TextBox Text="{Binding StartAddress, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [ModbusReadColStartAddrTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                             Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                             Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                </StackPanel>
+
+                                <!-- Quantity of Registers (RegCount) -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding [ModbusColRegCount], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding RegCount, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [ModbusReadColQuantityTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                              Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
                                              Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
                                 </StackPanel>
 
                                 <!-- Timeout -->
-                                <StackPanel Grid.Column="2">
+                                <StackPanel Grid.Column="4">
                                     <TextBlock Text="{Binding [ModbusColTimeout], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding TimeoutMs, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [ModbusReadColTimeoutTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                              Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
                                              Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
                                 </StackPanel>
 
-                                <!-- Quantity of Registers (Editable Input) -->
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="{Binding [ModbusColRegCount], Source={x:Static services:LocalizationService.Instance}}" 
+                                <!-- Poll Interval (Visible only in Cyclic Mode) -->
+                                <StackPanel Grid.Column="5" Width="120" Margin="10,0,0,0"
+                                            Visibility="{Binding IsCyclicMode, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding [ModbusColPollInterval], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding RegCount, UpdateSourceTrigger=PropertyChanged}" 
+                                    <TextBox Text="{Binding PollIntervalMs, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [ModbusReadColPollIntervalTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                              Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
                                              Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
                                 </StackPanel>
@@ -177,7 +195,7 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Column Header Row (Pixel-Matched to Data Columns) -->
-                                <Grid Grid.Row="0" Background="#F1F5F9" Height="28">
+                                <Grid Grid.Row="0" Background="#F1F5F9" Height="28" Margin="4,0,4,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" MinWidth="95" />
                                         <ColumnDefinition Width="6" />
@@ -192,14 +210,19 @@
                                         <ColumnDefinition Width="28" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding [ModbusColPinName], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusReadPinNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="8,0" />
                                     <TextBlock Grid.Column="2" Text="{Binding [ModbusColOffset], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusReadPinOffsetTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" TextAlignment="Center" />
                                     <TextBlock Grid.Column="4" Text="{Binding [MqttSubColType], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusReadPinTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="4,0" />
                                     <TextBlock Grid.Column="6" Text="{Binding [ModbusColEndian], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="4,0" />
                                     <TextBlock Grid.Column="8" Text="{Binding [ModbusColScale], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusReadPinScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" TextAlignment="Center" />
                                 </Grid>
 
@@ -214,10 +237,10 @@
                                 </StackPanel>
 
                                 <!-- Scrollable Rows (When Pins Exist) -->
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               Visibility="{Binding HasPins, Converter={StaticResource BoolToVis}}"
-                                              Padding="4,2">
-                                    <ItemsControl ItemsSource="{Binding Node.Pins}">
+                                              Padding="0">
+                                    <ItemsControl ItemsSource="{Binding Node.Pins}" Margin="4,2,4,2">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="0,3">
@@ -238,16 +261,19 @@
 
                                                         <!-- Pin Name -->
                                                         <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" 
+                                                                 ToolTip="{Binding [ModbusReadPinNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                  Height="25" Padding="6,2" FontSize="11" FontFamily="Consolas" VerticalContentAlignment="Center" 
                                                                  Background="#FFFFFF" BorderBrush="#E2E8F0" />
 
                                                         <!-- Reg Offset -->
                                                         <TextBox Grid.Column="2" Text="{Binding RegOffset, UpdateSourceTrigger=PropertyChanged}" 
+                                                                 ToolTip="{Binding [ModbusReadPinOffsetTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                  Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
                                                                  Background="#FFFFFF" BorderBrush="#E2E8F0" />
 
                                                         <!-- Data Type (120px Width - Fits INT16 / REAL / BOOL Comfortably) -->
                                                         <ComboBox Grid.Column="4" 
+                                                                  ToolTip="{Binding [ModbusReadPinTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                   ItemsSource="{Binding DataContext.AvailableDataTypes, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                   SelectedValue="{Binding DataType}"
                                                                   SelectedValuePath="Value"
@@ -256,6 +282,7 @@
 
                                                         <!-- Endianness (135px Width - Fits Big-Endian ABCD Without Truncation) -->
                                                         <ComboBox Grid.Column="6" 
+                                                                  ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                   ItemsSource="{Binding DataContext.AvailableEndianness, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                   SelectedValue="{Binding Endianness}"
                                                                   SelectedValuePath="Value"
@@ -265,10 +292,12 @@
                                                         <!-- Scale/Multiplier -->
                                                         <TextBox Grid.Column="8" Text="{Binding Multiplier, UpdateSourceTrigger=PropertyChanged}" 
                                                                  Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
-                                                                 Background="#FFFFFF" BorderBrush="#E2E8F0" />
+                                                                 Background="#FFFFFF" BorderBrush="{Binding MultiplierBorderBrush}"
+                                                                 ToolTip="{Binding MultiplierWarningText}" />
 
-                                                        <!-- Delete Button (Width 24, perfectly centered in 28px column) -->
+                                                        <!-- Delete Button -->
                                                         <Button Grid.Column="10" Content="✕" 
+                                                                ToolTip="{Binding [ModbusReadPinDeleteTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                 Command="{Binding DataContext.RemovePinCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
                                                                 CommandParameter="{Binding}"
                                                                 Background="#FEE2E2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1" 
@@ -285,6 +314,7 @@
 
                         <!-- Add Pin Button -->
                         <Button Grid.Row="4" Content="{Binding [ModbusBtnAddPin], Source={x:Static services:LocalizationService.Instance}}" 
+                                ToolTip="{Binding [ModbusReadBtnAddPinTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                 Command="{Binding AddPinCommand}" 
                                 Style="{StaticResource TiaTactileBtnStyle}"
                                 Margin="0,8,0,0" Padding="14,5" FontSize="11" HorizontalAlignment="Left" />
@@ -303,6 +333,7 @@
                         <!-- Section Header with Sample Button -->
                         <DockPanel Grid.Row="0" Margin="0,0,0,6">
                             <Button DockPanel.Dock="Right" Content="{Binding [ModbusBtnSampleFrame], Source={x:Static services:LocalizationService.Instance}}" 
+                                    ToolTip="{Binding [ModbusReadBtnSampleFrameTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                     Command="{Binding ResetSampleHexCommand}"
                                     Style="{StaticResource TiaTactileBtnStyle}"
                                     Padding="8,2" FontSize="10.5" VerticalAlignment="Center" />
@@ -313,6 +344,7 @@
                         <!-- Hex Input Box with Placeholder Hint -->
                         <Grid Grid.Row="1" Margin="0,0,0,8">
                             <TextBox x:Name="HexInputBox" Text="{Binding SimulationHexInput, UpdateSourceTrigger=PropertyChanged}" 
+                                     ToolTip="{Binding [ModbusReadHexInputTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                      AcceptsReturn="True" Height="58"
                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" 
                                      FontFamily="Consolas" FontSize="11" Foreground="#0F172A" Background="#F8FAFC" 
@@ -342,14 +374,15 @@
 
                             <!-- Run Frame Test Button -->
                             <Button Grid.Row="0" Content="{Binding [ModbusBtnRunTest], Source={x:Static services:LocalizationService.Instance}}" 
+                                    ToolTip="{Binding [ModbusReadBtnRunTestTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                     Command="{Binding RunSimulationTestCommand}"
                                     Style="{StaticResource TiaTactileBtnStyle}"
                                     Height="28" Padding="12,4" FontSize="11" HorizontalAlignment="Stretch" Margin="0,0,0,8" />
 
-                            <!-- Results Container (Neutral Slate with Crisp Typography) -->
+                            <!-- Results Container (Neutral Slate with Crisp Typography & Symmetric Scroll) -->
                             <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="8">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                                    <StackPanel Margin="4,0,4,0">
                                         <!-- Initial Prompt (When Not Run) -->
                                         <TextBlock Text="{Binding SimulationStatusMessage}" 
                                                    FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" Margin="2,2,2,6">
@@ -423,6 +456,7 @@
                                         <!-- Decoded Pins List -->
                                         <StackPanel Visibility="{Binding HasRunSimulation, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="{Binding [ModbusResultsPreview], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       ToolTip="{Binding [ModbusReadResultsPreviewTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                        FontSize="10.5" FontWeight="SemiBold" Foreground="#334155" Margin="0,2,0,4" />
 
                                             <ItemsControl ItemsSource="{Binding Node.Pins}">
@@ -466,10 +500,12 @@
                     </StackPanel>
 
                     <Button Content="{Binding [ModbusBtnApply], Source={x:Static services:LocalizationService.Instance}}" 
+                            ToolTip="{Binding [ModbusReadBtnApplyTooltip], Source={x:Static services:LocalizationService.Instance}}"
                             DockPanel.Dock="Right" Click="Apply_Click"
                             Style="{StaticResource BtnPrimary}"
                             FontSize="11.5" Height="28" Padding="20,4" Margin="8,0,0,0" />
                     <Button Content="{Binding [BtnCancel], Source={x:Static services:LocalizationService.Instance}}" 
+                            ToolTip="{Binding [ModbusReadBtnCancelTooltip], Source={x:Static services:LocalizationService.Instance}}"
                             DockPanel.Dock="Right" Click="Cancel_Click"
                             Style="{StaticResource TiaTactileBtnStyle}"
                             FontSize="11.5" Height="28" Padding="16,4" />

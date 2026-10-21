@@ -185,4 +185,14 @@ Giá trị 32-bit (cho kiểu `Real`, `Int32`, `UInt32`) được tái tạo the
 
 Sau khi trích xuất giá trị số học thô $V_{\text{raw}}$, giá trị cuối cùng được tính toán:
 $$V_{\text{final}} = V_{\text{raw}} \times \text{Multiplier}$$
-và được ghi vào Tag tương ứng để xuất ra đồ thị logic FBD.
+
+**Quy tắc ghi vào Tag Store (`g_tag_store`) theo kiểu Tag tại bảng Tag DataType Registry (`0x0080`):**
+1. **Nếu chân đọc cấu hình `DATA_TYPE == 6` (`Real / Float32`):**
+   * $V_{\text{raw}}$ được giải mã là số thực IEEE-754 32-bit theo Endianness đã chọn.
+   * $V_{\text{final}}$ (float) được ghi trực tiếp: `g_tag_store[TARGET_TAG_INDEX].as_real = V_final;`.
+2. **Nếu chân đọc cấu hình kiểu số nguyên (`Int16`, `UInt16`, `Int32`, `UInt32`) và `Multiplier` có phần lẻ (ví dụ: `0.1`):**
+   * MCU tra cứu kiểu của Tag đích từ bảng **`0x0080`** (`g_tag_data_types[TARGET_TAG_INDEX]`):
+     * **Nếu Tag đích là `REAL` (`3`)**: Ghi thẳng kết quả float vào `g_tag_store[TARGET_TAG_INDEX].as_real = V_final;` (ví dụ: $253 \times 0.1 = 25.3$).
+     * **Nếu Tag đích là `INT32` (`2`)**: Làm tròn thành số nguyên gần nhất: `g_tag_store[TARGET_TAG_INDEX].as_int32 = (int32_t)roundf(V_final);` (ví dụ: $253 \times 0.1 \rightarrow 25$).
+3. **Nếu chân đọc là `Bool` (`1`):**
+   * Ghi `0` hoặc `1` vào `g_tag_store[TARGET_TAG_INDEX].as_int32`.

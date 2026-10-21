@@ -1,5 +1,23 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.9.0] - 2026-10-21 (REAL / FLOAT32 SPECIFICATION STANDARDIZATION, TAG DATA TYPE REGISTRY & FIRMWARE CONFORMANCE SYNC)
+
+### Added & Standardized
+- **Bảng Khai Báo Kiểu Dữ Liệu Tag (Tag DataType Registry: `0x0080..0x00BF`)**:
+  - Bổ sung phân vùng 64 thanh ghi Modbus (128 bytes) tại địa chỉ `0x0080` (FC03/FC16 R/W) vào [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h) (`SPLC_ADDR_TAG_DATA_TYPES`) và [`src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs) (`TagDataTypesBaseAddress`).
+  - Mỗi Tag trong Tag Catalog được biểu diễn bởi 1 byte theo enum `SPLC_TagDataType_t`: `1 = BOOL`, `2 = INT32`, `3 = REAL`. Đóng gói 2 tags/register (High Byte: Tag $2k$, Low Byte: Tag $2k+1$).
+  - Host Studio ghi mảng này xuống `0x0080` khi nạp cấu hình (Deploy) để MCU nhận biết chính xác kiểu dữ liệu tự nhiên của từng Tag.
+- **Quy Chuẩn Xử Lý Số Thực `REAL` (Float32 IEEE-754) Bắt Buộc Cho Firmware MCU**:
+  - **Rule Engine**: Khi cờ `rule.flags & 0x01 != 0` (`SPLC_RULE_FLAG_FLOAT_DATA`), MCU bắt buộc thực hiện so sánh số thực Float32 IEEE-754 với sai số $\epsilon = 10^{-5}$ đối với các phép so sánh `=`, `!=`, `>`, `<`, `>=`, `<=`, `BETWEEN`. Tuyệt đối không từ chối nạp hay trả Exception `0x03`.
+  - **MB_READ (Modbus Master Poller)**:
+    - Nếu chân đọc cấu hình `DATA_TYPE == 6` (`Real`): MCU đọc float IEEE-754, nhân `multiplier`, ghi thẳng vào `g_tag_store[target].as_real`.
+    - Nếu chân đọc là số nguyên nhưng `multiplier` có phần lẻ (ví dụ: `0.1`): Tra cứu bảng `0x0080`: nếu Tag đích là `REAL` $\to$ ghi float `as_real` ($25.3$); nếu Tag đích là `INT32` $\to$ làm tròn số nguyên gần nhất `(int32_t)roundf(raw * multiplier)` ($25$).
+  - **MQTT Telemetry (`0x0C00`)**: Tra cứu bảng `0x0080`: Tag `REAL` xuất định dạng `snprintf(buf, len, "%.4g", tag.as_real)`; Tag `INT32` xuất `%ld`; Tag `BOOL` xuất `0/1`.
+- **Đồng Bộ Hoàn Toàn Các Điểm Lệch Kỹ Thuật Giữa ICD & Header C**:
+  - **`SPLC_WifiConfig_t` (128 bytes)**: Loại bỏ triệt để trường `reserved_flags` khỏi mọi tài liệu ([`docs/firmware/SPLC_SPEC_WIFI_004_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_WIFI_004_ICD.md) và [`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md)), đảm bảo kích thước struct đúng 128 bytes (64 registers `0x1300..0x133F`) và vượt qua `_Static_assert` trên GCC C11.
+  - **`pwm_freq_hz`**: Thống nhất thứ tự byte **High Word trước (Big-Endian)**, Reg 4 = High Word, Reg 5 = Low Word, khớp 100% giữa ICD và Conformance Spec.
+  - **`MB_WRITE`**: Đồng bộ struct trong ICD với header C: khai báo đầy đủ các tag index trạng thái `trig_tag_index` (+11), `done_tag_index` (+12), `busy_tag_index` (+13), `error_tag_index` (+14), `err_code_tag_index` (+15) kèm giá trị sentinel `0xFFFF` khi không gán.
+
 ## [2.8.1] - 2026-10-19 (PULSE_OUT STANDARDIZATION, MULTI-SUBSYSTEM DEPLOYMENT SEQUENCE & FIRMWARE CONFORMANCE)
 
 ### Added & Standardized

@@ -84,6 +84,10 @@ extern "C" {
 #define SPLC_ADDR_DEVICE_RESOURCE         0x0020  /* 10 regs (20 B): SPLC_DeviceResourceInfo_t (FC03, RO) */
 #define SPLC_LEN_DEVICE_RESOURCE          10
 
+/* --- 2.1.1 Tag Data Types Registry (0x0080 - 0x00BF) --- */
+#define SPLC_ADDR_TAG_DATA_TYPES          0x0080  /* 64 regs (128 B): 128 tags * 1 byte (SPLC_TagDataType_t) (FC03/FC16, RW) */
+#define SPLC_LEN_TAG_DATA_TYPES           64
+
 /* --- 2.2 Active Rule Table (0x0100 - 0x073F) --- */
 #define SPLC_ADDR_ACTIVE_RULES            0x0100  /* Max 1600 regs: 100 rules * 16 (FC03, RO) */
 #define SPLC_LEN_ACTIVE_RULES_MAX         1600
@@ -230,6 +234,10 @@ extern "C" {
 #define SPLC_MBM_ENDIAN_CDAB              1
 #define SPLC_MBM_ENDIAN_BADC              2
 #define SPLC_MBM_ENDIAN_DCBA              3
+
+/* Read Modes */
+#define SPLC_MBM_READ_MODE_CYCLIC         0
+#define SPLC_MBM_READ_MODE_ON_TRIGGER     1
 
 /* --- 2.10 Modbus RTU Master Writer Space (0x1100 - 0x11FF) --- */
 #define SPLC_ADDR_MODBUS_MASTER_WRITE     0x1100  /* 256 regs: 4 Blocks * 64 regs (FC03/FC16, RW) */
@@ -433,7 +441,8 @@ typedef enum {
     SPLC_CAP_SD_DATALOG   = 0x0040, /* Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD */
     SPLC_CAP_MQTT_TLS_CERT = 0x0080, /* Bit 7: Hỗ trợ nạp và giải mã chứng chỉ TLS/SSL theo khối struct (0x0F00) */
     SPLC_CAP_MODBUS_MASTER = 0x0100, /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
-    SPLC_CAP_WIFI          = 0x0200  /* Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF) */
+    SPLC_CAP_WIFI          = 0x0200, /* Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF) */
+    SPLC_CAP_MODBUS_TCP    = 0x0400  /* Bit 10: Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502) */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -875,7 +884,9 @@ typedef struct SPLC_PACKED {
     uint16_t error_tag_index;
     uint16_t err_code_tag_index;
     uint16_t pin_count;
-    uint16_t reserved[4];
+    uint16_t read_mode;          /* [12] SPLC_MBM_READ_MODE: 0 = Cyclic, 1 = OnTriggerRisingEdge */
+    uint16_t trig_tag_index;     /* [13] Tag index for rising edge trigger (0xFFFF if none) */
+    uint16_t reserved[2];        /* [14..15] Reserved for future expansion */
     SPLC_ModbusMasterPinBinding_t pins[SPLC_MBM_MAX_PINS_PER_BLOCK]; /* 4 pins * 24 bytes = 96 bytes */
 } SPLC_ModbusMasterReadBlock_t;
 
@@ -929,8 +940,9 @@ typedef enum {
 } SPLC_DirectMode_t;
 
 typedef enum {
-    SPLC_DIR_TRIG_RISING_EDGE = 0,     /* Trigger execution on rising edge */
-    SPLC_DIR_TRIG_CONTINUOUS  = 1      /* Continuous cyclic execution every scan pass */
+    SPLC_DIR_TRIG_RISING_EDGE   = 0,     /* Trigger execution on rising edge of Trig connector */
+    SPLC_DIR_TRIG_CONTINUOUS    = 1,     /* Continuous cyclic execution every scan pass */
+    SPLC_DIR_TRIG_COV           = 2      /* Change-of-Value: execute only when delta >= deadband_x1000/1000.0 */
 } SPLC_DirectTrigger_t;
 
 /**
@@ -942,7 +954,7 @@ typedef struct {
     uint8_t  mode;              /* SPLC_DirectMode_t: 0=DO, 1=PWM, 2=PTO, 3=Bus */
     uint16_t channel_count;     /* Number of channels (Bus mode) or pulses count */
     uint8_t  flags;             /* Bit 0: is_active_high, Bit 1: is_exclusive, Bit 2: fail_safe */
-    uint8_t  trigger_mode;      /* SPLC_DirectTrigger_t: 0=RisingEdge, 1=Continuous */
+    uint8_t  trigger_mode;      /* SPLC_DirectTrigger_t: 0=RisingEdge, 1=Continuous, 2=COV */
     uint16_t pulse_width_us;    /* Base pulse width in microseconds */
     uint32_t pwm_freq_hz;       /* PWM Frequency (Hz) */
     uint8_t  duty_min;          /* PWM Duty Minimum % (0..100) */
@@ -950,7 +962,8 @@ typedef struct {
     uint16_t channel_tag_index; /* Tag index for logic in / duty % / bus channel */
     uint16_t param_tag_index;   /* Tag index for enable / frequency / bus parameter */
     uint32_t default_color_rgb; /* Default 24-bit RGB parameter (0x00RRGGBB) */
-    uint8_t  reserved[10];      /* Padding to align to exactly 32 bytes */
+    uint16_t deadband_x1000;    /* COV deadband * 1000 (e.g. 500 = 0.5 units); 0xFFFF = not set */
+    uint8_t  reserved[8];       /* Padding to align to exactly 32 bytes */
 } SPLC_DirectWriteBlock_t;
 
 /* Standardized aliases for PULSE_OUT (Pulse Output / Hardware Pulse Actuator) */
@@ -965,7 +978,6 @@ typedef SPLC_DirectWriteBlock_t SPLC_PulseOutBlock_t;
  */
 typedef struct SPLC_PACKED {
     uint16_t control_flags;     /* Bit 0: Enable, Bit 1..2: Mode (0=STA, 1=AP), Bit 3: DHCP, Bit 4: Auto-reconnect */
-    uint16_t reserved_flags;    /* Reserved (0x0000) */
     char     ssid[32];          /* SSID ASCII null-terminated */
     char     password[64];      /* WPA2/WPA3 password ASCII null-terminated */
     uint32_t static_ip;         /* Static IPv4 (Network byte order / Big-Endian) */

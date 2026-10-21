@@ -47,6 +47,7 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Nhận dạng phần cứng: Class (1: REMOTE_IO, 2: DATALOGGER, 3: GATEWAY, 4: CONTROLLER), Variant, HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
 | `0x0010` | **Rule Table Info** | R | FC03 | 1 reg (2 B) | Số lượng Rule đang kích hoạt (`active_rule_count`, 0..100). |
 | `0x0020..0x0029` | **Device Resource Info** | R | FC03 | 10 regs (20 B) | Hồ sơ tự mô tả: WireProfile (=2), MaxRules (=100), ActiveTags (=124), DI=8, DO=8, AI=4, VFLAG=32, VREG=32, RETAIN=32, COUNTER=8. |
+| `0x0080..0x00BF` | **Tag DataType Registry** | R/W | FC03/FC16 | 64 regs (128 B) | Bảng đăng ký kiểu dữ liệu Tag Catalog IEC 61131-3 (1 byte/tag: 1=BOOL, 2=INT32, 3=REAL). Studio nạp xuống MCU khi deploy. |
 | `0x0100..0x073F` | **Active Rule Table** | R | FC03 | Max 1600 regs | Bảng Rule đang chạy thực tế (tối đa 100 rules × 16 thanh ghi = 3200 bytes). |
 | `0x0800..0x0809` | **Device Health** | R | FC03 | 10 regs (20 B) | `uptime_s` (u32), `reset_reason` (u16), `health_flags` (u16), `cpu_load` (u16), `ram_usage` (u16), `scan_time_ms` (u32), `max_scan_time_ms` (u32). |
 | `0x0810..0x0813` | **Real-Time Clock (RTC)** | R/W | FC03/FC16 | 4 regs (8 B) | Đồng hồ RTC: `epoch_utc_s` (u32, High Word trước), `tz_offset_min` (i16, ví dụ +420 cho UTC+7), `status_flags` (u16). |
@@ -452,17 +453,25 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * Áp dụng cho: `AI` (chế độ số thực đã scale °C, bar, RPM,...), `VREG` (chế độ số thực), `VREG_RETAIN` (chế độ số thực).
    * Giá trị: Số thực dấu phẩy động 32-bit chuẩn IEEE-754.
    * Thao tác: Truy cập trực tiếp qua trường `g_tag_store[tag_idx].as_real`.
-   * **Lưu ý cốt lõi:** Tuyệt đối không nhân chia hệ số $10^{dec}$ tạm bợ vào thanh ghi Modbus. Client và Server trao đổi trực tiếp biểu diễn nhị phân 32-bit của số thực.
+4. **Tag DataType Registry (`0x0080..0x00BF`, 64 registers = 128 bytes):**
+   * Firmware lưu mảng `uint8_t g_tag_data_types[128];` trong RAM.
+   * Host Studio ghi mảng này qua FC16 lúc nạp cấu hình (Deploy). Mỗi thanh ghi Modbus chứa 2 tags (High Byte = Tag $2k$, Low Byte = Tag $2k+1$).
+   * Các giá trị hợp lệ: `SPLC_DATA_TYPE_BOOL = 1`, `SPLC_DATA_TYPE_INT32 = 2`, `SPLC_DATA_TYPE_REAL = 3`.
+   * **Nguyên tắc MB_READ**:
+     * Khi chân đọc có `data_type == 6` (REAL): MCU giải mã 2 registers IEEE-754 float, nhân `multiplier` (float), ghi thẳng vào `g_tag_store[target_tag].as_real`.
+     * Khi chân đọc là số nguyên (INT16, INT32...) nhưng `multiplier` lẻ (ví dụ 0.1):
+       * Nếu `g_tag_data_types[target_tag] == SPLC_DATA_TYPE_REAL`: Ghi kết quả float trực tiếp vào `g_tag_store[target_tag].as_real`.
+       * Nếu `g_tag_data_types[target_tag] == SPLC_DATA_TYPE_INT32`: Làm tròn số nguyên gần nhất `(int32_t)roundf(raw * multiplier)` vào `g_tag_store[target_tag].as_int32`.
 
 ### 13.3. Quy Chuẩn Xuất Bản MQTT Telemetry (`0x0C00`)
 1. **Khắc phục cấu trúc thanh ghi:**
    * `Offset +15`: Được chuẩn hóa thành `reserved_header` (giá trị mặc định `0x0000`). Firmware **không** đọc trường này để lấy số chữ số lẻ nữa.
 2. **Thuật toán Phân giải Placeholder JSON:**
    Khi sinh chuỗi JSON từ `payload_template`:
-   * Khi gặp `{val1}`..`{val8}` hoặc `{val}`:
-     * Nếu Tag cấu hình là `REAL`: Sử dụng `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `24.5` thay vì `24.5000`).
-     * Nếu Tag cấu hình là `DINT`/`INT32`: Sử dụng `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
-     * Nếu Tag cấu hình là `BOOL`: Sử dụng `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
+   * Khi gặp `{val1}`..`{val8}` hoặc `{val}`: MCU tra cứu kiểu của Tag tương ứng từ `g_tag_data_types[tag_idx]`:
+     * Nếu là `SPLC_DATA_TYPE_REAL` (3): Sử dụng `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `24.5` thay vì `24.5000`).
+     * Nếu là `SPLC_DATA_TYPE_INT32` (2): Sử dụng `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
+     * Nếu là `SPLC_DATA_TYPE_BOOL` (1): Sử dụng `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
 3. **Bảo vệ Bộ nhớ Đệm:**
    * Giới hạn `topic`: Tối đa 32 bytes (đã bao gồm byte null).
    * Giới hạn `payload_template`: Tối đa 128 bytes.
@@ -564,13 +573,13 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * `flags` (1B): Bit 0: IsActiveHigh, Bit 1: IsExclusiveChannel, Bit 2: FailSafeState.
    * `trigger_mode` (1B): Chế độ kích hoạt (`0=OnTriggerRisingEdge`, `1=Continuous`).
    * `pulse_width_us` (2B): Độ rộng xung cơ sở tính bằng micro-giây ($\mu\text{s}$). Mặc định 50 $\mu\text{s}$.
-   * `pwm_freq_hz` (4B): Tần số sóng mang PWM phần cứng (Hz, uint32 Little-Endian).
+   * `pwm_freq_hz` (4B): Tần số sóng mang PWM phần cứng (Hz, uint32 Big-Endian Modbus Word: Reg 4 = High Word, Reg 5 = Low Word, khớp 100% với ICD).
    * `duty_min` (1B): Giới hạn Duty nhỏ nhất % (0..100).
    * `duty_max` (1B): Giới hạn Duty lớn nhất % (0..100).
-   * `channel_tag_index` (2B): TagIndex cung cấp giá trị logic In / Duty % / Kênh.
-   * `param_tag_index` (2B): TagIndex tham số phụ trợ (Enable En / Tần số Freq / Màu RGB).
-   * `default_color_rgb` (4B): Màu sắc mặc định 24-bit 0x00RRGGBB (chế độ Bus Addressable).
-   * `reserved[10]` (10B): Dự phòng căn chỉnh đúng 32 bytes.
+   * `channel_tag_index` (2B): TagIndex cung cấp giá trị logic In / Duty % / Kênh (0xFFFF nếu không dùng).
+   * `param_tag_index` (2B): TagIndex tham số phụ trợ (Enable En / Tần số Freq / Màu RGB) (0xFFFF nếu không dùng).
+   * `default_color_rgb` (4B): Màu sắc mặc định 24-bit 0x00RRGGBB (chế độ Bus Addressable, Big-Endian).
+   * `reserved[10]` (10B): Dự phòng căn chỉnh đúng 32 bytes (luôn điền 0).
 3. **Nguyên tắc vận hành thời gian thực trên MCU:**
    * **Định danh chân ngõ ra**: Thiết bị chỉ sở hữu các chân ngõ ra số `DO0..DO7`. Firmware ánh xạ trực tiếp `target_pin` vào GPIO/Timer phần cứng tương ứng của MCU (STM32 HAL GPIO/TIM, ESP32 GPIO/LEDC/RMT).
    * **Thực thi Deterministic**: Việc xuất xung sườn lên hoặc cập nhật PWM Duty được xử lý ngay tại scan pass 10ms của PLC Engine, đảm bảo phản hồi tức thì dưới 1ms mà không gây nghẽn CPU.

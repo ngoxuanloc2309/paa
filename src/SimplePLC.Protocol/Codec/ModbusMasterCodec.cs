@@ -62,9 +62,13 @@ public static class ModbusMasterCodec
         ushort pinCount = (ushort)Math.Clamp(pins.Count, 0, ModbusRegisterMap.ModbusMasterMaxPinsPerBlock);
         destination[11] = pinCount;
 
-        // Offset +12..+15: RESERVED
-        destination[12] = 0;
-        destination[13] = 0;
+        // Offset +12: READ_MODE (0 = Cyclic, 1 = OnTriggerRisingEdge)
+        destination[12] = (ushort)config.ReadMode;
+
+        // Offset +13: TRIG_TAG_INDEX
+        destination[13] = config.TrigTagIndex ?? 0xFFFF;
+
+        // Offset +14..+15: RESERVED
         destination[14] = 0;
         destination[15] = 0;
 
@@ -124,7 +128,9 @@ public static class ModbusMasterCodec
             TimeoutMs = RegisterCodec.DecodeUInt32(source.Slice(6, 2)),
             ValidTagIndex = source[8] == 0xFFFF ? null : source[8],
             ErrorTagIndex = source[9] == 0xFFFF ? null : source[9],
-            ErrCodeTagIndex = source[10] == 0xFFFF ? null : source[10]
+            ErrCodeTagIndex = source[10] == 0xFFFF ? null : source[10],
+            ReadMode = Enum.IsDefined(typeof(ModbusReadMode), (ModbusReadMode)source[12]) ? (ModbusReadMode)source[12] : ModbusReadMode.Cyclic,
+            TrigTagIndex = source[13] == 0xFFFF ? null : source[13]
         };
 
         if (dto.FunctionCode < ModbusMasterFunctionCode.ReadCoils || dto.FunctionCode > ModbusMasterFunctionCode.ReadInputRegisters)

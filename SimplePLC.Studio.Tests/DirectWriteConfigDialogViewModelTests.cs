@@ -165,4 +165,91 @@ public class DirectWriteConfigDialogViewModelTests
         Assert.Contains("DO0", vm.Subtitle);
         Assert.DoesNotContain("DO0..", vm.Subtitle);
     }
+
+    [Theory]
+    [InlineData(DirectWriteMode.DigitalOutput)]
+    [InlineData(DirectWriteMode.PwmDuty)]
+    [InlineData(DirectWriteMode.PulseTrain)]
+    [InlineData(DirectWriteMode.AddressableBus)]
+    public void GenerateSignalPreview_PopulatesTooltipsAndBreakdown_ForAllModes(DirectWriteMode mode)
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do0, mode)
+        {
+            PwmFrequencyHz = 1000,
+            DutyMin = 0,
+            DutyMax = 100,
+            PulseWidthUs = 50
+        };
+
+        var vm = new DirectWriteConfigDialogViewModel(node)
+        {
+            SimPwmDuty = 65,
+            SimPtoFreq = 2500,
+            SimBusChannel = 3,
+            SimBusParamHex = "FF5500"
+        };
+
+        vm.GenerateSignalPreview();
+
+        Assert.NotEmpty(vm.SignalBreakdownItems);
+        foreach (var item in vm.SignalBreakdownItems)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.FieldName));
+            Assert.False(string.IsNullOrWhiteSpace(item.RawHex));
+            Assert.False(string.IsNullOrWhiteSpace(item.Interpretation));
+            Assert.False(string.IsNullOrWhiteSpace(item.Tooltip));
+        }
+    }
+
+    [Theory]
+    [InlineData("vi")]
+    [InlineData("en")]
+    public void DirectWrite_BilingualTooltips_AreFullyLocalized(string culture)
+    {
+        var originalLang = Services.LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = culture;
+
+            var keys = new[]
+            {
+                "DirectWriteTargetPinTooltip",
+                "DirectWriteModeTooltip",
+                "DirectWritePwmFreqTooltip",
+                "DirectWriteDutyRangeTooltip",
+                "DirectWritePulseWidthTooltip",
+                "DirectWriteTriggerModeTooltip",
+                "DirectWriteActiveLevelTooltip",
+                "DirectWriteFailSafeTooltip",
+                "DirectWriteColorHexTooltip",
+                "DirectWriteSimTitleTooltip",
+                "DirectWriteSimDoToggleTooltip",
+                "DirectWriteSimPwmSliderTooltip",
+                "DirectWriteSimPtoFreqTooltip",
+                "DirectWriteSimPtoPulsesTooltip",
+                "DirectWriteSimBusChannelTooltip",
+                "DirectWriteSimBusColorTooltip",
+                "DirectWriteSimStatusTooltip",
+                "DirectWriteSimSignalTooltip",
+                "DirectWriteSimBreakdownTooltip",
+                "DirectWriteSimColFieldTooltip",
+                "DirectWriteSimColValueTooltip",
+                "DirectWriteSimColMeaningTooltip",
+                "DirectWriteBtnApplyTooltip",
+                "DirectWriteBtnCancelTooltip",
+                "InspectorDirectWriteConfigureTooltip"
+            };
+
+            foreach (var key in keys)
+            {
+                var text = Services.LocalizationService.Tr(key);
+                Assert.False(string.IsNullOrWhiteSpace(text), $"Key '{key}' must have non-empty translation for culture '{culture}'");
+                Assert.False(text.StartsWith("!"), $"Key '{key}' must not be missing in culture '{culture}'");
+            }
+        }
+        finally
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
 }

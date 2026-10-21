@@ -31,6 +31,12 @@ public sealed class ModbusMasterWriteConfigDto
     public uint CyclicIntervalMs { get; set; } = 500;
     public uint TimeoutMs { get; set; } = 300;
 
+    /// <summary>
+    /// Ngưỡng COV Deadband cho chế độ OnDataChange. Ghi Modbus chỉ kích hoạt khi giá trị thay đổi ≥ Deadband.
+    /// Ngăn bão hòa bus RS485 do nhiễu ADC. Mặc định 0.5 đơn vị.
+    /// </summary>
+    public float Deadband { get; set; } = 0.5f;
+
     // Các chân trạng thái điều khiển
     public ushort? TrigTagIndex { get; set; }
     public ushort? DoneTagIndex { get; set; }

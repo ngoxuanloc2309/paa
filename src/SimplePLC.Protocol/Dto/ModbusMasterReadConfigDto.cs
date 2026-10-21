@@ -19,8 +19,12 @@ public sealed class ModbusMasterReadConfigDto
     public uint PollIntervalMs { get; set; } = 500;
     public uint TimeoutMs { get; set; } = 300;
 
+    // Chế độ đọc: Quét tuần hoàn (Cyclic) hoặc Kích hoạt theo sự kiện (OnTriggerRisingEdge)
+    public ModbusReadMode ReadMode { get; set; } = ModbusReadMode.Cyclic;
+
     // Các chân trạng thái điều khiển
     public ushort? EnTagIndex { get; set; }
+    public ushort? TrigTagIndex { get; set; }
     public ushort? ValidTagIndex { get; set; }
     public ushort? ErrorTagIndex { get; set; }
     public ushort? ErrCodeTagIndex { get; set; }

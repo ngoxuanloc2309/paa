@@ -89,6 +89,12 @@ public static class ModbusRegisterMap
     public const ushort DeviceResourceInfoAddress = 0x0020;
     public const ushort DeviceResourceInfoLength = 10;
 
+    /// <summary>
+    /// Vùng khai báo kiểu dữ liệu Tag Catalog IEC 61131-3 (0x0080..0x00BF, 64 registers = 128 bytes, 1 byte/tag, RW).
+    /// </summary>
+    public const ushort TagDataTypesBaseAddress = 0x0080;
+    public const ushort TagDataTypesLength = 64;
+
     public const ushort ActiveRuleTableBaseAddress = 0x0100;
     public const ushort ActiveRuleTableMaxLength = MaxRules * RegistersPerRule; // 1600 registers
 

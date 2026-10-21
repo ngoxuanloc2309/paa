@@ -51,6 +51,12 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
                 transport = realTransport;
                 client = new ModbusRtuClient(transport);
             }
+            else if (endpoint is TcpEndpoint tcpEp)
+            {
+                var tcpClient = new ModbusTcpClient(tcpEp.Host, tcpEp.Port, tcpEp.TimeoutMs);
+                await tcpClient.ConnectAsync(ct).ConfigureAwait(false);
+                client = tcpClient;
+            }
             else if (endpoint is SimulatorEndpoint)
             {
                 var fakeTransport = new FakeUsbCdcTransport { IsOpen = true };
@@ -70,8 +76,15 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
             var compatibility = _validator.Validate(descriptor);
             if (!compatibility.IsCompatible)
             {
-                await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                await transport.DisposeAsync().ConfigureAwait(false);
+                if (transport != null)
+                {
+                    await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await transport.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (client != null)
+                {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
                 return DeviceConnectionResult.Incompatible(compatibility);
             }
 
@@ -88,8 +101,15 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
             // 4. Thẩm định Wire Profile V1 và dựng ProductDefinition tại runtime
             if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities))
             {
-                await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                await transport.DisposeAsync().ConfigureAwait(false);
+                if (transport != null)
+                {
+                    await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await transport.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (client != null)
+                {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
                 return DeviceConnectionResult.Incompatible(
                     CompatibilityResult.Incompatible(CompatibilityStatus.UnsupportedDeviceVariant, profileError ?? "Invalid device profile."));
             }
@@ -123,6 +143,10 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
                 try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await transport.DisposeAsync().ConfigureAwait(false); } catch { }
             }
+            else if (client != null)
+            {
+                try { await client.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
             if (cancellationToken.IsCancellationRequested)
             {
                 throw;
@@ -135,6 +159,10 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
             {
                 try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await transport.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
+            else if (client != null)
+            {
+                try { await client.DisposeAsync().ConfigureAwait(false); } catch { }
             }
             return DeviceConnectionResult.Failed(ex.Message);
         }

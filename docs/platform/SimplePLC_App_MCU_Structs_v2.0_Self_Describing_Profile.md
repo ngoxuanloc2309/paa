@@ -85,6 +85,7 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Thông tin định danh: Class=1, Variant=1, HW, FW, ProtocolVersion=2, RuleFormatVersion=7. |
 | `0x0010` | **Rule Table Info** | R | FC03 | 1 reg (2 B) | Số lượng Rule đang chạy (`active_rule_count`, 0..100). |
 | `0x0020..0x0029` | **Device Resource Info** | R | FC03 | 10 regs (20 B) | Hồ sơ tự mô tả: WireProfile=2, MaxRules=100, ActiveTags=124, 8DI/8DO/4AI/32VFLAG/32VREG/32RETAIN/8COUNTER. |
+| `0x0080..0x00BF` | **Tag DataType Registry** | R/W | FC03/FC16 | 64 regs (128 B) | Bảng đăng ký kiểu dữ liệu Tag Catalog IEC 61131-3 (1 byte/tag: 1=BOOL, 2=INT32, 3=REAL). Studio nạp xuống MCU khi deploy. |
 | `0x0100..0x073F` | **Active Rule Table** | R | FC03 | Max 1600 regs | Bảng Rule logic thực thi (tối đa 100 rules × 16 thanh ghi = 3200 bytes). |
 | `0x0800..0x0809` | **Device Health** | R | FC03 | 10 regs (20 B) | Uptime (s), Reset Reason, Health Flags, CPU load, RAM load, Scan Time (ms), Max Scan Time (ms). |
 | `0x0810..0x0813` | **Real-Time Clock (RTC)** | R/W | FC03/FC16 | 4 regs (8 B) | Đồng hồ thời gian thực: `epoch_utc_s` (u32), `tz_offset_min` (i16), `status_flags` (u16). |
@@ -470,7 +471,7 @@ typedef struct SPLC_PACKED {
     uint8_t  flags;             /* +2 (Lo): Bit 0: IsActiveHigh, Bit 1: IsExclusive, Bit 2: FailSafe */
     uint8_t  trigger_mode;      /* +2 (Hi): 0=RisingEdge, 1=Continuous */
     uint16_t pulse_width_us;    /* +3: Độ rộng xung cơ sở (µs) */
-    uint32_t pwm_freq_hz;       /* +4..+5: Tần số sóng mang PWM (Hz, uint32 LE) */
+    uint32_t pwm_freq_hz;       /* +4..+5: Tần số sóng mang PWM (Hz, uint32 BE: High Word ở Reg 4, Low Word ở Reg 5) */
     uint8_t  duty_min;          /* +6 (Lo): Giới hạn Duty nhỏ nhất % (0..100) */
     uint8_t  duty_max;          /* +6 (Hi): Giới hạn Duty lớn nhất % (0..100) */
     uint16_t channel_tag_index; /* +7: TagIndex giá trị logic In / Duty % / Kênh */
@@ -517,7 +518,6 @@ Bao gồm 3 phân vùng thanh ghi chuyên biệt quản lý module Wi-Fi 6 ST67W
 /* 1. Cấu hình & Giám sát Live Status (0x1300..0x133F, 64 thanh ghi = 128 Bytes) */
 typedef struct SPLC_PACKED {
     uint16_t control_flags;     /* Bit 0: Enable, Bit 1..2: Mode (0=STA, 1=AP), Bit 3: DHCP, Bit 4: Auto-reconnect */
-    uint16_t reserved_flags;    /* Dự phòng (0x0000) */
     char     ssid[32];          /* Tên mạng (ASCII null-terminated) */
     char     password[64];      /* Mật khẩu WPA2/WPA3 (ASCII null-terminated) */
     uint32_t static_ip;         /* Static IPv4 (Network byte order / Big-Endian) */
@@ -610,6 +610,27 @@ typedef union SPLC_PACKED {
 3. **`REAL` / `Float32` (32-bit Floating Point IEEE-754)**:
    - Áp dụng cho: `AI` (khi gán đo lường nhiệt độ, áp suất, lưu lượng...), `VREG` (biến tính toán dấu phẩy động), `VREG_RETAIN` (ngưỡng setpoint thực), `ModbusHolding`.
    - **Giao thức đường truyền**: Giá trị được truyền trực tiếp dạng nhị phân 32-bit IEEE-754 qua 2 thanh ghi Modbus liên tiếp (High Word trước, Low Word sau). **Tuyệt đối không nhân chia $10^{dec}$ tạm bợ**.
+
+### 4.3. Bảng Khai Báo Kiểu Dữ Liệu Tag (Tag DataType Registry: `0x0080..0x00BF`)
+
+Nhằm giúp MCU nhận biết chính xác kiểu dữ liệu của từng Tag (đặc biệt khi xuất bản MQTT viễn trắc JSON `{val}` hoặc giải mã đọc Modbus Master ghi vào Tag Store), Contract V2.0 quy định phân vùng **Tag DataType Registry** gồm 64 thanh ghi Modbus (128 bytes):
+
+* **Địa chỉ:** `0x0080 .. 0x00BF` (64 holding registers = 128 bytes, FC03/FC16 Read/Write).
+* **Định dạng mảng:** `uint8_t tag_data_types[128];` trong đó mỗi byte biểu diễn kiểu dữ liệu của một Tag theo enum `SPLC_TagDataType_t` (`1 = BOOL`, `2 = INT32`, `3 = REAL`).
+* **Quy tắc đóng gói thanh ghi (Big-Endian):**
+  * Thanh ghi $\text{Reg}_k = 0\text{x}0080 + k$ ($0 \le k \le 63$):
+    * **High Byte (Bits 15..8):** Kiểu dữ liệu của $\text{Tag } 2k$.
+    * **Low Byte (Bits 7..0):** Kiểu dữ liệu của $\text{Tag } 2k + 1$.
+* **Quy trình hoạt động:**
+  1. Khi nạp cấu hình (Deploy), Host Studio ghi mảng kiểu dữ liệu này xuống `0x0080`.
+  2. MCU lưu mảng `tag_data_types` vào RAM/NVS.
+  3. Khi xử lý **MQTT Telemetry** (`0x0C00`): MCU tra cứu `tag_data_types[tag_idx]`:
+     * Nếu là `SPLC_DATA_TYPE_REAL` (`3`): format số thực `snprintf(buf, len, "%.4g", tags[tag_idx].as_real);`.
+     * Nếu là `SPLC_DATA_TYPE_INT32` (`2`): format số nguyên `snprintf(buf, len, "%ld", (long)tags[tag_idx].as_int32);`.
+     * Nếu là `SPLC_DATA_TYPE_BOOL` (`1`): format `0` hoặc `1` `snprintf(buf, len, "%d", tags[tag_idx].as_int32 ? 1 : 0);`.
+  4. Trong **Rule Engine** (`0x0100` / `0x9010`): Rule Engine độc lập kiểm tra cờ `flags & 0x01` (`SPLC_RULE_FLAG_FLOAT_DATA`) của từng Rule:
+     * Nếu `flags & 0x01`: Ép kiểu `as_real` và so sánh dấu phẩy động IEEE-754 với epsilon $10^{-5}$.
+     * Nếu `flags == 0`: So sánh số nguyên `as_int32`.
 
 ---
 

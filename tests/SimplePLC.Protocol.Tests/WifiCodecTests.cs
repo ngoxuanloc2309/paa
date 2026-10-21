@@ -74,14 +74,15 @@ public sealed class WifiCodecTests
         // Arrange
         var registers = new ushort[ModbusRegisterMap.WifiConfigRegisters];
         registers[0] = 0x0009; // Enabled + DHCP
-        registers[58] = 3;      // conn_status = GOT_IP
-        registers[59] = unchecked((ushort)(short)-65); // -65 dBm
+        registers[57] = 3;      // conn_status = GOT_IP
+        registers[58] = unchecked((ushort)(short)-65); // -65 dBm
         // IP: 192.168.1.150 -> 0xC0A8, 0x0196
-        registers[60] = 0xC0A8;
-        registers[61] = 0x0196;
-        // MAC: 00:80:E1:12:34:56
-        registers[62] = 0x0080;
-        registers[63] = 0xE112;
+        registers[59] = 0xC0A8;
+        registers[60] = 0x0196;
+        // MAC: 00:80:E1:12:34:56 (3 registers = 6 bytes)
+        registers[61] = 0x0080;
+        registers[62] = 0xE112;
+        registers[63] = 0x3456;
 
         // Act
         var decoded = WifiCodec.DecodeConfig(registers);
@@ -90,6 +91,7 @@ public sealed class WifiCodecTests
         Assert.Equal(3, decoded.ConnectionStatus);
         Assert.Equal(-65, decoded.RssiDbm);
         Assert.Equal("192.168.1.150", decoded.CurrentIp);
+        Assert.Equal("00:80:E1:12:34:56", decoded.MacAddress);
     }
 
     [Fact]

@@ -54,5 +54,11 @@ public enum DirectWriteTriggerMode : byte
     /// <summary>
     /// Xuất liên tục theo chu kỳ quét PLC (Continuous Cyclic).
     /// </summary>
-    Continuous = 1
+    Continuous = 1,
+
+    /// <summary>
+    /// Kích hoạt khi giá trị thay đổi vượt ngưỡng Deadband (COV — Change-of-Value).
+    /// Ngăn chặn bão hòa bus RS485 do nhiễu ADC liên tục. Deadband được cấu hình trong Inspector.
+    /// </summary>
+    OnChangeOfValue = 2
 }

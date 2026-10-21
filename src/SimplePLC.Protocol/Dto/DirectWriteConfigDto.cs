@@ -66,4 +66,11 @@ public sealed class DirectWriteConfigDto
     /// Mã màu RGB mặc định nếu chân Param không được đấu dây (Ví dụ: 0x00FF00 = Xanh lục).
     /// </summary>
     public uint DefaultColorRgb { get; set; } = 0x00FF00;
+
+    /// <summary>
+    /// Ngưỡng thay đổi COV (Change-of-Value Deadband). Chỉ áp dụng khi TriggerMode = OnChangeOfValue.
+    /// Giá trị thay đổi nhỏ hơn ngưỡng này sẽ không kích hoạt ghi Modbus, ngăn chặn bão hòa bus RS485.
+    /// Ví dụ: 0.5 có nghĩa là chỉ ghi khi giá trị thay đổi ≥ 0.5 đơn vị.
+    /// </summary>
+    public float Deadband { get; set; } = 0.5f;
 }

@@ -154,7 +154,64 @@ public class ModbusWriteNodeViewModelTests
         Assert.Equal(ModbusDataType.Real, restoredNode.Pins[0].DataType);
         Assert.Equal(ModbusEndianness.MidBig_CDAB, restoredNode.Pins[0].Endianness);
         Assert.Equal(0.1f, restoredNode.Pins[0].Multiplier, 3);
-        // Direct mode: Trig + 1 pin = 2 inputs
+        // In OnDataChange mode, Trig connector is hidden, only data pin Flow_SP is present
+        Assert.Single(restoredNode.InputConnectors);
+        Assert.Equal("Flow_SP", restoredNode.InputConnectors[0].Title);
+
+        // When switching back to OnTriggerRisingEdge, Trig connector reappears
+        restoredNode.TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge;
         Assert.Equal(2, restoredNode.InputConnectors.Count);
+        Assert.Equal("Trig", restoredNode.InputConnectors[0].Title);
+        Assert.Equal("Flow_SP", restoredNode.InputConnectors[1].Title);
+    }
+
+    [Fact]
+    public void TriggerMode_TogglingBetweenModes_DynamicallyShowsAndHidesTrigConnector()
+    {
+        var node = new ModbusWriteNodeViewModel();
+        Assert.Equal(ModbusWriteTriggerMode.OnTriggerRisingEdge, node.TriggerMode);
+        Assert.Equal(4, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("On Trig", node.TriggerModeSummaryText);
+        Assert.True(node.IsTriggerMode);
+
+        // Switch to Cyclic
+        node.TriggerMode = ModbusWriteTriggerMode.Cyclic;
+        node.CyclicIntervalMs = 500;
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Trig");
+        Assert.Equal("500ms", node.TriggerModeSummaryText);
+        Assert.False(node.IsTriggerMode);
+
+        // Switch to OnDataChange
+        node.TriggerMode = ModbusWriteTriggerMode.OnDataChange;
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Trig");
+        Assert.Equal("On Change", node.TriggerModeSummaryText);
+        Assert.False(node.IsTriggerMode);
+
+        // Switch back to OnTriggerRisingEdge
+        node.TriggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge;
+        Assert.Equal(4, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("On Trig", node.TriggerModeSummaryText);
+        Assert.True(node.IsTriggerMode);
+    }
+
+    [Fact]
+    public void Deadband_CustomValue_UpdatesSummaryTextAndTriggersOnDataChange()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            TriggerMode = ModbusWriteTriggerMode.OnDataChange,
+            Deadband = 0.5f
+        };
+
+        Assert.True(node.IsOnDataChangeMode);
+        Assert.Equal("On Change", node.TriggerModeSummaryText);
+
+        node.Deadband = 1.25f;
+        Assert.Equal("Δ1.25", node.TriggerModeSummaryText);
     }
 }
+

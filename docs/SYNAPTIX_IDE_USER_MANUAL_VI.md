@@ -430,37 +430,50 @@ Khối **`MB_READ`** cho phép SimplePLC đóng vai trò Modbus RTU Master trên
 ---
 
 ### 6.5 Điều khiển Cơ Cấu Chấp Hành RS-485 Modbus Master (MB_WRITE)
-Khối **`MB_WRITE`** cho phép SimplePLC chủ động phát lệnh ghi điều khiển qua cổng truyền thông RS-485 Modbus RTU tới các cơ cấu chấp hành ngoại vi (Biến tần VFD, Đèn chỉ thị thông minh Sort-to-Light, Module Relay mở rộng, Van điện từ Modbus):
+Khối **`MB_WRITE`** (ký hiệu huy hiệu `MB_WRITE`) cho phép SimplePLC chủ động phát lệnh ghi điều khiển qua cổng truyền thông RS-485 Modbus RTU tới các cơ cấu chấp hành ngoại vi (Biến tần VFD, Đèn chỉ thị thông minh Sort-to-Light, Module Relay mở rộng, Van điện từ Modbus). Thiết kế khối tuân thủ tiêu chuẩn quốc tế **PLCopen TC5 Communication** và **IEC 61131-3**.
+
+> [!TIP]
+> **Tài liệu Kỹ thuật Chi tiết:** Xem cẩm nang chuyên sâu tại [`docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md) để tra cứu đầy đủ các trường hợp ứng dụng mẫu, công thức tính toán và giải phẫu khung truyền.
 
 #### 1. Cấu trúc Cổng Nối của Khối MB_WRITE trên Canvas:
-- **Cổng vào `Trig` (hoặc `EN`):** Tín hiệu kích hoạt lệnh ghi theo chế độ đã cấu hình.
-- **Cổng ra `Done`:** Phát xung logic 1 chu kỳ quét khi nhận được phản hồi ghi thành công (Acknowledge Echo) từ thiết bị ngoại vi Slave.
-- **Cổng ra `Err`:** Bật mức TRUE khi quá trình ghi thất bại (Timeout, lỗi CRC hoặc Slave phản hồi Exception).
-- **Cổng ra `Err_Code`:** Xuất mã lỗi chẩn đoán:
-  - `0`: Ghi thành công (`ERR_NONE`).
-  - `1`: Hết thời gian chờ (`ERR_TIMEOUT` — thiết bị ngoại vi không phản hồi).
-  - `2`: Lỗi kiểm tra toàn vẹn (`ERR_CRC` — nhiễu đường truyền RS-485).
-  - `3`: Slave từ chối (`ERR_EXCEPTION` — địa chỉ không hợp lệ hoặc sai hàm ghi).
-  - `4`: Xung đột đường truyền (`ERR_BUS_BUSY`).
-- **Các chân dữ liệu nguồn (Data Input Pins):** Tối đa 4 chân trên mỗi khối, nhận giá trị số từ đồ thị FBD hoặc Tag Store để ghi xuống thanh ghi Slave.
+- **Cổng vào Sự kiện `Trig` (Event Input):** Tín hiệu kích hoạt lệnh ghi (chỉ xuất hiện trên Canvas khi chọn chế độ `On Trigger Rising Edge`).
+- **Cổng vào Dữ liệu (Data Inputs):**
+  - *Chế độ Channel-Indexed:* `Channel` (chỉ số kênh $1..N$), `Command` (mã lệnh thực thi), `Param` (mã màu RGB 24-bit hoặc tham số mở rộng).
+  - *Chế độ Direct Registers:* Các chân ngõ vào dữ liệu động `IN0`..`IN3` nhận giá trị từ FBD/Tag Catalog để ghi trực tiếp xuống Slave.
+- **Cổng ra Bắt tay Trạng thái (Handshaking Outputs):**
+  - **`Done`:** Phát xung logic 1 chu kỳ quét scan ($10\text{ms}$) khi nhận được phản hồi ghi thành công (Acknowledge Echo) từ Slave.
+  - **`Busy`:** Bật mức `TRUE` liên tục trong suốt thời gian đang phát khung tin hoặc chờ phản hồi qua UART RS-485. Dùng làm cờ khóa liên động (Interlock).
+  - **`Error`:** Bật mức `TRUE` khi quá trình ghi thất bại (Timeout, lỗi CRC hoặc Slave phản hồi Exception).
+  - **`ErrCode`:** Xuất mã lỗi chẩn đoán:
+    - `0`: Ghi thành công (`ERR_NONE`).
+    - `1`: Hết thời gian chờ (`ERR_TIMEOUT` — thiết bị ngoại vi không phản hồi).
+    - `2`: Lỗi kiểm tra toàn vẹn (`ERR_CRC` — nhiễu đường truyền RS-485).
+    - `3`: Slave từ chối (`ERR_EXCEPTION` — địa chỉ không hợp lệ hoặc sai hàm ghi).
+    - `4`: Xung đột đường truyền (`ERR_BUS_BUSY`).
+    - `5`: Kênh vượt giới hạn (`ERR_CHANNEL_OUT_OF_BOUNDS`).
 
 #### 2. Hai Chế Độ Ghi Linh Hoạt (Write Modes):
 1. **Direct Registers (Ghi Thanh Ghi Trực Tiếp):**
-   - Hỗ trợ các mã hàm Modbus tiêu chuẩn:
+   - Hỗ trợ đầy đủ 4 mã hàm Modbus chuẩn:
      - `FC 05`: Write Single Coil (Ghi 1 cuộn dây số).
      - `FC 06`: Write Single Register (Ghi 1 thanh ghi 16-bit — biến tần, rơ-le).
-     - `FC 15`: Write Multiple Coils (Ghi nhiều cuộn dây).
+     - `FC 15`: Write Multiple Coils (Ghi nhiều cuộn dây liên tiếp).
      - `FC 16`: Write Multiple Registers (Ghi nhiều thanh ghi liên tiếp).
-   - Thiết lập `Start Address` và `Point Count`, kèm cấu hình kiểu dữ liệu (`INT16`, `UINT16`, `REAL`, `INT32`), thứ tự Endianness và hệ số nhân nghịch đảo.
+   - Thiết lập `Start Address` và `Point Count`, kèm cấu hình kiểu dữ liệu (`INT16`, `UINT16`, `REAL` Float32 IEEE 754, `INT32`, `UINT32`, `BOOL`), thứ tự Endianness (`ABCD`, `CDAB` Word-Swap, `BADC`, `DCBA`) và hệ số nhân nghịch đảo (`Multiplier`).
 2. **Channel-Indexed Target (Điều Khiển Đa Kênh Tối Ưu Cho Logistics):**
-   - Thiết kế chuyên biệt cho các ứng dụng cơ cấu chấp hành phân tán theo kênh như **Sort-to-Light (1..18 ô)**, dàn van khí nén hoặc module LED thanh.
+   - Thiết kế chuyên biệt cho các cơ cấu chấp hành phân tán theo kênh như **Sort-to-Light (1..18 ô)**, dàn van khí nén hoặc module LED thanh.
    - Cấu hình địa chỉ cơ sở lệnh (`Base Command Address`, ví dụ `0x0100`) và địa chỉ cơ sở tham số (`Base Param Address`, ví dụ `0x0120` cho màu RGB).
-   - **Cơ chế Độc quyền Kênh (`ExclusiveChannel`):** Khi cờ này được kích hoạt, hệ thống sẽ tự động gửi lệnh xóa/tắt tất cả các ô phân loại khác khi một ô mới được chọn, loại trừ hoàn toàn rủi ro thao tác sai của nhân viên khi nhiều đèn sáng cùng lúc.
+   - Tự động phát gói **FC 06** cho Command và **FC 16** cho Param 32-bit.
+   - **Cơ chế Độc quyền Kênh (`ExclusiveChannel`):** Tự động gửi lệnh xóa/tắt tất cả các ô phân loại khác khi một ô mới được kích hoạt, loại trừ hoàn toàn rủi ro nhặt nhầm hàng.
 
-#### 3. Chế Độ Kích Hoạt Lệnh Ghi (Trigger Modes):
-- **On Trigger Rising Edge (Mặc định):** Chỉ phát lệnh ghi duy nhất 1 lần khi chân ngõ vào `Trig` chuyển từ 0 lên 1 (phù hợp với sự kiện nhả hàng, nút nhấn).
-- **On Data Change:** Tự động phát lệnh ghi ngay khi có sự thay đổi giá trị của bất kỳ chân dữ liệu nguồn nào (tối ưu cho điều khiển tốc độ biến tần theo áp suất).
-- **Cyclic:** Phát lệnh ghi tuần hoàn theo chu kỳ định thời `IntervalMs` (phù hợp cho các cơ cấu chấp hành yêu cầu nhịp tim duy trì an toàn).
+#### 3. Ba Chế Độ Kích Hoạt Lệnh Ghi (Trigger Modes) & Bộ Lọc Deadband:
+- **On Trigger Rising Edge (Theo Sự Kiện Cạnh Lên):** Chỉ phát lệnh ghi duy nhất 1 lần khi chân ngõ vào `Trig` chuyển từ 0 lên 1 (phù hợp với sự kiện nhả hàng, nút nhấn, cảm biến quang).
+- **Cyclic (Ghi Tuần Hoàn Chu Kỳ):** Phát lệnh ghi định kỳ sau mỗi khoảng thời gian `CyclicIntervalMs` (50..60000ms), phù hợp cho lệnh nhịp tim an toàn (Heartbeat Watchdog).
+- **On Data Change với COV Deadband ($\Delta$):** Tự động phát lệnh ghi ngay khi giá trị đầu vào thay đổi vượt ngưỡng `Deadband` ($|\text{Val} - \text{Val}_{\text{last}}| \ge \text{Deadband}$). Ngăn chặn hiện tượng bão hòa bus RS-485 do nhiễu dao động nhỏ ở hàng thập phân từ cảm biến hoặc biến tần.
+
+#### 4. Giao Diện Công Thái Học Chuẩn ISA-101:
+- **Sidebar Inspector (~230px):** Đóng vai trò thẻ tóm tắt nhanh (Read-only summary card) hiển thị Slave ID, Write Mode, Tóm tắt Trigger Mode kèm tham số (ví dụ `Cyclic (500 ms)` hoặc `On Data Change (Δ0.50)`), số chân và nút bấm `[ ⚙ Cấu hình khối Modbus... ]`.
+- **Hộp thoại Cấu hình Popup:** Cung cấp không gian làm việc rộng rãi với bảng ánh xạ địa chỉ kênh tự động (Actuator Mapping Table) và bàn thử nghiệm phân tích khung tin Modbus RTU mẫu (TX Frame Breakdown) kèm mã CRC-16 kiểm chứng trước khi nạp.
 
 ---
 

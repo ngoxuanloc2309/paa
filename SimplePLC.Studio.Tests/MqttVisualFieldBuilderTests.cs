@@ -334,4 +334,74 @@ public class MqttVisualFieldBuilderTests
         Assert.Equal(TagDataType.Float32, ai0Restored.DataType);
         Assert.Equal("REAL", ai0Restored.DataTypeText);
     }
+
+    [Theory]
+    [InlineData("vi")]
+    [InlineData("en")]
+    public void Mqtt_BilingualTooltips_AreFullyLocalized(string culture)
+    {
+        var originalLang = Services.LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = culture;
+
+            var keys = new[]
+            {
+                "MqttHeaderTooltip",
+                "MqttPayloadModeTooltip",
+                "InspectorMqttColKeyTooltip",
+                "InspectorMqttColTagTooltip",
+                "InspectorMqttColDataTypeTooltip",
+                "MqttFieldKeyTooltip",
+                "MqttFieldTagTooltip",
+                "MqttFieldDataTypeTooltip",
+                "MqttFieldDeleteTooltip",
+                "MqttAddFieldTooltip",
+                "MqttCustomTemplateTooltip",
+                "MqttCustomTemplateCounterTooltip",
+                "MqttCustomTemplateHintTooltip",
+                "MqttPreviewPayloadTooltip",
+                "MqttReadyStatusTooltip",
+                "MqttBtnApplyTooltip",
+                "MqttFooterTopicTooltip",
+                "MqttSubHeaderTooltip",
+                "MqttSubColFieldNameTooltip",
+                "MqttSubColTypeTooltip",
+                "MqttSubFieldNameTooltip",
+                "MqttSubFieldTypeTooltip",
+                "MqttSubFieldDeleteTooltip",
+                "MqttSubBtnAddFieldTooltip",
+                "MqttSubBtnResetSampleTooltip",
+                "MqttSubTestInputTooltip",
+                "MqttSubBtnRunTestTooltip",
+                "MqttSubResultsPreviewTooltip",
+                "MqttSubFooterTopicTooltip",
+                "MqttSubBtnApplyTooltip",
+                "InspectorNodeLabelTooltip",
+                "InspectorMqttTopicTooltip",
+                "InspectorMqttPublishModeTooltip",
+                "InspectorMqttIntervalTooltip",
+                "InspectorMqttDeadbandTooltip",
+                "InspectorMqttQosTooltip",
+                "InspectorMqttQos0Tooltip",
+                "InspectorMqttQos1Tooltip",
+                "InspectorMqttQos2Tooltip",
+                "InspectorMqttRetainTooltip",
+                "InspectorMqttConfigureTooltip",
+                "InspectorMqttSubTopicTooltip",
+                "InspectorMqttSubConfigureTooltip"
+            };
+
+            foreach (var key in keys)
+            {
+                var text = Services.LocalizationService.Tr(key);
+                Assert.False(string.IsNullOrWhiteSpace(text), $"Key '{key}' must have non-empty translation for culture '{culture}'");
+                Assert.False(text.StartsWith("!"), $"Key '{key}' must not be missing in culture '{culture}'");
+            }
+        }
+        finally
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
 }

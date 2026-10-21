@@ -42,6 +42,21 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     private uint _timeoutMs;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(IsTriggerMode))]
+    [NotifyPropertyChangedFor(nameof(IsCyclicMode))]
+    private ModbusReadMode _readMode;
+
+    public bool IsTriggerMode => ReadMode == ModbusReadMode.OnTriggerRisingEdge;
+    public bool IsCyclicMode => ReadMode == ModbusReadMode.Cyclic;
+
+    public IReadOnlyList<OptionItem<ModbusReadMode>> AvailableReadModes { get; } = new List<OptionItem<ModbusReadMode>>
+    {
+        new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"),
+        new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)")
+    };
+
     public string SummaryBadgeText => $"Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
 
     public bool HasPins => Node.Pins.Count > 0;
@@ -96,6 +111,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         _regCount = Math.Max((ushort)1, node.RegCount);
         _pollIntervalMs = node.PollIntervalMs;
         _timeoutMs = node.TimeoutMs;
+        _readMode = node.ReadMode;
 
         foreach (var pin in node.Pins)
         {
@@ -283,5 +299,6 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         Node.RegCount = RegCount;
         Node.PollIntervalMs = Math.Max(50u, PollIntervalMs);
         Node.TimeoutMs = Math.Max(50u, TimeoutMs);
+        Node.ReadMode = ReadMode;
     }
 }

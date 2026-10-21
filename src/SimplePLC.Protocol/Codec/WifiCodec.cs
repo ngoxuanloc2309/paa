@@ -36,22 +36,19 @@ public static class WifiCodec
         if (config.AutoReconnect) control |= ModbusRegisterMap.WifiControlBitAutoReconnect;
         destination[0] = control;
 
-        // 2. Offset +1: Reserved (0x0000)
-        destination[1] = 0;
+        // 2. Offset +1..+16: SSID (32 bytes = 16 regs)
+        MqttTelemetryCodec.EncodePackedAscii(config.Ssid, destination.Slice(1, 16), ModbusRegisterMap.WifiMaxSsidChars);
 
-        // 3. Offset +2..+17: SSID (32 bytes = 16 regs)
-        MqttTelemetryCodec.EncodePackedAscii(config.Ssid, destination.Slice(2, 16), ModbusRegisterMap.WifiMaxSsidChars);
+        // 3. Offset +17..+48: Password (64 bytes = 32 regs)
+        MqttTelemetryCodec.EncodePackedAscii(config.Password, destination.Slice(17, 32), ModbusRegisterMap.WifiMaxPasswordChars);
 
-        // 4. Offset +18..+49: Password (64 bytes = 32 regs)
-        MqttTelemetryCodec.EncodePackedAscii(config.Password, destination.Slice(18, 32), ModbusRegisterMap.WifiMaxPasswordChars);
+        // 4. Offset +49..+56: Static IP params (8 regs = 16 bytes)
+        EncodeIpAddress(config.StaticIp, destination.Slice(49, 2));
+        EncodeIpAddress(config.StaticSubnet, destination.Slice(51, 2));
+        EncodeIpAddress(config.StaticGateway, destination.Slice(53, 2));
+        EncodeIpAddress(config.StaticDns, destination.Slice(55, 2));
 
-        // 5. Offset +50..+57: Static IP params (8 regs = 16 bytes)
-        EncodeIpAddress(config.StaticIp, destination.Slice(50, 2));
-        EncodeIpAddress(config.StaticSubnet, destination.Slice(52, 2));
-        EncodeIpAddress(config.StaticGateway, destination.Slice(54, 2));
-        EncodeIpAddress(config.StaticDns, destination.Slice(56, 2));
-
-        // Offset +58..+63: Live Feedback (chỉ đọc từ MCU, để 0 khi Host ghi)
+        // Offset +57..+63: Live Feedback (chỉ đọc từ MCU, để 0 khi Host ghi)
     }
 
     /// <summary>
@@ -68,18 +65,18 @@ public static class WifiCodec
         bool isDhcp = (control & ModbusRegisterMap.WifiControlBitDhcp) != 0;
         bool autoReconnect = (control & ModbusRegisterMap.WifiControlBitAutoReconnect) != 0;
 
-        string ssid = MqttTelemetryCodec.DecodePackedAscii(source.Slice(2, 16));
-        string password = MqttTelemetryCodec.DecodePackedAscii(source.Slice(18, 32));
+        string ssid = MqttTelemetryCodec.DecodePackedAscii(source.Slice(1, 16));
+        string password = MqttTelemetryCodec.DecodePackedAscii(source.Slice(17, 32));
 
-        string staticIp = DecodeIpAddress(source.Slice(50, 2));
-        string staticSubnet = DecodeIpAddress(source.Slice(52, 2));
-        string staticGateway = DecodeIpAddress(source.Slice(54, 2));
-        string staticDns = DecodeIpAddress(source.Slice(56, 2));
+        string staticIp = DecodeIpAddress(source.Slice(49, 2));
+        string staticSubnet = DecodeIpAddress(source.Slice(51, 2));
+        string staticGateway = DecodeIpAddress(source.Slice(53, 2));
+        string staticDns = DecodeIpAddress(source.Slice(55, 2));
 
-        ushort connStatus = source[58];
-        short rssiDbm = (short)source[59];
-        string currentIp = DecodeIpAddress(source.Slice(60, 2));
-        string mac = DecodeMacAddress(source.Slice(62, 2));
+        ushort connStatus = source[57];
+        short rssiDbm = (short)source[58];
+        string currentIp = DecodeIpAddress(source.Slice(59, 2));
+        string mac = DecodeMacAddress(source.Slice(61, 3));
 
         return new WifiConfigDto
         {

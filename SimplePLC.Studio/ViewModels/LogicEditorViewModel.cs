@@ -3344,6 +3344,7 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.Type = "ModbusRead";
             pNode.ModbusSlaveId = mb.SlaveId;
             pNode.ModbusFunctionCode = mb.FunctionCode.ToString();
+            pNode.ModbusReadMode = mb.ReadMode.ToString();
             pNode.ModbusStartAddress = mb.StartAddress;
             pNode.ModbusRegCount = mb.RegCount;
             pNode.ModbusPollIntervalMs = mb.PollIntervalMs;
@@ -3375,6 +3376,7 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.ModbusWriteTriggerMode = mbw.TriggerMode.ToString();
             pNode.ModbusWriteCyclicIntervalMs = mbw.CyclicIntervalMs;
             pNode.ModbusWriteTimeoutMs = mbw.TimeoutMs;
+            pNode.ModbusWriteDeadband = mbw.Deadband;
             pNode.ModbusWritePins = mbw.Pins.Select(p => new ModbusPinData
             {
                 Id = p.Id,
@@ -3397,6 +3399,7 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.DirectWritePulseWidthUs = dw.PulseWidthUs;
             pNode.DirectWritePwmFrequencyHz = dw.PwmFrequencyHz;
             pNode.DirectWriteTriggerMode = dw.TriggerMode.ToString();
+            pNode.DirectWriteDeadband = dw.Deadband;
             pNode.DirectWriteTimeoutMs = dw.TimeoutMs;
             pNode.DirectWriteDefaultColorRgb = dw.DefaultColorRgb;
         }
@@ -3584,6 +3587,8 @@ public partial class LogicEditorViewModel : ObservableObject
             };
             if (Enum.TryParse<ModbusMasterFunctionCode>(pNode.ModbusFunctionCode, true, out var fc))
                 mb.FunctionCode = fc;
+            if (Enum.TryParse<ModbusReadMode>(pNode.ModbusReadMode, true, out var rm))
+                mb.ReadMode = rm;
 
             if (pNode.ModbusPins != null && pNode.ModbusPins.Count > 0)
             {
@@ -3634,6 +3639,8 @@ public partial class LogicEditorViewModel : ObservableObject
                 mbw.FunctionCode = fc;
             if (Enum.TryParse<ModbusWriteTriggerMode>(pNode.ModbusWriteTriggerMode, true, out var tm))
                 mbw.TriggerMode = tm;
+            if (pNode.ModbusWriteDeadband > 0f)
+                mbw.Deadband = pNode.ModbusWriteDeadband;
 
             if (pNode.ModbusWritePins != null && pNode.ModbusWritePins.Count > 0)
             {
@@ -3685,7 +3692,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 dw.Mode = wm;
             if (Enum.TryParse<DirectWriteTriggerMode>(pNode.DirectWriteTriggerMode, true, out var tm))
                 dw.TriggerMode = tm;
+            if (pNode.DirectWriteDeadband > 0f)
+                dw.Deadband = pNode.DirectWriteDeadband;
 
+            dw.SynchronizeConnectors();
             node = dw;
         }
 

@@ -57,17 +57,16 @@ Cấu trúc nhị phân C tương ứng: `SPLC_WifiConfig_t`.
 | Offset | Địa chỉ Modbus | Tên trường | Kiểu dữ liệu | Chiều | Mô tả chi tiết |
 | :---: | :---: | :--- | :---: | :---: | :--- |
 | **+0** | `0x1300` | `control_flags` | `uint16_t` | R/W | **Bitmask điều khiển:**<br>• Bit 0: `Enable` (1 = Bật Wi-Fi, 0 = Tắt Wi-Fi)<br>• Bit 1..2: `Mode` (0 = Station/STA, 1 = SoftAP, 2 = STA+AP)<br>• Bit 3: `DHCP Enable` (1 = Tự động nhận IP qua DHCP, 0 = Dùng Static IP bên dưới)<br>• Bit 4: `Auto-Reconnect` (1 = Tự động kết nối lại khi mất sóng) |
-| **+1** | `0x1301` | `reserved_flags`| `uint16_t` | R/W | Dự phòng mở rộng (luôn ghi/đọc `0x0000`). |
-| **+2..+17**| `0x1302..0x1311`| `ssid[32]` | `char[32]` | R/W | Tên mạng Wi-Fi (Tối đa 31 ký tự ASCII + null-terminator `0x00`, 2 ký tự/thanh ghi, Big-Endian). |
-| **+18..+49**| `0x1312..0x1331`| `password[64]`| `char[64]` | R/W | Mật khẩu Wi-Fi WPA2/WPA3 (Tối đa 63 ký tự ASCII + null-terminator `0x00`). |
-| **+50..+51**| `0x1332..0x1333`| `static_ip` | `uint32_t` | R/W | Địa chỉ IP tĩnh khi tắt DHCP (2 regs, Big-Endian: vd `192.168.1.100` = `0xC0A80164`). |
-| **+52..+53**| `0x1334..0x1335`| `static_subnet`| `uint32_t` | R/W | Subnet Mask (vd `255.255.255.0` = `0xFFFFFF00`). |
-| **+54..+55**| `0x1336..0x1337`| `static_gateway`|`uint32_t` | R/W | Default Gateway (vd `192.168.1.1` = `0xC0A80101`). |
-| **+56..+57**| `0x1338..0x1339`| `static_dns` | `uint32_t` | R/W | Primary DNS Server (vd `8.8.8.8` = `0x08080808`). |
-| **+58** | `0x133A` | `conn_status` | `uint16_t` | RO | **Trạng thái kết nối thực tế từ ST67:**<br>• `0`: `DISCONNECTED` (Chưa kết nối / Tắt mạng)<br>• `1`: `CONNECTING` (Đang bắt tay kết nối)<br>• `2`: `CONNECTED` (Đã liên kết tầng sóng Wi-Fi)<br>• `3`: `GOT_IP` (Đã nhận IP thành công - Sẵn sàng truyền thông)<br>• `4`: `AUTH_FAILED` (Sai mật khẩu Wi-Fi)<br>• `5`: `SSID_NOT_FOUND` (Không tìm thấy Access Point)<br>• `6`: `AP_MODE_ACTIVE` (Đang phát SoftAP) |
-| **+59** | `0x133B` | `rssi_dbm` | `int16_t` | RO | Cường độ sóng Wi-Fi thực tế tính theo dBm (số nguyên có dấu, ví dụ `-55` dBm). Trả về `-100` nếu mất kết nối. |
-| **+60..+61**| `0x133C..0x133D`| `current_ip` | `uint32_t` | RO | Địa chỉ IPv4 thực tế MCU đang hoạt động (do DHCP cấp hoặc gán tĩnh, Big-Endian). |
-| **+62..+64**| `0x133E..0x1340`| `mac_addr[6]` | `uint8_t[6]`| RO | Địa chỉ MAC vật lý của chip ST67 (3 thanh ghi = 6 bytes, ví dụ `00:80:E1:xx:xx:xx`). |
+| **+1..+16**| `0x1301..0x1310`| `ssid[32]` | `char[32]` | R/W | Tên mạng Wi-Fi (Tối đa 31 ký tự ASCII + null-terminator `0x00`, 2 ký tự/thanh ghi, Big-Endian). |
+| **+17..+48**| `0x1311..0x1330`| `password[64]`| `char[64]` | R/W | Mật khẩu Wi-Fi WPA2/WPA3 (Tối đa 63 ký tự ASCII + null-terminator `0x00`). |
+| **+49..+50**| `0x1331..0x1332`| `static_ip` | `uint32_t` | R/W | Địa chỉ IP tĩnh khi tắt DHCP (2 regs, Big-Endian: vd `192.168.1.100` = `0xC0A80164`). |
+| **+51..+52**| `0x1333..0x1334`| `static_subnet`| `uint32_t` | R/W | Subnet Mask (vd `255.255.255.0` = `0xFFFFFF00`). |
+| **+53..+54**| `0x1335..0x1336`| `static_gateway`|`uint32_t` | R/W | Default Gateway (vd `192.168.1.1` = `0xC0A80101`). |
+| **+55..+56**| `0x1337..0x1338`| `static_dns` | `uint32_t` | R/W | Primary DNS Server (vd `8.8.8.8` = `0x08080808`). |
+| **+57** | `0x1339` | `conn_status` | `uint16_t` | RO | **Trạng thái kết nối thực tế từ ST67:**<br>• `0`: `DISCONNECTED` (Chưa kết nối / Tắt mạng)<br>• `1`: `CONNECTING` (Đang bắt tay kết nối)<br>• `2`: `CONNECTED` (Đã liên kết tầng sóng Wi-Fi)<br>• `3`: `GOT_IP` (Đã nhận IP thành công - Sẵn sàng truyền thông)<br>• `4`: `AUTH_FAILED` (Sai mật khẩu Wi-Fi)<br>• `5`: `SSID_NOT_FOUND` (Không tìm thấy Access Point)<br>• `6`: `AP_MODE_ACTIVE` (Đang phát SoftAP) |
+| **+58** | `0x133A` | `rssi_dbm` | `int16_t` | RO | Cường độ sóng Wi-Fi thực tế tính theo dBm (số nguyên có dấu, ví dụ `-55` dBm). Trả về `-100` nếu mất kết nối. |
+| **+59..+60**| `0x133B..0x133C`| `current_ip` | `uint32_t` | RO | Địa chỉ IPv4 thực tế MCU đang hoạt động (do DHCP cấp hoặc gán tĩnh, Big-Endian). |
+| **+61..+63**| `0x133D..0x133F`| `mac_addr[6]` | `uint8_t[6]`| RO | Địa chỉ MAC vật lý của chip ST67 (3 thanh ghi = 6 bytes, ví dụ `00:80:E1:xx:xx:xx`). |
 
 ---
 

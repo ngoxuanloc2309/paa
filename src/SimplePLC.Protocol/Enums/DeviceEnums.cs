@@ -81,7 +81,8 @@ public enum SPLC_HardwareCapabilities : uint
     SD_DATALOG   = 0x0040, // Bit 6: Hỗ trợ ghi chép dữ liệu cục bộ qua thẻ nhớ MicroSD
     MQTT_TLS_CERT = 0x0080, // Bit 7: Hỗ trợ nạp chứng chỉ bảo mật TLS/SSL theo từng struct (0x0F00)
     MODBUS_MASTER = 0x0100, // Bit 8: Hỗ trợ phân hệ Modbus RTU Master Poller (0x1000)
-    WIFI          = 0x0200  // Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF)
+    WIFI          = 0x0200, // Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF)
+    MODBUS_TCP    = 0x0400  // Bit 10: Hỗ trợ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502)
 }
 
 /// <summary>

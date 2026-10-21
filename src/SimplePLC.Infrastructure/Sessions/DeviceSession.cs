@@ -14,7 +14,7 @@ namespace SimplePLC.Infrastructure.Sessions;
 /// </summary>
 public sealed class DeviceSession : IDeviceSession
 {
-    private readonly IUsbCdcTransport _transport;
+    private readonly IUsbCdcTransport? _transport;
     private readonly IModbusClient _modbusClient;
     private bool _isDisposed;
 
@@ -33,17 +33,17 @@ public sealed class DeviceSession : IDeviceSession
     public IRtcClockClient RtcClock { get; }
     public IWifiClient Wifi { get; }
 
-    public bool IsActive => !_isDisposed && _transport.IsOpen;
+    public bool IsActive => !_isDisposed && (_transport != null ? _transport.IsOpen : _modbusClient.IsConnected);
 
     // Internal access for test inspection or composition root if needed
-    internal IUsbCdcTransport Transport => _transport;
+    internal IUsbCdcTransport? Transport => _transport;
     internal IModbusClient Client => _modbusClient;
 
     public DeviceSession(
         DeviceEndpoint endpoint,
         DeviceDescriptorDto descriptor,
         byte slaveId,
-        IUsbCdcTransport transport,
+        IUsbCdcTransport? transport,
         IModbusClient modbusClient,
         IRuleTableGateway rules,
         IRuntimeTagReader runtimeTags,
@@ -59,7 +59,7 @@ public sealed class DeviceSession : IDeviceSession
         Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
         Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
         SlaveId = slaveId;
-        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _transport = transport;
         _modbusClient = modbusClient ?? throw new ArgumentNullException(nameof(modbusClient));
         Rules = rules ?? throw new ArgumentNullException(nameof(rules));
         RuntimeTags = runtimeTags ?? throw new ArgumentNullException(nameof(runtimeTags));
@@ -89,13 +89,16 @@ public sealed class DeviceSession : IDeviceSession
             // Bỏ qua lỗi trong quá trình dispose client
         }
 
-        try
+        if (_transport != null)
         {
-            await _transport.DisposeAsync().ConfigureAwait(false);
-        }
-        catch
-        {
-            // Bỏ qua lỗi trong quá trình dispose transport
+            try
+            {
+                await _transport.DisposeAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // Bỏ qua lỗi trong quá trình dispose transport
+            }
         }
     }
 }

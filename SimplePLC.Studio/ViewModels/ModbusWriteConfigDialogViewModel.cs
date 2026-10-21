@@ -31,6 +31,7 @@ public class ModbusFrameFieldBreakdown
     public string FieldName { get; set; } = string.Empty;
     public string RawHex { get; set; } = string.Empty;
     public string Interpretation { get; set; } = string.Empty;
+    public string Tooltip { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -57,7 +58,11 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(IsMultipleMode))]
     private ModbusMasterWriteFunctionCode _functionCode;
+
+    public bool IsMultipleMode => FunctionCode == ModbusMasterWriteFunctionCode.WriteMultipleRegisters ||
+                                  FunctionCode == ModbusMasterWriteFunctionCode.WriteMultipleCoils;
 
     // Direct mode settings
     [ObservableProperty]
@@ -85,6 +90,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     // Trigger & Timing
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCyclicMode))]
+    [NotifyPropertyChangedFor(nameof(IsOnDataChangeMode))]
+    [NotifyPropertyChangedFor(nameof(IsTriggerEdgeMode))]
+    [NotifyPropertyChangedFor(nameof(HasTriggerParameter))]
     private ModbusWriteTriggerMode _triggerMode;
 
     [ObservableProperty]
@@ -92,6 +101,14 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private uint _timeoutMs;
+
+    [ObservableProperty]
+    private float _deadband = 0.5f;
+
+    public bool IsCyclicMode => TriggerMode == ModbusWriteTriggerMode.Cyclic;
+    public bool IsOnDataChangeMode => TriggerMode == ModbusWriteTriggerMode.OnDataChange;
+    public bool IsTriggerEdgeMode => TriggerMode == ModbusWriteTriggerMode.OnTriggerRisingEdge;
+    public bool HasTriggerParameter => TriggerMode == ModbusWriteTriggerMode.Cyclic || TriggerMode == ModbusWriteTriggerMode.OnDataChange;
 
     public bool IsChannelIndexedMode => WriteMode == ModbusWriteMode.ChannelIndexed;
     public bool IsDirectRegistersMode => WriteMode == ModbusWriteMode.DirectRegisters;
@@ -195,6 +212,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         _triggerMode = node.TriggerMode;
         _cyclicIntervalMs = node.CyclicIntervalMs;
         _timeoutMs = node.TimeoutMs;
+        _deadband = node.Deadband;
 
         foreach (var pin in node.Pins)
         {
@@ -259,6 +277,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     partial void OnFunctionCodeChanged(ModbusMasterWriteFunctionCode value)
     {
+        if (!IsMultipleMode)
+        {
+            PointCount = 1;
+        }
         GenerateFramePreview();
     }
 
@@ -388,31 +410,36 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Địa chỉ thiết bị" : "Device Address",
                 RawHex = $"{SlaveId:X2}",
-                Interpretation = isVi ? $"Thiết bị số {SlaveId}" : $"Device {SlaveId}"
+                Interpretation = isVi ? $"Thiết bị số {SlaveId}" : $"Device {SlaveId}",
+                Tooltip = LocalizationService.Tr("ModbusWriteBreakdownSlaveIdTooltip") ?? string.Empty
             });
             FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
             {
                 FieldName = isVi ? "Mã hàm" : "Function Code",
                 RawHex = "06",
-                Interpretation = isVi ? "FC 06: Ghi một thanh ghi" : "FC 06: Write Single Register"
+                Interpretation = isVi ? "FC 06: Ghi một thanh ghi" : "FC 06: Write Single Register",
+                Tooltip = LocalizationService.Tr("ModbusWriteBreakdownFcTooltip") ?? string.Empty
             });
             FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
             {
                 FieldName = isVi ? "Thanh ghi lệnh" : "Command Register",
                 RawHex = $"{cmdFrame[2]:X2} {cmdFrame[3]:X2}",
-                Interpretation = isVi ? $"0x{cmdRegAddr:X4} (Kênh {ch})" : $"0x{cmdRegAddr:X4} (Channel {ch})"
+                Interpretation = isVi ? $"0x{cmdRegAddr:X4} (Kênh {ch})" : $"0x{cmdRegAddr:X4} (Channel {ch})",
+                Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCmdRegTooltip") ?? string.Empty
             });
             FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
             {
                 FieldName = isVi ? "Dữ liệu lệnh" : "Command Value",
                 RawHex = $"{cmdFrame[4]:X2} {cmdFrame[5]:X2}",
-                Interpretation = isVi ? $"Giá trị = {cmd}" : $"Value = {cmd}"
+                Interpretation = isVi ? $"Giá trị = {cmd}" : $"Value = {cmd}",
+                Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCmdValTooltip") ?? string.Empty
             });
             FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
             {
                 FieldName = isVi ? "Mã kiểm tra" : "CRC Checksum",
                 RawHex = $"{cmdFrame[6]:X2} {cmdFrame[7]:X2}",
-                Interpretation = isVi ? $"0x{crcCmd:X4} (Chính xác)" : $"0x{crcCmd:X4} (Valid)"
+                Interpretation = isVi ? $"0x{crcCmd:X4} (Chính xác)" : $"0x{crcCmd:X4} (Valid)",
+                Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCrcTooltip") ?? string.Empty
             });
 
             SimExplanation = isVi
@@ -434,43 +461,49 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             // Direct Registers Mode
             var frames = new List<string>();
             byte[] frame;
+            ushort directVal = SimDirectValue;
 
             switch (FunctionCode)
             {
                 case ModbusMasterWriteFunctionCode.WriteSingleRegister:
-                    frame = CreateFc06Frame(SlaveId, StartAddress, 100);
+                    frame = CreateFc06Frame(SlaveId, StartAddress, directVal);
                     frames.Add(isVi 
-                        ? $"Gói ghi một thanh ghi FC06 (FC 06) -> Addr 0x{StartAddress:X4} (Giá trị mẫu = 100):" 
-                        : $"FC06 Write Single Register (FC 06) -> Addr 0x{StartAddress:X4} (Sample Value = 100):");
+                        ? $"Gói ghi một thanh ghi FC06 (FC 06) -> Addr 0x{StartAddress:X4} (Giá trị = {directVal} / 0x{directVal:X4}):" 
+                        : $"FC06 Write Single Register (FC 06) -> Addr 0x{StartAddress:X4} (Value = {directVal} / 0x{directVal:X4}):");
                     frames.Add(isVi ? $"Khung truyền: {FormatHex(frame)}" : $"TX Frame: {FormatHex(frame)}");
                     SimTxFrameHex = FormatHex(frame);
                     break;
 
                 case ModbusMasterWriteFunctionCode.WriteMultipleRegisters:
                     ushort count = Math.Max((ushort)1, PointCount);
-                    var sampleVals = Enumerable.Range(0, count).Select(i => (ushort)(100 + i * 10)).ToArray();
+                    var sampleVals = Enumerable.Range(0, count).Select(i => (ushort)(directVal + i * 10)).ToArray();
                     frame = CreateFc16Frame(SlaveId, StartAddress, sampleVals);
                     frames.Add(isVi 
-                        ? $"Gói ghi nhiều thanh ghi FC16 (FC 16) -> Addr 0x{StartAddress:X4}, Count={count}:" 
-                        : $"FC16 Write Multiple Registers (FC 16) -> Addr 0x{StartAddress:X4}, Count={count}:");
+                        ? $"Gói ghi nhiều thanh ghi FC16 (FC 16) -> Addr 0x{StartAddress:X4}, Count={count} (Giá trị bắt đầu = {directVal}):" 
+                        : $"FC16 Write Multiple Registers (FC 16) -> Addr 0x{StartAddress:X4}, Count={count} (Starting Value = {directVal}):");
                     frames.Add(isVi ? $"Khung truyền: {FormatHex(frame)}" : $"TX Frame: {FormatHex(frame)}");
                     SimTxFrameHex = FormatHex(frame);
                     break;
 
                 case ModbusMasterWriteFunctionCode.WriteSingleCoil:
-                    frame = CreateFc05Frame(SlaveId, StartAddress, true);
+                    bool coilState = directVal > 0;
+                    frame = CreateFc05Frame(SlaveId, StartAddress, coilState);
                     frames.Add(isVi 
-                        ? $"Gói ghi một cuộn dây FC05 (FC 05) -> Addr 0x{StartAddress:X4} (Trạng thái = BẬT):" 
-                        : $"FC05 Write Single Coil (FC 05) -> Addr 0x{StartAddress:X4} (State = ON):");
+                        ? $"Gói ghi một cuộn dây FC05 (FC 05) -> Addr 0x{StartAddress:X4} (Trạng thái = {(coilState ? "BẬT / ON" : "TẮT / OFF")}):" 
+                        : $"FC05 Write Single Coil (FC 05) -> Addr 0x{StartAddress:X4} (State = {(coilState ? "ON" : "OFF")}):");
                     frames.Add(isVi ? $"Khung truyền: {FormatHex(frame)}" : $"TX Frame: {FormatHex(frame)}");
                     SimTxFrameHex = FormatHex(frame);
                     break;
 
                 case ModbusMasterWriteFunctionCode.WriteMultipleCoils:
-                    frame = CreateFc15Frame(SlaveId, StartAddress, PointCount > 0 ? PointCount : (ushort)1, new byte[] { 0x01 });
+                    ushort coilCount = Math.Max((ushort)1, PointCount);
+                    byte byteCount = (byte)((coilCount + 7) / 8);
+                    byte[] coilBytes = new byte[byteCount];
+                    if (directVal > 0) coilBytes[0] = (byte)(directVal & 0xFF);
+                    frame = CreateFc15Frame(SlaveId, StartAddress, coilCount, coilBytes);
                     frames.Add(isVi 
-                        ? $"Gói ghi nhiều cuộn dây FC15 (FC 15) -> Addr 0x{StartAddress:X4}, Count={PointCount}:" 
-                        : $"FC15 Write Multiple Coils (FC 15) -> Addr 0x{StartAddress:X4}, Count={PointCount}:");
+                        ? $"Gói ghi nhiều cuộn dây FC15 (FC 15) -> Addr 0x{StartAddress:X4}, Count={coilCount}:" 
+                        : $"FC15 Write Multiple Coils (FC 15) -> Addr 0x{StartAddress:X4}, Count={coilCount}:");
                     frames.Add(isVi ? $"Khung truyền: {FormatHex(frame)}" : $"TX Frame: {FormatHex(frame)}");
                     SimTxFrameHex = FormatHex(frame);
                     break;
@@ -493,25 +526,88 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
                 {
                     FieldName = isVi ? "Địa chỉ thiết bị" : "Device Address",
                     RawHex = $"{SlaveId:X2}",
-                    Interpretation = isVi ? $"Thiết bị số {SlaveId}" : $"Device {SlaveId}"
+                    Interpretation = isVi ? $"Thiết bị số {SlaveId}" : $"Device {SlaveId}",
+                    Tooltip = LocalizationService.Tr("ModbusWriteBreakdownSlaveIdTooltip") ?? string.Empty
                 });
                 FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
                 {
                     FieldName = isVi ? "Mã hàm" : "Function Code",
                     RawHex = $"{frame[1]:X2}",
-                    Interpretation = $"FC {(byte)FunctionCode:D2}"
+                    Interpretation = $"FC {(byte)FunctionCode:D2}",
+                    Tooltip = LocalizationService.Tr("ModbusWriteBreakdownFcTooltip") ?? string.Empty
                 });
                 FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
                 {
                     FieldName = isVi ? "Địa chỉ bắt đầu" : "Start Address",
                     RawHex = $"{frame[2]:X2} {frame[3]:X2}",
-                    Interpretation = $"0x{StartAddress:X4} ({StartAddress})"
+                    Interpretation = $"0x{StartAddress:X4} ({StartAddress})",
+                    Tooltip = LocalizationService.Tr("ModbusWriteBreakdownStartAddrTooltip") ?? string.Empty
                 });
+
+                // Field Breakdown chi tiết cho giá trị ghi
+                switch (FunctionCode)
+                {
+                    case ModbusMasterWriteFunctionCode.WriteSingleRegister:
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Giá trị ghi" : "Register Value",
+                            RawHex = $"{frame[4]:X2} {frame[5]:X2}",
+                            Interpretation = $"{directVal} (0x{directVal:X4})",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownValueTooltip") ?? string.Empty
+                        });
+                        break;
+
+                    case ModbusMasterWriteFunctionCode.WriteSingleCoil:
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Lệnh cuộn dây" : "Coil Command",
+                            RawHex = $"{frame[4]:X2} {frame[5]:X2}",
+                            Interpretation = (directVal > 0) ? "0xFF00 (BẬT / ON)" : "0x0000 (TẮT / OFF)",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownValueTooltip") ?? string.Empty
+                        });
+                        break;
+
+                    case ModbusMasterWriteFunctionCode.WriteMultipleRegisters:
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Số thanh ghi" : "Register Count",
+                            RawHex = $"{frame[4]:X2} {frame[5]:X2}",
+                            Interpretation = isVi ? $"{Math.Max((ushort)1, PointCount)} thanh ghi" : $"{Math.Max((ushort)1, PointCount)} registers",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCountTooltip") ?? string.Empty
+                        });
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Số bytes dữ liệu" : "Byte Count",
+                            RawHex = $"{frame[6]:X2}",
+                            Interpretation = isVi ? $"{frame[6]} bytes" : $"{frame[6]} bytes",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownByteCountTooltip") ?? string.Empty
+                        });
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Dữ liệu mẫu" : "Payload Data",
+                            RawHex = string.Join(" ", frame.Skip(7).Take(frame[6]).Select(b => b.ToString("X2"))),
+                            Interpretation = isVi ? $"Bắt đầu = {directVal}" : $"Start = {directVal}",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownPayloadTooltip") ?? string.Empty
+                        });
+                        break;
+
+                    case ModbusMasterWriteFunctionCode.WriteMultipleCoils:
+                        FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
+                        {
+                            FieldName = isVi ? "Số cuộn dây" : "Coil Count",
+                            RawHex = $"{frame[4]:X2} {frame[5]:X2}",
+                            Interpretation = isVi ? $"{Math.Max((ushort)1, PointCount)} cuộn" : $"{Math.Max((ushort)1, PointCount)} coils",
+                            Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCountTooltip") ?? string.Empty
+                        });
+                        break;
+                }
+
                 FrameBreakdownItems.Add(new ModbusFrameFieldBreakdown
                 {
                     FieldName = isVi ? "Mã kiểm tra" : "CRC Checksum",
                     RawHex = $"{frame[crcIdx]:X2} {frame[crcIdx + 1]:X2}",
-                    Interpretation = isVi ? $"0x{crc:X4} (Chính xác)" : $"0x{crc:X4} (Valid)"
+                    Interpretation = isVi ? $"0x{crc:X4} (Chính xác)" : $"0x{crc:X4} (Valid)",
+                    Tooltip = LocalizationService.Tr("ModbusWriteBreakdownCrcTooltip") ?? string.Empty
                 });
             }
 
@@ -619,6 +715,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         Node.TriggerMode = TriggerMode;
         Node.CyclicIntervalMs = Math.Max(50u, CyclicIntervalMs);
         Node.TimeoutMs = Math.Max(50u, TimeoutMs);
+        Node.Deadband = Math.Max(0.01f, Deadband);
         Node.SyncConnectors();
     }
 }

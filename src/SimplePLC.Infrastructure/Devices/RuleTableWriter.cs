@@ -340,11 +340,16 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 }
             }
 
-            // Vô hiệu hóa các khối Modbus Master Write cũ không còn trong cấu hình
+            // Vô hiệu hóa các khối Modbus Master Write cũ không còn trong cấu hình (xóa sạch 64 thanh ghi về 0)
+            var zeroMmwBlock = new ushort[ModbusRegisterMap.ModbusMasterWriteRegistersPerBlock];
             for (int j = blockCount; j < ModbusRegisterMap.ModbusMasterWriteMaxBlocks; j++)
             {
                 ushort staleBlockAddr = ModbusRegisterMap.GetModbusMasterWriteBlockAddress(j);
-                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(staleBlockAddr, zeroMmwBlock.AsMemory());
+                foreach (var (chunkAddress, chunkMemory) in chunks)
+                {
+                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 
@@ -369,11 +374,12 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 }
             }
 
-            // Vô hiệu hóa các khối PULSE_OUT cũ không còn trong cấu hình
+            // Vô hiệu hóa các khối PULSE_OUT cũ không còn trong cấu hình (xóa sạch 16 thanh ghi về 0)
+            var zeroPulseBlock = new ushort[ModbusRegisterMap.DirectWriteRegistersPerBlock];
             for (int j = blockCount; j < ModbusRegisterMap.DirectWriteMaxBlocks; j++)
             {
                 ushort staleBlockAddr = ModbusRegisterMap.GetDirectWriteBlockAddress(j);
-                await _client.WriteSingleRegisterAsync(slaveId, staleBlockAddr, 0, cancellationToken).ConfigureAwait(false);
+                await _client.WriteMultipleRegistersAsync(slaveId, staleBlockAddr, zeroPulseBlock, cancellationToken).ConfigureAwait(false);
             }
         }
 

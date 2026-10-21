@@ -237,5 +237,24 @@ public class MqttSubscribeNodeViewModelTests
         Assert.NotEqual(customUserPayload, dialogVm.SimulationInput);
         Assert.Contains("SynaptiX_Controller", dialogVm.SimulationInput);
     }
+
+    [Fact]
+    public void QueueModeSummaryText_ReflectsModeAndCapacity()
+    {
+        var node = new MqttSubscribeNodeViewModel();
+        Assert.Equal(MqttQueueMode.Fifo, node.QueueMode);
+        Assert.Equal(16, node.QueueCapacity);
+        Assert.Equal("FIFO (16)", node.QueueModeSummaryText);
+
+        node.QueueCapacity = 8;
+        Assert.Equal("FIFO (8)", node.QueueModeSummaryText);
+
+        node.QueueMode = MqttQueueMode.LatestWins;
+        Assert.Equal("Latest Wins", node.QueueModeSummaryText);
+
+        node.QueueMode = MqttQueueMode.Fifo;
+        Assert.Equal("FIFO (8)", node.QueueModeSummaryText);
+    }
 }
+
 

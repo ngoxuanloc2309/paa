@@ -179,7 +179,9 @@ public sealed class RuleCompiler : IRuleCompiler
                 RegCount = mbData.RegCount,
                 PollIntervalMs = mbData.PollIntervalMs,
                 TimeoutMs = mbData.TimeoutMs,
+                ReadMode = mbData.ReadMode,
                 EnTagIndex = mbData.EnTagIndex,
+                TrigTagIndex = mbData.TrigTagIndex,
                 Pins = new List<ModbusMasterPinBindingDto>(mbData.Pins)
             });
         }

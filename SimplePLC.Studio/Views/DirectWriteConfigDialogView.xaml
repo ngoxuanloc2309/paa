@@ -4,11 +4,9 @@
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
         Title="{Binding [DirectWriteDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="540"
-        SizeToContent="Height"
-        MinWidth="500"
+        Width="980" Height="620"
+        MinWidth="920" MinHeight="560"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="#F8FAFC"
         Icon="../Assets/app.png"
@@ -28,216 +26,462 @@
     </Window.Resources>
 
     <Border BorderBrush="#CBD5E1" BorderThickness="1">
-        <Grid Margin="20">
+        <Grid Margin="16">
             <Grid.RowDefinitions>
                 <!-- 0. Header -->
                 <RowDefinition Height="Auto" />
-                <!-- 1. Card 1: Target Pin & Operating Mode -->
-                <RowDefinition Height="Auto" />
-                <!-- 2. Card 2: Mode Parameters -->
-                <RowDefinition Height="Auto" />
-                <!-- 3. Footer Action -->
+                <!-- 1. Content Two-Column Body -->
+                <RowDefinition Height="*" />
+                <!-- 2. Footer Action -->
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 0. Header -->
-            <Grid Grid.Row="0" Margin="0,0,0,16">
+            <!-- 0. Header (Industrial Slate & Amber Accent) -->
+            <Grid Grid.Row="0" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Width="44" Height="44" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
-                    <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource PrimaryBrush}" />
+                <Border Grid.Column="0" Width="40" Height="40" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,12,0">
+                    <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#006487" />
                 </Border>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding [DirectWriteDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                               FontSize="14.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                               FontSize="14.5" FontWeight="Bold" Foreground="#0F172A" />
                     <TextBlock Text="{Binding Subtitle}" 
-                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                               FontSize="11" Foreground="#64748B" Margin="0,2,0,0" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
 
-            <!-- 1. Card 1: Target Pin & Operating Mode -->
-            <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,14">
-                <StackPanel>
-                    <TextBlock Text="{Binding [DirectWriteSectionHardware], Source={x:Static services:LocalizationService.Instance}}" 
-                               FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,12" />
+            <!-- 1. Two-Column Body (Left: Hardware & Mode Parameters, Right: Live Waveform / Signal Breakdown) -->
+            <Grid Grid.Row="1" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <!-- Left: Parameters & Settings (~520px) -->
+                    <ColumnDefinition Width="1.15*" />
+                    <ColumnDefinition Width="14" />
+                    <!-- Right: Simulation & Electrical Breakdown (~420px) -->
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
 
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="140" />
-                            <ColumnDefinition Width="12" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                <!-- LEFT PANE: HARDWARE CONFIGURATION & PARAMETERS -->
+                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="8">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                        <StackPanel Margin="4,0,4,0">
+                            <!-- Section 1: Hardware Pin & Operating Mode -->
+                            <TextBlock Text="{Binding [DirectWriteSectionHardware], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
 
-                        <!-- Target Pin -->
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="{Binding [DirectWriteTargetPinLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                            <ComboBox ItemsSource="{Binding AvailableTargetPins}" 
-                                      SelectedValue="{Binding TargetPin}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                      Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="1.2*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Target Pin -->
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="{Binding [DirectWriteTargetPinLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableTargetPins}" 
+                                              SelectedValue="{Binding TargetPin}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              ToolTip="{Binding [DirectWriteTargetPinTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+
+                                <!-- Operating Mode -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding [DirectWriteModeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableModes}" 
+                                              SelectedValue="{Binding Mode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              ToolTip="{Binding [DirectWriteModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+
+                                <!-- Trigger Mode -->
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="{Binding [DirectWriteTriggerModeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableTriggerModes}" 
+                                              SelectedValue="{Binding TriggerMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              ToolTip="{Binding [DirectWriteTriggerModeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Row 1: Conditional Deadband (Visible in COV Mode) -->
+                            <StackPanel Visibility="{Binding IsCovMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <TextBlock Text="{Binding [ModbusWriteColDeadbandLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding Deadband, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}" 
+                                         ToolTip="{Binding [DirectWriteDeadbandTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" 
+                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Clean Divider Line -->
+                            <Rectangle Height="1" Fill="#E2E8F0" Margin="0,2,0,10" />
+
+                            <!-- Section 2: Mode Parameters -->
+                            <TextBlock Text="{Binding [DirectWriteSectionParameters], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
+
+                            <!-- Mode A: Digital Output (DO) -->
+                            <StackPanel Visibility="{Binding IsDigitalOutputMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Active Level -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding [DirectWriteActiveLevelLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <ComboBox ItemsSource="{Binding AvailableActiveLevels}" 
+                                                  SelectedValue="{Binding IsActiveHigh}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                                  ToolTip="{Binding [DirectWriteActiveLevelTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                  Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                    </StackPanel>
+
+                                    <!-- Fail-Safe State -->
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding [DirectWriteFailSafeLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <ComboBox ItemsSource="{Binding AvailableFailSafeStates}" 
+                                                  SelectedValue="{Binding FailSafeState}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                                  ToolTip="{Binding [DirectWriteFailSafeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                  Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Mode B: PWM Duty Cycle -->
+                            <StackPanel Visibility="{Binding IsPwmMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="100" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Frequency -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding [DirectWritePwmFreqLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding PwmFrequencyHz, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWritePwmFreqTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+
+                                    <!-- Min Duty -->
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding [DirectWriteDutyMinLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding DutyMin, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWriteDutyMinTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+
+                                    <!-- Max Duty -->
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="{Binding [DirectWriteDutyMaxLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding DutyMax, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWriteDutyMaxTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Mode C: Pulse Train Output (PTO) -->
+                            <StackPanel Visibility="{Binding IsPulseTrainMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Pulse Width -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding [DirectWritePulseWidthLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding PulseWidthUs, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWritePulseWidthTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+
+                                    <!-- Max Frequency -->
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding [DirectWriteMaxFreqLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding MaxFrequencyHz, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWriteMaxFreqTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Mode D: Addressable Bus -->
+                            <StackPanel Visibility="{Binding IsAddressableBusMode, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Channel Count -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding [DirectWriteChannelCountLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                        <TextBox Text="{Binding ChannelCount, UpdateSourceTrigger=PropertyChanged}" 
+                                                 ToolTip="{Binding [DirectWriteChannelCountTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                 Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
+                                                 Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                    </StackPanel>
+
+                                    <!-- Exclusive Checkbox -->
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4">
+                                        <CheckBox IsChecked="{Binding IsExclusiveChannel}" VerticalContentAlignment="Center"
+                                                  ToolTip="{Binding [DirectWriteExclusiveCheckTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                            <TextBlock Text="{Binding [DirectWriteExclusiveChannelLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="11" Foreground="#334155" Margin="4,0,0,0" TextWrapping="Wrap" />
+                                        </CheckBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Default Color Hex -->
+                                <StackPanel>
+                                    <TextBlock Text="{Binding [DirectWriteDefaultColorLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding DefaultColorHex, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding [DirectWriteDefaultColorTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                             Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" 
+                                             Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Clean Divider Line -->
+                            <Rectangle Height="1" Fill="#E2E8F0" Margin="0,4,0,10" />
+
+                            <!-- Wiring & Terminal Specs Card -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding [DirectWritePinDescLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="10.5" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding PinDescription}" FontSize="11" FontWeight="Bold" Foreground="#0F172A" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding [DirectWritePinLoadLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="10.5" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding PinLoadType}" FontSize="11" FontWeight="Bold" Foreground="#006487" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- RIGHT PANE: PULSE WAVEFORM SIMULATION & SIGNAL BREAKDOWN -->
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Section Header -->
+                        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding [DirectWriteTestSection], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontWeight="Bold" Foreground="#1E293B" FontSize="11" />
+                            <TextBlock Text="{Binding [DirectWriteTestSectionDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontSize="10.5" Foreground="#64748B" Margin="0,2,0,0" />
                         </StackPanel>
 
-                        <!-- Operating Mode -->
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="{Binding [DirectWriteModeLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                            <ComboBox ItemsSource="{Binding AvailableModes}" 
-                                      SelectedValue="{Binding Mode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                      Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                        </StackPanel>
+                        <!-- Live Interactive Control Card -->
+                        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
+                            <StackPanel>
+                                <!-- DO Simulation Controls -->
+                                <StackPanel Visibility="{Binding IsDigitalOutputMode, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding [DirectWriteSimDoLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ToggleButton IsChecked="{Binding SimDoValue}" 
+                                                  ToolTip="{Binding [DirectWriteSimDoTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                  Height="28" Padding="10,4" FontSize="11" FontWeight="Bold">
+                                        <ToggleButton.Style>
+                                            <Style TargetType="ToggleButton">
+                                                <Setter Property="Content" Value="LOW (0VDC - OFF)" />
+                                                <Setter Property="Background" Value="#F1F5F9" />
+                                                <Setter Property="Foreground" Value="#64748B" />
+                                                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter Property="Content" Value="HIGH (24VDC - ON)" />
+                                                        <Setter Property="Background" Value="#DCFCE7" />
+                                                        <Setter Property="Foreground" Value="#107C41" />
+                                                        <Setter Property="BorderBrush" Value="#86EFAC" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ToggleButton.Style>
+                                    </ToggleButton>
+                                </StackPanel>
+
+                                <!-- PWM Simulation Controls -->
+                                <StackPanel Visibility="{Binding IsPwmMode, Converter={StaticResource BoolToVis}}">
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="{Binding [DirectWriteSimPwmLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" DockPanel.Dock="Left" />
+                                        <TextBlock Text="{Binding SimPwmDuty, StringFormat={}{0:F0}%}" 
+                                                   FontFamily="Consolas" FontWeight="Bold" FontSize="11" Foreground="#006487" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                    </DockPanel>
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding SimPwmDuty}" 
+                                            ToolTip="{Binding [DirectWriteSimPwmTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                            TickFrequency="10" IsSnapToTickEnabled="False" SmallChange="1" LargeChange="10" />
+                                </StackPanel>
+
+                                <!-- PTO Simulation Controls -->
+                                <StackPanel Visibility="{Binding IsPulseTrainMode, Converter={StaticResource BoolToVis}}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding [DirectWriteSimPtoPulsesLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding SimPtoPulses, UpdateSourceTrigger=PropertyChanged}" 
+                                                     ToolTip="{Binding [DirectWriteSimPtoPulsesTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                     Height="26" Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" 
+                                                     Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding [DirectWriteSimPtoFreqLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding SimPtoFreq, UpdateSourceTrigger=PropertyChanged}" 
+                                                     ToolTip="{Binding [DirectWriteSimPtoFreqTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                     Height="26" Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" 
+                                                     Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Bus Simulation Controls -->
+                                <StackPanel Visibility="{Binding IsAddressableBusMode, Converter={StaticResource BoolToVis}}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding [DirectWriteSimChLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding SimBusChannel, UpdateSourceTrigger=PropertyChanged}" 
+                                                     ToolTip="{Binding [DirectWriteSimChTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                     Height="26" Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" 
+                                                     Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding [DirectWriteSimParamLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                            <TextBox Text="{Binding SimBusParamHex, UpdateSourceTrigger=PropertyChanged}" 
+                                                     ToolTip="{Binding [DirectWriteSimParamTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                     Height="26" Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" 
+                                                     Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Simulate Button -->
+                                <Button Content="{Binding [DirectWriteBtnRunTest], Source={x:Static services:LocalizationService.Instance}}" 
+                                        Command="{Binding GenerateSignalPreviewCommand}"
+                                        ToolTip="{Binding [DirectWriteBtnRunTestTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                        Height="26" Padding="12,3" FontSize="10.5" HorizontalAlignment="Stretch" Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Results Container (Symmetric ScrollViewer & Diagnostic Breakdown) -->
+                        <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="8">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                                <StackPanel Margin="4,0,4,0">
+                                    <!-- Status Banner (ISA-101 / TIA Portal Diagnostic Box) -->
+                                    <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="7,5" Margin="0,0,0,6">
+                                        <DockPanel LastChildFill="True">
+                                            <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,7,0" DockPanel.Dock="Left" />
+                                            <Ellipse Width="6" Height="6" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" DockPanel.Dock="Left" />
+                                            <TextBlock Text="{Binding SimStatusMessage}" FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- Dispatched Hardware Signal Banner -->
+                                    <TextBlock Text="{Binding [DirectWriteSimOutputSignalLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#334155" Margin="0,2,0,3" />
+                                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,0,0,6">
+                                        <TextBlock Text="{Binding SimDispatchedSignal}" FontFamily="Consolas" FontSize="10.5" FontWeight="Bold" Foreground="#0F172A" TextWrapping="Wrap" />
+                                    </Border>
+
+                                    <!-- Signal Breakdown Table -->
+                                    <TextBlock Text="{Binding [DirectWriteSimBreakdownLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#334155" Margin="0,2,0,4" />
+
+                                    <ItemsControl ItemsSource="{Binding SignalBreakdownItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,0,0,3"
+                                                        ToolTip="{Binding Tooltip}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="135" />
+                                                            <ColumnDefinition Width="6" />
+                                                            <ColumnDefinition Width="80" />
+                                                            <ColumnDefinition Width="6" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0" Text="{Binding FieldName}" FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" />
+
+                                                        <Border Grid.Column="2" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="4,1" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding RawHex}" FontFamily="Consolas" FontWeight="Bold" FontSize="10" Foreground="#006487" />
+                                                        </Border>
+
+                                                        <TextBlock Grid.Column="4" Text="{Binding Interpretation}" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
                     </Grid>
+                </Border>
+            </Grid>
 
-                    <!-- Trigger Mode -->
-                    <StackPanel>
-                        <TextBlock Text="{Binding [DirectWriteTriggerModeLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                        <ComboBox ItemsSource="{Binding AvailableTriggerModes}" 
-                                  SelectedValue="{Binding TriggerMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                  Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- 2. Card 2: Mode Parameters -->
-            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="{Binding [DirectWriteSectionParameters], Source={x:Static services:LocalizationService.Instance}}" 
-                               FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,12" />
-
-                    <!-- Mode A: Digital Output (DO) -->
-                    <StackPanel Visibility="{Binding IsDigitalOutputMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Active Level -->
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding [DirectWriteActiveLevelLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <ComboBox ItemsSource="{Binding AvailableActiveLevels}" 
-                                          SelectedValue="{Binding IsActiveHigh}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                          Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                            </StackPanel>
-
-                            <!-- Fail-Safe State -->
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{Binding [DirectWriteFailSafeLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <ComboBox ItemsSource="{Binding AvailableFailSafeStates}" 
-                                          SelectedValue="{Binding FailSafeState}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                          Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- Mode B: PWM Duty Cycle -->
-                    <StackPanel Visibility="{Binding IsPwmMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="100" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="100" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Frequency -->
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding [DirectWritePwmFreqLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding PwmFrequencyHz, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- Min Duty -->
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{Binding [DirectWriteDutyMinLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DutyMin, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- Max Duty -->
-                            <StackPanel Grid.Column="4">
-                                <TextBlock Text="{Binding [DirectWriteDutyMaxLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding DutyMax, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- Mode C: Pulse Train Output (PTO) -->
-                    <StackPanel Visibility="{Binding IsPulseTrainMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Pulse Width -->
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding [DirectWritePulseWidthLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding PulseWidthUs, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- Max Frequency -->
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{Binding [DirectWriteMaxFreqLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding MaxFrequencyHz, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- Mode D: Addressable Bus -->
-                    <StackPanel Visibility="{Binding IsAddressableBusMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="130" />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Channel Count -->
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding [DirectWriteChannelCountLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding ChannelCount, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="28" Padding="6,4" FontSize="11.5" FontFamily="Consolas" TextAlignment="Center" 
-                                         Background="#FFFFFF" BorderBrush="#CBD5E1" VerticalContentAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- Exclusive Checkbox -->
-                            <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                                <CheckBox IsChecked="{Binding IsExclusiveChannel}" VerticalContentAlignment="Center">
-                                    <TextBlock Text="{Binding [DirectWriteExclusiveChannelLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="#334155" Margin="4,0,0,0" TextWrapping="Wrap" />
-                                </CheckBox>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- 3. Footer Action -->
-            <Border Grid.Row="3" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <!-- 2. Footer Action -->
+            <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,10,0,0">
                 <DockPanel LastChildFill="False">
                     <!-- Left: Target Terminal Summary Badge -->
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
@@ -250,12 +494,14 @@
                     </StackPanel>
 
                     <!-- Right: Apply and Cancel Buttons -->
-                    <Button Content="{Binding [BtnApply], Source={x:Static services:LocalizationService.Instance}}" 
+                    <Button Content="{Binding [DirectWriteBtnApply], Source={x:Static services:LocalizationService.Instance}}" 
+                            ToolTip="{Binding [DirectWriteBtnApplyTooltip], Source={x:Static services:LocalizationService.Instance}}"
                             DockPanel.Dock="Right" Click="Apply_Click"
                             IsEnabled="{Binding HasAvailablePins}"
                             Style="{StaticResource BtnPrimary}"
-                            FontSize="11.5" Height="28" Padding="18,4" Margin="8,0,0,0" />
+                            FontSize="11.5" Height="28" Padding="20,4" Margin="8,0,0,0" />
                     <Button Content="{Binding [BtnCancel], Source={x:Static services:LocalizationService.Instance}}" 
+                            ToolTip="{Binding [DirectWriteBtnCancelTooltip], Source={x:Static services:LocalizationService.Instance}}"
                             DockPanel.Dock="Right" Click="Cancel_Click"
                             Style="{StaticResource TiaTactileBtnStyle}"
                             FontSize="11.5" Height="28" Padding="16,4" />

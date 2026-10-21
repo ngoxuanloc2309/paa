@@ -333,7 +333,8 @@ public class BlockSpecificationAcceptanceTests : IDisposable
         editor.Nodes.Add(subNode);
         editor.Nodes.Add(actNode);
 
-        var pinConn = new ConnectionViewModel(pin.Connector, actNode.InputConnectors[0]);
+        Assert.NotNull(pin.Connector);
+        var pinConn = new ConnectionViewModel(pin.Connector!, actNode.InputConnectors[0]);
         editor.Connections.Add(pinConn);
 
         // Act: Lan truyền

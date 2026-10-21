@@ -228,4 +228,52 @@ public class ModbusReadConfigDialogViewModelTests
         Assert.Equal(100u, node.PollIntervalMs);
         Assert.Equal(500u, node.TimeoutMs);
     }
+
+    [Theory]
+    [InlineData("vi")]
+    [InlineData("en")]
+    public void ModbusRead_BilingualTooltips_AreFullyLocalized(string culture)
+    {
+        var originalLang = Services.LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = culture;
+
+            var keys = new[]
+            {
+                "ModbusReadColSlaveTooltip",
+                "ModbusReadColFcTooltip",
+                "ModbusReadColStartAddrTooltip",
+                "ModbusReadColQuantityTooltip",
+                "ModbusReadColModeTooltip",
+                "ModbusReadColPollIntervalTooltip",
+                "ModbusReadColTimeoutTooltip",
+                "ModbusReadPinNameTooltip",
+                "ModbusReadPinOffsetTooltip",
+                "ModbusReadPinTypeTooltip",
+                "ModbusReadPinEndianTooltip",
+                "ModbusReadPinScaleTooltip",
+                "ModbusReadPinDeleteTooltip",
+                "ModbusReadBtnAddPinTooltip",
+                "ModbusReadBtnSampleFrameTooltip",
+                "ModbusReadHexInputTooltip",
+                "ModbusReadBtnRunTestTooltip",
+                "ModbusReadResultsPreviewTooltip",
+                "ModbusReadBtnApplyTooltip",
+                "ModbusReadBtnCancelTooltip",
+                "InspectorModbusReadConfigureTooltip"
+            };
+
+            foreach (var key in keys)
+            {
+                var text = Services.LocalizationService.Tr(key);
+                Assert.False(string.IsNullOrWhiteSpace(text), $"Key '{key}' must have non-empty translation for culture '{culture}'");
+                Assert.False(text.StartsWith("!"), $"Key '{key}' must not be missing in culture '{culture}'");
+            }
+        }
+        finally
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
 }

@@ -39,7 +39,15 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TriggerModeName))]
+    [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(IsCovMode))]
+    [NotifyPropertyChangedFor(nameof(IsTriggerMode))]
     private DirectWriteTriggerMode _triggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge;
+
+    // --- COV / Deadband Settings ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    private float _deadband = 0.5f;
 
     // --- Mode 0: Digital Output (DO) Settings ---
     [ObservableProperty]
@@ -92,13 +100,19 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     public bool IsPulseTrainMode => Mode == DirectWriteMode.PulseTrain;
     public bool IsAddressableBusMode => Mode == DirectWriteMode.AddressableBus;
 
-    // Compatibility getters
+    // Compatibility getter
     public bool IsChannelIndexedMode => IsAddressableBusMode;
+
+    /// <summary>True khi TriggerMode = OnTriggerRisingEdge → chân Trig hiện trên canvas.</summary>
+    public bool IsTriggerMode => TriggerMode == DirectWriteTriggerMode.OnTriggerRisingEdge;
+
+    /// <summary>True khi TriggerMode = OnChangeOfValue → hiện Deadband field trong Inspector.</summary>
+    public bool IsCovMode => TriggerMode == DirectWriteTriggerMode.OnChangeOfValue;
 
     public bool IsHardwarePinOutOfRange => (byte)TargetPin >= DirectWriteConfigDialogViewModel.ResolveHardwareDigitalOutputCount();
 
-    public string TargetPinDisplay => IsHardwarePinOutOfRange 
-        ? $"PIN: {TargetPinName} (!)" 
+    public string TargetPinDisplay => IsHardwarePinOutOfRange
+        ? $"PIN: {TargetPinName} (!)"
         : $"PIN: {TargetPinName}";
 
     public string TargetPinName => TargetPin switch
@@ -112,6 +126,21 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
         DirectWriteTargetPin.Do6 => "DO6",
         DirectWriteTargetPin.Do7 => "DO7",
         _ => $"DO{(byte)TargetPin}"
+    };
+
+    public IReadOnlyList<OptionItem<DirectWriteMode>> AvailableModes { get; } = new List<OptionItem<DirectWriteMode>>
+    {
+        new(DirectWriteMode.DigitalOutput, LocalizationService.Tr("DirectWriteModeDo") ?? "Digital Output (DO)"),
+        new(DirectWriteMode.PwmDuty, LocalizationService.Tr("DirectWriteModePwm") ?? "PWM Duty Cycle (PWM)"),
+        new(DirectWriteMode.PulseTrain, LocalizationService.Tr("DirectWriteModePulse") ?? "Pulse Train Output (PTO)"),
+        new(DirectWriteMode.AddressableBus, LocalizationService.Tr("DirectWriteModeBus") ?? "Addressable Actuator Bus")
+    };
+
+    public IReadOnlyList<OptionItem<DirectWriteTriggerMode>> AvailableTriggerModes { get; } = new List<OptionItem<DirectWriteTriggerMode>>
+    {
+        new(DirectWriteTriggerMode.Continuous, LocalizationService.Tr("DirectWriteTrigContinuous") ?? "Continuous Cyclic"),
+        new(DirectWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("DirectWriteTrigEdge") ?? "On Rising Edge (Trig)"),
+        new(DirectWriteTriggerMode.OnChangeOfValue, LocalizationService.Tr("DirectWriteTrigCov") ?? "On Change-of-Value (COV)")
     };
 
     public string ModeName => Mode switch
@@ -136,6 +165,16 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     {
         DirectWriteTriggerMode.Continuous => LocalizationService.Instance.IsVietnamese ? "Chu kỳ quét (Continuous Cyclic)" : "Continuous Cyclic",
         DirectWriteTriggerMode.OnTriggerRisingEdge => LocalizationService.Instance.IsVietnamese ? "Kích hoạt sườn lên (Trig)" : "On Rising Edge (Trig)",
+        DirectWriteTriggerMode.OnChangeOfValue => LocalizationService.Instance.IsVietnamese ? $"Thay đổi giá trị (COV Δ{Deadband:F2})" : $"On Change-of-Value (COV Δ{Deadband:F2})",
+        _ => TriggerMode.ToString()
+    };
+
+    /// <summary>Short summary text shown on the canvas node body — matches MQTT PUB pattern.</summary>
+    public string TriggerModeSummaryText => TriggerMode switch
+    {
+        DirectWriteTriggerMode.Continuous => LocalizationService.Tr("DirectWriteTrigContShort") ?? "Cyclic",
+        DirectWriteTriggerMode.OnTriggerRisingEdge => LocalizationService.Tr("DirectWriteTrigEdgeShort") ?? "On Trig",
+        DirectWriteTriggerMode.OnChangeOfValue => $"COV (Δ{Deadband:F2})",
         _ => TriggerMode.ToString()
     };
 
@@ -165,7 +204,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(StatusPillText))]
     private uint _writeCount = 0;
 
-    // Connectors cố định
+    // Connectors — created once, dynamically added/removed per SynchronizeConnectors()
     public ConnectorViewModel TrigConnector { get; }
     public ConnectorViewModel ChannelConnector { get; }
     public ConnectorViewModel ParamConnector { get; }
@@ -204,7 +243,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
         _mode = mode;
         Title = LocalizationService.Instance.IsVietnamese ? "Bộ Phát Xung" : "Pulse Output";
 
-        // Input Connectors
+        // Build connector pool — never destroyed, dynamically added/removed from InputConnectors
         TrigConnector = new ConnectorViewModel
         {
             Title = "Trig",
@@ -230,10 +269,6 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
             Node = this
         };
 
-        InputConnectors.Add(TrigConnector);
-        InputConnectors.Add(ChannelConnector);
-        InputConnectors.Add(ParamConnector);
-
         // Output Connectors
         DoneConnector = new ConnectorViewModel
         {
@@ -255,39 +290,116 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
         OutputConnectors.Add(DoneConnector);
         OutputConnectors.Add(ErrorConnector);
 
-        UpdateConnectorTitles();
+        // Initial sync — populates InputConnectors correctly for default mode
+        SynchronizeConnectors();
     }
 
     partial void OnModeChanged(DirectWriteMode value)
     {
-        UpdateConnectorTitles();
+        SynchronizeConnectors();
     }
 
-    public void UpdateConnectorTitles()
+    partial void OnTriggerModeChanged(DirectWriteTriggerMode value)
     {
-        if (ChannelConnector == null || ParamConnector == null) return;
+        SynchronizeConnectors();
+    }
 
-        if (Mode == DirectWriteMode.DigitalOutput)
+    /// <summary>
+    /// Physically adds/removes connectors from InputConnectors based on Mode + TriggerMode.
+    /// Follows the MQTT PUB "golden sample" pattern — no orphaned pins, correct semantics per mode.
+    ///
+    /// Connector Matrix:
+    ///   DigitalOutput + Continuous/COV  → [In]
+    ///   DigitalOutput + OnTrigger       → [Trig] [In]
+    ///   PwmDuty + Continuous/COV        → [Duty%]
+    ///   PwmDuty + OnTrigger             → [Trig] [Duty%]
+    ///   PulseTrain + Continuous         → [Pulses] [Freq]
+    ///   PulseTrain + OnTrigger          → [Trig] [Pulses] [Freq]
+    ///   AddressableBus (any trigger)    → [Chan] [Param]
+    /// </summary>
+    public void SynchronizeConnectors()
+    {
+        if (TrigConnector == null || ChannelConnector == null || ParamConnector == null) return;
+
+        bool wantTrig = TriggerMode == DirectWriteTriggerMode.OnTriggerRisingEdge
+                        && Mode != DirectWriteMode.AddressableBus;
+
+        // --- Update connector labels based on mode ---
+        switch (Mode)
         {
-            ChannelConnector.Title = "In";
-            ParamConnector.Title = "En";
+            case DirectWriteMode.DigitalOutput:
+                ChannelConnector.Title = "In";
+                ChannelConnector.TooltipKey = "PinTooltipDirectWriteIn";
+                ChannelConnector.IsEvent = false;
+                break;
+            case DirectWriteMode.PwmDuty:
+                ChannelConnector.Title = "Duty";
+                ChannelConnector.TooltipKey = "PinTooltipDirectWriteDuty";
+                ChannelConnector.IsEvent = false;
+                break;
+            case DirectWriteMode.PulseTrain:
+                ChannelConnector.Title = "Pulses";
+                ChannelConnector.TooltipKey = "PinTooltipDirectWritePulses";
+                ChannelConnector.IsEvent = false;
+                break;
+            case DirectWriteMode.AddressableBus:
+                ChannelConnector.Title = "Chan";
+                ChannelConnector.TooltipKey = "PinTooltipDirectWriteChannel";
+                ChannelConnector.IsEvent = false;
+                break;
         }
-        else if (Mode == DirectWriteMode.PwmDuty)
+
+        // --- Manage Trig connector ---
+        bool hasTrig = InputConnectors.Contains(TrigConnector);
+        if (wantTrig && !hasTrig)
+            InputConnectors.Insert(0, TrigConnector);
+        else if (!wantTrig && hasTrig)
+            InputConnectors.Remove(TrigConnector);
+
+        // --- Manage ChannelConnector (primary value input) ---
+        bool hasChannel = InputConnectors.Contains(ChannelConnector);
+        if (!hasChannel)
         {
-            ChannelConnector.Title = "Duty";
-            ParamConnector.Title = "En";
+            int idx = wantTrig ? 1 : 0;
+            InputConnectors.Insert(Math.Min(idx, InputConnectors.Count), ChannelConnector);
         }
-        else if (Mode == DirectWriteMode.PulseTrain)
+
+        // --- Manage ParamConnector (En for DO, Freq for PulseTrain, Param for AddressableBus; hidden for PwmDuty) ---
+        bool wantParam = Mode == DirectWriteMode.DigitalOutput
+                         || Mode == DirectWriteMode.PulseTrain
+                         || Mode == DirectWriteMode.AddressableBus;
+        bool hasParam = InputConnectors.Contains(ParamConnector);
+
+        if (wantParam)
         {
-            ChannelConnector.Title = "Pulses";
-            ParamConnector.Title = "Freq";
+            if (Mode == DirectWriteMode.DigitalOutput)
+            {
+                ParamConnector.Title = "En";
+                ParamConnector.TooltipKey = "PinTooltipDirectWriteParam";
+            }
+            else if (Mode == DirectWriteMode.PulseTrain)
+            {
+                ParamConnector.Title = "Freq";
+                ParamConnector.TooltipKey = "PinTooltipDirectWriteFreq";
+            }
+            else // AddressableBus
+            {
+                ParamConnector.Title = "Param";
+                ParamConnector.TooltipKey = "PinTooltipDirectWriteParam";
+            }
+
+            if (!hasParam)
+                InputConnectors.Add(ParamConnector);
         }
-        else // AddressableBus / ChannelIndexed
+        else
         {
-            ChannelConnector.Title = "Chan";
-            ParamConnector.Title = "Param";
+            if (hasParam)
+                InputConnectors.Remove(ParamConnector);
         }
     }
+
+    /// <summary>Legacy shim — kept for backward compatibility with any call sites; delegates to SynchronizeConnectors.</summary>
+    public void UpdateConnectorTitles() => SynchronizeConnectors();
 
     [RelayCommand]
     private void OpenConfigDialog()

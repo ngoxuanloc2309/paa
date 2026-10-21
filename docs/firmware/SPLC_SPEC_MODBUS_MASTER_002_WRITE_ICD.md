@@ -93,12 +93,15 @@ Chuẩn hóa đồng bộ 100% với `ModbusMasterCodec.cs` và struct `SPLC_Mod
 | `+4..+5`| `BASE_PARAM_ADDR` | `uint32` | `0..0xFFFFFFFF` | Channel-Indexed: Base Parameter Address (VD: `0x0120` cho màu RGB, High Word first). Direct: `0x00000000`. |
 | `+6..+7`| `INTERVAL_MS` | `uint32` | `0..60000` | Chu kỳ gửi lệnh lặp lại nếu ở chế độ Cyclic (ms), Big-Endian High Word first. |
 | `+8..+9`| `TIMEOUT_MS` | `uint32` | `50..10000` | Thời gian chờ phản hồi tối đa trước khi báo lỗi Timeout (ms), High Word first. |
-| `+10` | `TRIGGER_MODE` | `uint16` | Enum | `0` = OnTriggerRisingEdge (Xung sườn lên Trig)<br>`1` = OnDataChange (Tự phát khi giá trị thay đổi)<br>`2` = Cyclic (Ghi tuần hoàn theo chu kỳ) |
+| `+10` | `TRIGGER_MODE` | `uint16` | Enum | `0` = OnTriggerRisingEdge (Xung sườn lên Trig)<br>`1` = OnDataChange (Tự phát khi giá trị thay đổi $\ge$ Deadband)<br>`2` = Cyclic (Ghi tuần hoàn theo chu kỳ IntervalMs) |
 | `+11` | `TRIG_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag kích hoạt sườn lên (`0xFFFF` = Unmapped) |
 | `+12` | `DONE_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận xung TRUE khi ghi thành công (`0xFFFF` = Unmapped) |
 | `+13` | `BUSY_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag báo trạng thái đang bận giao tiếp (`0xFFFF` = Unmapped) |
 | `+14` | `ERR_TAG_INDEX` | `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag nhận cờ báo lỗi (`0xFFFF` = Unmapped) |
 | `+15` | `ERR_CODE_TAG_INDEX`| `uint16` | `0..N` hoặc `0xFFFF` | Chỉ số Tag lưu mã lỗi chẩn đoán (`0xFFFF` = Unmapped) |
+
+> [!NOTE]
+> **Cẩm nang Kỹ thuật Người dùng:** Hướng dẫn vận hành và các kịch bản mẫu chi tiết được biên soạn tại [`docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md).
 
 ---
 
@@ -230,20 +233,26 @@ typedef struct __attribute__((packed)) {
     uint16_t control_flags;
     uint8_t  slave_id;
     uint8_t  function_code;
-    uint16_t write_mode;
     uint16_t start_or_base_cmd;
-    uint16_t base_param_addr;
-    uint16_t points_or_channels;
-    uint32_t interval_ms;
+    uint16_t count_or_channels;
+    uint32_t base_address_param;
+    uint32_t cyclic_interval_ms;
     uint32_t timeout_ms;
+    uint16_t trigger_mode;
+    uint16_t trig_tag_index;
     uint16_t done_tag_index;
-    uint16_t err_tag_index;
+    uint16_t busy_tag_index;
+    uint16_t error_tag_index;
     uint16_t err_code_tag_index;
-    uint16_t pin_count;
-    uint16_t reserved[2];
-
-    // Dynamic Pins (4 pins x 12 regs = 48 regs = 96 bytes)
-    splc_mb_write_pin_t pins[SPLC_MB_WRITE_MAX_PINS];
+    union {
+        struct {
+            uint16_t channel_tag_index;
+            uint16_t command_tag_index;
+            uint16_t param_tag_index;
+            uint16_t reserved[45];
+        } indexed;
+        splc_mb_write_pin_t direct_pins[SPLC_MB_WRITE_MAX_PINS];
+    } payload;
 } splc_mb_write_block_t;
 
 #endif // SPLC_MODBUS_WRITE_WIRE_H

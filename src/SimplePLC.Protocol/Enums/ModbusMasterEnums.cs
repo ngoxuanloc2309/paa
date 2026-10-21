@@ -12,6 +12,15 @@ public enum ModbusMasterFunctionCode : byte
 }
 
 /// <summary>
+/// Chế độ kích hoạt đọc Modbus Master RTU/TCP.
+/// </summary>
+public enum ModbusReadMode : ushort
+{
+    Cyclic = 0,                 // Đọc quét tuần hoàn theo chu kỳ PollIntervalMs (Mặc định)
+    OnTriggerRisingEdge = 1     // Đọc 1 lần khi có cạnh lên (Rising Edge) của chân Trig
+}
+
+/// <summary>
 /// Kiểu dữ liệu giải mã từ thanh ghi Modbus.
 /// </summary>
 public enum ModbusDataType : ushort

@@ -69,6 +69,7 @@
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
         <converters:ComparisonConverter x:Key="CompareConverter" />
 
         <!-- View Mappings -->
@@ -272,17 +273,47 @@
 
                 <!-- Quick Connect Controls -->
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                    <Button Command="{Binding RefreshPortsCommand}"
+                    <!-- Protocol Mode Toggle: Serial/USB vs Modbus TCP -->
+                    <Button Command="{Binding ToggleTcpModeCommand}"
                             Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                            Width="28" Height="28" Margin="0,0,6,0" Cursor="Hand"
-                            ToolTip="{Binding Loc[MenuRefreshPorts]}">
-                        <TextBlock Text="🔄" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            Height="28" Padding="6,0" Margin="0,0,6,0" Cursor="Hand"
+                            IsEnabled="{Binding CanSelectPort}"
+                            ToolTip="{Binding Loc[TooltipSwitchConnMode]}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding ConnModeIcon}" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ConnModeText}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
-                    <ComboBox ItemsSource="{Binding AvailablePorts}"
-                              SelectedItem="{Binding SelectedPort}"
-                              Width="160" Height="28" Margin="0,0,8,0"
-                              VerticalContentAlignment="Center" FontSize="12"
-                              IsEnabled="{Binding CanSelectPort}" />
+
+                    <!-- Serial RTU Mode: Refresh Ports + Port Selector ComboBox -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsTcpMode, Converter={StaticResource InverseBoolToVis}}">
+                        <Button Command="{Binding RefreshPortsCommand}"
+                                Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                Width="28" Height="28" Margin="0,0,6,0" Cursor="Hand"
+                                ToolTip="{Binding Loc[MenuRefreshPorts]}">
+                            <TextBlock Text="🔄" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Button>
+                        <ComboBox ItemsSource="{Binding AvailablePorts}"
+                                  SelectedItem="{Binding SelectedPort}"
+                                  Width="160" Height="28" Margin="0,0,8,0"
+                                  VerticalContentAlignment="Center" FontSize="12"
+                                  IsEnabled="{Binding CanSelectPort}" />
+                    </StackPanel>
+
+                    <!-- Modbus TCP Mode: Target IP Host + Port -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsTcpMode, Converter={StaticResource BoolToVis}}">
+                        <TextBox Text="{Binding TcpHost, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="120" Height="28" Margin="0,0,4,0"
+                                 VerticalContentAlignment="Center" Padding="4,0" FontSize="12"
+                                 IsEnabled="{Binding CanSelectPort}"
+                                 ToolTip="{Binding Loc[TooltipTcpHost]}" />
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBox Text="{Binding TcpPort, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="44" Height="28" Margin="0,0,8,0"
+                                 VerticalContentAlignment="Center" Padding="4,0" FontSize="12"
+                                 IsEnabled="{Binding CanSelectPort}"
+                                 ToolTip="{Binding Loc[TooltipTcpPort]}" />
+                    </StackPanel>
                     <Button Command="{Binding ToggleConnectCommand}"
                             Height="28" Padding="12,0" Cursor="Hand" FontWeight="SemiBold" FontSize="11.5">
                         <Button.Style>

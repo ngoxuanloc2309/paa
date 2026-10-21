@@ -17,7 +17,8 @@ namespace SimplePLC.Protocol.Codec;
 /// - Reg 7: channel_tag_index (uint16)
 /// - Reg 8: param_tag_index (uint16)
 /// - Reg 9..10: default_color_rgb (uint32 Big-Endian)
-/// - Reg 11..15: reserved (5 registers = 10 bytes)
+/// - Reg 11: deadband_x1000 (uint16, COV deadband = value / 1000.0f; 0xFFFF = not set → default 0.5)
+/// - Reg 12..15: reserved (4 registers = 8 bytes)
 /// </summary>
 public static class DirectWriteCodec
 {
@@ -67,7 +68,18 @@ public static class DirectWriteCodec
         // Reg 9..10: default_color_rgb (uint32 Big-Endian)
         RegisterCodec.EncodeUInt32(config.DefaultColorRgb, destination.Slice(9, 2));
 
-        // Reg 11..15: reserved (already filled with 0)
+        // Reg 11: deadband_x1000 (COV mode: deadband = reg11 / 1000.0f; 0 = not set / default 0.5)
+        if (config.TriggerMode == DirectWriteTriggerMode.OnChangeOfValue && config.Deadband >= 0f)
+        {
+            uint scaledDeadband = (uint)Math.Round(config.Deadband * 1000f);
+            destination[11] = (ushort)Math.Clamp(scaledDeadband, 1u, 0xFFFEu);
+        }
+        else
+        {
+            destination[11] = 0; // 0 = default / N/A (preserves golden vector)
+        }
+
+        // Reg 12..15: reserved (already filled with 0)
     }
 
     /// <summary>
@@ -95,6 +107,10 @@ public static class DirectWriteCodec
         ushort paramTag = source[8];
         uint defaultColor = RegisterCodec.DecodeUInt32(source.Slice(9, 2));
 
+        // Reg 11: deadband_x1000 (0 or 0xFFFF = not set → default 0.5f)
+        ushort deadbandRaw = source[11];
+        float deadband = (deadbandRaw == 0 || deadbandRaw == 0xFFFF) ? 0.5f : deadbandRaw / 1000.0f;
+
         return new DirectWriteConfigDto
         {
             TargetPin = Enum.IsDefined(typeof(DirectWriteTargetPin), targetPin) ? (DirectWriteTargetPin)targetPin : DirectWriteTargetPin.Do0,
@@ -106,7 +122,8 @@ public static class DirectWriteCodec
             PwmFrequencyHz = pwmFreqHz == 0 ? 1000u : pwmFreqHz,
             ChannelTagIndex = channelTag == 0xFFFF ? null : channelTag,
             ParamTagIndex = paramTag == 0xFFFF ? null : paramTag,
-            DefaultColorRgb = defaultColor == 0 ? 0x00FF00 : defaultColor
+            DefaultColorRgb = defaultColor == 0 ? 0x00FF00 : defaultColor,
+            Deadband = deadband
         };
     }
 }

@@ -17,6 +17,7 @@ public class DirectWriteSignalBreakdownItem
     public string FieldName { get; set; } = string.Empty;
     public string RawHex { get; set; } = string.Empty;
     public string Interpretation { get; set; } = string.Empty;
+    public string Tooltip { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -42,7 +43,14 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
     private DirectWriteMode _mode;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCovMode))]
     private DirectWriteTriggerMode _triggerMode;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCovMode))]
+    private float _deadband = 0.5f;
+
+    public bool IsCovMode => TriggerMode == DirectWriteTriggerMode.OnChangeOfValue;
 
     // --- Mode 0: Digital Output (DO) Settings ---
     [ObservableProperty]
@@ -182,7 +190,8 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
     public IReadOnlyList<OptionItem<DirectWriteTriggerMode>> AvailableTriggerModes { get; } = new List<OptionItem<DirectWriteTriggerMode>>
     {
         new(DirectWriteTriggerMode.Continuous, LocalizationService.Tr("DirectWriteTrigContinuous") ?? "Continuous Cyclic Output"),
-        new(DirectWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("DirectWriteTrigEdge") ?? "On Rising Edge (Trig)")
+        new(DirectWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("DirectWriteTrigEdge") ?? "On Rising Edge (Trig)"),
+        new(DirectWriteTriggerMode.OnChangeOfValue, LocalizationService.Tr("DirectWriteTrigCov") ?? "On Change-of-Value (COV)")
     };
 
     public IReadOnlyList<OptionItem<bool>> AvailableActiveLevels { get; } = new List<OptionItem<bool>>
@@ -224,6 +233,7 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
 
         Mode = node.Mode;
         TriggerMode = node.TriggerMode;
+        Deadband = node.Deadband;
 
         IsActiveHigh = node.IsActiveHigh;
         FailSafeState = node.FailSafeState;
@@ -310,14 +320,16 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Chân ngõ ra số {pinDisplay} trên bo mạch (Local IO)" : $"Local digital output pin {pinDisplay}"
+                Interpretation = isVi ? $"Chân ngõ ra số {pinDisplay} trên bo mạch (Local IO)" : $"Local digital output pin {pinDisplay}",
+                Tooltip = isVi ? "Cọc ngõ ra transistor điều khiển trực tiếp trên vi điều khiển." : "Direct microcontroller transistor output pin."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Chế độ hoạt động:" : "Operating Mode:",
                 RawHex = "DO_01",
-                Interpretation = isVi ? "Ngõ ra số logic trực tiếp 0/1 (Relay / Van ON-OFF)" : "Digital Output (DO 0/1: Relay / Solenoid)"
+                Interpretation = isVi ? "Ngõ ra số logic trực tiếp 0/1 (Relay / Van ON-OFF)" : "Digital Output (DO 0/1: Relay / Solenoid)",
+                Tooltip = isVi ? "Chế độ phát tín hiệu số bật/tắt tiếp điểm." : "Binary on/off contact output mode."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -326,7 +338,8 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
                 RawHex = SimDoValue ? "HIGH (1)" : "LOW (0)",
                 Interpretation = SimDoValue
                     ? (isVi ? "Xuất điện áp 24VDC cấp nguồn cho tải" : "Dispatches 24VDC power to load")
-                    : (isVi ? "Ngắt điện áp 0VDC đưa tải về nghỉ" : "Cuts voltage to 0VDC (de-energized)")
+                    : (isVi ? "Ngắt điện áp 0VDC đưa tải về nghỉ" : "Cuts voltage to 0VDC (de-energized)"),
+                Tooltip = isVi ? "Trạng thái điện áp xuất ra cọc thực tế khi mô phỏng." : "Simulated voltage output on the physical pin."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -335,7 +348,8 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
                 RawHex = IsActiveHigh ? "HIGH_ON" : "LOW_ON",
                 Interpretation = IsActiveHigh
                     ? (isVi ? "Mức 1 = Bật tải, Mức 0 = Tắt tải" : "Logic 1 = Active, Logic 0 = Inactive")
-                    : (isVi ? "Mức 0 = Bật tải, Mức 1 = Tắt tải" : "Logic 0 = Active, Logic 1 = Inactive")
+                    : (isVi ? "Mức 0 = Bật tải, Mức 1 = Tắt tải" : "Logic 0 = Active, Logic 1 = Inactive"),
+                Tooltip = isVi ? "Quy định mức điện áp 24V ứng với giá trị logic 1 hay 0." : "Specifies whether 24V corresponds to logic 1 or 0."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -344,7 +358,8 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
                 RawHex = $"STATE_{FailSafeState}",
                 Interpretation = FailSafeState == 0
                     ? (isVi ? "Ngắt tải khi khởi động hoặc có lỗi an toàn" : "De-energized safe upon startup or fault")
-                    : (isVi ? "Duy trì đóng tải an toàn" : "Maintain energized state")
+                    : (isVi ? "Duy trì đóng tải an toàn" : "Maintain energized state"),
+                Tooltip = isVi ? "Bảo vệ an toàn phần cứng khi PLC dừng quét hoặc mất kết nối." : "Hardware safety interlock upon PLC STOP or fault."
             });
         }
         else if (Mode == DirectWriteMode.PwmDuty)
@@ -355,28 +370,32 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Chân ngõ ra điều chế xung {pinDisplay}" : $"Pulse width modulated terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân ngõ ra điều chế xung {pinDisplay}" : $"Pulse width modulated terminal {pinDisplay}",
+                Tooltip = isVi ? "Cọc ngõ ra transistor băm xung tốc độ cao." : "High-speed PWM transistor output pin."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Chế độ hoạt động:" : "Operating Mode:",
                 RawHex = "PWM_DUTY",
-                Interpretation = isVi ? "Điều chế độ rộng xung công suất (0..100%)" : "PWM Power Duty Cycle Modulation"
+                Interpretation = isVi ? "Điều chế độ rộng xung công suất (0..100%)" : "PWM Power Duty Cycle Modulation",
+                Tooltip = isVi ? "Điều chế tỷ lệ thời gian đóng ngắt để thay đổi điện áp hiệu dụng." : "Modulates duty cycle to vary effective DC voltage."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Tần số sóng mang:" : "Carrier Frequency:",
                 RawHex = $"{PwmFrequencyHz} Hz",
-                Interpretation = isVi ? $"Chu kỳ xung T = {(1000.0 / Math.Max(1, PwmFrequencyHz)):F2} ms" : $"Pulse period T = {(1000.0 / Math.Max(1, PwmFrequencyHz)):F2} ms"
+                Interpretation = isVi ? $"Chu kỳ xung T = {(1000.0 / Math.Max(1, PwmFrequencyHz)):F2} ms" : $"Pulse period T = {(1000.0 / Math.Max(1, PwmFrequencyHz)):F2} ms",
+                Tooltip = isVi ? "Tần số chuyển mạch đóng ngắt transistor của vi điều khiển." : "Microcontroller transistor switching frequency."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Độ rộng xung (Duty):" : "Active Duty Cycle:",
                 RawHex = $"{SimPwmDuty:F1}%",
-                Interpretation = isVi ? $"Điện áp trung bình cấp tải: {(24.0 * SimPwmDuty / 100.0):F1} VDC" : $"Equivalent average voltage: {(24.0 * SimPwmDuty / 100.0):F1} VDC"
+                Interpretation = isVi ? $"Điện áp trung bình cấp tải: {(24.0 * SimPwmDuty / 100.0):F1} VDC" : $"Equivalent average voltage: {(24.0 * SimPwmDuty / 100.0):F1} VDC",
+                Tooltip = isVi ? "Phần trăm chu kỳ mà cọc ở mức điện áp cao." : "Percentage of cycle period with high voltage level."
             });
         }
         else if (Mode == DirectWriteMode.PulseTrain)
@@ -387,28 +406,32 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Chân phát xung tốc độ cao {pinDisplay}" : $"High-speed pulse train terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân phát xung tốc độ cao {pinDisplay}" : $"High-speed pulse train terminal {pinDisplay}",
+                Tooltip = isVi ? "Cọc phát xung tốc độ cao điều khiển động cơ bước/servo." : "High-speed PTO terminal for stepper/servo driver."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Chế độ hoạt động:" : "Operating Mode:",
                 RawHex = "PTO_TRAIN",
-                Interpretation = isVi ? "Phát chuỗi xung bước định lượng (Stepper / Servo)" : "Quantized Pulse Train Output (Stepper/Servo)"
+                Interpretation = isVi ? "Phát chuỗi xung bước định lượng (Stepper / Servo)" : "Quantized Pulse Train Output (Stepper/Servo)",
+                Tooltip = isVi ? "Phát đúng số lượng xung yêu cầu để dịch chuyển vị trí chính xác." : "Emits exact pulse quantity for precise motion positioning."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Số lượng xung phát:" : "Pulse Count:",
                 RawHex = $"{SimPtoPulses}",
-                Interpretation = isVi ? $"Định lượng {SimPtoPulses} bước dịch chuyển" : $"Quantized motion of {SimPtoPulses} step increments"
+                Interpretation = isVi ? $"Định lượng {SimPtoPulses} bước dịch chuyển" : $"Quantized motion of {SimPtoPulses} step increments",
+                Tooltip = isVi ? "Tổng số xung cấp cho driver." : "Total pulse count dispatched to motor driver."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Độ rộng xung cơ sở:" : "Base Pulse Width:",
                 RawHex = $"{PulseWidthUs} µs",
-                Interpretation = isVi ? $"Độ rộng xung tối thiểu đảm bảo opto thu nhận" : $"Minimum pulse width for optocoupler timing"
+                Interpretation = isVi ? $"Độ rộng xung tối thiểu đảm bảo opto thu nhận" : $"Minimum pulse width for optocoupler timing",
+                Tooltip = isVi ? "Thời gian mức cao tối thiểu của một xung để cách ly quang nhận được." : "Minimum high-time width for optocoupler reception."
             });
         }
         else // AddressableBus
@@ -420,21 +443,24 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
             {
                 FieldName = isVi ? "Chân phần cứng đích:" : "Target Hardware Pin:",
                 RawHex = pinDisplay,
-                Interpretation = isVi ? $"Chân truyền dữ liệu nối tiếp {pinDisplay}" : $"Serial data bus terminal {pinDisplay}"
+                Interpretation = isVi ? $"Chân truyền dữ liệu nối tiếp {pinDisplay}" : $"Serial data bus terminal {pinDisplay}",
+                Tooltip = isVi ? "Cọc bus truyền thông dữ liệu nối tiếp một dây." : "Single-wire serial bus communication terminal."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Chế độ hoạt động:" : "Operating Mode:",
                 RawHex = "BUS_ADDR",
-                Interpretation = isVi ? "Bus chấp hành định địa chỉ (Addressable Serial Bus)" : "Addressable Actuator Serial Bus"
+                Interpretation = isVi ? "Bus chấp hành định địa chỉ (Addressable Serial Bus)" : "Addressable Actuator Serial Bus",
+                Tooltip = isVi ? "Giao tiếp định địa chỉ cho nhiều cơ cấu chấp hành trên cùng 1 chân." : "Addressable multi-drop protocol on single terminal."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Kênh kích hoạt thử:" : "Active Test Channel:",
                 RawHex = $"CH {SimBusChannel:D2}",
-                Interpretation = isVi ? $"Kênh điều khiển logic #{SimBusChannel} / {ChannelCount}" : $"Active logic channel #{SimBusChannel} of {ChannelCount}"
+                Interpretation = isVi ? $"Kênh điều khiển logic #{SimBusChannel} / {ChannelCount}" : $"Active logic channel #{SimBusChannel} of {ChannelCount}",
+                Tooltip = isVi ? "Chỉ số kênh chấp hành được nhắm tới." : "Target actuator channel index."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
@@ -443,14 +469,16 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
                 RawHex = IsExclusiveChannel ? "EXCL_ON" : "INDEP_ON",
                 Interpretation = IsExclusiveChannel
                     ? (isVi ? "Tự động ngắt toàn bộ kênh khác khi kích hoạt" : "Auto deactivates all other channels on trigger")
-                    : (isVi ? "Cho phép nhiều kênh cùng hoạt động" : "Allows multiple simultaneous active channels")
+                    : (isVi ? "Cho phép nhiều kênh cùng hoạt động" : "Allows multiple simultaneous active channels"),
+                Tooltip = isVi ? "Chế độ tự động dập tắt các kênh khác khi có kênh kích hoạt." : "Single-active channel policy."
             });
 
             SignalBreakdownItems.Add(new DirectWriteSignalBreakdownItem
             {
                 FieldName = isVi ? "Tham số tải xuất:" : "Dispatched Payload:",
                 RawHex = $"0x{cleanParam.ToUpperInvariant()}",
-                Interpretation = isVi ? "Tham số điều khiển ngõ ra (RGB Color / Mã lệnh)" : "Dispatched parameter (Color / Command)"
+                Interpretation = isVi ? "Tham số điều khiển ngõ ra (RGB Color / Mã lệnh)" : "Dispatched parameter (Color / Command)",
+                Tooltip = isVi ? "Dữ liệu tham số hoặc mã màu gửi tới cơ cấu chấp hành." : "Parameter or color data dispatched to actuator."
             });
         }
 
@@ -458,7 +486,8 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         {
             FieldName = isVi ? "Độ trễ truyền động:" : "Execution Latency:",
             RawHex = "< 1 Cycle",
-            Interpretation = isVi ? "Xuất tức thì thanh ghi phần cứng, không trễ mạng" : "Zero network overhead, instant hardware dispatch"
+            Interpretation = isVi ? "Xuất tức thì thanh ghi phần cứng, không trễ mạng" : "Zero network overhead, instant hardware dispatch",
+            Tooltip = isVi ? "Độ trễ thực thi phần cứng tức thì tại chân vi điều khiển." : "Instant hardware pin update latency."
         });
     }
 
@@ -467,6 +496,7 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         Node.TargetPin = TargetPin;
         Node.Mode = Mode;
         Node.TriggerMode = TriggerMode;
+        Node.Deadband = Deadband;
 
         Node.IsActiveHigh = IsActiveHigh;
         Node.FailSafeState = FailSafeState;

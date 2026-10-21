@@ -412,10 +412,13 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
 
         var previousEndpoint = _currentEndpoint;
 
-        // BƯỚC 1: Ưu tiên previous endpoint trước (nếu còn tồn tại trong danh sách candidates)
-        if (previousEndpoint != null && candidates.Any(c => c.Equals(previousEndpoint)))
+        // BƯỚC 1: Ưu tiên previous endpoint trước (nếu còn tồn tại trong danh sách candidates hoặc là IP/Simulator endpoint)
+        bool canProbePrevious = previousEndpoint != null &&
+            (candidates.Any(c => c.Equals(previousEndpoint)) || previousEndpoint is TcpEndpoint or SimulatorEndpoint);
+
+        if (canProbePrevious)
         {
-            var probeResult = await ProbeCandidateAsync(previousEndpoint, ct).ConfigureAwait(false);
+            var probeResult = await ProbeCandidateAsync(previousEndpoint!, ct).ConfigureAwait(false);
             if (probeResult.IsSuccess && probeResult.Session != null)
             {
                 // Khớp chính xác thiết bị cũ, chấp nhận ngay lập tức mà không cần probe thêm

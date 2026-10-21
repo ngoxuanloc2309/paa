@@ -132,8 +132,10 @@ public sealed class MqttSubscribeNodeData
 public sealed class ModbusReadNodeData
 {
     public ushort? EnTagIndex { get; set; }
+    public ushort? TrigTagIndex { get; set; }
     public byte SlaveId { get; set; } = 1;
     public SimplePLC.Protocol.Enums.ModbusMasterFunctionCode FunctionCode { get; set; } = SimplePLC.Protocol.Enums.ModbusMasterFunctionCode.ReadHoldingRegisters;
+    public SimplePLC.Protocol.Enums.ModbusReadMode ReadMode { get; set; } = SimplePLC.Protocol.Enums.ModbusReadMode.Cyclic;
     public ushort StartAddress { get; set; } = 0;
     public ushort RegCount { get; set; } = 2;
     public uint PollIntervalMs { get; set; } = 500;

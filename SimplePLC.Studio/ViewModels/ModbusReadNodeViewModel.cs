@@ -41,10 +41,45 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(PollIntervalDisplay))]
+    [NotifyPropertyChangedFor(nameof(ReadModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(StatusPillText))]
     private uint _pollIntervalMs = 500;
 
     [ObservableProperty]
     private uint _timeoutMs = 300;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(ReadModeName))]
+    [NotifyPropertyChangedFor(nameof(ReadModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(IsTriggerMode))]
+    [NotifyPropertyChangedFor(nameof(IsCyclicMode))]
+    [NotifyPropertyChangedFor(nameof(StatusPillText))]
+    private ModbusReadMode _readMode = ModbusReadMode.Cyclic;
+
+    partial void OnReadModeChanged(ModbusReadMode value)
+    {
+        SyncConnectors();
+    }
+
+    public IReadOnlyList<OptionItem<ModbusReadMode>> AvailableReadModes { get; } = new List<OptionItem<ModbusReadMode>>
+    {
+        new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"),
+        new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)")
+    };
+
+    public bool IsTriggerMode => ReadMode == ModbusReadMode.OnTriggerRisingEdge;
+    public bool IsCyclicMode => ReadMode == ModbusReadMode.Cyclic;
+
+    public string ReadModeName => ReadMode switch
+    {
+        ModbusReadMode.OnTriggerRisingEdge => LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)",
+        _ => LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic"
+    };
+
+    public string ReadModeSummaryText => IsTriggerMode
+        ? (LocalizationService.Tr("ModbusWriteTrigEdgeShort") ?? "On Trig")
+        : $"{PollIntervalMs}ms";
 
     // Chuỗi tóm tắt thông số truyền thông trên Canvas (ví dụ: ID:1 | FC03)
     public string NodeInfoSummary => $"ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
@@ -92,6 +127,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     private uint _pollCount = 0;
 
     public ConnectorViewModel EnableConnector { get; }
+    public ConnectorViewModel TrigConnector { get; }
     public ConnectorViewModel ValidConnector { get; }
     public ConnectorViewModel ErrorConnector { get; }
     public ConnectorViewModel ErrCodeConnector { get; }
@@ -106,7 +142,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         {
             if (IsErrorActive) return !string.IsNullOrEmpty(LastErrorMessage) ? $"ERR: {LastErrorMessage}" : "ERR: TIMEOUT";
             if (PollCount > 0) return $"{PollCount} polls";
-            return $"POLL ({PollIntervalMs}ms)";
+            return IsTriggerMode ? "READY" : $"POLL ({PollIntervalMs}ms)";
         }
     }
 
@@ -115,7 +151,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         Title = "MB_READ";
         Icon = "🔄";
 
-        // Chân vào điều khiển EN
+        // Chân vào điều khiển EN & Trig
         EnableConnector = new ConnectorViewModel
         {
             Title = "EN",
@@ -123,7 +159,16 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
             IsInput = true,
             Node = this
         };
-        InputConnectors.Add(EnableConnector);
+
+        TrigConnector = new ConnectorViewModel
+        {
+            Title = "Trig",
+            TooltipKey = "PinTooltipMbReadTrig",
+            IsInput = true,
+            Node = this
+        };
+
+        SyncConnectors();
 
         // Chân ra trạng thái cố định
         ValidConnector = new ConnectorViewModel
@@ -221,5 +266,21 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
         pin.Connector = connector;
         OutputConnectors.Add(connector);
+    }
+
+    /// <summary>
+    /// Đồng bộ hóa Input Connectors trên Canvas tương ứng với ReadMode.
+    /// </summary>
+    public void SyncConnectors()
+    {
+        InputConnectors.Clear();
+        if (IsTriggerMode)
+        {
+            InputConnectors.Add(TrigConnector);
+        }
+        else
+        {
+            InputConnectors.Add(EnableConnector);
+        }
     }
 }

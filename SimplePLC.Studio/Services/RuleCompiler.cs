@@ -26,7 +26,7 @@ public sealed class RuleCompiler : IRuleCompiler
         TagCatalogViewModel tagCatalog,
         ProductDefinition? product = null)
     {
-        var targetProduct = product 
+        ProductDefinition targetProduct = product 
             ?? tagCatalog?.CurrentProduct 
             ?? AppServices.Instance.CurrentProduct 
             ?? ProductDefinition.CreateRemoteIo8Di8Do4Ai();
@@ -579,7 +579,7 @@ public sealed class RuleCompiler : IRuleCompiler
                     break;
 
                 case DirectWriteNodeViewModel dw:
-                    int maxDo = targetProduct?.Resources?.DigitalOutputs ?? 8;
+                    int maxDo = targetProduct.Resources?.DigitalOutputs ?? 8;
                     if ((byte)dw.TargetPin >= maxDo)
                     {
                         studioDiagnostics.Add(new(

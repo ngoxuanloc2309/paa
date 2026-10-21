@@ -38,10 +38,16 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(QueueModeSummaryText))]
     private MqttQueueMode _queueMode = MqttQueueMode.Fifo;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QueueModeSummaryText))]
     private int _queueCapacity = 16;
+
+    public string QueueModeSummaryText => QueueMode == MqttQueueMode.Fifo
+        ? $"FIFO ({QueueCapacity})"
+        : "Latest Wins";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IgnoreRetained))]

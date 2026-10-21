@@ -76,13 +76,49 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
     // Trigger settings
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TriggerModeName))]
+    [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(IsTriggerMode))]
+    [NotifyPropertyChangedFor(nameof(IsCyclicMode))]
+    [NotifyPropertyChangedFor(nameof(IsOnDataChangeMode))]
     private ModbusWriteTriggerMode _triggerMode = ModbusWriteTriggerMode.OnTriggerRisingEdge;
 
+    partial void OnTriggerModeChanged(ModbusWriteTriggerMode value)
+    {
+        SyncConnectors();
+    }
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(TriggerModeName))]
     private uint _cyclicIntervalMs = 500;
 
     [ObservableProperty]
     private uint _timeoutMs = 300;
+
+    /// <summary>
+    /// COV Deadband cho chế độ OnDataChange. Ghi Modbus chỉ xảy ra khi giá trị thay đổi ≥ ngưỡng này.
+    /// Ngăn bão hòa bus RS485 do nhiễu ADC liên tục.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(TriggerModeName))]
+    private float _deadband = 0.5f;
+
+    public IReadOnlyList<OptionItem<ModbusWriteTriggerMode>> AvailableTriggerModes { get; } = new List<OptionItem<ModbusWriteTriggerMode>>
+    {
+        new(ModbusWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusWriteTrigEdge") ?? "On Rising Edge (Trig)"),
+        new(ModbusWriteTriggerMode.Cyclic, LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic (Periodic)"),
+        new(ModbusWriteTriggerMode.OnDataChange, LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change (COV)")
+    };
+
+    /// <summary>True khi TriggerMode = OnTriggerRisingEdge → chân Trig hiện trên canvas.</summary>
+    public bool IsTriggerMode => TriggerMode == ModbusWriteTriggerMode.OnTriggerRisingEdge;
+
+    /// <summary>True khi TriggerMode = Cyclic → hiện CyclicIntervalMs trong Inspector.</summary>
+    public bool IsCyclicMode => TriggerMode == ModbusWriteTriggerMode.Cyclic;
+
+    /// <summary>True khi TriggerMode = OnDataChange → hiện Deadband field trong Inspector.</summary>
+    public bool IsOnDataChangeMode => TriggerMode == ModbusWriteTriggerMode.OnDataChange;
 
     public bool IsChannelIndexedMode => WriteMode == ModbusWriteMode.ChannelIndexed;
     public bool IsDirectRegistersMode => WriteMode == ModbusWriteMode.DirectRegisters;
@@ -117,9 +153,20 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
     public string TriggerModeName => TriggerMode switch
     {
         ModbusWriteTriggerMode.OnTriggerRisingEdge => LocalizationService.Tr("ModbusWriteTrigEdge") ?? "On Rising Edge (Trig)",
-        ModbusWriteTriggerMode.OnDataChange => LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change",
+        ModbusWriteTriggerMode.OnDataChange => Math.Abs(Deadband - 0.5f) < 0.001f
+            ? (LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change")
+            : $"{LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change"} (Δ{Deadband:F2})",
         ModbusWriteTriggerMode.Cyclic => $"{LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic"} ({CyclicIntervalMs} ms)",
         _ => TriggerMode.ToString()
+    };
+
+    public string TriggerModeSummaryText => TriggerMode switch
+    {
+        ModbusWriteTriggerMode.Cyclic => $"{CyclicIntervalMs}ms",
+        ModbusWriteTriggerMode.OnDataChange => Math.Abs(Deadband - 0.5f) < 0.001f
+            ? (LocalizationService.Tr("ModbusWriteTrigChangeShort") ?? "On Change")
+            : $"Δ{Deadband:F2}",
+        _ => LocalizationService.Tr("ModbusWriteTrigEdgeShort") ?? "On Trig"
     };
 
     // Danh sách chân ngõ vào động cho Direct Mode
@@ -298,8 +345,11 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
         InputConnectors.Clear();
         OutputConnectors.Clear();
 
-        // 1. Luôn có chân kích hoạt Trig ở đầu
-        InputConnectors.Add(TrigConnector);
+        // 1. Chỉ hiển thị chân kích hoạt Trig khi ở chế độ OnTriggerRisingEdge (như MQTT PUB)
+        if (TriggerMode == ModbusWriteTriggerMode.OnTriggerRisingEdge)
+        {
+            InputConnectors.Add(TrigConnector);
+        }
 
         if (WriteMode == ModbusWriteMode.ChannelIndexed)
         {

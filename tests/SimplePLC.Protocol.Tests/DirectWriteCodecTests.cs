@@ -89,4 +89,27 @@ public class DirectWriteCodecTests
         Assert.Equal(original.ParamTagIndex, decoded.ParamTagIndex);
         Assert.Equal(original.DefaultColorRgb, decoded.DefaultColorRgb);
     }
+
+    [Fact]
+    public void EncodeDecode_OnChangeOfValue_PreservesDeadband()
+    {
+        var original = new DirectWriteConfigDto
+        {
+            TargetPin = DirectWriteTargetPin.Do2,
+            Mode = DirectWriteMode.PwmDuty,
+            TriggerMode = DirectWriteTriggerMode.OnChangeOfValue,
+            Deadband = 0.25f,
+            PwmFrequencyHz = 10000
+        };
+
+        var buffer = new ushort[ModbusRegisterMap.DirectWriteRegistersPerBlock];
+        DirectWriteCodec.EncodeBlock(original, buffer);
+
+        // Reg 11 must contain 250 (0.25 * 1000)
+        Assert.Equal((ushort)250, buffer[11]);
+
+        var decoded = DirectWriteCodec.DecodeBlock(buffer);
+        Assert.Equal(DirectWriteTriggerMode.OnChangeOfValue, decoded.TriggerMode);
+        Assert.Equal(0.25f, decoded.Deadband, precision: 3);
+    }
 }

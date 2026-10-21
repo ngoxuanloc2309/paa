@@ -98,9 +98,49 @@ public class ModbusMasterCodecTests
         Assert.Equal(ModbusEndianness.BigEndian_ABCD, decoded.Pins[1].Endianness);
         Assert.Equal(1.0f, decoded.Pins[1].Multiplier, 3);
         Assert.Equal((ushort)21, decoded.Pins[1].TargetTagIndex);
+        Assert.Equal(ModbusReadMode.Cyclic, decoded.ReadMode);
+        Assert.Null(decoded.TrigTagIndex);
     }
 
     [Fact]
+    public void EncodeAndDecodeBlock_OnTriggerRisingEdge_Roundtrip_PreservesReadModeAndTrigTag()
+    {
+        var config = new ModbusMasterReadConfigDto
+        {
+            BlockIndex = 0,
+            Enabled = true,
+            SlaveId = 2,
+            FunctionCode = ModbusMasterFunctionCode.ReadInputRegisters,
+            StartAddress = 50,
+            RegCount = 2,
+            ReadMode = ModbusReadMode.OnTriggerRisingEdge,
+            TrigTagIndex = 35,
+            PollIntervalMs = 0,
+            TimeoutMs = 500,
+            ValidTagIndex = 10,
+            ErrorTagIndex = 11,
+            ErrCodeTagIndex = 12
+        };
+
+        var span = new ushort[ModbusRegisterMap.ModbusMasterRegistersPerBlock];
+        ModbusMasterCodec.EncodeBlock(config, span);
+
+        // Register 12 (offset +12): ReadMode (1)
+        Assert.Equal(1, span[12]);
+        // Register 13 (offset +13): TrigTagIndex (35)
+        Assert.Equal(35, span[13]);
+
+        var decoded = ModbusMasterCodec.DecodeBlock(span, 0);
+
+        Assert.Equal(ModbusReadMode.OnTriggerRisingEdge, decoded.ReadMode);
+        Assert.Equal((ushort)35, decoded.TrigTagIndex);
+        Assert.Equal((ushort)10, decoded.ValidTagIndex);
+        Assert.Equal((ushort)11, decoded.ErrorTagIndex);
+        Assert.Equal((ushort)12, decoded.ErrCodeTagIndex);
+    }
+
+    [Fact]
+
     public void ModbusRegisterMap_WriteConstants_MatchWireContract()
     {
         Assert.Equal(0x1100, ModbusRegisterMap.ModbusMasterWriteTableBaseAddress);

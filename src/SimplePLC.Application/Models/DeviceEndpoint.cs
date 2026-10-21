@@ -27,3 +27,13 @@ public sealed record SimulatorEndpoint : DeviceEndpoint
 
     public override string ToString() => "SIMULATOR (VIRTUAL)";
 }
+
+/// <summary>
+/// Kết nối tới vi điều khiển PLC qua mạng Modbus TCP (Ethernet / Wi-Fi).
+/// </summary>
+public sealed record TcpEndpoint(string Host, int Port = 502, int TimeoutMs = 3000) : DeviceEndpoint
+{
+    public override string DisplayName => $"Modbus TCP ({Host}:{Port})";
+
+    public override string ToString() => $"{Host}:{Port}";
+}

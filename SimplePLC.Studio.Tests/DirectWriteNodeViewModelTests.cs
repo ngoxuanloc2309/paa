@@ -103,4 +103,75 @@ public class DirectWriteNodeViewModelTests
         Assert.NotNull(vm.SelectedDirectWriteNode);
         Assert.Same(node, vm.SelectedDirectWriteNode);
     }
+
+    [Fact]
+    public void PwmDuty_DynamicallyHidesEnConnector_OnlyKeepsDuty()
+    {
+        var node = new DirectWriteNodeViewModel();
+
+        // Initially in DO mode with OnTriggerRisingEdge: Trig, In, En
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.Contains(node.InputConnectors, c => c.Title == "En");
+
+        // Switch to PwmDuty mode with Continuous trigger: En and Trig must be removed
+        node.Mode = DirectWriteMode.PwmDuty;
+        node.TriggerMode = DirectWriteTriggerMode.Continuous;
+
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("Duty", node.InputConnectors[0].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "En");
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "Trig");
+
+        // Switch to OnTriggerRisingEdge: Trig added, Duty kept, En remains hidden
+        node.TriggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge;
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Duty", node.InputConnectors[1].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "En");
+
+        // Switch to COV (OnChangeOfValue): Trig removed, only Duty kept, En remains hidden
+        node.TriggerMode = DirectWriteTriggerMode.OnChangeOfValue;
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("Duty", node.InputConnectors[0].Title);
+        Assert.DoesNotContain(node.InputConnectors, c => c.Title == "En");
+        Assert.True(node.IsCovMode);
+        Assert.False(node.IsTriggerMode);
+    }
+
+    [Fact]
+    public void TriggerMode_CovMode_ReflectsDeadbandInSummaryText()
+    {
+        var node = new DirectWriteNodeViewModel
+        {
+            Mode = DirectWriteMode.PwmDuty,
+            TriggerMode = DirectWriteTriggerMode.OnChangeOfValue,
+            Deadband = 0.75f
+        };
+
+        Assert.Equal("COV (Δ0.75)", node.TriggerModeSummaryText);
+        Assert.True(node.IsCovMode);
+
+        node.Deadband = 1.25f;
+        Assert.Equal("COV (Δ1.25)", node.TriggerModeSummaryText);
+    }
+
+    [Fact]
+    public void PulseTrain_IncludesPulsesAndFreqConnectors()
+    {
+        var node = new DirectWriteNodeViewModel
+        {
+            Mode = DirectWriteMode.PulseTrain,
+            TriggerMode = DirectWriteTriggerMode.Continuous
+        };
+
+        Assert.Equal(2, node.InputConnectors.Count);
+        Assert.Equal("Pulses", node.InputConnectors[0].Title);
+        Assert.Equal("Freq", node.InputConnectors[1].Title);
+
+        node.TriggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge;
+        Assert.Equal(3, node.InputConnectors.Count);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("Pulses", node.InputConnectors[1].Title);
+        Assert.Equal("Freq", node.InputConnectors[2].Title);
+    }
 }

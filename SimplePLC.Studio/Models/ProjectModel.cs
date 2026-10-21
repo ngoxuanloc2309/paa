@@ -150,6 +150,8 @@ public class ProjectNodeData
     // Modbus Read node properties
     public byte ModbusSlaveId { get; set; } = 1;
     public string ModbusFunctionCode { get; set; } = "ReadHoldingRegisters";
+    public string ModbusReadMode { get; set; } = "Cyclic";
+    public ushort? ModbusTrigTagIndex { get; set; }
     public ushort ModbusStartAddress { get; set; } = 0;
     public ushort ModbusRegCount { get; set; } = 2;
     public uint ModbusPollIntervalMs { get; set; } = 500;
@@ -169,6 +171,7 @@ public class ProjectNodeData
     public string ModbusWriteTriggerMode { get; set; } = "OnTriggerRisingEdge";
     public uint ModbusWriteCyclicIntervalMs { get; set; } = 500;
     public uint ModbusWriteTimeoutMs { get; set; } = 300;
+    public float ModbusWriteDeadband { get; set; } = 0.5f;
     public List<ModbusPinData> ModbusWritePins { get; set; } = new();
 
     // Direct Write node properties
@@ -179,6 +182,7 @@ public class ProjectNodeData
     public uint DirectWritePulseWidthUs { get; set; } = 50;
     public uint DirectWritePwmFrequencyHz { get; set; } = 1000;
     public string DirectWriteTriggerMode { get; set; } = "OnTriggerRisingEdge";
+    public float DirectWriteDeadband { get; set; } = 0.5f;
     public uint DirectWriteTimeoutMs { get; set; } = 300;
     public uint DirectWriteDefaultColorRgb { get; set; } = 0x00FF00;
 }

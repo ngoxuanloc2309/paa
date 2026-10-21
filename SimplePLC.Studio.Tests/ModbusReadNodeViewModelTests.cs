@@ -177,5 +177,53 @@ public class ModbusReadNodeViewModelTests
         node.PollIntervalMs = 750;
         Assert.Equal("750 ms", node.PollIntervalDisplay);
     }
+
+    [Fact]
+    public void ReadMode_SwitchingBetweenCyclicAndTrigger_SwapsEnAndTrigConnectors()
+    {
+        var node = new ModbusReadNodeViewModel { PollIntervalMs = 500 };
+        Assert.Equal(ModbusReadMode.Cyclic, node.ReadMode);
+        Assert.Equal("500ms", node.ReadModeSummaryText);
+        Assert.False(node.IsTriggerMode);
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("EN", node.InputConnectors[0].Title);
+
+        // Switch to OnTriggerRisingEdge
+        node.ReadMode = ModbusReadMode.OnTriggerRisingEdge;
+        Assert.Equal("On Trig", node.ReadModeSummaryText);
+        Assert.True(node.IsTriggerMode);
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("Trig", node.InputConnectors[0].Title);
+        Assert.Equal("PinTooltipMbReadTrig", node.InputConnectors[0].TooltipKey);
+
+        // Switch back to Cyclic
+        node.ReadMode = ModbusReadMode.Cyclic;
+        Assert.Equal("500ms", node.ReadModeSummaryText);
+        Assert.False(node.IsTriggerMode);
+        Assert.Single(node.InputConnectors);
+        Assert.Equal("EN", node.InputConnectors[0].Title);
+    }
+
+    [Fact]
+    public void ModbusRead_Serialization_Roundtrip_PreservesReadMode()
+    {
+        var editor = new LogicEditorViewModel(new TagCatalogViewModel());
+        var originalNode = new ModbusReadNodeViewModel
+        {
+            SlaveId = 4,
+            ReadMode = ModbusReadMode.OnTriggerRisingEdge,
+            PollIntervalMs = 200
+        };
+
+        var projectNodeData = LogicEditorViewModel.ExportSingleNodeData(originalNode);
+        Assert.Equal("OnTriggerRisingEdge", projectNodeData.ModbusReadMode);
+
+        var restoredNode = editor.CreateNodeFromData(projectNodeData) as ModbusReadNodeViewModel;
+        Assert.NotNull(restoredNode);
+        Assert.Equal(ModbusReadMode.OnTriggerRisingEdge, restoredNode.ReadMode);
+        Assert.Single(restoredNode.InputConnectors);
+        Assert.Equal("Trig", restoredNode.InputConnectors[0].Title);
+    }
 }
+
 

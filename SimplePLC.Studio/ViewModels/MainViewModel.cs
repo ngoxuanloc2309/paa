@@ -39,6 +39,28 @@ public partial class MainViewModel : ObservableObject
     private string _selectedPort = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnModeText))]
+    [NotifyPropertyChangedFor(nameof(ConnModeIcon))]
+    private bool _isTcpMode;
+
+    [ObservableProperty]
+    private string _tcpHost = "127.0.0.1";
+
+    [ObservableProperty]
+    private int _tcpPort = 502;
+
+    public string ConnModeText => IsTcpMode ? "TCP" : "RTU/USB";
+    public string ConnModeIcon => IsTcpMode ? "🌐" : "🔌";
+
+    [RelayCommand]
+    public void ToggleTcpMode()
+    {
+        if (IsConnected) return;
+        IsTcpMode = !IsTcpMode;
+        UpdateConnectionStatus();
+    }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
     [NotifyPropertyChangedFor(nameof(CanSelectPort))]
     [NotifyPropertyChangedFor(nameof(ConnectionBadgeText))]
@@ -418,30 +440,49 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(SelectedPort))
+        DeviceEndpoint endpoint;
+        if (IsTcpMode)
         {
-            System.Windows.MessageBox.Show(
-                Loc.IsVietnamese ? "Vui lòng chọn cổng COM trước khi kết nối." : "Please select a COM port before connecting.",
-                Loc.IsVietnamese ? "Chưa chọn cổng" : "Port Required",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
-            return;
+            if (string.IsNullOrWhiteSpace(TcpHost))
+            {
+                System.Windows.MessageBox.Show(
+                    Loc.IsVietnamese ? "Vui lòng nhập địa chỉ IP hoặc Host Modbus TCP." : "Please enter a valid Modbus TCP IP or Host.",
+                    Loc.IsVietnamese ? "Chưa nhập địa chỉ IP" : "Host Required",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+            int port = TcpPort > 0 && TcpPort <= 65535 ? TcpPort : 502;
+            endpoint = new TcpEndpoint(TcpHost.Trim(), port);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(SelectedPort))
+            {
+                System.Windows.MessageBox.Show(
+                    Loc.IsVietnamese ? "Vui lòng chọn cổng COM trước khi kết nối." : "Please select a COM port before connecting.",
+                    Loc.IsVietnamese ? "Chưa chọn cổng" : "Port Required",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            AppServices.Instance.ConfigureForPort(SelectedPort);
+
+            // D3.3: Connect delegate toàn bộ cho LifecycleManager
+            endpoint = SelectedPort == "SIMULATOR (VIRTUAL)"
+                ? new SimulatorEndpoint()
+                : new UsbCdcEndpoint(SelectedPort);
         }
 
         using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try
         {
-            AppServices.Instance.ConfigureForPort(SelectedPort);
-
-            // D3.3: Connect delegate toàn bộ cho LifecycleManager
-            DeviceEndpoint endpoint = SelectedPort == "SIMULATOR (VIRTUAL)"
-                ? new SimulatorEndpoint()
-                : new UsbCdcEndpoint(SelectedPort);
             bool success = await lifecycle.ConnectAsync(endpoint, ct: connectCts.Token);
 
             if (success)
             {
-                // SelectedPort được cập nhật từ CurrentEndpoint của lifecycle (confirmed by handshake)
+                // SelectedPort / TcpHost được cập nhật từ CurrentEndpoint của lifecycle (confirmed by handshake)
                 var confirmedEndpoint = lifecycle.CurrentEndpoint;
                 if (confirmedEndpoint is UsbCdcEndpoint usbEp)
                 {
@@ -450,6 +491,11 @@ public partial class MainViewModel : ObservableObject
                 else if (confirmedEndpoint is SimulatorEndpoint)
                 {
                     SelectedPort = "SIMULATOR (VIRTUAL)";
+                }
+                else if (confirmedEndpoint is TcpEndpoint tcpEp)
+                {
+                    TcpHost = tcpEp.Host;
+                    TcpPort = tcpEp.Port;
                 }
 
                 // Cập nhật firmware info từ session descriptor nếu có
@@ -698,8 +744,15 @@ public partial class MainViewModel : ObservableObject
                     {
                         SelectedPort = "SIMULATOR (VIRTUAL)";
                     }
+                    else if (e.Endpoint is TcpEndpoint tcpEp)
+                    {
+                        TcpHost = tcpEp.Host;
+                        TcpPort = tcpEp.Port;
+                    }
                     var connPortDisplay = e.Endpoint is UsbCdcEndpoint ue ? ue.PortName
-                        : e.Endpoint is SimulatorEndpoint ? "SIMULATOR" : SelectedPort;
+                        : e.Endpoint is SimulatorEndpoint ? "SIMULATOR"
+                        : e.Endpoint is TcpEndpoint te ? $"TCP {te.Host}:{te.Port}"
+                        : SelectedPort;
                     LifecycleStatusText = isVi
                         ? $"● Đã kết nối · {connPortDisplay}"
                         : $"● Connected · {connPortDisplay}";
@@ -879,9 +932,11 @@ public partial class MainViewModel : ObservableObject
 
                 case ConnectionLifecycleState.Disconnected:
                 default:
-                    ConnectActionText = isSim
-                        ? (isVi ? "⚡ Kết nối thiết bị ảo" : "⚡ Connect Virtual Device")
-                        : (isVi ? "⚡ Kết nối thiết bị" : "⚡ Connect Device");
+                    ConnectActionText = IsTcpMode
+                        ? (isVi ? "⚡ Kết nối TCP" : "⚡ Connect TCP")
+                        : (isSim
+                            ? (isVi ? "⚡ Kết nối thiết bị ảo" : "⚡ Connect Virtual Device")
+                            : (isVi ? "⚡ Kết nối thiết bị" : "⚡ Connect Device"));
                     ConnectButtonBackground = "#107C41"; // Forest Green (Safe Initiate)
                     ConnectButtonBorderBrush = "#0E6B37";
                     break;
@@ -892,21 +947,29 @@ public partial class MainViewModel : ObservableObject
             ? (isVi ? $"Cổng kết nối ({SelectedPort})" : $"Port ({SelectedPort})")
             : (isVi ? "Cổng kết nối (Chưa chọn)" : "Port (None)");
 
+        var activeEp = AppServices.Instance.LifecycleManager.CurrentEndpoint;
         ConnectionInfo = IsConnected
-            ? (isSim
-                ? (isVi ? "SIMULATOR (VIRTUAL) · Thiết bị ảo (Đã kết nối)" : "SIMULATOR (VIRTUAL) · Virtual Device (Connected)")
-                : $"{SelectedPort} · USB CDC ({(isVi ? "Đã kết nối" : "Connected")})")
-            : (string.IsNullOrWhiteSpace(SelectedPort)
-                ? (isVi ? "Chưa chọn cổng · Chưa kết nối" : "No port selected · Disconnected")
+            ? (activeEp is TcpEndpoint tcpEp
+                ? $"TCP {tcpEp.Host}:{tcpEp.Port} · Modbus TCP ({(isVi ? "Đã kết nối" : "Connected")})"
                 : (isSim
-                    ? (isVi ? "SIMULATOR (VIRTUAL) · Thiết bị ảo (Chưa kết nối)" : "SIMULATOR (VIRTUAL) · Virtual Device (Disconnected)")
-                    : $"{SelectedPort} · USB CDC ({(isVi ? "Chưa kết nối" : "Disconnected")})"));
+                    ? (isVi ? "SIMULATOR (VIRTUAL) · Thiết bị ảo (Đã kết nối)" : "SIMULATOR (VIRTUAL) · Virtual Device (Connected)")
+                    : $"{SelectedPort} · USB CDC ({(isVi ? "Đã kết nối" : "Connected")})"))
+            : (IsTcpMode
+                ? $"TCP {TcpHost}:{TcpPort} ({(isVi ? "Chưa kết nối" : "Disconnected")})"
+                : (string.IsNullOrWhiteSpace(SelectedPort)
+                    ? (isVi ? "Chưa chọn cổng · Chưa kết nối" : "No port selected · Disconnected")
+                    : (isSim
+                        ? (isVi ? "SIMULATOR (VIRTUAL) · Thiết bị ảo (Chưa kết nối)" : "SIMULATOR (VIRTUAL) · Virtual Device (Disconnected)")
+                        : $"{SelectedPort} · USB CDC ({(isVi ? "Chưa kết nối" : "Disconnected")})")));
 
+        OnPropertyChanged(nameof(ConnectionInfo));
         OnPropertyChanged(nameof(ConnectionBadgeText));
     }
 
     public string ConnectionBadgeText => IsConnected
-        ? (SelectedPort == "SIMULATOR (VIRTUAL)" ? "● SIMULATOR" : $"● {SelectedPort}")
+        ? (AppServices.Instance.LifecycleManager.CurrentEndpoint is TcpEndpoint tcp
+            ? $"● TCP {tcp.Host}:{tcp.Port}"
+            : (SelectedPort == "SIMULATOR (VIRTUAL)" ? "● SIMULATOR" : $"● {SelectedPort}"))
         : (Loc.IsVietnamese ? "○ Chưa kết nối" : "○ Disconnected");
 
     public void UpdateDeviceProductInfo(DeviceDescriptorDto? descriptor = null, DeviceResourceInfoDto? resourceInfo = null)

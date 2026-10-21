@@ -430,37 +430,50 @@ The **`MB_READ`** block empowers SimplePLC to act as an autonomous Modbus RTU Ma
 ---
 
 ### 6.5 RS-485 Modbus RTU Master Actuator Controller (MB_WRITE)
-The **`MB_WRITE`** block enables SimplePLC to act as an active Modbus RTU Master, transmitting command and parameter frames over RS-485 to external field actuators (Variable Frequency Drives, Sort-to-Light smart LED indicators, multi-channel relay modules, Modbus control valves):
+The **`MB_WRITE`** block (badge `MB_WRITE`) enables SimplePLC to act as an active Modbus RTU Master, transmitting command and parameter frames over RS-485 to external field actuators (Variable Frequency Drives, Sort-to-Light smart LED indicators, multi-channel relay modules, Modbus control valves). The block complies with international standards **PLCopen TC5 Communication** and **IEC 61131-3**.
+
+> [!TIP]
+> **Detailed Engineering Manual:** Refer to the comprehensive manual at [`docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md) for complete application case studies, formulas, and telegram frame breakdowns.
 
 #### 1. MB_WRITE Canvas Connector Topology:
-- **Input Pin `Trig` (or `EN`):** Command execution trigger based on the configured trigger mode.
-- **Output Pin `Done`:** Emits a single-scan 1-shot pulse upon receiving positive acknowledgment echo from the target slave actuator.
-- **Output Pin `Err`:** Latches TRUE upon transmission failure (timeout, CRC corrupted, or slave exception).
-- **Output Pin `Err_Code`:** Industrial diagnostic code:
-  - `0`: Success (`ERR_NONE`).
-  - `1`: Response timeout (`ERR_TIMEOUT` — actuator unpowered or cable broken).
-  - `2`: Integrity failure (`ERR_CRC` — electromagnetic noise).
-  - `3`: Slave exception (`ERR_EXCEPTION` — illegal register or value).
-  - `4`: Bus arbitration collision (`ERR_BUS_BUSY`).
-- **Dynamic Source Data Pins:** Up to 4 input pins per block, binding runtime tag values into payload registers.
+- **Event Input Pin `Trig`:** Execution trigger pulse (only visible on Canvas when `TriggerMode = OnTriggerRisingEdge`).
+- **Data Input Pins:**
+  - *Channel-Indexed Mode:* `Channel` (target index $1..N$), `Command` (action code), `Param` (24-bit RGB color code or extended parameter).
+  - *Direct Registers Mode:* Dynamic data input pins `IN0`..`IN3` bound to runtime values to write directly into slave registers.
+- **Handshaking Status Output Pins:**
+  - **`Done`:** Emits a single-scan 1-shot pulse ($10\text{ms}$) upon receiving positive acknowledgment echo from the target slave.
+  - **`Busy`:** Latches `TRUE` throughout the UART RS-485 frame dispatch and response reception window. Serves as an interlocking guard flag.
+  - **`Error`:** Latches `TRUE` upon transmission failure (timeout, CRC corrupted, or slave exception).
+  - **`ErrCode`:** Standard diagnostic error code:
+    - `0`: Success (`ERR_NONE`).
+    - `1`: Response timeout (`ERR_TIMEOUT` — actuator unpowered or cable broken).
+    - `2`: Integrity failure (`ERR_CRC` — electromagnetic noise).
+    - `3`: Slave exception (`ERR_EXCEPTION` — illegal register or value).
+    - `4`: Bus arbitration collision (`ERR_BUS_BUSY`).
+    - `5`: Channel out of bounds (`ERR_CHANNEL_OUT_OF_BOUNDS`).
 
 #### 2. Dual Industrial Operating Modes (Write Modes):
 1. **Direct Registers Mode:**
-   - Standard Modbus write function codes:
+   - Supports 4 standard Modbus function codes:
      - `FC 05`: Write Single Coil (1-bit digital state).
      - `FC 06`: Write Single Register (16-bit word — VFD frequency, setpoints).
      - `FC 15`: Write Multiple Coils.
      - `FC 16`: Write Multiple Registers.
-   - Configurable `Start Address` and `Point Count`, type conversion (`INT16`, `UINT16`, `REAL`, `INT32`), endianness swapping, and inverse scaling factor.
+   - Configurable `Start Address` and `Point Count`, type conversion (`INT16`, `UINT16`, `REAL` Float32 IEEE 754, `INT32`, `UINT32`, `BOOL`), endianness swapping (`ABCD`, `CDAB` Word-Swap, `BADC`, `DCBA`), and inverse scaling factor (`Multiplier`).
 2. **Channel-Indexed Target Mode (Optimized for E-Commerce Logistics):**
    - Engineered specifically for distributed multi-channel actuators such as **Sort-to-Light racks (1..18 bins)**, pneumatic manifold banks, or zoned LED indicators.
    - Configurable `Base Command Address` (e.g. `0x0100`) and `Base Param Address` (e.g. `0x0120` for 24-bit RGB colors).
-   - **Exclusive Channel Arbiter (`ExclusiveChannel`):** When enabled, activating any single bin automatically clears/extinguishes all other 17 bins, eliminating fulfillment operator picking errors.
+   - Automatically dispatches **FC 06** for Command and **FC 16** for 32-bit Param.
+   - **Exclusive Channel Arbiter (`ExclusiveChannel`):** When enabled, activating any single bin automatically clears/extinguishes all other bins, eliminating fulfillment operator picking errors.
 
-#### 3. Execution Trigger Policies:
-- **On Trigger Rising Edge (Default):** Dispatches write PDU strictly on the $0 \rightarrow 1$ transition of the `Trig` pin (ideal for drop confirmation, barcode scan events).
-- **On Data Change:** Dispatches write PDU immediately when any source data pin value changes (optimal for closed-loop pressure-to-frequency VFD modulation).
-- **Cyclic:** Dispatches periodic heartbeat/refresh commands at `IntervalMs` intervals.
+#### 3. Execution Trigger Policies & Deadband Filter:
+- **On Trigger Rising Edge (Event-driven):** Dispatches write PDU strictly on the $0 \rightarrow 1$ transition of the `Trig` pin (ideal for barcode scan events, drop confirmations, pushbuttons).
+- **Cyclic (Periodic Heartbeat):** Dispatches periodic write telegrams at `CyclicIntervalMs` (50..60000ms) intervals, ideal for actuator watchdog heartbeats.
+- **On Data Change with COV Deadband ($\Delta$):** Dispatches write PDU immediately when input values change by more than `Deadband` ($|\text{Val} - \text{Val}_{\text{last}}| \ge \text{Deadband}$). Prevents RS-485 bus saturation caused by continuous ADC/analog fractional noise.
+
+#### 4. ISA-101 Ergonomic HMI Experience:
+- **Sidebar Inspector (~230px):** Serves as a clean read-only summary card displaying Slave ID, Write Mode, Trigger Mode summary (e.g. `Cyclic (500 ms)` or `On Data Change (Δ0.50)`), pin count, and a prominent `[ ⚙ Configure... ]` button.
+- **Popup Configuration Dialog:** Dedicated workspace offering an automated Actuator Channel Mapping Table and an interactive Modbus RTU Frame Inspector with CRC-16 breakdown.
 
 ---
 
