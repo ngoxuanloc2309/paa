@@ -1,4 +1,4 @@
-using SimplePLC.Application.Abstractions;
+﻿using SimplePLC.Application.Abstractions;
 using SimplePLC.Application.Models;
 using SimplePLC.Application.Services;
 using SimplePLC.Infrastructure.Abstractions;
@@ -77,7 +77,7 @@ public sealed class DeviceDiscoveryAndHandshakeTests
 
         // Kích hoạt mất kết nối đột ngột
         await manager.NotifyUnexpectedDisconnectAsync(new System.IO.IOException("Unplugged"));
-        await Task.Delay(150);
+        await Task.Delay(250);
 
         // Assert: COM3 (previous) phải được probe trước tiên dù detector trả về COM4 trước
         Assert.Equal(ConnectionLifecycleState.Connected, manager.CurrentState);

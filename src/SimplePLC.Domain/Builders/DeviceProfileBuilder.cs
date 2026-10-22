@@ -43,7 +43,8 @@ public static class DeviceProfileBuilder
         ProductResourceProfile resources,
         out ProductDefinition? product,
         out string? errorMessage,
-        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,
+        ushort? physicalRs485PortCount = null)
     {
         product = null;
         errorMessage = null;
@@ -133,7 +134,8 @@ public static class DeviceProfileBuilder
             resources,
             tags,
             wireProfile: wireProfile,
-            hardwareCapabilities: hardwareCapabilities);
+            hardwareCapabilities: hardwareCapabilities,
+            physicalRs485PortCount: physicalRs485PortCount);
 
         return true;
     }
@@ -149,9 +151,10 @@ public static class DeviceProfileBuilder
         ushort maxRules,
         ushort runtimeTagCount,
         ProductResourceProfile resources,
-        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,
+        ushort? physicalRs485PortCount = null)
     {
-        if (!TryBuild(deviceClass, productVariant, protocolVersion, wireProfile, maxRules, runtimeTagCount, resources, out var product, out var error, hardwareCapabilities))
+        if (!TryBuild(deviceClass, productVariant, protocolVersion, wireProfile, maxRules, runtimeTagCount, resources, out var product, out var error, hardwareCapabilities, physicalRs485PortCount))
         {
             throw new InvalidOperationException($"Failed to build product profile: {error}");
         }

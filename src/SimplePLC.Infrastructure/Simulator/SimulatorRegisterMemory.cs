@@ -1,4 +1,4 @@
-﻿using SimplePLC.Protocol.Constants;
+using SimplePLC.Protocol.Constants;
 
 namespace SimplePLC.Infrastructure.Simulator;
 
@@ -23,6 +23,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
         return IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceDescriptorAddress, ModbusRegisterMap.DeviceDescriptorLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceResourceInfoAddress, ModbusRegisterMap.DeviceResourceInfoLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.HardwareCapabilitiesAddress, ModbusRegisterMap.HardwareCapabilitiesLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.Rs485PhysicalPortCountAddress, ModbusRegisterMap.Rs485PhysicalPortCountLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.RuleTableInfoAddress, ModbusRegisterMap.RuleTableInfoLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.ActiveRuleTableBaseAddress, ModbusRegisterMap.ActiveRuleTableMaxLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceHealthAddress, ModbusRegisterMap.DeviceHealthLength) ||

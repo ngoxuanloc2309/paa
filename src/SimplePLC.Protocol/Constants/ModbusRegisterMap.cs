@@ -1,4 +1,4 @@
-﻿namespace SimplePLC.Protocol.Constants;
+namespace SimplePLC.Protocol.Constants;
 
 /// <summary>
 /// Nguồn chân lý duy nhất (R3) cho bản đồ địa chỉ thanh ghi Modbus V1 theo Data Contract V1.7.
@@ -125,6 +125,13 @@ public static class ModbusRegisterMap
     /// </summary>
     public const ushort HardwareCapabilitiesAddress = 0x0A08;
     public const ushort HardwareCapabilitiesLength = 2;
+
+    /// <summary>
+    /// Vùng khai báo số lượng cổng RS-485 vật lý hiện hữu trên bo mạch (0x0A0A, 1 register = 2 bytes, uint16, RO).
+    /// Giá trị: 0 (không có), 1 (Micro/1 cổng), 2 (Standard/2 cổng), 4 (Gateway/Modular).
+    /// </summary>
+    public const ushort Rs485PhysicalPortCountAddress = 0x0A0A;
+    public const ushort Rs485PhysicalPortCountLength = 1;
 
     // ==========================================
     // 2.0 PHÂN VÙNG DIAGNOSTIC & COMMISSIONING V2 (0x0A20 - 0x0A24)

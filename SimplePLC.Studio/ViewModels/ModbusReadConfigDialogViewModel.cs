@@ -23,15 +23,10 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(PortSelectorTooltip))]
     private byte _portIndex;
 
-    public IReadOnlyList<OptionItem<byte>> AvailablePorts { get; } = new List<OptionItem<byte>>
-    {
-        new(0, "Cổng 1 (RS-485 #1)"),
-        new(1, "Cổng 2 (RS-485 #2)"),
-        new(2, "Cổng 3 (RS-485 #3)"),
-        new(3, "Cổng 4 (RS-485 #4)")
-    };
+    public ObservableCollection<OptionItem<byte>> AvailablePorts { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -63,13 +58,9 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     public bool IsTriggerMode => ReadMode == ModbusReadMode.OnTriggerRisingEdge;
     public bool IsCyclicMode => ReadMode == ModbusReadMode.Cyclic;
 
-    public IReadOnlyList<OptionItem<ModbusReadMode>> AvailableReadModes { get; } = new List<OptionItem<ModbusReadMode>>
-    {
-        new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"),
-        new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)")
-    };
+    public ObservableCollection<OptionItem<ModbusReadMode>> AvailableReadModes { get; } = new();
 
-    public string SummaryBadgeText => $"Port {PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+    public string SummaryBadgeText => $"{(LocalizationService.Instance.IsVietnamese ? "Cá»•ng " : "Port ")}{PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
 
     public bool HasPins => Node.Pins.Count > 0;
     public bool HasNoPins => Node.Pins.Count == 0;
@@ -86,13 +77,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasRunSimulation = false;
 
-    public IReadOnlyList<OptionItem<ModbusMasterFunctionCode>> AvailableFunctionCodes { get; } = new List<OptionItem<ModbusMasterFunctionCode>>
-    {
-        new(ModbusMasterFunctionCode.ReadHoldingRegisters, "FC 03: Read Holding Registers (4x)"),
-        new(ModbusMasterFunctionCode.ReadInputRegisters, "FC 04: Read Input Registers (3x)"),
-        new(ModbusMasterFunctionCode.ReadCoils, "FC 01: Read Coils (0x)"),
-        new(ModbusMasterFunctionCode.ReadDiscreteInputs, "FC 02: Read Discrete Inputs (1x)")
-    };
+    public ObservableCollection<OptionItem<ModbusMasterFunctionCode>> AvailableFunctionCodes { get; } = new();
 
     public IReadOnlyList<OptionItem<ModbusDataType>> AvailableDataTypes { get; } = new List<OptionItem<ModbusDataType>>
     {
@@ -112,10 +97,16 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         new(ModbusEndianness.LittleEndian_DCBA, "Little-Endian (DCBA)")
     };
 
-    public ModbusReadConfigDialogViewModel(ModbusReadNodeViewModel node, TagCatalogViewModel tagCatalog)
+    private readonly IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+
+    public ModbusReadConfigDialogViewModel(
+        ModbusReadNodeViewModel node, 
+        TagCatalogViewModel tagCatalog,
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
+        _modbusPorts = availablePorts?.ToList();
 
         _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
@@ -132,6 +123,102 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         }
 
         UpdateRegCountFromPins();
+
+        PopulateLocalizedOptions();
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    public void PopulateLocalizedOptions()
+    {
+        var curPort = PortIndex;
+        var curMode = ReadMode;
+        var curFc = FunctionCode;
+
+        AvailablePorts.Clear();
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        string prefix = isVi ? "Cổng" : "Port";
+
+        if (_modbusPorts != null && _modbusPorts.Count > 0)
+        {
+            var enabledPorts = _modbusPorts.Where(p => p.Enabled).ToList();
+            if (enabledPorts.Count > 0)
+            {
+                foreach (var p in enabledPorts)
+                {
+                    AvailablePorts.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
+                }
+
+                if (!enabledPorts.Any(p => p.PortIndex == curPort))
+                {
+                    var disabledPort = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
+                    if (disabledPort != null)
+                    {
+                        AvailablePorts.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
+                    }
+                }
+            }
+            else
+            {
+                string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485]" : "[No RS-485 Ports Enabled]");
+                AvailablePorts.Add(new OptionItem<byte>(curPort, noPortsMsg));
+            }
+        }
+        else
+        {
+            for (byte i = 0; i < 4; i++)
+            {
+                AvailablePorts.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
+            }
+        }
+
+        AvailableReadModes.Clear();
+        AvailableReadModes.Add(new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"));
+        AvailableReadModes.Add(new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)"));
+
+        AvailableFunctionCodes.Clear();
+        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadHoldingRegisters, LocalizationService.Tr("ModbusReadFc03") ?? "FC 03: Read Holding Registers (4x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadInputRegisters, LocalizationService.Tr("ModbusReadFc04") ?? "FC 04: Read Input Registers (3x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadCoils, LocalizationService.Tr("ModbusReadFc01") ?? "FC 01: Read Coils (0x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadDiscreteInputs, LocalizationService.Tr("ModbusReadFc02") ?? "FC 02: Read Discrete Inputs (1x)"));
+
+        PortIndex = curPort;
+        ReadMode = curMode;
+        FunctionCode = curFc;
+    }
+
+    public string PortSelectorTooltip
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (_modbusPorts != null && !_modbusPorts.Any(p => p.Enabled))
+            {
+                return LocalizationService.Tr("ModbusNoPortsEnabledTooltip") 
+                    ?? (isVi ? "Chưa có cổng RS-485 nào được kích hoạt trên thiết bị. Vui lòng vào Cài đặt > Cấu hình Cổng RS-485 để kích hoạt ít nhất 1 cổng." : "No RS-485 ports are currently enabled. Please open Settings > RS-485 Modbus Master Ports to enable at least one port.");
+            }
+
+            if (_modbusPorts != null && _modbusPorts.Count > 0)
+            {
+                var curPortObj = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+                if (curPortObj != null)
+                {
+                    if (!curPortObj.Enabled)
+                    {
+                        return (isVi ? "Cổng này đang bị VÔ HIỆU HÓA trong cấu hình thiết bị: " : "This port is DISABLED in device settings: ") + curPortObj.FormatFullSummary(isVi, isForceDisabledWarning: true);
+                    }
+                    return curPortObj.FormatFullSummary(isVi);
+                }
+            }
+
+            return (isVi ? "Cổng truyền thông RS-485 #" : "RS-485 Communication Port #") + (PortIndex + 1);
+        }
+    }
+
+    private void OnLanguageChanged()
+    {
+        PopulateLocalizedOptions();
+        OnPropertyChanged(nameof(SummaryBadgeText));
+        OnPropertyChanged(nameof(PortSelectorTooltip));
     }
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

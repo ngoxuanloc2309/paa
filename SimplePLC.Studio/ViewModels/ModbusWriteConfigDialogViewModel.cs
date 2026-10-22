@@ -48,15 +48,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(PortSelectorTooltip))]
     private byte _portIndex;
 
-    public IReadOnlyList<OptionItem<byte>> AvailablePorts { get; } = new List<OptionItem<byte>>
-    {
-        new(0, "Cổng 1 (RS-485 #1)"),
-        new(1, "Cổng 2 (RS-485 #2)"),
-        new(2, "Cổng 3 (RS-485 #3)"),
-        new(3, "Cổng 4 (RS-485 #4)")
-    };
+    public ObservableCollection<OptionItem<byte>> AvailablePorts { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -125,9 +120,11 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     public bool IsChannelIndexedMode => WriteMode == ModbusWriteMode.ChannelIndexed;
     public bool IsDirectRegistersMode => WriteMode == ModbusWriteMode.DirectRegisters;
 
-    public string SummaryBadgeText => WriteMode == ModbusWriteMode.ChannelIndexed
-        ? $"Port {PortIndex + 1} | Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}"
-        : $"Port {PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+    public string SummaryBadgeText => GetSummaryBadgeText();
+    private string GetSummaryBadgeText() => (LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ") + (WriteMode == ModbusWriteMode.ChannelIndexed ? $"{PortIndex + 1} | Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}" : $"{PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)");
+
+
+
 
     public bool HasPins => Node.Pins.Count > 0;
     public bool HasNoPins => Node.Pins.Count == 0;
@@ -168,26 +165,9 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     public ObservableCollection<ModbusFrameFieldBreakdown> FrameBreakdownItems { get; } = new();
 
-    public IReadOnlyList<OptionItem<ModbusWriteMode>> AvailableWriteModes { get; } = new List<OptionItem<ModbusWriteMode>>
-    {
-        new(ModbusWriteMode.ChannelIndexed, LocalizationService.Tr("ModbusWriteModeIndexed") ?? "Channel-Indexed Target"),
-        new(ModbusWriteMode.DirectRegisters, LocalizationService.Tr("ModbusWriteModeDirect") ?? "Direct Registers")
-    };
-
-    public IReadOnlyList<OptionItem<ModbusMasterWriteFunctionCode>> AvailableFunctionCodes { get; } = new List<OptionItem<ModbusMasterWriteFunctionCode>>
-    {
-        new(ModbusMasterWriteFunctionCode.WriteSingleRegister, LocalizationService.Tr("ModbusWriteFc06") ?? "FC 06: Write Register (4x)"),
-        new(ModbusMasterWriteFunctionCode.WriteMultipleRegisters, LocalizationService.Tr("ModbusWriteFc16") ?? "FC 16: Write Multiple (4x)"),
-        new(ModbusMasterWriteFunctionCode.WriteSingleCoil, LocalizationService.Tr("ModbusWriteFc05") ?? "FC 05: Write Coil (0x)"),
-        new(ModbusMasterWriteFunctionCode.WriteMultipleCoils, LocalizationService.Tr("ModbusWriteFc15") ?? "FC 15: Write Multiple Coils (0x)")
-    };
-
-    public IReadOnlyList<OptionItem<ModbusWriteTriggerMode>> AvailableTriggerModes { get; } = new List<OptionItem<ModbusWriteTriggerMode>>
-    {
-        new(ModbusWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusWriteTrigEdge") ?? "Rising Edge (Trig)"),
-        new(ModbusWriteTriggerMode.OnDataChange, LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change"),
-        new(ModbusWriteTriggerMode.Cyclic, LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic (Periodic)")
-    };
+    public ObservableCollection<OptionItem<ModbusWriteMode>> AvailableWriteModes { get; } = new();
+    public ObservableCollection<OptionItem<ModbusMasterWriteFunctionCode>> AvailableFunctionCodes { get; } = new();
+    public ObservableCollection<OptionItem<ModbusWriteTriggerMode>> AvailableTriggerModes { get; } = new();
 
     public IReadOnlyList<OptionItem<ModbusDataType>> AvailableDataTypes { get; } = new List<OptionItem<ModbusDataType>>
     {
@@ -207,10 +187,16 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         new(ModbusEndianness.LittleEndian_DCBA, "Little-Endian (DCBA)")
     };
 
-    public ModbusWriteConfigDialogViewModel(ModbusWriteNodeViewModel node, TagCatalogViewModel tagCatalog)
+    private readonly IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+
+    public ModbusWriteConfigDialogViewModel(
+        ModbusWriteNodeViewModel node, 
+        TagCatalogViewModel tagCatalog,
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
+        _modbusPorts = availablePorts?.ToList();
 
         _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
@@ -237,6 +223,111 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             AddPin();
         }
 
+        PopulateLocalizedOptions();
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+
+        UpdateChannelMappings();
+        GenerateFramePreview();
+    }
+
+    public void PopulateLocalizedOptions()
+    {
+        var curPort = PortIndex;
+        var curMode = WriteMode;
+        var curFc = FunctionCode;
+        var curTrig = TriggerMode;
+
+        AvailablePorts.Clear();
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        string prefix = isVi ? "Cổng" : "Port";
+
+        if (_modbusPorts != null && _modbusPorts.Count > 0)
+        {
+            var enabledPorts = _modbusPorts.Where(p => p.Enabled).ToList();
+            if (enabledPorts.Count > 0)
+            {
+                foreach (var p in enabledPorts)
+                {
+                    AvailablePorts.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
+                }
+
+                if (!enabledPorts.Any(p => p.PortIndex == curPort))
+                {
+                    var disabledPort = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
+                    if (disabledPort != null)
+                    {
+                        AvailablePorts.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
+                    }
+                }
+            }
+            else
+            {
+                string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485]" : "[No RS-485 Ports Enabled]");
+                AvailablePorts.Add(new OptionItem<byte>(curPort, noPortsMsg));
+            }
+        }
+        else
+        {
+            for (byte i = 0; i < 4; i++)
+            {
+                AvailablePorts.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
+            }
+        }
+
+        AvailableWriteModes.Clear();
+        AvailableWriteModes.Add(new(ModbusWriteMode.ChannelIndexed, LocalizationService.Tr("ModbusWriteModeIndexed") ?? "Channel-Indexed Target"));
+        AvailableWriteModes.Add(new(ModbusWriteMode.DirectRegisters, LocalizationService.Tr("ModbusWriteModeDirect") ?? "Direct Registers"));
+
+        AvailableFunctionCodes.Clear();
+        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteSingleRegister, LocalizationService.Tr("ModbusWriteFc06") ?? "FC 06: Write Register (4x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteMultipleRegisters, LocalizationService.Tr("ModbusWriteFc16") ?? "FC 16: Write Multiple (4x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteSingleCoil, LocalizationService.Tr("ModbusWriteFc05") ?? "FC 05: Write Coil (0x)"));
+        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteMultipleCoils, LocalizationService.Tr("ModbusWriteFc15") ?? "FC 15: Write Multiple Coils (0x)"));
+
+        AvailableTriggerModes.Clear();
+        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusWriteTrigEdge") ?? "Rising Edge (Trig)"));
+        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.OnDataChange, LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change"));
+        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.Cyclic, LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic (Periodic)"));
+
+        PortIndex = curPort;
+        WriteMode = curMode;
+        FunctionCode = curFc;
+        TriggerMode = curTrig;
+    }
+
+    public string PortSelectorTooltip
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (_modbusPorts != null && !_modbusPorts.Any(p => p.Enabled))
+            {
+                return LocalizationService.Tr("ModbusNoPortsEnabledTooltip") 
+                    ?? (isVi ? "Chưa có cổng RS-485 nào được kích hoạt trên thiết bị. Vui lòng vào Cài đặt > Cấu hình Cổng RS-485 để kích hoạt ít nhất 1 cổng." : "No RS-485 ports are currently enabled. Please open Settings > RS-485 Modbus Master Ports to enable at least one port.");
+            }
+
+            if (_modbusPorts != null && _modbusPorts.Count > 0)
+            {
+                var curPortObj = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+                if (curPortObj != null)
+                {
+                    if (!curPortObj.Enabled)
+                    {
+                        return (isVi ? "Cổng này đang bị VÔ HIỆU HÓA trong cấu hình thiết bị: " : "This port is DISABLED in device settings: ") + curPortObj.FormatFullSummary(isVi, isForceDisabledWarning: true);
+                    }
+                    return curPortObj.FormatFullSummary(isVi);
+                }
+            }
+
+            return (isVi ? "Cổng truyền thông RS-485 #" : "RS-485 Communication Port #") + (PortIndex + 1);
+        }
+    }
+
+    private void OnLanguageChanged()
+    {
+        PopulateLocalizedOptions();
+        OnPropertyChanged(nameof(SummaryBadgeText));
+        OnPropertyChanged(nameof(PortSelectorTooltip));
         UpdateChannelMappings();
         GenerateFramePreview();
     }

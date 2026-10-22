@@ -84,7 +84,12 @@ public sealed class ProductDefinition
     /// <summary>
     /// Năng lực khối hàm Modbus RTU Master Poller (0x1000).
     /// </summary>
-    public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0 || WireProfile >= 2;
+    public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+
+    /// <summary>
+    /// Số lượng cổng RS-485 vật lý hiện hữu trên bo mạch MCU (đọc động từ 0x0A0A hoặc suy diễn từ HardwareCapabilities).
+    /// </summary>
+    public ushort PhysicalRs485PortCount { get; }
 
     private readonly Dictionary<ushort, TagDefinition> _tagsByIndex;
     private readonly Dictionary<string, TagDefinition> _tagsByName;
@@ -100,7 +105,8 @@ public sealed class ProductDefinition
         ProductResourceProfile resources,
         IEnumerable<TagDefinition> tags,
         ushort wireProfile = 1,
-        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,
+        ushort? physicalRs485PortCount = null)
     {
         ProductName = productName ?? "Default";
         DeviceClass = deviceClass;
@@ -111,6 +117,17 @@ public sealed class ProductDefinition
         HardwareCapabilities = hardwareCapabilities != SPLC_HardwareCapabilities.NONE
             ? hardwareCapabilities
             : GetDefaultFallbackCapabilities(wireProfile);
+
+        if (physicalRs485PortCount.HasValue)
+        {
+            PhysicalRs485PortCount = physicalRs485PortCount.Value;
+        }
+        else
+        {
+            // Tự động suy diễn: Nếu có năng lực MODBUS_MASTER thì mặc định 2 cổng, ngược lại 0
+            bool hasModbus = (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+            PhysicalRs485PortCount = hasModbus ? (ushort)2 : (ushort)0;
+        }
 
         var tagList = tags.ToList();
         Tags = tagList.AsReadOnly();
@@ -182,7 +199,8 @@ public sealed class ProductDefinition
     /// </summary>
     public static ProductDefinition CreateRemoteIo8Di8Do4Ai(
         ushort wireProfile = 2,
-        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE)
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,
+        ushort? physicalRs485PortCount = null)
     {
         var profile = ProductResourceProfile.DefaultRemoteIo;
         var tags = DeviceProfileBuilder.GenerateTags(profile);
@@ -197,7 +215,8 @@ public sealed class ProductDefinition
             resources: profile,
             tags: tags,
             wireProfile: wireProfile,
-            hardwareCapabilities: effectiveCaps);
+            hardwareCapabilities: effectiveCaps,
+            physicalRs485PortCount: physicalRs485PortCount);
     }
 
     private static ProductResourceProfile DeriveProfileFromTags(IEnumerable<TagDefinition> tags)

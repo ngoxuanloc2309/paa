@@ -427,6 +427,15 @@ Khối **`MB_READ`** cho phép SimplePLC đóng vai trò Modbus RTU Master trên
 - Kỹ sư có thể dán chuỗi byte Hex phản hồi thực tế từ cảm biến (ví dụ `01 03 04 00 FA 03 E8 B9 AF`) hoặc nhấn nút **"Khung mẫu"**.
 - Bấm **"Kiểm tra giải mã"** để SynaptiX IDE chạy thuật toán kiểm tra CRC-16, phân tách từng thanh ghi và hiển thị giá trị tức thời của từng chân ngay trên hộp thoại, giúp nghiệm thu tính đúng đắn trước khi nạp vào PLC thật.
 
+#### 5. Cấu hình Cổng RS-485 & Tự Động Nhận Diện Phần Cứng (Hardware-Aware Auto-Sync):
+- **Cổng giao tiếp (Port Selector):** Lựa chọn cổng vật lý mà khối `MB_READ` / `MB_WRITE` sẽ phát lệnh (ví dụ `Cổng 1: RS-485 #1`, `Cổng 2: RS-485 #2`).
+- **Tự động nhận diện số cổng vật lý (`0x0A0A`):** Khi kết nối với thiết bị (USB CDC, Modbus TCP hoặc MCU Simulator), SynaptiX IDE tự động truy vấn thanh ghi phần cứng `0x0A0A` (`SPLC_ADDR_HW_RS485_PORT_COUNT`) để biết chính xác số lượng cổng RS-485 vật lý hiện hữu trên bo mạch MCU:
+  - *Micro PLC (1 cổng):* Hộp thoại chỉ hiển thị duy nhất Cổng 1.
+  - *Standard PLC (2 cổng):* Cho phép cấu hình và lựa chọn giữa Cổng 1 và Cổng 2.
+  - *Gateway PLC (4 cổng):* Mở rộng cấu hình đầy đủ từ Cổng 1 đến Cổng 4.
+  - *Thiết bị không có RS-485 (0 cổng):* Hiển thị cảnh báo trực quan và chặn nạp khối Modbus Master.
+- **Khóa an toàn trình biên dịch (Compiler Safety Gate):** Nếu kỹ sư gán khối logic vào cổng vượt quá số cổng vật lý của thiết bị mục tiêu, trình biên dịch sẽ phát sinh lỗi đỏ `DiagnosticSeverity.Error` và vô hiệu hóa nút Nạp thiết bị (Deploy), loại bỏ hoàn toàn nguy cơ treo ngoại vi phần cứng.
+
 ---
 
 ### 6.5 Điều khiển Cơ Cấu Chấp Hành RS-485 Modbus Master (MB_WRITE)

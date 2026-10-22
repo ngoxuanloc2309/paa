@@ -20,6 +20,7 @@ internal class Program
         bool hasCustomProfile = false;
         bool autoSignals = false;
         string capsProfile = "remote-io";
+        ushort rs485PortCount = 2;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -64,6 +65,11 @@ internal class Program
             {
                 capsProfile = args[++i].ToLowerInvariant();
             }
+            else if ((args[i] == "--rs485-ports" || args[i] == "-rs") && i + 1 < args.Length && ushort.TryParse(args[i + 1], out ushort rsCount))
+            {
+                rs485PortCount = rsCount;
+                i++;
+            }
             else if (args[i] == "--auto" || args[i] == "--auto-signals")
             {
                 autoSignals = true;
@@ -88,6 +94,7 @@ internal class Program
         Console.WriteLine($"Firmware:     v2.0.0 (TinyUSB CDC + NanoModbus)");
         Console.WriteLine($"Profile:      DI={diCount}, DO={doCount}, AI={aiCount}");
         Console.WriteLine($"Capabilities: {capsProfile.ToUpperInvariant()} (0x0A08 Feature Gating)");
+        Console.WriteLine($"RS-485 Ports: {rs485PortCount} ports (0x0A0A Auto-Sync)");
         Console.WriteLine("------------------------------------------------------------------");
         Console.WriteLine("Controls:");
         Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs (DI0..DI7)");
@@ -108,6 +115,7 @@ internal class Program
             ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER
             : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
         simulator.SetHardwareCapabilities(initialCaps);
+        simulator.SetPhysicalRs485PortCount(rs485PortCount);
         if (hasCustomProfile)
         {
             ushort vflagCount = 32;
@@ -489,6 +497,7 @@ internal class Program
         Console.WriteLine("  --port,  -p <PORT>   Serial COM port name (default: COM2)");
         Console.WriteLine("  --baud,  -b <BAUD>   Baud rate (default: 115200)");
         Console.WriteLine("  --slave, -s <ID>     Modbus Slave ID (default: 1)");
+        Console.WriteLine("  --rs485-ports, -rs <N> Physical RS-485 port count: 0, 1, 2, 4 (default: 2)");
         Console.WriteLine("  --help,  -h          Show this help message");
     }
 }

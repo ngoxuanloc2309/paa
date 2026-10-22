@@ -427,6 +427,15 @@ The **`MB_READ`** block empowers SimplePLC to act as an autonomous Modbus RTU Ma
 - Engineers can paste real hex response frames captured from field sensors (e.g. `01 03 04 00 FA 03 E8 B9 AF`) or click **"Sample Frame"**.
 - Clicking **"Test Frame Decoding"** executes the CRC-16 checksum validator, register unpacker, and endianness converters in real time, displaying instant pin readouts to verify communication settings prior to PLC deployment.
 
+#### 5. Multi-Port Configuration & Hardware-Aware Auto-Sync:
+- **Port Selector:** Select which physical RS-485 bus the `MB_READ` / `MB_WRITE` block communicates over (e.g. `Port 1: RS-485 #1`, `Port 2: RS-485 #2`).
+- **Hardware-Aware Auto-Sync (`0x0A0A`):** Upon connecting to a physical controller (USB CDC, Modbus TCP) or the virtual MCU emulator, SynaptiX IDE automatically reads register `0x0A0A` (`SPLC_ADDR_HW_RS485_PORT_COUNT`) to discover the exact physical RS-485 port count present on-board:
+  - *Micro PLC (1 Port):* Port selector restricts configuration strictly to Port 1.
+  - *Standard PLC (2 Ports):* Allows configuration and selection across Port 1 and Port 2.
+  - *Gateway PLC (4 Ports):* Expands to full 4-port multi-drop routing.
+  - *Controllers without RS-485 (0 Ports):* Warns the operator and blocks Modbus Master deployment.
+- **Compiler Safety Gate:** Assigning logic blocks to a port index exceeding the controller's physical count triggers a hard compile error (`DiagnosticSeverity.Error`), disabling deployment and protecting MCU firmware from hardware USART faults.
+
 ---
 
 ### 6.5 RS-485 Modbus RTU Master Actuator Controller (MB_WRITE)

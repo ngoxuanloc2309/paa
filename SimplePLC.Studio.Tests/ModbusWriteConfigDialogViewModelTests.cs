@@ -1,4 +1,4 @@
-using SimplePLC.Protocol.Enums;
+﻿using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
@@ -342,5 +342,28 @@ public class ModbusWriteConfigDialogViewModelTests
         {
             Assert.False(string.IsNullOrWhiteSpace(item.Tooltip));
         });
+    }
+    [Fact]
+    public void LanguageSwitching_UpdatesAvailablePortsAndSummary()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            SlaveId = 1,
+            PortIndex = 0,
+            WriteMode = ModbusWriteMode.ChannelIndexed,
+            ChannelCount = 4
+        };
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
+        Assert.StartsWith("Port 1", vm.AvailablePorts[0].DisplayName);
+        Assert.StartsWith("Port 1", vm.SummaryBadgeText);
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "vi";
+        Assert.StartsWith("C\u1ED5ng 1", vm.AvailablePorts[0].DisplayName);
+        Assert.StartsWith("C\u1ED5ng 1", vm.SummaryBadgeText);
+
+        // Reset back to English
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
     }
 }

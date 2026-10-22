@@ -1952,10 +1952,7 @@
                         <!-- THỜI GIAN LỌC TÍN HIỆU / DWELL TIME (CHỈ HIỂN THỊ KHI LÀ ON_RISE, ON_FALL, ON_CHANGE) -->
                         <StackPanel Visibility="{Binding SelectedTriggerNode.IsStandardEdgeTrigger, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10">
                             <TextBlock Text="{Binding [InspectorDwellTimeFilter], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding SelectedTriggerNode.ForMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,6" />
-                            <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,2,0,0">
-                                <TextBlock Text="💡 Để so sánh ngưỡng số thực/nhiệt độ/áp suất, hãy sử dụng khối ⚖️ CMP (Comparator)." FontSize="10.5" Foreground="#0284C7" TextWrapping="Wrap" />
-                            </Border>
+                            <TextBox Text="{Binding SelectedTriggerNode.ForMs, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" />
                         </StackPanel>
                     </StackPanel>
 

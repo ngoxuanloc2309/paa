@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.ViewModels;
@@ -108,5 +108,58 @@ public sealed class ModbusPortConfigViewModelTests
         item.Enabled = false;
         Assert.Equal("DISABLED", item.StatusPill);
         Assert.Equal("#64748B", item.StatusPillColor);
+    }
+
+    [Fact]
+    public void DisplayName_AdaptsToActiveLanguage()
+    {
+        var model = new ModbusPortConfigModel
+        {
+            PortIndex = 0,
+            PortName = "RS-485 #1",
+            Enabled = true
+        };
+        var vm = new ModbusPortConfigViewModel(new ProjectMetadata { ModbusPorts = new() { model } });
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
+        Assert.StartsWith("Port 1", vm.Ports[0].DisplayName);
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "vi";
+        Assert.StartsWith("Cổng 1", vm.Ports[0].DisplayName);
+
+        // Reset back to English
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
+    }
+    [Fact]
+    public void ModbusPortConfigDialogView_XAML_InstantiatesWithoutResourceExceptions()
+    {
+        RunOnSta(() =>
+        {
+            var meta = new ProjectMetadata();
+            var vm = new ModbusPortConfigViewModel(meta);
+            var dialog = new SimplePLC.Studio.Views.ModbusPortConfigDialogView(vm);
+            Assert.NotNull(dialog);
+            Assert.Same(vm, dialog.DataContext);
+        });
+    }
+
+    private static void RunOnSta(System.Action action)
+    {
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+        var thread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                action();
+                tcs.SetResult(true);
+            }
+            catch (System.Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        tcs.Task.GetAwaiter().GetResult();
     }
 }

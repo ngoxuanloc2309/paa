@@ -1,4 +1,4 @@
-﻿using SimplePLC.Application.Logic.Compilation;
+using SimplePLC.Application.Logic.Compilation;
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
@@ -13,7 +13,8 @@ public interface IRuleCompiler
         IEnumerable<GraphNodeViewModel> nodes,
         IEnumerable<ConnectionViewModel> connections,
         TagCatalogViewModel tagCatalog,
-        ProductDefinition? product = null);
+        ProductDefinition? product = null,
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? modbusPorts = null);
 }
 
 public sealed class RuleCompiler : IRuleCompiler
@@ -24,7 +25,8 @@ public sealed class RuleCompiler : IRuleCompiler
         IEnumerable<GraphNodeViewModel> nodes,
         IEnumerable<ConnectionViewModel> connections,
         TagCatalogViewModel tagCatalog,
-        ProductDefinition? product = null)
+        ProductDefinition? product = null,
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? modbusPorts = null)
     {
         ProductDefinition targetProduct = product 
             ?? tagCatalog?.CurrentProduct 
@@ -37,6 +39,10 @@ public sealed class RuleCompiler : IRuleCompiler
         var studioDiagnostics = new List<SimplePLC.Studio.Models.Diagnostic>();
 
         // Capability Interlock / Hardware Feature Gating Check
+        var portList = modbusPorts?.ToList();
+        int effectivePhysicalPorts = product != null
+            ? (int)targetProduct.PhysicalRs485PortCount
+            : (portList != null && portList.Count > 0 ? Math.Max((int)targetProduct.PhysicalRs485PortCount, portList.Count) : (int)targetProduct.PhysicalRs485PortCount);
         if (targetProduct.HardwareCapabilities != SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE)
         {
             foreach (var node in nodeList)
@@ -59,14 +65,67 @@ public sealed class RuleCompiler : IRuleCompiler
                             : "Target device '{0}' hardware profile does not support MQTT Subscribe.", targetProduct.ProductName),
                         NodeId: node.Id));
                 }
-                else if ((node is ModbusReadNodeViewModel || node is ModbusWriteNodeViewModel) && !targetProduct.SupportsModbusMaster)
+                else if (node is ModbusReadNodeViewModel mbRead)
                 {
-                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
-                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
-                        string.Format(LocalizationService.Instance.IsVietnamese
-                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ Modbus Master."
-                            : "Target device '{0}' hardware profile does not support Modbus Master.", targetProduct.ProductName),
-                        NodeId: node.Id));
+                    if (!targetProduct.SupportsModbusMaster)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ Modbus Master."
+                                : "Target device '{0}' hardware profile does not support Modbus Master.", targetProduct.ProductName),
+                            NodeId: node.Id));
+                    }
+                    else if (effectivePhysicalPorts == 0)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Thiết bị mục tiêu '{0}' không có cổng RS-485 vật lý nào."
+                                : "Target device '{0}' has no physical RS-485 ports.", targetProduct.ProductName),
+                            NodeId: node.Id));
+                    }
+                    else if (mbRead.PortIndex >= effectivePhysicalPorts)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Khối Modbus Read được gán cho Cổng {0}, vượt quá số cổng RS-485 vật lý hiện hữu của thiết bị ({1} cổng)."
+                                : "Modbus Read block is assigned to Port {0}, exceeding device's physical RS-485 port count ({1}).",
+                                mbRead.PortIndex + 1, effectivePhysicalPorts),
+                            NodeId: node.Id));
+                    }
+                }
+                else if (node is ModbusWriteNodeViewModel mbWrite)
+                {
+                    if (!targetProduct.SupportsModbusMaster)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ Modbus Master."
+                                : "Target device '{0}' hardware profile does not support Modbus Master.", targetProduct.ProductName),
+                            NodeId: node.Id));
+                    }
+                    else if (effectivePhysicalPorts == 0)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Thiết bị mục tiêu '{0}' không có cổng RS-485 vật lý nào."
+                                : "Target device '{0}' has no physical RS-485 ports.", targetProduct.ProductName),
+                            NodeId: node.Id));
+                    }
+                    else if (mbWrite.PortIndex >= effectivePhysicalPorts)
+                    {
+                        studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                            SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                            string.Format(LocalizationService.Instance.IsVietnamese
+                                ? "Khối Modbus Write được gán cho Cổng {0}, vượt quá số cổng RS-485 vật lý hiện hữu của thiết bị ({1} cổng)."
+                                : "Modbus Write block is assigned to Port {0}, exceeding device's physical RS-485 port count ({1}).",
+                                mbWrite.PortIndex + 1, effectivePhysicalPorts),
+                            NodeId: node.Id));
+                    }
                 }
             }
         }
@@ -541,6 +600,20 @@ public sealed class RuleCompiler : IRuleCompiler
                         mbPinDtos.Add(dto);
                     }
 
+                    if (modbusPorts != null)
+                    {
+                        var targetPort = modbusPorts.FirstOrDefault(p => p.PortIndex == mb.PortIndex);
+                        if (targetPort != null && !targetPort.Enabled)
+                        {
+                            studioDiagnostics.Add(new(
+                                SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                                LocalizationService.Instance.IsVietnamese
+                                    ? $"Khối '{mb.DisplayTitle}' sử dụng Cổng {mb.PortIndex + 1} ({targetPort.PortName}) nhưng cổng này đang bị vô hiệu hóa trong cấu hình thiết bị."
+                                    : $"Block '{mb.DisplayTitle}' references Port {mb.PortIndex + 1} ({targetPort.PortName}) which is disabled in device settings.",
+                                NodeId: mb.Id));
+                        }
+                    }
+
                     graph.Nodes.Add(LogicNode.CreateModbusRead(
                         mb.Id,
                         mbEnTag,
@@ -620,6 +693,20 @@ public sealed class RuleCompiler : IRuleCompiler
                             }
                         }
                         mbwPinDtos.Add(dto);
+                    }
+
+                    if (modbusPorts != null)
+                    {
+                        var targetPort = modbusPorts.FirstOrDefault(p => p.PortIndex == mbw.PortIndex);
+                        if (targetPort != null && !targetPort.Enabled)
+                        {
+                            studioDiagnostics.Add(new(
+                                SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                                LocalizationService.Instance.IsVietnamese
+                                    ? $"Khối '{mbw.DisplayTitle}' sử dụng Cổng {mbw.PortIndex + 1} ({targetPort.PortName}) nhưng cổng này đang bị vô hiệu hóa trong cấu hình thiết bị."
+                                    : $"Block '{mbw.DisplayTitle}' references Port {mbw.PortIndex + 1} ({targetPort.PortName}) which is disabled in device settings.",
+                                NodeId: mbw.Id));
+                        }
                     }
 
                     graph.Nodes.Add(LogicNode.CreateModbusWrite(

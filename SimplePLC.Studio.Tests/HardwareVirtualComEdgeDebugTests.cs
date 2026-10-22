@@ -1,4 +1,4 @@
-﻿using System.IO.Ports;
+using System.IO.Ports;
 using SimplePLC.Application.Abstractions;
 using SimplePLC.Application.Enums;
 using SimplePLC.Application.Models;
@@ -60,6 +60,10 @@ public class HardwareVirtualComEdgeDebugTests : IDisposable
                     WriteTimeout = 500
                 };
                 serverPort.Open();
+                using (var testClient = new SerialPort("COM7", 115200, Parity.None, 8, StopBits.One))
+                {
+                    testClient.Open();
+                }
                 _ = Task.Run(() => mcuServer.RunAsync(serverPort.BaseStream, serverPort.BaseStream, cts.Token));
                 endpoint = new UsbCdcEndpoint("COM7");
                 useRealCom = true;

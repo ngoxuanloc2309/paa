@@ -1,5 +1,23 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.10.0] - 2026-10-22 (HARDWARE-AWARE RS-485 AUTO-SYNC, MULTI-PORT MODBUS MASTER CONFIGURATION & SAFETY GATES)
+
+### Added & Standardized
+- **Thanh Ghi Tự Mô Tả Số Cổng RS-485 Vật Lý (`0x0A0A`, SPLC_ADDR_HW_RS485_PORT_COUNT)**:
+  - Bổ sung thanh ghi 16-bit `0x0A0A` (uint16, FC03 RO) vào [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h) và [`src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs).
+  - Phản ánh số lượng cổng RS-485 vật lý thực tế trên vi điều khiển: `0` (None), `1` (Micro), `2` (Standard SimplePLC), `4` (Modular/Gateway).
+  - Tự động nhận diện trong bước bắt tay kết nối (Handshake Step 3b); đồng bộ danh sách cổng hiển thị trên Studio, khóa/mờ các cổng không tồn tại, cập nhật ComboBox chọn cổng trên khối FBD.
+  - Cơ chế fail-safe fallback: Nếu đọc `0x0A0A` lỗi hoặc timeout trên firmware cũ V1, tự động fallback về 2 cổng nếu có cờ `SPLC_CAP_MODBUS_MASTER (0x0100)` tại `0x0A08`.
+- **Phân Vùng Cấu Hình Đa Cổng RS-485 Modbus Master (`0x1400..0x143F`, SPLC-SPEC-MBM-003)**:
+  - Quy hoạch 64 thanh ghi nhị phân cố định (128 bytes) cho tối đa 4 cổng RS-485 vật lý (16 thanh ghi = 32 bytes mỗi cổng).
+  - Cấu trúc nhị phân C byte-exact `SPLC_ModbusPortConfigRecord_t` `#pragma pack(push, 1)`: Control/Port, BaudRate (uint32 BE), Parity, Framing (Data/Stop bits), Timeout, Delay, Retries, PortName (12B ASCII).
+  - Bổ sung codec 2 chiều `ModbusPortConfigCodec.cs` mã hóa/giải mã toàn vẹn 64 thanh ghi.
+- **Hai Tầng Chốt An Toàn Chặn Lỗi Vượt Cổng (Safety Gates)**:
+  - **Studio Compiler Gate (`RuleCompiler.cs`)**: Quét mọi khối `MB_READ`/`MB_WRITE`. Nếu `PortIndex >= physicalRs485PortCount`, compiler ngắt biên dịch và báo lỗi chặn `DiagnosticSeverity.Error`.
+  - **Deploy Gate (`RuleTableWriter.cs`)**: Chặn nạp và trả về `SPLC_ErrorCode.UNSUPPORTED (0x0002)` nếu dự án kích hoạt cổng vượt quá phần cứng thực tế.
+- **Tiêu Chí Nghiệm Thu Firmware Mới (CHKL-22)**:
+  - Bổ sung `CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance` vào cả Master Spec ([`docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md)) và MCU Conformance Spec ([`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md)).
+
 ## [2.9.0] - 2026-10-21 (REAL / FLOAT32 SPECIFICATION STANDARDIZATION, TAG DATA TYPE REGISTRY & FIRMWARE CONFORMANCE SYNC)
 
 ### Added & Standardized

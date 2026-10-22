@@ -150,7 +150,15 @@ public sealed class McuReferenceSimulator
             RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
             _memory.InternalWrite(ModbusRegisterMap.HardwareCapabilitiesAddress, capsRegs[0]);
             _memory.InternalWrite((ushort)(ModbusRegisterMap.HardwareCapabilitiesAddress + 1), capsRegs[1]);
+
+            // 0x0A0A: Số cổng RS-485 vật lý hiện hữu (Mặc định 2 cổng Standard)
+            _memory.InternalWrite(ModbusRegisterMap.Rs485PhysicalPortCountAddress, 2);
         }
+    }
+
+    public void SetPhysicalRs485PortCount(ushort portCount)
+    {
+        _memory.InternalWrite(ModbusRegisterMap.Rs485PhysicalPortCountAddress, portCount);
     }
 
     public void SetHardwareCapabilities(SPLC_HardwareCapabilities caps)

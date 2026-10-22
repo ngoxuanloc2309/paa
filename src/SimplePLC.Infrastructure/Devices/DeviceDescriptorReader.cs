@@ -69,4 +69,38 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
 
         return SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
     }
+
+    public async Task<ushort> ReadPhysicalRs485PortCountAsync(byte slaveId = 1, bool hasModbusMasterCap = true, CancellationToken cancellationToken = default)
+    {
+        if (!hasModbusMasterCap)
+        {
+            return 0;
+        }
+
+        try
+        {
+            var rawRegisters = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.Rs485PhysicalPortCountAddress,
+                ModbusRegisterMap.Rs485PhysicalPortCountLength,
+                cancellationToken
+            ).ConfigureAwait(false);
+
+            if (rawRegisters != null && rawRegisters.Length >= ModbusRegisterMap.Rs485PhysicalPortCountLength)
+            {
+                return rawRegisters[0];
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // Fallback an toàn cho firmware đời cũ chưa hỗ trợ thanh ghi 0x0A0A
+        }
+
+        // Mặc định an toàn cho thiết bị SimplePLC có Modbus Master là 2 cổng (Standard)
+        return 2;
+    }
 }

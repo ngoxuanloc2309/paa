@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Studio.Models;
 
@@ -25,6 +25,7 @@ public class ProjectMetadata
     public int RetentiveRegisters { get; set; } = 32;
     public int Counters { get; set; } = 8;
     public int MaxRules { get; set; } = 100;
+    public ushort PhysicalRs485PortCount { get; set; } = 4;
 
     // MQTT IIoT Broker Settings (Project Level)
     public bool MqttBrokerEnabled { get; set; } = true;
@@ -306,5 +307,20 @@ public class ModbusPortConfigModel
             InterFrameDelayMs = this.InterFrameDelayMs,
             RetryCount = this.RetryCount
         };
+    }
+
+    public string FormatDropdownLabel(bool isVietnamese, bool isForceDisabledWarning = false)
+    {
+        string prefix = isVietnamese ? "Cổng" : "Port";
+        string disabledTag = isForceDisabledWarning ? (isVietnamese ? " [ĐÃ TẮT]" : " [DISABLED]") : "";
+        return $"{prefix} {PortIndex + 1}: {PortName}{disabledTag}";
+    }
+
+    public string FormatFullSummary(bool isVietnamese, bool isForceDisabledWarning = false)
+    {
+        string prefix = isVietnamese ? "Cổng" : "Port";
+        char parityChar = string.IsNullOrEmpty(Parity) ? 'N' : Parity[0];
+        string disabledTag = isForceDisabledWarning ? (isVietnamese ? " [ĐÃ TẮT]" : " [DISABLED]") : "";
+        return $"{prefix} {PortIndex + 1}: {PortName} · {BaudRate} bps · {DataBits}-{char.ToUpperInvariant(parityChar)}-{StopBits} · Timeout {ResponseTimeoutMs}ms · Retries {RetryCount}{disabledTag}";
     }
 }

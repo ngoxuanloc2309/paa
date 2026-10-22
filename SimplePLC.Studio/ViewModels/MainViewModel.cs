@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Application.Models;
 using SimplePLC.Studio.Services;
@@ -41,7 +41,22 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ConnModeText))]
     [NotifyPropertyChangedFor(nameof(ConnModeIcon))]
+    [NotifyPropertyChangedFor(nameof(IsUsbMode))]
     private bool _isTcpMode;
+
+    public bool IsUsbMode
+    {
+        get => !IsTcpMode;
+        set
+        {
+            if (IsConnected) return;
+            if (value && IsTcpMode)
+            {
+                IsTcpMode = false;
+                UpdateConnectionStatus();
+            }
+        }
+    }
 
     [ObservableProperty]
     private string _tcpHost = "127.0.0.1";
@@ -51,6 +66,28 @@ public partial class MainViewModel : ObservableObject
 
     public string ConnModeText => IsTcpMode ? "TCP" : "RTU/USB";
     public string ConnModeIcon => IsTcpMode ? "🌐" : "🔌";
+
+    [RelayCommand]
+    public void SelectUsbMode()
+    {
+        if (IsConnected) return;
+        if (IsTcpMode)
+        {
+            IsTcpMode = false;
+            UpdateConnectionStatus();
+        }
+    }
+
+    [RelayCommand]
+    public void SelectTcpMode()
+    {
+        if (IsConnected) return;
+        if (!IsTcpMode)
+        {
+            IsTcpMode = true;
+            UpdateConnectionStatus();
+        }
+    }
 
     [RelayCommand]
     public void ToggleTcpMode()
@@ -196,7 +233,10 @@ public partial class MainViewModel : ObservableObject
     {
         TagCatalogVM = new TagCatalogViewModel();
         RuleTableVM = new RuleTableViewModel(TagCatalogVM, (tabIndex) => SelectTab(tabIndex));
-        LogicEditorVM = new LogicEditorViewModel(TagCatalogVM, RuleTableVM, (tabIndex) => SelectTab(tabIndex), uiDispatcher: uiDispatcher);
+        LogicEditorVM = new LogicEditorViewModel(TagCatalogVM, RuleTableVM, (tabIndex) => SelectTab(tabIndex), uiDispatcher: uiDispatcher)
+        {
+            GetProjectMetadata = () => CurrentProjectMetadata
+        };
         RuleTableVM.OnEditRuleRequested = (rule) => LogicEditorVM.LoadRuleToCanvas(rule);
         RuleTableVM.OnNewRuleRequested = () => LogicEditorVM.NewRuleCanvas();
         RuleTableVM.OnUploadFromDeviceRequested = () => UploadFromDeviceAsync();
@@ -677,6 +717,7 @@ public partial class MainViewModel : ObservableObject
             {
                 AppServices.Instance.CurrentProduct = session.Product;
                 TagCatalogVM.SyncWithProductDefinition(session.Product);
+                CurrentProjectMetadata.PhysicalRs485PortCount = session.Product.PhysicalRs485PortCount;
             }
 
             if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
@@ -903,9 +944,7 @@ public partial class MainViewModel : ObservableObject
 
         if (IsConnected)
         {
-            ConnectActionText = isSim 
-                ? (isVi ? "🔌 Ngắt kết nối thiết bị ảo" : "🔌 Disconnect Virtual Device")
-                : (isVi ? "🔌 Ngắt kết nối thiết bị" : "🔌 Disconnect Device");
+            ConnectActionText = isVi ? "🔌 Ngắt kết nối" : "🔌 Disconnect";
             // IEC 60073 / IEC 60204-1 Clause 10.2: Dual-function toggle buttons must have neutral body, not alarm red
             ConnectButtonBackground = "#334155"; // Neutral Industrial Slate
             ConnectButtonBorderBrush = "#1E293B";
@@ -934,11 +973,7 @@ public partial class MainViewModel : ObservableObject
 
                 case ConnectionLifecycleState.Disconnected:
                 default:
-                    ConnectActionText = IsTcpMode
-                        ? (isVi ? "⚡ Kết nối TCP" : "⚡ Connect TCP")
-                        : (isSim
-                            ? (isVi ? "⚡ Kết nối thiết bị ảo" : "⚡ Connect Virtual Device")
-                            : (isVi ? "⚡ Kết nối thiết bị" : "⚡ Connect Device"));
+                    ConnectActionText = isVi ? "⚡ Kết nối" : "⚡ Connect";
                     ConnectButtonBackground = "#107C41"; // Forest Green (Safe Initiate)
                     ConnectButtonBorderBrush = "#0E6B37";
                     break;

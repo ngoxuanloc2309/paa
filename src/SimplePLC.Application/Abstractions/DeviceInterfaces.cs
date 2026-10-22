@@ -1,4 +1,4 @@
-﻿using SimplePLC.Protocol.Dto;
+using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Application.Abstractions;
@@ -21,6 +21,7 @@ public interface IDeviceDescriptorReader
     Task<DeviceDescriptorDto> ReadDescriptorAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
     Task<DeviceResourceInfoDto> ReadResourceInfoAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
     Task<SPLC_HardwareCapabilities> ReadHardwareCapabilitiesAsync(byte slaveId = 1, CancellationToken cancellationToken = default);
+    Task<ushort> ReadPhysicalRs485PortCountAsync(byte slaveId = 1, bool hasModbusMasterCap = true, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

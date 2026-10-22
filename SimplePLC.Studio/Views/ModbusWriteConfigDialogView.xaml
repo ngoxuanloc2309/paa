@@ -92,24 +92,23 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <!-- Row 0: Port (1.1*) | Slave ID (80px) | Mode (1.1*) | Trigger Mode (1.1*) -->
+                            <!-- Row 0: Port (1.2*) | Slave ID (80px) | Mode (1.8*) -->
                             <Grid Grid.Row="0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1.1*" />
+                                    <ColumnDefinition Width="1.4*" />
                                     <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="80" />
                                     <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="1.1*" />
-                                    <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="1.1*" />
+                                    <ColumnDefinition Width="1.6*" />
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Port Selector -->
-                                <StackPanel Grid.Column="0">
+                                <StackPanel Grid.Column="0" ToolTip="{Binding PortSelectorTooltip}">
                                     <TextBlock Text="{Binding [ModbusPortSelectorLabel], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <ComboBox ItemsSource="{Binding AvailablePorts}" 
-                                              SelectedValue="{Binding PortIndex}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              SelectedValue="{Binding PortIndex}" SelectedValuePath="Value" DisplayMemberPath="DisplayName"
+                                              ToolTip="{Binding PortSelectorTooltip}" 
                                               Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
                                 </StackPanel>
 
@@ -130,30 +129,32 @@
                                               SelectedValue="{Binding WriteMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
                                               Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
                                 </StackPanel>
-
-                                <!-- Trigger Mode -->
-                                <StackPanel Grid.Column="6" ToolTip="{Binding [ModbusWriteColTrigModeTooltip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <TextBlock Text="{Binding [ModbusWriteColTrigMode], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                                    <ComboBox ItemsSource="{Binding AvailableTriggerModes}" 
-                                              SelectedValue="{Binding TriggerMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
-                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                                </StackPanel>
                             </Grid>
 
                             <!-- Row 2: Mode-Specific Parameters -->
                             <!-- Case A: Channel-Indexed Mode -->
                             <Grid Grid.Row="2" Visibility="{Binding IsChannelIndexedMode, Converter={StaticResource BoolToVis}}">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="90" />
-                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="1.3*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
+                                <!-- Trigger Mode -->
+                                <StackPanel Grid.Column="0" ToolTip="{Binding [ModbusWriteColTrigModeTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                    <TextBlock Text="{Binding [ModbusWriteColTrigMode], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableTriggerModes}" 
+                                              SelectedValue="{Binding TriggerMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+
                                 <!-- Channel Count -->
-                                <StackPanel Grid.Column="0" ToolTip="{Binding [ModbusWriteColChCountTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="2" ToolTip="{Binding [ModbusWriteColChCountTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColChCount], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding ChannelCount, UpdateSourceTrigger=PropertyChanged}" 
@@ -162,7 +163,7 @@
                                 </StackPanel>
 
                                 <!-- Base Address Command -->
-                                <StackPanel Grid.Column="2" ToolTip="{Binding [ModbusWriteColBaseCmdTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="4" ToolTip="{Binding [ModbusWriteColBaseCmdTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColBaseCmd], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding BaseAddressCommand, StringFormat={}{0:X4}, UpdateSourceTrigger=PropertyChanged}" 
@@ -171,7 +172,7 @@
                                 </StackPanel>
 
                                 <!-- Base Address Param -->
-                                <StackPanel Grid.Column="4" ToolTip="{Binding [ModbusWriteColBaseParamTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="6" ToolTip="{Binding [ModbusWriteColBaseParamTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColBaseParam], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding BaseAddressParam, StringFormat={}{0:X4}, UpdateSourceTrigger=PropertyChanged}" 
@@ -183,15 +184,26 @@
                             <!-- Case B: Direct Registers Mode -->
                             <Grid Grid.Row="2" Visibility="{Binding IsDirectRegistersMode, Converter={StaticResource BoolToVis}}">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.3*" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="1.4*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="80" />
                                 </Grid.ColumnDefinitions>
 
+                                <!-- Trigger Mode -->
+                                <StackPanel Grid.Column="0" ToolTip="{Binding [ModbusWriteColTrigModeTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                    <TextBlock Text="{Binding [ModbusWriteColTrigMode], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AvailableTriggerModes}" 
+                                              SelectedValue="{Binding TriggerMode}" SelectedValuePath="Value" DisplayMemberPath="DisplayName" 
+                                              Height="28" Padding="6,4" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                                </StackPanel>
+
                                 <!-- Function Code -->
-                                <StackPanel Grid.Column="0" ToolTip="{Binding [ModbusWriteColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="2" ToolTip="{Binding [ModbusWriteColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColFunctionCode], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <ComboBox ItemsSource="{Binding AvailableFunctionCodes}" 
@@ -200,7 +212,7 @@
                                 </StackPanel>
 
                                 <!-- Start Address -->
-                                <StackPanel Grid.Column="2" ToolTip="{Binding [ModbusWriteColStartAddrTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="4" ToolTip="{Binding [ModbusWriteColStartAddrTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColStartAddr], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding StartAddress, UpdateSourceTrigger=PropertyChanged}" 
@@ -209,7 +221,7 @@
                                 </StackPanel>
 
                                 <!-- Point Count -->
-                                <StackPanel Grid.Column="4" ToolTip="{Binding [ModbusWriteColPointCountTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                <StackPanel Grid.Column="6" ToolTip="{Binding [ModbusWriteColPointCountTooltip], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [ModbusWriteColPointCount], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding PointCount, UpdateSourceTrigger=PropertyChanged}" 

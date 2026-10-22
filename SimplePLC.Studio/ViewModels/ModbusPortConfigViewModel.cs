@@ -53,12 +53,21 @@ public partial class ModbusPortItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SummaryBadge))]
     private ushort _retryCount = 1;
 
-    public string DisplayName => $"Cổng {PortIndex + 1}: {PortName}";
+    public string DisplayName =>
+        (SimplePLC.Studio.Services.LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ") + $"{PortIndex + 1}: {PortName}";
+
+    public void NotifyLanguageChanged()
+    {
+        OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(StatusPill));
+    }
 
     public string SummaryBadge =>
         $"{BaudRate} bps · {DataBits}-{Parity.Substring(0, 1).ToUpperInvariant()}-{StopBits} · Timeout {ResponseTimeoutMs}ms · Retries {RetryCount}";
 
-    public string StatusPill => Enabled ? "ACTIVE" : "DISABLED";
+    public string StatusPill => Enabled 
+        ? (LocalizationService.Instance.IsVietnamese ? "HOẠT ĐỘNG" : "ACTIVE") 
+        : (LocalizationService.Instance.IsVietnamese ? "VÔ HIỆU" : "DISABLED");
 
     public string StatusPillColor => Enabled ? "#107C41" : "#64748B";
 
@@ -124,41 +133,75 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         8, 7
     };
 
+    [ObservableProperty]
+    private bool _hasPhysicalPorts = true;
+
     public event Action? RequestClose;
 
     public ModbusPortConfigViewModel(ProjectMetadata metadata)
     {
         _metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
 
-        // Khởi tạo danh sách 4 cổng từ ProjectMetadata
+        int physicalLimit = _metadata.PhysicalRs485PortCount;
+        if (physicalLimit > 4) physicalLimit = 4;
+
         if (_metadata.ModbusPorts == null || _metadata.ModbusPorts.Count == 0)
         {
-            _metadata.ModbusPorts = new List<ModbusPortConfigModel>
+            _metadata.ModbusPorts = new List<ModbusPortConfigModel>();
+            for (int i = 0; i < physicalLimit; i++)
             {
-                new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-                new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, BaudRate = 19200, DataBits = 8, Parity = "Even", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-                new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-                new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 }
-            };
+                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
+                {
+                    PortIndex = (byte)i,
+                    PortName = $"RS-485 #{i + 1}",
+                    Enabled = i < 2,
+                    BaudRate = i == 1 ? 19200u : 9600u,
+                    DataBits = 8,
+                    Parity = i == 1 ? "Even" : "None",
+                    StopBits = 1,
+                    ResponseTimeoutMs = 200,
+                    InterFrameDelayMs = 20,
+                    RetryCount = 1
+                });
+            }
         }
-
-        while (_metadata.ModbusPorts.Count < 4)
+        else
         {
-            int idx = _metadata.ModbusPorts.Count;
-            _metadata.ModbusPorts.Add(new ModbusPortConfigModel
+            while (_metadata.ModbusPorts.Count < physicalLimit)
             {
-                PortIndex = (byte)idx,
-                PortName = $"RS-485 #{idx + 1}",
-                Enabled = false
-            });
+                int idx = _metadata.ModbusPorts.Count;
+                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
+                {
+                    PortIndex = (byte)idx,
+                    PortName = $"RS-485 #{idx + 1}",
+                    Enabled = false,
+                    BaudRate = 9600,
+                    DataBits = 8,
+                    Parity = "None",
+                    StopBits = 1,
+                    ResponseTimeoutMs = 200,
+                    InterFrameDelayMs = 20,
+                    RetryCount = 1
+                });
+            }
         }
 
-        foreach (var p in _metadata.ModbusPorts)
+        for (int i = 0; i < physicalLimit && i < _metadata.ModbusPorts.Count; i++)
         {
-            Ports.Add(new ModbusPortItemViewModel(p));
+            Ports.Add(new ModbusPortItemViewModel(_metadata.ModbusPorts[i]));
         }
 
+        HasPhysicalPorts = Ports.Count > 0;
         SelectedPort = Ports.FirstOrDefault();
+        SimplePLC.Studio.Services.LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        foreach (var port in Ports)
+        {
+            port.NotifyLanguageChanged();
+        }
     }
 
     [RelayCommand]

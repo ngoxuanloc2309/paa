@@ -118,6 +118,9 @@ extern "C" {
 #define SPLC_ADDR_HW_CAPABILITIES         0x0A08  /* 2 regs (4 B): SPLC_HardwareCapabilities_t (32-bit uint32, FC03, RO) */
 #define SPLC_LEN_HW_CAPABILITIES          2
 
+#define SPLC_ADDR_HW_RS485_PORT_COUNT     0x0A0A  /* 1 reg: Physical RS-485 port count (FC03, RO, uint16) */
+#define SPLC_LEN_HW_RS485_PORT_COUNT      1
+
 #define SPLC_ADDR_DIAG_COMMAND            0x0A20  /* 1 reg: SPLC_DiagCommand_t (FC06/FC16, WO) */
 #define SPLC_ADDR_DIAG_STATE              0x0A21  /* 1 reg: SPLC_DiagState_t (FC03, RO) */
 #define SPLC_ADDR_DIAG_FLAGS              0x0A22  /* 1 reg: SPLC_DiagFlags_t (FC03, RO) */
@@ -259,6 +262,14 @@ extern "C" {
 #define SPLC_WIFI_MAX_SCAN_APS            8
 #define SPLC_WIFI_REGS_PER_AP             22
 #define SPLC_WIFI_BYTES_PER_AP            44
+
+/* --- 2.13 Multi-Port RS-485 Modbus Master Config Space (0x1400 - 0x143F, SPLC-SPEC-MBM-003) --- */
+#define SPLC_ADDR_MODBUS_PORT_CONFIG      0x1400  /* 64 regs (128 B): 4 Ports * 16 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MODBUS_PORT_CONFIG_TOTAL 64
+#define SPLC_MB_PORT_MAX_PORTS            4
+#define SPLC_MB_PORT_REGS_PER_PORT        16      /* 16 regs = 32 bytes per port */
+#define SPLC_MB_PORT_BYTES_PER_PORT       32
+#define SPLC_MB_PORT_NAME_MAX_CHARS       12
 
 /* Wi-Fi Command codes at 0x1340 */
 #define SPLC_WIFI_CMD_IDLE                0x0000
@@ -1015,6 +1026,22 @@ typedef struct SPLC_PACKED {
     uint8_t reserved[2];        /* Padding to align to exactly 44 bytes */
 } SPLC_WifiApInfo_t;
 
+/**
+ * @brief Multi-Port RS-485 Modbus Master Port Record (16 registers = 32 bytes at 0x1400 + port_idx * 16).
+ * SPLC-SPEC-MBM-003: Physical RS-485 port configuration.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;         /* +0: Bit 8 = ENABLED (0x0100), Bit 0..7 = PORT_NUMBER (1..4) */
+    uint32_t baud_rate;             /* +1..+2: Baud Rate (uint32 Big-Endian) */
+    uint16_t parity;                /* +3: 0 = None, 1 = Even, 2 = Odd */
+    uint16_t framing;               /* +4: High Byte: DataBits (7, 8), Low Byte: StopBits (1, 2) */
+    uint16_t response_timeout_ms;   /* +5: Timeout in ms (50..5000) */
+    uint16_t inter_frame_delay_ms;  /* +6: Inter-frame delay in ms (10..500) */
+    uint16_t retry_count;           /* +7: Retry count (0..5) */
+    char     port_name[12];         /* +8..+13: 12 bytes ASCII packed string */
+    uint16_t reserved[2];           /* +14..+15: Reserved (always 0x0000) */
+} SPLC_ModbusPortConfigRecord_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
@@ -1040,6 +1067,7 @@ _Static_assert(sizeof(SPLC_PulseOutBlock_t)         == 32,  "PulseOutBlock must 
 _Static_assert(sizeof(SPLC_WifiConfig_t)            == 128, "WifiConfig must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_WifiScanControl_t)       == 32,  "WifiScanControl must be 32 bytes (16 regs)");
 _Static_assert(sizeof(SPLC_WifiApInfo_t)            == 44,  "WifiApInfo must be 44 bytes (22 regs)");
+_Static_assert(sizeof(SPLC_ModbusPortConfigRecord_t) == 32, "ModbusPortConfigRecord must be 32 bytes (16 regs)");
 #endif
 
 /* ========================================================================= */

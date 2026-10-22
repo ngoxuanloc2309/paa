@@ -155,11 +155,12 @@ $releaseContent = @"
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
 ## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Chuẩn hóa khối PULSE_OUT (Direct Hardware Pulse Output)**: Chuẩn hóa tên gọi khối logic từ DIRECT_WRITE sang PULSE_OUT, badge Canvas 'PULSE', hỗ trợ đầy đủ 4 chế độ Digital Output, PWM Duty, Pulse Train Output (PTO) và Addressable LED bus.
-- **Phân hệ ST67 Wi-Fi Subsystem (0x1300..0x13FF)**: Hỗ trợ cấu hình Wi-Fi trọn vẹn, quét sóng Access Point trực tiếp, Live Telemetry và đối ứng chuẩn MCU SPLC_SPEC_WIFI_004_ICD.
-- **Quy trình nạp cấu hình đa phân hệ an toàn (Multi-Subsystem Staged Deploy)**: Đồng bộ trọn vẹn Holding Registers (0x1000 MB_READ, 0x1100 MB_WRITE, 0x1200 PULSE_OUT, 0x1300 Wi-Fi) trước Staging & Atomic Commit.
-- **Đồng bộ hóa MCU Conformance & Codecs**: Khớp nối hoàn chỉnh struct byte alignment C11 (SPLC_ModbusMasterReadBlock_t 128 bytes), mã hóa endianness chuẩn và 3 mức fail-safe MQTT.
-- **Tương thích & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,316 bài kiểm thử tự động trên toàn giải pháp.
+- **Nhận thức phần cứng tự động số cổng RS-485 (`0x0A0A`)**: Tự động nhận diện số cổng vật lý MCU trang bị (0, 1, 2, 4 cổng), đồng bộ giao diện ComboBox/Canvas và ẩn các cổng không tồn tại; cơ chế fail-safe fallback về 2 cổng nếu MCU chạy firmware đời cũ.
+- **Cấu hình đa cổng RS-485 Modbus Master (`0x1400..0x143F`, SPLC-SPEC-MBM-003)**: Hỗ trợ cấu hình độc lập 4 cổng RS-485 vật lý (BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName), nạp cấu hình xuống MCU khi Deploy.
+- **Hai tầng chốt an toàn chặn lỗi vượt cổng (Safety Gates)**: Compiler Gate chặn biên dịch với lỗi Error khi khối MB_READ/MB_WRITE trỏ vào cổng không tồn tại; Deploy Gate hủy nạp an toàn với mã lỗi UNSUPPORTED.
+- **Thanh kết nối mục tiêu hợp nhất (Unified Target Connection Bar)**: Hiện đại hóa thanh Toolbar với Segmented Switch (USB CDC vs Modbus TCP), triệt tiêu 100% hiện tượng nhảy xô lệch giao diện (Zero Layout Shift).
+- **Đồng bộ đặc tả kỹ thuật toàn diện & Conformance CHKL-22**: Cập nhật Master Profile Spec, MCU Conformance Spec, C Header nhúng và tài liệu hướng dẫn vận hành.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,417 bài kiểm thử tự động trên toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

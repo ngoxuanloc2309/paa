@@ -130,13 +130,18 @@ public sealed class RuleTableWriter : IRuleTableWriter
         bool hasMqttSub = mqttSubConfigs != null && mqttSubConfigs.Count > 0;
         bool hasBroker = brokerConfig != null && brokerConfig.Enabled;
         bool hasMqttWork = hasMqttPub || hasMqttSub || hasBroker;
+        bool hasMbRead = modbusMasterConfigs != null && modbusMasterConfigs.Count > 0;
+        bool hasMbWrite = modbusMasterWriteConfigs != null && modbusMasterWriteConfigs.Count > 0;
+        bool hasMbPorts = modbusPortConfigs != null && modbusPortConfigs.Count > 0;
+        bool hasModbusWork = hasMbRead || hasMbWrite || hasMbPorts;
+        ushort physicalRs485PortCount = 2;
 
         bool isMqttPubSupported = false;
         bool isMqttSubSupported = false;
         SPLC_HardwareCapabilities caps = SPLC_HardwareCapabilities.NONE;
         Exception? capsReadException = null;
 
-        if (hasMqttWork || mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
+        if (hasMqttWork || hasModbusWork || mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
         {
             try
             {
@@ -213,6 +218,83 @@ public sealed class RuleTableWriter : IRuleTableWriter
                         SPLC_ErrorCode.UNSUPPORTED,
                         0,
                         $"Device does not declare any MQTT capability (Reported caps: 0x{(uint)caps:X8}, missing MQTT_PUB/SUB at 0x0A08). Deployment aborted for safety.");
+                }
+            }
+
+            // Cơ chế an toàn Fail-Fast: Chặn triển khai nếu dự án dùng Modbus Master nhưng phần cứng không đáp ứng
+            if (hasModbusWork)
+            {
+                try
+                {
+                    var rawPortRegs = await _client.ReadHoldingRegistersAsync(
+                        slaveId,
+                        ModbusRegisterMap.Rs485PhysicalPortCountAddress,
+                        ModbusRegisterMap.Rs485PhysicalPortCountLength,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (rawPortRegs != null && rawPortRegs.Length >= ModbusRegisterMap.Rs485PhysicalPortCountLength)
+                    {
+                        physicalRs485PortCount = rawPortRegs[0];
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Fallback an toàn cho firmware đời cũ
+                    bool hasMbCap = (caps & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                    physicalRs485PortCount = hasMbCap ? (ushort)2 : (ushort)0;
+                }
+
+                bool isModbusMasterSupported = (caps & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                if (!isModbusMasterSupported && (hasMbRead || hasMbWrite))
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not declare Modbus Master capability (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MODBUS_MASTER at 0x0A08). Deployment aborted for safety.");
+                }
+
+                if (physicalRs485PortCount == 0 && (hasMbRead || hasMbWrite))
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        "Device declares 0 physical RS-485 ports (0x0A0A). Modbus Master deployment aborted for safety.");
+                }
+
+                if (hasMbRead)
+                {
+                    var invalidRead = modbusMasterConfigs!.FirstOrDefault(c => c.PortIndex >= physicalRs485PortCount);
+                    if (invalidRead != null)
+                    {
+                        return new RuleDeployResult(
+                            false,
+                            (ushort)SPLC_CommandStatus.ERROR,
+                            SPLC_ErrorCode.UNSUPPORTED,
+                            0,
+                            $"Modbus Master Read block targets Port {invalidRead.PortIndex + 1}, exceeding device's physical RS-485 port count ({physicalRs485PortCount}). Deployment aborted for safety.");
+                    }
+                }
+
+                if (hasMbWrite)
+                {
+                    var invalidWrite = modbusMasterWriteConfigs!.FirstOrDefault(c => c.PortIndex >= physicalRs485PortCount);
+                    if (invalidWrite != null)
+                    {
+                        return new RuleDeployResult(
+                            false,
+                            (ushort)SPLC_CommandStatus.ERROR,
+                            SPLC_ErrorCode.UNSUPPORTED,
+                            0,
+                            $"Modbus Master Write block targets Port {invalidWrite.PortIndex + 1}, exceeding device's physical RS-485 port count ({physicalRs485PortCount}). Deployment aborted for safety.");
+                    }
                 }
             }
         }

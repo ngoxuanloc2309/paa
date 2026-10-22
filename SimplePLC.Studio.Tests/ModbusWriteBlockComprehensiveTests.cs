@@ -53,22 +53,33 @@ public class ModbusWriteBlockComprehensiveTests : IDisposable
 
         if (_hasPhysicalComPair)
         {
-            var serverPort = new SerialPort("COM7", 115200, Parity.None, 8, StopBits.One)
+            try
             {
-                DtrEnable = true,
-                RtsEnable = true,
-                ReadTimeout = 1000,
-                WriteTimeout = 1000
-            };
-            serverPort.Open();
-            _ = Task.Run(() => mcuServer.RunAsync(serverPort.BaseStream, serverPort.BaseStream, ct), ct);
-            return (serverPort, null, new UsbCdcEndpoint("COM9"), mcuSimulator, mcuServer);
+                var serverPort = new SerialPort("COM7", 115200, Parity.None, 8, StopBits.One)
+                {
+                    DtrEnable = true,
+                    RtsEnable = true,
+                    ReadTimeout = 1000,
+                    WriteTimeout = 1000
+                };
+                serverPort.Open();
+
+                using (var testClient = new SerialPort("COM9", 115200, Parity.None, 8, StopBits.One))
+                {
+                    testClient.Open();
+                }
+
+                _ = Task.Run(() => mcuServer.RunAsync(serverPort.BaseStream, serverPort.BaseStream, ct), ct);
+                return (serverPort, null, new UsbCdcEndpoint("COM9"), mcuSimulator, mcuServer);
+            }
+            catch
+            {
+                // Access denied on CI/CD runner or COM port locked -> Fallback to Virtual COM
+            }
         }
-        else
-        {
-            var vTransport = new VirtualComMcuTransport(mcuServer) { MaxPacketSize = 64 };
-            return (null, vTransport, new UsbCdcEndpoint("COM_VIRTUAL"), mcuSimulator, mcuServer);
-        }
+
+        var vTransport = new VirtualComMcuTransport(mcuServer) { MaxPacketSize = 64 };
+        return (null, vTransport, new UsbCdcEndpoint("COM_VIRTUAL"), mcuSimulator, mcuServer);
     }
 
     // =========================================================================

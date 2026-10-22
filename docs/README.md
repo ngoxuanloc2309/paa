@@ -39,6 +39,7 @@ Tài liệu hướng dẫn trực quan dành cho Kỹ sư Vận hành, Tích h�
   * 📥 [`MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md): Khối nhận lệnh MQTT Subscribe (Source Node thường trực, bóc tách JSON, xung Valid, cờ lỗi Err).
   * 🔄 [`MB_READ_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_READ_FUNCTION_BLOCK_USER_MANUAL.md): Khối đọc dữ liệu Modbus RTU Master.
   * 💾 [`MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md): Khối phát lệnh ghi Modbus RTU Master.
+  * 🔀 [`MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md`](manuals/MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md): Hướng dẫn cấu hình định tuyến đa cổng RS-485 Modbus Master (4 cổng vật lý, phím tắt Ctrl+Shift+B, gán cổng MB_READ/MB_WRITE).
 
 ---
 
@@ -49,6 +50,7 @@ Tài liệu phân tầng Clean Architecture, các ranh giới phụ thuộc và 
 * [`IDE_FEATURE_ARCHITECTURE_REVIEW.md`](architecture/IDE_FEATURE_ARCHITECTURE_REVIEW.md): Báo cáo rà soát toàn diện tính năng & kiến trúc IDE công nghiệp so sánh với chuẩn mực CODESYS V3.5 và Siemens TIA Portal V19.
 * [`NEXTGEN_AI_COPILOT_SPECIFICATION.md`](architecture/NEXTGEN_AI_COPILOT_SPECIFICATION.md): Đặc tả kỹ thuật trợ lý AI Copilot thế hệ mới (Deep Project Semantic Context, Function Calling / Tool Execution, Diff Preview Ghost Nodes).
 * [`SPLC_SPEC_IEC61131_DATA_TYPES_AND_MQTT_STANDARDIZATION.md`](architecture/SPLC_SPEC_IEC61131_DATA_TYPES_AND_MQTT_STANDARDIZATION.md): Chuẩn hóa hệ thống kiểu dữ liệu công nghiệp IEC 61131-3 và quy cách truyền thông IIoT MQTT Telemetry / Subscribe.
+* [`SPLC_SPEC_HARDWARE_AWARE_RS485_AUTO_SYNC.md`](architecture/SPLC_SPEC_HARDWARE_AWARE_RS485_AUTO_SYNC.md): **[ĐẶC TẢ TỰ ĐỒNG BỘ CỔNG RS-485]** Cơ chế nhận thức phần cứng tự động qua thanh ghi `0x0A0A`, đồng bộ số cổng hiển thị trên UI và 2 tầng Safety Gates (Compiler Gate & Deploy Gate).
 
 ---
 
@@ -67,8 +69,8 @@ Tập tài liệu đặc tả giao diện kỹ thuật (Interface Control Docume
 ### 4. 🔌 [Bản Đặc Tả Chuẩn Cốt Lõi Duy Nhất (`docs/platform/`)](platform/)
 Cổng đặc tả kỹ thuật nền tảng toàn diện và duy nhất dành cho Kỹ sư Firmware MCU & Kỹ sư Hệ thống:
 * 🌟 [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[BẢN ĐẶC TẢ MASTER CHUẨN CỐT LÕI DUY NHẤT]**  
-  Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x13FF`, `0x9000..0xA001`), tất cả 16 C binary structs, quy chuẩn an toàn Diag `0x0A20`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe (`SPLC_CAP_WIFI`), phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..21 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
-* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.8.1).
+  Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x143F`, `0x9000..0xA001`), tất cả C binary structs, quy chuẩn an toàn Diag `0x0A20`, nhận thức số cổng RS-485 `0x0A0A`, phân vùng đa cổng `0x1400`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe, phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..22 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
+* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.10.0).
 * [`STANDARD_RELEASE_PROCEDURE_SOP.md`](platform/STANDARD_RELEASE_PROCEDURE_SOP.md): Quy trình thao tác chuẩn (SOP) cho việc đóng gói, gắn thẻ phiên bản và phát hành hệ thống.
 * *(Các bản nháp cũ V1.9, V1 Register Map đã được lưu trữ an toàn trong `docs/history/`).*
 
@@ -94,6 +96,7 @@ Báo cáo kiểm toán độc lập về công thái học thị giác và chu�
 ### 7. 🧪 [Kiểm Thử & Tích Hợp Phần Cứng (`docs/testing/`)](testing/)
 Kế hoạch và quy trình thử nghiệm đo kiểm thực tế trên băng thử (bench test):
 * [`HARDWARE_INTEGRATION_TEST_PLAN.md`](testing/HARDWARE_INTEGRATION_TEST_PLAN.md): Kế hoạch kiểm thử tích hợp phần cứng USB CDC / RS485 chuẩn Platform V2.0 (14 ca kiểm thử từ HIT-001 đến HIT-014).
+* [`HARDWARE_AWARE_RS485_TEST_PLAN.md`](testing/HARDWARE_AWARE_RS485_TEST_PLAN.md): Kế hoạch kiểm thử tính năng nhận thức phần cứng tự động số cổng RS-485 (6 kịch bản kiểm thử toàn diện: E2E Auto-Sync, 0-Port, Fallback V1, Safety Compiler Gate, Safety Deploy Gate, Regression).
 
 ---
 

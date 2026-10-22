@@ -20,6 +20,8 @@ public partial class LogicEditorViewModel : ObservableObject
 {
     public TagCatalogViewModel TagCatalog { get; } = null!;
 
+    public Func<SimplePLC.Studio.Models.ProjectMetadata>? GetProjectMetadata { get; set; }
+
     public ObservableCollection<GraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<ConnectionViewModel> Connections { get; } = new();
     public ObservableCollection<GraphNodeViewModel> SelectedNodes { get; } = new();
@@ -89,7 +91,8 @@ public partial class LogicEditorViewModel : ObservableObject
         var targetNode = node ?? SelectedModbusReadNode;
         if (targetNode == null) return;
 
-        var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog);
+        var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
+        var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog, ports);
         var dialog = new Views.ModbusReadConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -104,7 +107,8 @@ public partial class LogicEditorViewModel : ObservableObject
         var targetNode = node ?? SelectedModbusWriteNode;
         if (targetNode == null) return;
 
-        var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog);
+        var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
+        var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog, ports);
         var dialog = new Views.ModbusWriteConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -4773,7 +4777,8 @@ public partial class LogicEditorViewModel : ObservableObject
             node.ClearDiagnostics();
         }
 
-        var result = _compiler.Compile(activeNodes, activeConnections, TagCatalog);
+        var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
+        var result = _compiler.Compile(activeNodes, activeConnections, TagCatalog, modbusPorts: ports);
 
         if (isAutoSync)
         {

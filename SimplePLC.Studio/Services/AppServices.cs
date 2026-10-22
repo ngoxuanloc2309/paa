@@ -216,12 +216,15 @@ public sealed class AppServices
 
                 var resourceInfo = await descriptorReader.ReadResourceInfoAsync(slaveId, cancellationToken).ConfigureAwait(false);
                 var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+                ushort? rs485PortCount = null;
                 if (resourceInfo.WireProfile >= 2)
                 {
                     capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, cancellationToken).ConfigureAwait(false);
+                    bool hasModbus = (capabilities & SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                    rs485PortCount = await descriptorReader.ReadPhysicalRs485PortCountAsync(slaveId, hasModbus, cancellationToken).ConfigureAwait(false);
                 }
 
-                if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities))
+                if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities, rs485PortCount))
                 {
                     return DeviceConnectionResult.Incompatible(
                         CompatibilityResult.Incompatible(CompatibilityStatus.UnsupportedDeviceVariant, profileError ?? "Invalid device profile."));

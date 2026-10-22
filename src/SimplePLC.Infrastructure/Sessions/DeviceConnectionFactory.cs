@@ -93,13 +93,16 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
 
             // 3.1 Đọc HardwareCapabilities tại 0x0A08 (nếu Wire Profile V2)
             var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+            ushort? rs485PortCount = null;
             if (resourceInfo.WireProfile >= 2)
             {
                 capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, ct).ConfigureAwait(false);
+                bool hasModbus = (capabilities & SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                rs485PortCount = await descriptorReader.ReadPhysicalRs485PortCountAsync(slaveId, hasModbus, ct).ConfigureAwait(false);
             }
 
             // 4. Thẩm định Wire Profile V1 và dựng ProductDefinition tại runtime
-            if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities))
+            if (!DeviceProfileMapper.TryBuildProductDefinition(descriptor, resourceInfo, out var product, out var profileError, capabilities, rs485PortCount))
             {
                 if (transport != null)
                 {

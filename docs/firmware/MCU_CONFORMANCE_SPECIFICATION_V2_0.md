@@ -54,6 +54,8 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0900..0x09FF` | **Runtime Tag Values** | R/W | FC03/FC16 | 256 regs (128 tags) | Giá trị 32-bit của các Tag theo `TagIndex` 0..127. Mỗi tag = 2 regs (High Word trước). Chỉ cho phép ghi trong chế độ `DIAG_CONTROL`. |
 | `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo trì hệ thống (`1: REBOOT`, `2: FACTORY_RESET`, `3: CLEAR_RULES`, `4: CLEAR_RETAIN`). |
 | `0x0A01..0x0A02` | **System Command Result** | R | FC03 | 2 regs (4 B) | Kết quả thực thi lệnh: `[0]=CommandStatus`, `[1]=ErrorCode`. |
+| `0x0A08..0x0A09` | **Hardware Capabilities** | R | FC03 | 2 regs (4 B) | Khai báo 32-bit năng lực phần cứng thực tế (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100), WiFi ST67 (0x200). |
+| `0x0A0A` | **RS-485 Physical Port Count** | R | FC03 | 1 reg (2 B) | Số lượng cổng RS-485 vật lý khả dụng trên phần cứng MCU (uint16, FC03 RO). Giá trị: `0` (None), `1` (Micro/Compact), `2` (Standard SimplePLC), `4` (Modular/Gateway). Host tự động đồng bộ danh sách cổng và khóa an toàn các cổng vượt quá giới hạn phần cứng. |
 | `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16 | 5 regs (10 B) | Phân hệ chẩn đoán cưỡng bức: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseRemainingMs` (0x0A23), `ErrorCode` (0x0A24). |
 | `0x0B00..0x0B3F` | **Function Block Timers** | R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Timer IEC 61131-3 (TON, TOF, TP). Host ghi cấu hình (Mode, PT) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, ET). Mỗi khối 8 thanh ghi (16 bytes). |
 | `0x0B40..0x0B7F` | **Function Block Counters**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Counter IEC 61131-3 (CTU, CTD). Host ghi cấu hình (Mode, PV, RetainTagIndex) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, CV). Mỗi khối 8 thanh ghi (16 bytes). |
@@ -65,6 +67,7 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
 | `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
 | `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
+| `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Modbus Master vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName). Host nạp xuống MCU khi deploy. |
 | `0x9000..0x9005` | **Staging Config Handshake**| R/W | FC03/FC16 | 6 regs (12 B) | `Status`, `ErrorCode`, `RuleCountStaged`, `ExpectedCrc16`, `ActiveRuleCount`, `ActiveRuleCrc16`. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | Vùng đệm nạp Rule mới (ghi từng block tối đa 120 registers). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và tráo bảng (atomic swap). |
@@ -489,6 +492,22 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
   * `0x0040` (`SPLC_CAP_SD_DATALOG`): Có khe cắm thẻ nhớ MicroSD.
   * `0x0080` (`SPLC_CAP_MQTT_TLS_CERT`): Hỗ trợ nạp và giải mã chứng chỉ bảo mật TLS/SSL theo khối struct (0x0F00, SPLC-SPEC-MQTT-003).
   * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master Poller (`MB_READ`, 0x1000..0x10FF, SPLC-SPEC-MBM-001).
+  * `0x0200` (`SPLC_CAP_WIFI`): Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (`0x1300..0x13FF`, SPLC-SPEC-WIFI-004).
+
+### 13.4.1. Thanh Ghi Tự Mô Tả Số Cổng RS-485 Vật Lý (`0x0A0A`, SPLC_ADDR_HW_RS485_PORT_COUNT)
+* Địa chỉ: `0x0A0A` (16-bit uint16, 1 holding register, FC03 Read-Only).
+* Định nghĩa giá trị trả về từ phần cứng MCU:
+  * `0`: Không hỗ trợ RS-485 Modbus Master (phiên bản Micro/Compact thuần I/O).
+  * `1`: 1 cổng vật lý RS-485 (ví dụ: SimplePLC Compact 1-Port).
+  * `2`: 2 cổng vật lý RS-485 (chuẩn phần cứng tiêu chuẩn SimplePLC Remote I/O V1/V2).
+  * `4`: 4 cổng vật lý RS-485 (SimplePLC Modular Gateway / Multi-Drop High-Density Controller).
+* **Cơ chế Fallback Tương thích ngược:**
+  - Nếu đọc `0x0A0A` thất bại (Timeout, CRC Error hoặc thiết bị firmware đời cũ V1 phản hồi Modbus Exception `0x02`):
+    * Nếu `HardwareCapabilities` có cờ `SPLC_CAP_MODBUS_MASTER (0x0100)`: Host **tự động fallback về 2 cổng vật lý danh định** (`Standard SimplePLC`).
+    * Nếu không có cờ `0x0100`: Host gán số cổng là **0**.
+* **Hai Chốt An Toàn Chặn Lỗi (Safety Gates):**
+  1. **Compiler Gate:** Trình biên dịch `RuleCompiler` chặn và báo lỗi `DiagnosticSeverity.Error` nếu phát hiện khối `MB_READ`/`MB_WRITE` gán `PortIndex >= physicalRs485PortCount`.
+  2. **Deploy Gate:** `RuleTableWriter` chặn nạp và trả về `SPLC_ErrorCode.UNSUPPORTED (0x0002)` nếu dự án kích hoạt cổng vượt quá phần cứng thực tế.
 
 * **Quy chuẩn Fail-Safe khi Deploy từ Host (SynaptiX IDE / SimplePLC Studio):**
   1. **Bắt buộc đọc kiểm tra năng lực trước khi ghi cấu hình nâng cao:**
@@ -601,6 +620,26 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 
 ---
 
+### 13.9.1. Cấu Hình Đa Cổng RS-485 Modbus Master (`0x1400..0x143F`, SPLC-SPEC-MBM-003)
+* **Dải địa chỉ Modbus:** `0x1400 - 0x143F` (64 Holding Registers = 128 Bytes, FC03/FC16 R/W).
+* **Phân bổ:** 4 cổng RS-485 vật lý $\times$ 16 thanh ghi (32 bytes) mỗi cổng.
+  * Cổng 1 (`Port 0`): `0x1400 .. 0x140F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, `ENABLED`).
+  * Cổng 2 (`Port 1`): `0x1410 .. 0x141F` (Mặc định: `19200-8-E-1`, Timeout `200ms`, `ENABLED`).
+  * Cổng 3 (`Port 2`): `0x1420 .. 0x142F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, *Disabled*).
+  * Cổng 4 (`Port 3`): `0x1430 .. 0x143F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, *Disabled*).
+* **Cấu trúc nhị phân mỗi cổng (`SPLC_ModbusPortConfigRecord_t`, 32 bytes):**
+  * `Offset +0`: `control_flags` (`uint16`) — Bit 8: `ENABLED` (`0x0100`), Bit 0..7: `PORT_NUMBER` (`1..4`).
+  * `Offset +1..+2`: `baud_rate` (`uint32` Big-Endian).
+  * `Offset +3`: `parity` (`uint16`: 0=None, 1=Even, 2=Odd).
+  * `Offset +4`: `framing` (`uint16`: High Byte = `data_bits` 7/8, Low Byte = `stop_bits` 1/2).
+  * `Offset +5`: `response_timeout_ms` (`uint16`: 50..5000 ms, mặc định 200 ms).
+  * `Offset +6`: `inter_frame_delay_ms` (`uint16`: 10..500 ms, mặc định 20 ms).
+  * `Offset +7`: `retry_count` (`uint16`: 0..5, mặc định 1).
+  * `Offset +8..+13`: `port_name` (`ASCII[12]`, 6 thanh ghi Big-Endian null-padded).
+  * `Offset +14..+15`: `reserved` (`uint16[2]`, luôn ghi `0x0000`).
+
+---
+
 ### 13.10. Quy Trình Nạp Cấu Hình Đa Phân Hệ Từ SynaptiX IDE Xuống MCU (Multi-Subsystem Staged Deployment Sequence)
 
 Quy trình nạp luật và cấu hình hoàn chỉnh từ SynaptiX IDE xuống MCU được thiết kế bảo vệ 6 bước nghiêm ngặt:
@@ -612,10 +651,12 @@ sequenceDiagram
     participant MCU as MCU Firmware (Modbus Slave)
     participant ENG as Rule Engine (10ms Scan)
 
-    Note over IDE,MCU: BƯỚC 1: KHẢO SÁT NĂNG LỰC PHẦN CỨNG
+    Note over IDE,MCU: BƯỚC 1: KHẢO SÁT NĂNG LỰC PHẦN CỨNG & SỐ CỔNG RS-485
     IDE->>MCU: FC03 Read 0x0A08 (SPLC_HardwareCapabilities_t)
     MCU-->>IDE: Trả về Capabilities Mask (0x02FF...)
-    Note over IDE: Nếu thiếu cờ năng lực tương ứng -> Fail-Safe ABORT
+    IDE->>MCU: FC03 Read 0x0A0A (RS-485 Physical Port Count)
+    MCU-->>IDE: Trả về Port Count (0, 1, 2, hoặc 4)
+    Note over IDE: Nếu thiếu cờ năng lực hoặc cổng vượt giới hạn -> Fail-Safe ABORT
 
     Note over IDE,MCU: BƯỚC 2: NẠP CẤU HÌNH NGOẠI VI (HOLDING REGISTERS)
     opt Có Timer / Counter
@@ -626,6 +667,9 @@ sequenceDiagram
         IDE->>MCU: FC16 Write 0x0E00.. (Broker Config 96 regs)
         IDE->>MCU: FC16 Write 0x0C00.. (PUB Blocks up to 384 regs)
         IDE->>MCU: FC16 Write 0x0D80.. (SUB Blocks up to 128 regs)
+    end
+    opt Có Cấu hình Cổng RS-485 Modbus Master
+        IDE->>MCU: FC16 Write 0x1400.. (RS-485 Ports 4 blocks * 16 regs = 64 regs)
     end
     opt Có Modbus Master RTU
         IDE->>MCU: FC16 Write 0x1000.. (MB Read up to 256 regs)
@@ -689,6 +733,7 @@ Trước khi nghiệm thu hoặc xuất xưởng firmware tích hợp cùng Simp
 - [ ] **CHKL-19: Modbus Master RTU Sensor Poller (0x1000..0x10FF)**: Polling cảm biến RS-485 ngầm không nghẽn chu kỳ quét 10ms, hỗ trợ 4 chuẩn Endianness.
 - [ ] **CHKL-20: Pulse Output & Hardware Actuator (0x1200..0x12FF)**: Hỗ trợ cấu hình tối đa 8 khối `PULSE_OUT` (DO, PWM, PTO, Bus Addressable) theo chuẩn ICD SPLC-SPEC-PULSE-003.
 - [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD), bật cờ `0x0200` tại `0x0A08`, quét sóng và kết nối qua worker task nền non-blocking.
+- [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng Modbus Master tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay) và áp dụng đúng tham số truyền thông cho các luồng Modbus Master Poller (`0x1000`) và Writer (`0x1100`).
 
 
 
