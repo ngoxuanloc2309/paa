@@ -101,6 +101,7 @@ internal class Program
         Console.WriteLine("  [+/-]   Increase/Decrease Analog Input AI0 (step 200mV)");
         Console.WriteLine("  [</>]   Increase/Decrease Analog Input AI1 (step 200mV)");
         Console.WriteLine("  [A]     Toggle Auto Waveform Generator (All 23 App Blueprints)");
+        Console.WriteLine("  [M]     Toggle Modbus Master State (Online [DO6=1, DO7=0] <-> Fault [DO6=0, DO7=1])");
         Console.WriteLine("  [V]     Toggle VFLAG0 (Production Shift / Security Arm)");
         Console.WriteLine("  [S]     Sync RTC Clock with host computer");
         Console.WriteLine("  [C]     Toggle Capabilities (Remote I/O <-> IoT Gateway)");
@@ -223,6 +224,7 @@ internal class Program
         int ai0Value = 1000;
         int ai1Value = 2000;
         bool[] diStates = new bool[Math.Max(8, (int)layout.DiCount)];
+        bool modbusFault = false;
 
         while (!cts.IsCancellationRequested)
         {
@@ -239,6 +241,21 @@ internal class Program
                     Console.ForegroundColor = autoSignals ? ConsoleColor.Green : ConsoleColor.Yellow;
                     Console.WriteLine($"[MODE] Auto Waveform Generator: {(autoSignals ? "ACTIVE (Tự động giả lập 23 ví dụ)" : "PAUSED (Điều khiển thủ công)")}");
                     Console.ResetColor();
+                }
+                else if (key.Key == ConsoleKey.M)
+                {
+                    modbusFault = !modbusFault;
+                    Console.ForegroundColor = modbusFault ? ConsoleColor.Red : ConsoleColor.Green;
+                    Console.WriteLine($"[MODBUS] State changed -> {(modbusFault ? "COMMUNICATION FAULT / TIMEOUT (DO6=0, DO7=1)" : "ONLINE NORMAL (DO6=1, DO7=0)")}");
+                    Console.ResetColor();
+                    if (layout.DoCount > 6)
+                    {
+                        simulator.Control.SetTagValue((ushort)(layout.DoBase + 6), modbusFault ? 0 : 1);
+                    }
+                    if (layout.DoCount > 7)
+                    {
+                        simulator.Control.SetTagValue((ushort)(layout.DoBase + 7), modbusFault ? 1 : 0);
+                    }
                 }
                 else if (key.Key == ConsoleKey.V && layout.VflagCount > 0)
                 {
@@ -475,6 +492,45 @@ internal class Program
                 {
                     int waveAi3 = (int)(5000 + 3000 * Math.Cos((nowMs % 12000) / 12000.0 * 2.0 * Math.PI));
                     simulator.Control.SetTagValue((ushort)(layout.AiBase + 3), waveAi3);
+                }
+
+                // 12. SELEC MFM383A-C Telemetry & Modbus Master Simulation (VREG0..2, VREG_RETAIN0, DO6, DO7)
+                // - VREG0: Điện áp pha trung bình ~230.2V .. 230.8V (Hình sin chậm chu kỳ 10 giây)
+                // - VREG1: Dòng điện pha trung bình ~5.15A .. 5.35A (Hình sin chậm chu kỳ 8 giây)
+                // - VREG2: Tổng công suất kW = V * I * sqrt(3) * 0.98 / 1000 ~ 3.55 kW .. 3.75 kW
+                // - VREG_RETAIN0: Điện năng kWh tích lũy liên tục (bắt đầu từ 12,345.60 kWh)
+                // - Trạng thái Online: DO6 = 1, DO7 = 0
+                // - Trạng thái Fault: DO6 = 0, DO7 = 1
+                if (!modbusFault)
+                {
+                    if (layout.VregCount > 2)
+                    {
+                        double radV = (nowMs % 10000) / 10000.0 * 2.0 * Math.PI;
+                        float simV = 230.0f + 0.5f * (float)Math.Sin(radV);
+                        simulator.Control.SetTagValue((ushort)(layout.VregBase + 0), BitConverter.SingleToInt32Bits(simV));
+
+                        double radI = (nowMs % 8000) / 8000.0 * 2.0 * Math.PI;
+                        float simI = 5.25f + 0.1f * (float)Math.Sin(radI);
+                        simulator.Control.SetTagValue((ushort)(layout.VregBase + 1), BitConverter.SingleToInt32Bits(simI));
+
+                        float simP = (simV * simI * 1.732f * 0.98f) / 1000.0f;
+                        simulator.Control.SetTagValue((ushort)(layout.VregBase + 2), BitConverter.SingleToInt32Bits(simP));
+                    }
+
+                    if (layout.VregRetainCount > 0)
+                    {
+                        float simKwh = 12345.60f + (float)(nowMs / 10000.0);
+                        simulator.Control.SetTagValue((ushort)(layout.VregRetainBase + 0), BitConverter.SingleToInt32Bits(simKwh));
+                    }
+                }
+
+                if (layout.DoCount > 6)
+                {
+                    simulator.Control.SetTagValue((ushort)(layout.DoBase + 6), modbusFault ? 0 : 1);
+                }
+                if (layout.DoCount > 7)
+                {
+                    simulator.Control.SetTagValue((ushort)(layout.DoBase + 7), modbusFault ? 1 : 0);
                 }
             }
 

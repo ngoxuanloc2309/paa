@@ -5,11 +5,20 @@
              xmlns:converters="clr-namespace:SimplePLC.Studio.Converters">
 
     <UserControl.Resources>
-        <converters:BooleanToVisibilityConverterEx x:Key="BoolToVis" />
-        <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
-        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Styles/Colors.xaml" />
+                <ResourceDictionary Source="../Styles/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
 
-        <!-- Modern ProgressBar Style -->
+            <converters:BooleanToVisibilityConverterEx x:Key="BoolToVis" />
+            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+            <converters:NullToVisibilityConverter x:Key="NullToVis" />
+            <converters:ComparisonConverter x:Key="CompareConverter" />
+            <converters:ComparisonToVisibilityConverter x:Key="CompareToVis" />
+            <converters:ComparisonToVisibilityConverter x:Key="ComparisonToVis" />
+
+            <!-- Modern ProgressBar Style -->
         <Style x:Key="MemoryProgressBarStyle" TargetType="ProgressBar">
             <Setter Property="Height" Value="6" />
             <Setter Property="Background" Value="#DFE3E8" />
@@ -88,20 +97,54 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="Padding" Value="2,8" />
         </Style>
+
+        <!-- Default DataGrid TextBlock Styles inside Cells: Vertically Centered, Left-Aligned with 10px margin matching Header padding -->
+        <Style x:Key="DgCellTextLeft" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="TextAlignment" Value="Left" />
+            <Setter Property="Margin" Value="10,0" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        </Style>
+
+        <Style x:Key="DgCellTextCodeLeft" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
+            <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <Style x:Key="DgCellTextCenter" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="Margin" Value="4,0" />
+        </Style>
+
+        <Style x:Key="DgCellTextCodeCenter" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextCenter}">
+            <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <Style x:Key="DgCellIdBadge" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource IndustrialPrimaryBrush}" />
+            <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
+        </Style>
+
+        <Style x:Key="DgCellStatusActive" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#107C41" />
+        </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <!-- Header -->
             <RowDefinition Height="Auto" />
-            <!-- Toolbar: Filter & Search -->
+            <!-- Sub-Tabs Navigation Bar -->
             <RowDefinition Height="Auto" />
-            <!-- Content: DataGrid or Empty State -->
+            <!-- Subsystem Body Container -->
             <RowDefinition Height="*" MinHeight="160" />
-            <!-- Resizing Splitter -->
-            <RowDefinition Height="Auto" />
-            <!-- Bottom Inspector: 32-Byte Disassembly -->
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Row 0: Header -->
@@ -176,8 +219,41 @@
             </Grid>
         </Border>
 
-        <!-- Row 1: Toolbar (Status Filters, Export CSV, Search Box) -->
-        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10" Margin="0,0,0,12">
+        <!-- Row 1: Sub-Tabs Navigation Bar -->
+        <Border Grid.Row="1" Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="4" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <RadioButton Content="{Binding SubTabLogicLabel}" Style="{StaticResource ToolStripTabBtn}"
+                             IsChecked="{Binding SelectedSubTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=0}"
+                             Command="{Binding SelectSubTabCommand}" CommandParameter="0" Margin="0,0,4,0" />
+                <RadioButton Content="{Binding SubTabModbusLabel}" Style="{StaticResource ToolStripTabBtn}"
+                             IsChecked="{Binding SelectedSubTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=1}"
+                             Command="{Binding SelectSubTabCommand}" CommandParameter="1" Margin="0,0,4,0" />
+                <RadioButton Content="{Binding SubTabMqttLabel}" Style="{StaticResource ToolStripTabBtn}"
+                             IsChecked="{Binding SelectedSubTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=2}"
+                             Command="{Binding SelectSubTabCommand}" CommandParameter="2" Margin="0,0,4,0" />
+                <RadioButton Content="{Binding SubTabFunctionBlocksLabel}" Style="{StaticResource ToolStripTabBtn}"
+                             IsChecked="{Binding SelectedSubTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=3}"
+                             Command="{Binding SelectSubTabCommand}" CommandParameter="3" />
+            </StackPanel>
+        </Border>
+
+        <!-- Row 2: Subsystem Body Container -->
+        <Grid Grid.Row="2">
+            <!-- 2.1 SubTab 0: Logic Rules Container -->
+            <Grid Visibility="{Binding SelectedSubTabIndex, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                <Grid.RowDefinitions>
+                    <!-- Toolbar: Filter & Search -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Content: DataGrid or Empty State -->
+                    <RowDefinition Height="*" MinHeight="160" />
+                    <!-- Resizing Splitter -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Bottom Inspector: 32-Byte Disassembly -->
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+        <!-- SubTab 0 Row 0: Toolbar (Status Filters, Export CSV, Search Box) -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10" Margin="0,0,0,12">
             <DockPanel>
                 <!-- Left: Status Filters -->
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
@@ -315,15 +391,15 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 2: Content (DataGrid when HasRules == true, Empty State when HasRules == false) -->
-        <Grid Grid.Row="2">
+        <!-- SubTab 0 Row 1: Content (DataGrid when HasRules == true, Empty State when HasRules == false) -->
+        <Grid Grid.Row="1">
             <!-- DataGrid Table -->
             <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6"
                     Visibility="{Binding HasRules, Converter={StaticResource BoolToVis}}">
                 <DataGrid ItemsSource="{Binding FilteredRules}" AutoGenerateColumns="False"
                           IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
                           GridLinesVisibility="Horizontal"
-                          HorizontalGridLinesBrush="#ECEFF1" HeadersVisibility="Column"
+                          HorizontalGridLinesBrush="#ECEFF1" HeadersVisibility="Column" RowHeaderWidth="0"
                           ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}"
                           EnableRowVirtualization="True"
                           VirtualizingPanel.IsVirtualizing="True"
@@ -336,24 +412,23 @@
                     <DataGrid.Columns>
                         <!-- Enabled Switch -->
                         <DataGridCheckBoxColumn Header="{Binding [ColRuleEnabled], Source={x:Static services:LocalizationService.Instance}}"
-                                                Width="48" Binding="{Binding Enabled}"
-                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                                                Width="60" Binding="{Binding Enabled}">
                             <DataGridCheckBoxColumn.ElementStyle>
                                 <Style TargetType="CheckBox">
-                                    <Setter Property="HorizontalAlignment" Value="Center" />
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
                                     <Setter Property="VerticalAlignment" Value="Center" />
+                                    <Setter Property="Margin" Value="10,0" />
                                 </Style>
                             </DataGridCheckBoxColumn.ElementStyle>
                         </DataGridCheckBoxColumn>
 
                         <!-- ID -->
                         <DataGridTemplateColumn Header="{Binding [ColRuleId], Source={x:Static services:LocalizationService.Instance}}"
-                                                Width="55"
-                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                                                Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" Foreground="#334155" FontFamily="Consolas"
-                                               VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center" />
+                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" Foreground="{StaticResource IndustrialPrimaryBrush}" FontFamily="Consolas"
+                                               VerticalAlignment="Center" HorizontalAlignment="Left" Margin="10,0" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -416,20 +491,17 @@
 
                         <!-- Action: Jump to Canvas & Delete -->
                         <DataGridTemplateColumn Header="{Binding [ColRuleActionNav], Source={x:Static services:LocalizationService.Instance}}"
-                                                Width="155"
-                                                HeaderStyle="{StaticResource CenteredColumnHeaderStyle}">
+                                                Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0">
                                         <!-- Edit on Canvas -->
                                         <Button Command="{Binding DataContext.EditInLogicGraphCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 CommandParameter="{Binding}"
                                                 Style="{StaticResource TiaTactileBtnStyle}"
-                                                FontSize="10.5" Padding="8,4" Margin="0,0,6,0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="✏️ " FontSize="9.5" VerticalAlignment="Center" />
-                                                <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            </StackPanel>
+                                                FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
+                                                ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
+                                            <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
                                         </Button>
 
                                         <!-- Delete Rule -->
@@ -437,7 +509,7 @@
                                                 CommandParameter="{Binding}"
                                                 ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
                                                 Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                                                FontSize="11" FontWeight="SemiBold" Padding="7,4" Cursor="Hand">
+                                                FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
@@ -490,13 +562,13 @@
             </Border>
         </Grid>
 
-        <!-- Row 3: Resizing Splitter -->
-        <GridSplitter Grid.Row="3" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+        <!-- SubTab 0 Row 2: Resizing Splitter -->
+        <GridSplitter Grid.Row="2" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                       Background="Transparent" ShowsPreview="False" Cursor="SizeNS" Margin="0,4,0,4"
                       Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}" />
 
-        <!-- Row 4: Logic Flow Details Card (Automation Pipeline: Trigger -> Guard -> Action) -->
-        <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10"
+        <!-- SubTab 0 Row 3: Logic Flow Details Card (Automation Pipeline: Trigger -> Guard -> Action) -->
+        <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10"
                 Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}">
             <StackPanel>
                 <!-- Card Header -->
@@ -711,5 +783,379 @@
                 </StackPanel>
             </StackPanel>
         </Border>
+            </Grid>
+
+            <!-- 2.2 SubTab 1: Modbus Master Container -->
+            <Grid Visibility="{Binding SelectedSubTabIndex, Converter={StaticResource CompareToVis}, ConverterParameter=1}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Top Notice & Action Bar -->
+                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12,10" Margin="0,0,0,12">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Command="{Binding OpenModbusPortSettingsCommand}"
+                                Style="{StaticResource TiaTactileBtnStyle}" Padding="12,5" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding [BtnOpenDevicePortSettings], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" FontSize="11.5" />
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding [RuleModbusNoticeDeviceSettings], Source={x:Static services:LocalizationService.Instance}}"
+                                       FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Modbus DataGrid & Empty State -->
+                <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding ModbusCommands}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                  HeadersVisibility="Column" RowHeaderWidth="0"
+                                  ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{Binding [ColModbusId], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Id}" Width="65"
+                                                    ElementStyle="{StaticResource DgCellIdBadge}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusType], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding BlockType}" Width="155"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusPort], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding PortDisplay}" Width="110"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusSlave], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding SlaveId}" Width="85"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusFC], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding FunctionCodeDisplay}" Width="160"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusAddr], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding AddressDisplay}" Width="115"
+                                                    ElementStyle="{StaticResource DgCellTextCodeLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusLen], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding LengthDisplay}" Width="85"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusMode], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding ModeDisplay}" Width="135"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColModbusPins], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding PinsOrTargetDisplay}" Width="*"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColRuleEnabled], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Status}" Width="80"
+                                                    ElementStyle="{StaticResource DgCellStatusActive}" />
+
+                                <!-- Action: Jump to Canvas & Delete -->
+                                <DataGridTemplateColumn Header="{Binding [ColRuleActionNav], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0">
+                                                <Button Command="{Binding DataContext.EditInLogicGraphCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                                        FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
+                                                        ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
+                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                </Button>
+
+                                                <Button Command="{Binding DataContext.DeleteModbusCommandCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#FEE2E2" />
+                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Empty State -->
+                        <Border Background="White" Visibility="{Binding ModbusCommandCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🔄" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <TextBlock Text="{Binding [RuleModbusEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding [RuleModbusEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚡ " />
+                                        <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 2.3 SubTab 2: MQTT Services Container -->
+            <Grid Visibility="{Binding SelectedSubTabIndex, Converter={StaticResource CompareToVis}, ConverterParameter=2}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Top Notice & Action Bar -->
+                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12,10" Margin="0,0,0,12">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Command="{Binding OpenMqttBrokerSettingsCommand}"
+                                Style="{StaticResource TiaTactileBtnStyle}" Padding="12,5" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding [BtnOpenDeviceBrokerSettings], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" FontSize="11.5" />
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding [RuleMqttNoticeDeviceSettings], Source={x:Static services:LocalizationService.Instance}}"
+                                       FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- MQTT DataGrid & Empty State -->
+                <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding MqttServices}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                  HeadersVisibility="Column" RowHeaderWidth="0"
+                                  ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{Binding [ColMqttId], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Id}" Width="65"
+                                                    ElementStyle="{StaticResource DgCellIdBadge}" />
+
+                                <DataGridTextColumn Header="{Binding [ColMqttType], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding ServiceType}" Width="160"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColMqttTopic], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Topic}" Width="240"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColMqttQos], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Qos}" Width="75"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColMqttMode], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding ModeDisplay}" Width="130"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColMqttPayload], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding PayloadSummary}" Width="*"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColRuleEnabled], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Status}" Width="80"
+                                                    ElementStyle="{StaticResource DgCellStatusActive}" />
+
+                                <!-- Action: Jump to Canvas & Delete -->
+                                <DataGridTemplateColumn Header="{Binding [ColRuleActionNav], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0">
+                                                <Button Command="{Binding DataContext.EditInLogicGraphCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                                        FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
+                                                        ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
+                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                </Button>
+
+                                                <Button Command="{Binding DataContext.DeleteMqttServiceCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#FEE2E2" />
+                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Empty State -->
+                        <Border Background="White" Visibility="{Binding MqttServiceCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="☁️" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <TextBlock Text="{Binding [RuleMqttEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding [RuleMqttEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚡ " />
+                                        <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 2.4 SubTab 3: Function Blocks Container -->
+            <Grid Visibility="{Binding SelectedSubTabIndex, Converter={StaticResource CompareToVis}, ConverterParameter=3}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Function Blocks DataGrid & Empty State -->
+                <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding FunctionBlocks}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                  HeadersVisibility="Column" RowHeaderWidth="0"
+                                  ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{Binding [ColFbId], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Id}" Width="65"
+                                                    ElementStyle="{StaticResource DgCellIdBadge}" />
+
+                                <DataGridTextColumn Header="{Binding [ColFbType], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding BlockType}" Width="160"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColFbPreset], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding PresetDisplay}" Width="130"
+                                                    ElementStyle="{StaticResource DgCellTextCodeLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColFbInput], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding InputSignal}" Width="180"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColFbOutput], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding OutputSignal}" Width="*"
+                                                    ElementStyle="{StaticResource DgCellTextLeft}" />
+
+                                <DataGridTextColumn Header="{Binding [ColRuleEnabled], Source={x:Static services:LocalizationService.Instance}}"
+                                                    Binding="{Binding Status}" Width="80"
+                                                    ElementStyle="{StaticResource DgCellStatusActive}" />
+
+                                <!-- Action: Jump to Canvas & Delete -->
+                                <DataGridTemplateColumn Header="{Binding [ColRuleActionNav], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0">
+                                                <Button Command="{Binding DataContext.EditInLogicGraphCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        Style="{StaticResource TiaTactileBtnStyle}"
+                                                        FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
+                                                        ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
+                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                </Button>
+
+                                                <Button Command="{Binding DataContext.DeleteFunctionBlockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
+                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#FEE2E2" />
+                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Empty State -->
+                        <Border Background="White" Visibility="{Binding FunctionBlockCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="⏱️" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <TextBlock Text="{Binding [RuleFbEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding [RuleFbEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚡ " />
+                                        <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
     </Grid>
 </UserControl>

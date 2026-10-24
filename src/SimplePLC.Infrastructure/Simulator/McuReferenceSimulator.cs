@@ -145,6 +145,7 @@ public sealed class McuReferenceSimulator
                        SPLC_HardwareCapabilities.MQTT_SUB |
                        SPLC_HardwareCapabilities.MODBUS_MASTER |
                        SPLC_HardwareCapabilities.MODBUS_TCP |
+                       SPLC_HardwareCapabilities.FLOAT32 |
                        SPLC_HardwareCapabilities.SD_DATALOG;
             Span<ushort> capsRegs = stackalloc ushort[2];
             RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
@@ -378,6 +379,26 @@ public sealed class McuReferenceSimulator
                             }
                         }
                         break;
+
+                    case SPLC_TimerMode.CYCLE:
+                        if (inState)
+                        {
+                            timer.ElapsedMs += deltaMs;
+                            uint period = timer.PresetMs > 0 ? timer.PresetMs : 1000;
+                            if (timer.ElapsedMs >= period)
+                            {
+                                timer.ElapsedMs = 0;
+                                timer.Q = !timer.Q;
+                            }
+                            timer.Running = true;
+                        }
+                        else
+                        {
+                            timer.ElapsedMs = 0;
+                            timer.Running = false;
+                            timer.Q = false;
+                        }
+                        break;
                 }
             }
 
@@ -608,7 +629,7 @@ public sealed class McuReferenceSimulator
                             {
                                 if (rule.CompareOp != SPLC_CompareOp.NONE)
                                 {
-                                    condMet = EvaluateCompare(rule.CompareOp, currVal, rule.ThresholdLo, rule.ThresholdHi, rule.IsFloatData);
+                                    condMet = EvaluateCompare(rule.CompareOp, currVal, rule.ThresholdLo, rule.ThresholdHi, rule.IsTriggerFloat);
                                 }
                                 else
                                 {
@@ -718,10 +739,10 @@ public sealed class McuReferenceSimulator
                 WriteTagValue(rule.ActionTag, val + rule.ActionParam);
                 break;
             case SPLC_ActionType.SCALE_TAG:
-                if (rule.IsFloatData)
+                if (rule.IsActionFloat || rule.IsTriggerFloat)
                 {
                     int rawTrigVal = ReadTagValue(rule.TriggerTag);
-                    float trigValFloat = BitConverter.Int32BitsToSingle(rawTrigVal);
+                    float trigValFloat = rule.IsTriggerFloat ? BitConverter.Int32BitsToSingle(rawTrigVal) : (float)rawTrigVal;
                     float gain = rule.ActionParamFloat;
                     float offset = rule.ThresholdHiFloat;
                     float scaledFloat = trigValFloat * gain + offset;
@@ -735,9 +756,19 @@ public sealed class McuReferenceSimulator
                 }
                 break;
             case SPLC_ActionType.ADD_TAG:
-                int tVal = ReadTagValue(rule.TriggerTag);
-                int aVal = ReadTagValue(rule.ActionTag);
-                WriteTagValue(rule.ActionTag, aVal + tVal);
+                if (rule.IsActionFloat)
+                {
+                    int rawTrig = ReadTagValue(rule.TriggerTag);
+                    float tValF = rule.IsTriggerFloat ? BitConverter.Int32BitsToSingle(rawTrig) : (float)rawTrig;
+                    float aValF = BitConverter.Int32BitsToSingle(ReadTagValue(rule.ActionTag));
+                    WriteTagValue(rule.ActionTag, BitConverter.SingleToInt32Bits(aValF + tValF));
+                }
+                else
+                {
+                    int tVal = ReadTagValue(rule.TriggerTag);
+                    int aVal = ReadTagValue(rule.ActionTag);
+                    WriteTagValue(rule.ActionTag, aVal + tVal);
+                }
                 break;
             case SPLC_ActionType.SEND_ALARM:
             case SPLC_ActionType.WRITE_REMOTE:

@@ -8,7 +8,8 @@ public enum SPLC_TimerMode : ushort
     DISABLED = 0,
     TON = 1,       // Timer On-Delay
     TOF = 2,       // Timer Off-Delay
-    TP = 3         // Timer Pulse
+    TP = 3,        // Timer Pulse
+    CYCLE = 4      // Periodic Cycle Timer (T_ON / T_OFF Repeat Cycle)
 }
 
 /// <summary>

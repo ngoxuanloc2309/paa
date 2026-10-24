@@ -104,7 +104,7 @@ sequenceDiagram
 | **`0x0A00..0x0A02`** | 3 | **System Command & Result**| RW | Điều khiển hệ thống: Ghi lệnh (`1 = REBOOT`, `2 = CLEAR_FAULTS`, `3 = FACTORY_RESET`), đọc Result và Error Code. |
 | **`0x0A08..0x0A09`** | 2 | **Hardware Capabilities** | RO | 32-bit bitmask năng lực phần cứng thực tế: Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100). |
 | **`0x0A20..0x0A24`** | 5 | **Diagnostic Control Block**| RW | Quản lý phiên chẩn đoán V2.0: Command (`1=ENTER`, `2=EXIT`, `3=HEARTBEAT`, `4=COMMIT_RETAIN`), State, Flags (`LEASE_ACTIVE`, `RETAIN_DIRTY`), Watchdog Lease (3000ms), Error Code. |
-| **`0x0B00..0x0B3F`** | 64 | **Dedicated FB Timers** | RW | 8 Dedicated Timers (TON, TOF, TP) chuyên dụng (mỗi Timer 8 registers = 16 bytes). |
+| **`0x0B00..0x0B3F`** | 64 | **Dedicated FB Timers** | RW | 8 Dedicated Timers (TON, TOF, TP, CYCLE) chuyên dụng (mỗi Timer 8 registers = 16 bytes). |
 | **`0x0B40..0x0B7F`** | 64 | **Dedicated FB Counters** | RW | 8 Dedicated Counters (CTU, CTD, CTUD) chuyên dụng (mỗi Counter 8 registers = 16 bytes). |
 | **`0x0C00..0x0D7F`** | 384 | **MQTT Telemetry Blocks** | RW | 4 khối xuất bản dữ liệu viễn trắc MQTT IIoT (SPLC-SPEC-MQTT-001, mỗi khối 96 registers = 192 bytes). |
 | **`0x0D80..0x0DFF`** | 128 | **MQTT Subscribe Blocks** | RW | 2 khối nhận lệnh điều khiển Inbound MQTT SUB (SPLC-SPEC-MQTT-002, mỗi khối 64 registers = 128 bytes). |
@@ -122,10 +122,12 @@ sequenceDiagram
 Mỗi quy tắc được đóng gói thành 16 thanh ghi Modbus (32 bytes), tương ứng chính xác với struct C `SPLC_RuleRecord_t` hỗ trợ chế độ kép Số nguyên (Int32) và Số thực (IEEE-754 Single Float32 / REAL):
 
 ```c
-/* Cờ định dạng dữ liệu (Rule Flags) lưu tại Reg 13 High */
+/* Cờ định dạng dữ liệu trực giao (Rule Flags) lưu tại Reg 13 High */
 typedef enum {
-    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
-    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_NONE          = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01, /* Bit 0 (0x01): Ngưỡng Trigger là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02, /* Bit 1 (0x02): Tham số Action là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03  /* 0x03: Cả Trigger và Action đều là Float32 (Legacy alias) */
 } SPLC_RuleFlags_t;
 
 typedef struct SPLC_PACKED {
@@ -256,13 +258,20 @@ sequenceDiagram
 
 ## 5. Kiến Trúc Tầng Trình Diễn Studio (Presentation & MVVM)
 
-#### 5.1. Hai Chiều Đồng Bộ: Graph Canvas ⮀ Matrix Rule Table
-Ứng dụng cung cấp 2 phương thức lập trình logic trực quan:
+#### 5.1. Hai Chiều Đồng Bộ: Graph Canvas ⮀ Matrix Rule Table & Subsystems Hub
+Ứng dụng cung cấp 2 phương thức lập trình logic trực quan gắn kết chặt chẽ:
 1. **Logic Editor (Nodify Graph Canvas)**: Mô hình hóa các nút bấm, cảm biến, điều kiện thời gian và đầu ra theo dạng sơ đồ khối trực quan:
    * **Core Blocks**: Input, Trigger, Guard, Action.
-   * **IEC 61131-3 Function Blocks**: Timer (TON/TOF/TP), Counter (CTU/CTD), Analog Scaler (Linear Scale y = kx + b), và **Comparator (CMP)** (độc lập hóa toán tử so sánh số học `==, !=, >, <, >=, <=, Between` với khả năng nối dây linh hoạt từ Input/Scale hoặc chọn trực tiếp Tag đầu vào).
-2. **Rule Table (Matrix Table)**: Dạng bảng danh sách công nghiệp chuẩn hóa (tương tự bảng lệnh Instruction List / Rule Grid).
-* **RuleCompiler**: Đóng vai trò cầu nối, phân tích topo các kết nối giữa các Node trên đồ thị (Graph Grammar V1), hòa hợp (fuse) các tham số từ khối Comparator/Scaler sang Micro-Rule 32-byte tiêu chuẩn của MCU và tự động phản chiếu hai chiều theo thời gian thực.
+   * **IEC 61131-3 Function Blocks**: Timer (TON/TOF/TP/CYCLE), Counter (CTU/CTD), Analog Scaler (Linear Scale y = kx + b), và **Comparator (CMP)** (độc lập hóa toán tử so sánh số học `==, !=, >, <, >=, <=, Between` với khả năng nối dây linh hoạt từ Input/Scale hoặc chọn trực tiếp Tag đầu vào).
+   * **Communication Blocks**: Modbus Master (`MB_READ`, `MB_WRITE`), IIoT Cloud (`MQTT_PUB`, `MQTT_SUB`), Phát xung số (`PULSE_OUT`).
+2. **Rule Table (Matrix Hub - 4 Sub-Tabs Chuyên Biệt)**:
+   * **SubTab 0 (Logic Rules)**: Tập hợp các luật logic tự động hóa (Trigger - Guard - Action) kèm trạng thái, bộ lọc pills và thẻ thanh tra phân rã bytecode 32-byte.
+   * **SubTab 1 (Modbus Master)**: Tổng hợp bảng lệnh thu thập và điều khiển RS-485 Modbus RTU Master (`MB_READ`, `MB_WRITE`), tự động đồng bộ theo cấu hình số cổng RS-485 thực tế.
+   * **SubTab 2 (MQTT Services)**: Tổng hợp các dịch vụ xuất bản đo lường và nhận lệnh điều khiển Cloud IIoT (`MQTT_PUB`, `MQTT_SUB`).
+   * **SubTab 3 (Function Blocks)**: Tổng hợp các khối chức năng chuẩn IEC 61131-3 (Timer, Counter, Scaler).
+* **Đồng Bộ & Xóa Hai Chiều (Bidirectional Sync & Integrated Deletion)**:
+   * Mọi lệnh xóa trên bảng (`DeleteModbusCommandCommand`, `DeleteMqttServiceCommand`, `DeleteFunctionBlockCommand`, `DeleteRuleCommand`) đều tự động kích hoạt callback điều phối về `LogicEditorViewModel` để gỡ bỏ node trên đồ thị, ngắt dây nối và dọn dẹp Tag Catalog đồng bộ.
+   * Cột Action trên toàn bộ 4 bảng được chuẩn hóa `Width="120"` với hai nút icon xúc giác `[ ✏️ ]` (*View on Canvas*) và `[ 🗑️ ]` (*Delete*) kèm căn lề trái chuẩn xác `10px` khớp 100% với tiêu đề header, triệt tiêu hoàn toàn ô selection dư thừa của `DataGridRowHeader`.
 
 ### 5.2. Hệ Thống Đa Ngôn Ngữ Động (Reactive Localization Engine)
 Dịch vụ [`LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs) hỗ trợ chuyển đổi ngôn ngữ tức thời giữa Tiếng Việt và Tiếng Anh:

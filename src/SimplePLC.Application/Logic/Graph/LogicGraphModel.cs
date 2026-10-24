@@ -36,7 +36,8 @@ public enum TimerMacroType
 {
     Ton = 0,
     Tof = 1,
-    Tp = 2
+    Tp = 2,
+    Cycle = 3
 }
 
 public enum CounterMacroType
@@ -61,6 +62,9 @@ public sealed class TimerNodeData
     public ushort InTagIndex { get; set; }
     public uint PresetMs { get; set; }
     public ushort QTagIndex { get; set; }
+    public uint OnTimeMs { get; set; } = 1000;
+    public uint OffTimeMs { get; set; } = 1000;
+    public bool StartWithOn { get; set; } = true;
 }
 
 public sealed class InputNodeData
@@ -134,6 +138,9 @@ public sealed class ModbusReadNodeData
     public byte PortIndex { get; set; } = 0;
     public ushort? EnTagIndex { get; set; }
     public ushort? TrigTagIndex { get; set; }
+    public ushort? ValidTagIndex { get; set; }
+    public ushort? ErrorTagIndex { get; set; }
+    public ushort? ErrCodeTagIndex { get; set; }
     public byte SlaveId { get; set; } = 1;
     public SimplePLC.Protocol.Enums.ModbusMasterFunctionCode FunctionCode { get; set; } = SimplePLC.Protocol.Enums.ModbusMasterFunctionCode.ReadHoldingRegisters;
     public SimplePLC.Protocol.Enums.ModbusReadMode ReadMode { get; set; } = SimplePLC.Protocol.Enums.ModbusReadMode.Cyclic;
@@ -266,7 +273,10 @@ public sealed class LogicNode
         uint presetMs,
         ushort qTagIndex,
         int executionOrder = 0,
-        string label = "") =>
+        string label = "",
+        uint onTimeMs = 1000,
+        uint offTimeMs = 1000,
+        bool startWithOn = true) =>
         new()
         {
             Id = id,
@@ -278,7 +288,10 @@ public sealed class LogicNode
                 Type = type,
                 InTagIndex = inTagIndex,
                 PresetMs = presetMs,
-                QTagIndex = qTagIndex
+                QTagIndex = qTagIndex,
+                OnTimeMs = onTimeMs,
+                OffTimeMs = offTimeMs,
+                StartWithOn = startWithOn
             }
         };
 
@@ -453,7 +466,10 @@ public sealed class LogicNode
         IEnumerable<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto>? pins = null,
         byte portIndex = 0,
         int executionOrder = 0,
-        string label = "") =>
+        string label = "",
+        ushort? validTag = null,
+        ushort? errorTag = null,
+        ushort? errCodeTag = null) =>
         new()
         {
             Id = id,
@@ -464,6 +480,9 @@ public sealed class LogicNode
             {
                 PortIndex = portIndex,
                 EnTagIndex = enTag,
+                ValidTagIndex = validTag,
+                ErrorTagIndex = errorTag,
+                ErrCodeTagIndex = errCodeTag,
                 SlaveId = slaveId,
                 FunctionCode = functionCode,
                 StartAddress = startAddress,

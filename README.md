@@ -19,7 +19,7 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v2.10.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+| **v2.11.1 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
 
 | **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
 
@@ -51,7 +51,7 @@ SynaptiX IDE is distributed as a **Standalone Single-File Executable (no install
 - **Live Watch & Online Diagnostics:** Real-time variable inspection with quality badges (Good / Stale / Bad), live sparkline telemetry graphs, and instant tag override / force write.
 - **Built-in Auto-Updater:** Automatically checks for new versions on GitHub Releases, previews markdown changelogs, and performs zero-hassle hot-swap restart upon update.
 - **MQTT IIoT Cloud & Edge Gateway (Platform V2.0):** Native MQTT v3.1.1 & v5.0 client over TCP/MQTTS (1883/8883) with two-tier decoupled architecture: System Broker (`0x0E00`) with **TLS/SSL X.509 Certificate Staging & Chunked Struct Transfer Protocol (`0x0F00` SPLC-SPEC-MQTT-003)**, **MQTT PUB** (`0x0C00`, Outbound telemetry supporting Event/COV/Periodic modes and No-Code Visual Fields / Custom JSON), and **MQTT SUB** (Inbound message ingestion with fail-safe Atomic All-or-Nothing parser, supporting Flat JSON, Standard Envelopes, Nested paths, and dynamic FBD canvas pins).
-- **IEC 61131-3 Dedicated Function Blocks:** Hardware-timed TON/TOF/TP Timers with sub-millisecond precision, CTU/CTD Counters with non-volatile retain binding, and Linear Analog Signal Scalers ($y = k \cdot x + b$).
+- **IEC 61131-3 Dedicated Function Blocks:** Hardware-timed TON/TOF/TP/CYCLE Timers with sub-millisecond precision, CTU/CTD Counters with non-volatile retain binding, and Linear Analog Signal Scalers ($y = k \cdot x + b$).
 - **Industrial Design System:** High-contrast technical interface adhering to Siemens TIA Portal and Beckhoff TwinCAT ergonomics (Siemens Petrol `#006487`, IEC Green `#107C41`, standardized 185px node geometry with `[PUB]`/`[SUB]` badges, and instant bilingual English/Vietnamese localization).
 
 ### ⚡ Industrial Controller Rule Engine (Firmware)

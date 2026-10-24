@@ -1,3 +1,4 @@
+using System;
 using BenchmarkDotNet.Attributes;
 using SimplePLC.Infrastructure.Simulator;
 using SimplePLC.Protocol.Codec;
@@ -11,7 +12,9 @@ namespace SimplePLC.Benchmarks;
 public class SimulatorScanEngineBenchmarks
 {
     private McuReferenceSimulator _simulator = null!;
+    private McuReferenceSimulator _floatSimulator = null!;
     private RuleRecordDto[] _activeRules = null!;
+    private RuleRecordDto[] _activeFloatRules = null!;
     private ushort[] _rtcBuffer = null!;
     private ushort[] _timerBuffer = null!;
     private ushort[] _counterBuffer = null!;
@@ -48,6 +51,33 @@ public class SimulatorScanEngineBenchmarks
         for (int i = 0; i < ModbusRegisterMap.MaxRules; i++)
         {
             _simulator.Control.SetActiveRule(i, _activeRules[i]);
+        }
+
+        // Setup Float32 / Real Simulator
+        _floatSimulator = new McuReferenceSimulator();
+        _activeFloatRules = new RuleRecordDto[ModbusRegisterMap.MaxRules];
+        for (int i = 0; i < ModbusRegisterMap.MaxRules; i++)
+        {
+            float threshLo = 25.0f + (i * 0.5f);
+            float threshHi = 80.0f + (i * 0.5f);
+            float actParam = 100.5f + i;
+
+            _activeFloatRules[i] = new RuleRecordDto
+            {
+                ThresholdLo = BitConverter.SingleToInt32Bits(threshLo),
+                ThresholdHi = BitConverter.SingleToInt32Bits(threshHi),
+                ActionParam = BitConverter.SingleToInt32Bits(actParam),
+                ForMs = (uint)(i % 5 * 20),
+                TriggerTag = (ushort)(16 + (i % 4)),          // AI0..AI3
+                ActionTag = (ushort)(36 + (i % 16)),          // VREG0..VREG15
+                GuardTag = 0,
+                Enabled = true,
+                TriggerType = SPLC_TriggerType.ON_RISE,
+                CompareOp = SPLC_CompareOp.GT,
+                ActionType = SPLC_ActionType.SET_TAG,
+                Flags = 0x03 // Orthogonal flags: Bit 0 = float trigger, Bit 1 = float action
+            };
+            _floatSimulator.Control.SetActiveRule(i, _activeFloatRules[i]);
         }
 
         // RTC & Timer & Counter buffers
@@ -90,13 +120,22 @@ public class SimulatorScanEngineBenchmarks
         }
     }
 
-    [Benchmark(Description = "Execute Full PLC Scan Pass (100 Active Rules)")]
+    [Benchmark(Description = "Execute Full PLC Scan Pass (100 Active INT32 Rules)")]
     public void ExecuteScanPass_100Rules()
     {
         _stepCounter++;
         // Toggle input tag to trigger edge detectors every alternating run
         _simulator.Control.SetTagValue((ushort)(_stepCounter % 8), _stepCounter % 2);
         _simulator.ExecuteScanPass(20);
+    }
+
+    [Benchmark(Description = "Execute Full PLC Scan Pass (100 Active REAL / Float32 Rules with Flags 0x03)")]
+    public void ExecuteScanPass_Float32_100Rules()
+    {
+        _stepCounter++;
+        float analogVal = 20.0f + (_stepCounter % 80);
+        _floatSimulator.Control.SetTagValue((ushort)(16 + (_stepCounter % 4)), BitConverter.SingleToInt32Bits(analogVal));
+        _floatSimulator.ExecuteScanPass(20);
     }
 
     [Benchmark(Description = "Encode & Decode RTC Real-Time Clock")]

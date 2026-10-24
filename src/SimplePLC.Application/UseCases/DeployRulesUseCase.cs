@@ -121,6 +121,7 @@ public sealed class DeployRulesUseCase
                 modbusMasterWriteConfigs,
                 directWriteConfigs,
                 modbusPortConfigs,
+                null,
                 ct,
                 progressLogger).ConfigureAwait(false);
         }

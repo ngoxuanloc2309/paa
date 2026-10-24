@@ -16,6 +16,36 @@ public sealed class DeviceDiscoveryAndHandshakeTests
 {
     private static DeviceEndpoint Endpoint(string port) => new UsbCdcEndpoint(port);
 
+    private static async Task<bool> WaitForStateAsync(
+        IDeviceLifecycleManager manager,
+        ConnectionLifecycleState expectedState,
+        TimeSpan timeout)
+    {
+        if (manager.CurrentState == expectedState) return true;
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Handler(object? s, LifecycleStateChangedEventArgs e)
+        {
+            if (e.NewState == expectedState)
+            {
+                tcs.TrySetResult(true);
+            }
+        }
+        manager.StateChanged += Handler;
+        try
+        {
+            if (manager.CurrentState == expectedState) return true;
+            return await tcs.Task.WaitAsync(timeout).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+        finally
+        {
+            manager.StateChanged -= Handler;
+        }
+    }
+
     private static (IModbusClient Client, IUsbCdcTransport Transport, McuReferenceSimulator Simulator) CreateSimulatorPair(bool compatible = true)
     {
         var sim = new McuReferenceSimulator();
@@ -77,7 +107,7 @@ public sealed class DeviceDiscoveryAndHandshakeTests
 
         // Kích hoạt mất kết nối đột ngột
         await manager.NotifyUnexpectedDisconnectAsync(new System.IO.IOException("Unplugged"));
-        await Task.Delay(250);
+        await WaitForStateAsync(manager, ConnectionLifecycleState.Connected, TimeSpan.FromSeconds(3));
 
         // Assert: COM3 (previous) phải được probe trước tiên dù detector trả về COM4 trước
         Assert.Equal(ConnectionLifecycleState.Connected, manager.CurrentState);

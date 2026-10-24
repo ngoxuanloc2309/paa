@@ -242,7 +242,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         {
             if (pin.Connector != null)
             {
-                pin.Connector.Title = pin.Label;
+                pin.Connector.Title = pin.DisplayTitle;
             }
         }
     }
@@ -254,7 +254,7 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     {
         if (pin.Connector != null && OutputConnectors.Contains(pin.Connector))
         {
-            pin.Connector.Title = pin.Label;
+            pin.Connector.Title = pin.DisplayTitle;
             pin.Connector.SetBilingualDescription(
                 $"Giá trị thanh ghi Modbus offset +{pin.RegOffset} ({pin.DataType}, x{pin.Multiplier})",
                 $"Modbus register offset +{pin.RegOffset} ({pin.DataType}, x{pin.Multiplier})");
@@ -264,9 +264,16 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         var connector = new ConnectorViewModel
         {
             Id = pin.Id,
-            Title = pin.Label,
+            Title = pin.DisplayTitle,
             IsInput = false,
             Node = this
+        };
+        connector.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ConnectorViewModel.IsConnected))
+            {
+                connector.Title = pin.DisplayTitle;
+            }
         };
         connector.SetBilingualDescription(
             $"Giá trị thanh ghi Modbus offset +{pin.RegOffset} ({pin.DataType}, x{pin.Multiplier})",

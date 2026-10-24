@@ -1,4 +1,4 @@
-﻿namespace SimplePLC.Application.Logic.Compilation;
+namespace SimplePLC.Application.Logic.Compilation;
 
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Enums;
@@ -99,6 +99,17 @@ public sealed class RuleCompiler : IRuleCompiler
                         tagIdx = srcNode.CounterData.CvTagIndex;
                         if (string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase)) fieldKey = "counter_cv";
                     }
+                    else if (srcNode.Kind == LogicNodeKind.ModbusRead && srcNode.ModbusReadData != null)
+                    {
+                        var pin = srcNode.ModbusReadData.Pins.FirstOrDefault(p =>
+                            string.Equals(p.Label, inEdge.SourcePort, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(p.Id, inEdge.SourcePort, StringComparison.OrdinalIgnoreCase));
+
+                        if (pin != null && pin.TargetTagIndex.HasValue)
+                        {
+                            tagIdx = pin.TargetTagIndex.Value;
+                        }
+                    }
 
                     if (string.Equals(inEdge.TargetPort, "Trig", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(inEdge.TargetPort, "EN", StringComparison.OrdinalIgnoreCase))
@@ -183,6 +194,9 @@ public sealed class RuleCompiler : IRuleCompiler
                 ReadMode = mbData.ReadMode,
                 EnTagIndex = mbData.EnTagIndex,
                 TrigTagIndex = mbData.TrigTagIndex,
+                ValidTagIndex = mbData.ValidTagIndex,
+                ErrorTagIndex = mbData.ErrorTagIndex,
+                ErrCodeTagIndex = mbData.ErrCodeTagIndex,
                 Pins = new List<ModbusMasterPinBindingDto>(mbData.Pins)
             });
         }
@@ -217,6 +231,30 @@ public sealed class RuleCompiler : IRuleCompiler
                 ParamTagIndex = mbData.ParamTagIndex,
                 Pins = new List<ModbusMasterPinBindingDto>(mbData.Pins)
             });
+
+            // ICD MBM-002 & RTOS buffer limits validation
+            if (mbData.WriteMode == ModbusWriteMode.DirectRegisters)
+            {
+                if (mbData.PointCount < 1 || mbData.PointCount > 16)
+                {
+                    diagnostics.Add(new CompileDiagnostic(
+                        "ERR_MB_WRITE_DIRECT_LIMIT",
+                        DiagnosticSeverity.Error,
+                        $"Modbus Write node '{GetNodeLabel(mbNode, "MB_WRITE")}' in Direct Mode has PointCount={mbData.PointCount}. Must be between 1 and 16 points (RTOS buffer & physical pins limit).",
+                        NodeId: mbNode.Id));
+                }
+            }
+            else
+            {
+                if (mbData.ChannelCount < 1 || mbData.ChannelCount > 64)
+                {
+                    diagnostics.Add(new CompileDiagnostic(
+                        "ERR_MB_WRITE_CHANNEL_LIMIT",
+                        DiagnosticSeverity.Error,
+                        $"Modbus Write node '{GetNodeLabel(mbNode, "MB_WRITE")}' in Channel-Indexed Mode has ChannelCount={mbData.ChannelCount}. Must be between 1 and 64 channels.",
+                        NodeId: mbNode.Id));
+                }
+            }
         }
 
         // Extract Direct Write Configs (Direct Physical Output Actuators)
@@ -257,7 +295,8 @@ public sealed class RuleCompiler : IRuleCompiler
             return CompileResult.Success(emptyProgram, diagnostics);
         }
 
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0)
+        bool hasModbusStatusRules = modbusReadNodes.Any(m => m.ModbusReadData?.ValidTagIndex != null || m.ModbusReadData?.ErrorTagIndex != null);
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && !hasModbusStatusRules)
         {
             var telemetryOnlyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -519,6 +558,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 {
                     TimerMacroType.Tof => SPLC_TimerMode.TOF,
                     TimerMacroType.Tp => SPLC_TimerMode.TP,
+                    TimerMacroType.Cycle => SPLC_TimerMode.CYCLE,
                     _ => SPLC_TimerMode.TON
                 };
 
@@ -803,6 +843,40 @@ public sealed class RuleCompiler : IRuleCompiler
                     }
                     break;
                 }
+
+                case TimerMacroType.Cycle:
+                {
+                    uint onTime = tData.OnTimeMs > 0 ? tData.OnTimeMs : (tData.PresetMs > 0 ? tData.PresetMs : 1000);
+                    uint offTime = tData.OffTimeMs > 0 ? tData.OffTimeMs : 1000;
+                    bool startWithOn = tData.StartWithOn;
+
+                    // R0: Bat dau chu ky khi In len 1
+                    var trig0 = new TriggerModel(inTag, TriggerKind.OnRise) { ForMs = startWithOn ? 0 : offTime };
+                    var act0 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                    var guard0 = new GuardModel(qTag, negated: true);
+                    var origin0 = new GeneratedRuleOrigin(timerNode.Id, macroId, "CYCLE", 0, timerNode.Label);
+                    candidateRules.Add((timerNode, trig0, act0, guard0, $"{labelPrefix}_CYCLE_START", origin0));
+
+                    // R1: Pha BAT het han: Q ON_RISE for OnTime -> SET Q = 0
+                    var trig1 = new TriggerModel(qTag, TriggerKind.OnRise) { ForMs = onTime };
+                    var act1 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                    var origin1 = new GeneratedRuleOrigin(timerNode.Id, macroId, "CYCLE", 1, timerNode.Label);
+                    candidateRules.Add((timerNode, trig1, act1, GuardModel.Empty, $"{labelPrefix}_CYCLE_ON_EXPIRE", origin1));
+
+                    // R2: Pha NGHI het han: Q ON_FALL for OffTime, Guard In == 1 -> SET Q = 1
+                    var trig2 = new TriggerModel(qTag, TriggerKind.OnFall) { ForMs = offTime };
+                    var act2 = new ActionModel(qTag, ActionKind.SetTag, 1);
+                    var guard2 = new GuardModel(inTag, negated: false);
+                    var origin2 = new GeneratedRuleOrigin(timerNode.Id, macroId, "CYCLE", 2, timerNode.Label);
+                    candidateRules.Add((timerNode, trig2, act2, guard2, $"{labelPrefix}_CYCLE_OFF_EXPIRE", origin2));
+
+                    // R3: Ngat khan cap / Dung an toan khi In ve 0: In ON_FALL for 0 -> SET Q = 0
+                    var trig3 = new TriggerModel(inTag, TriggerKind.OnFall) { ForMs = 0 };
+                    var act3 = new ActionModel(qTag, ActionKind.SetTag, 0);
+                    var origin3 = new GeneratedRuleOrigin(timerNode.Id, macroId, "CYCLE", 3, timerNode.Label);
+                    candidateRules.Add((timerNode, trig3, act3, GuardModel.Empty, $"{labelPrefix}_CYCLE_STOP", origin3));
+                    break;
+                }
             }
         }
 
@@ -1041,6 +1115,40 @@ public sealed class RuleCompiler : IRuleCompiler
             var originScale = new GeneratedRuleOrigin(scaleNode.Id, macroId, "SCALE", 0, scaleNode.Label);
 
             candidateRules.Add((scaleNode, trigScale, actScale, GuardModel.Empty, $"{labelPrefix}_SCALE", originScale));
+        }
+
+        // Step 2e: Macro Expansion for Modbus Master Status Indicators (Valid / Error)
+        foreach (var mbNode in modbusReadNodes)
+        {
+            var mbData = mbNode.ModbusReadData;
+            if (mbData == null) continue;
+
+            string macroId = mbNode.Id;
+            string labelPrefix = string.IsNullOrWhiteSpace(mbNode.Label) ? "MB_READ" : mbNode.Label;
+
+            if (mbData.ValidTagIndex.HasValue)
+            {
+                var validTag = product.FindTagByIndex(mbData.ValidTagIndex.Value);
+                if (validTag != null)
+                {
+                    var trigValid = new TriggerModel(validTag, TriggerKind.OnRise);
+                    var actValid = new ActionModel(validTag, ActionKind.SetTag, 1);
+                    var originValid = new GeneratedRuleOrigin(mbNode.Id, macroId, "MB_READ", 0, $"{labelPrefix} (Valid)");
+                    candidateRules.Add((mbNode, trigValid, actValid, GuardModel.Empty, $"{labelPrefix}_VALID", originValid));
+                }
+            }
+
+            if (mbData.ErrorTagIndex.HasValue)
+            {
+                var errorTag = product.FindTagByIndex(mbData.ErrorTagIndex.Value);
+                if (errorTag != null)
+                {
+                    var trigError = new TriggerModel(errorTag, TriggerKind.OnRise);
+                    var actError = new ActionModel(errorTag, ActionKind.SetTag, 1);
+                    var originError = new GeneratedRuleOrigin(mbNode.Id, macroId, "MB_READ", 1, $"{labelPrefix} (Error)");
+                    candidateRules.Add((mbNode, trigError, actError, GuardModel.Empty, $"{labelPrefix}_ERROR", originError));
+                }
+            }
         }
 
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))

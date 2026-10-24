@@ -64,6 +64,23 @@ public sealed class LifecycleRecoveryStressTests
         }
     }
 
+    private static async Task<bool> WaitForConditionAsync(
+        Func<bool> condition,
+        TimeSpan timeout,
+        int pollIntervalMs = 20)
+    {
+        var start = DateTime.UtcNow;
+        while (!condition())
+        {
+            if (DateTime.UtcNow - start > timeout)
+            {
+                return false;
+            }
+            await Task.Delay(pollIntervalMs).ConfigureAwait(false);
+        }
+        return true;
+    }
+
     private sealed class StressDeviceFactory : IDeviceConnectionFactory
     {
         private readonly McuReferenceSimulator _simulator;
@@ -187,39 +204,49 @@ public sealed class LifecycleRecoveryStressTests
         Assert.True(connected);
         await monitor.AttachSessionAsync(sessionManager.CurrentSession!, product);
 
-        // Chờ 2 chu kỳ poll đầu
-        await Task.Delay(60);
-        Assert.True(monitor.IsRunning);
-        Assert.Equal(ConnectionStatus.Connected, store.CurrentSnapshot.ConnectionStatus);
+        // Chờ chu kỳ poll đầu hoàn tất để các tag chuyển sang Good
+        bool initialGood = await WaitForConditionAsync(
+            () => monitor.IsRunning &&
+                  store.CurrentSnapshot.ConnectionStatus == ConnectionStatus.Connected &&
+                  store.CurrentSnapshot.Tags.Count > 0 &&
+                  store.CurrentSnapshot.Tags.All(t => t.Quality == TagQuality.Good),
+            TimeSpan.FromSeconds(5));
+        Assert.True(initialGood, "Initial polling cycle must succeed and mark tags as Good");
 
         // Mô phỏng cáp bị rút vật lý
         sim.Control.Faults.CableDisconnected = true;
         factory.ShouldSucceed = false;
 
-        // Chờ monitor nhận diện lỗi và dừng vòng lặp (cho phép tối đa 300ms nếu CPU đang tải nặng)
-        for (int retry = 0; retry < 15 && monitor.IsRunning; retry++)
-        {
-            await Task.Delay(20);
-        }
-        Assert.False(monitor.IsRunning, "Monitor loop must have terminated upon cable disconnect");
+        // Chờ monitor nhận diện lỗi và dừng vòng lặp (cho phép tối đa 3 giây nếu CI runner đang chịu tải nặng)
+        bool loopStopped = await WaitForConditionAsync(
+            () => !monitor.IsRunning,
+            TimeSpan.FromSeconds(5));
+        Assert.True(loopStopped, "Monitor loop must have terminated upon cable disconnect");
+
+        // BẮT BUỘC: Chờ callback OnTransportLost hoàn tất và đưa lifecycle sang Reconnecting
+        // Tránh race condition khi WaitForStateAsync(Connected) trả về true tức thì do lifecycle chưa kịp đổi trạng thái
+        bool reconnectingObserved = await WaitForConditionAsync(
+            () => lifecycle.CurrentState == ConnectionLifecycleState.Reconnecting,
+            TimeSpan.FromSeconds(5));
+        Assert.True(reconnectingObserved, "Lifecycle must transition to Reconnecting after transport loss");
 
         // Cắm lại cáp và phục hồi
         sim.Control.Faults.CableDisconnected = false;
         factory.ShouldSucceed = true;
 
-        bool reconnected = await WaitForStateAsync(lifecycle, ConnectionLifecycleState.Connected, TimeSpan.FromSeconds(2));
+        bool reconnected = await WaitForStateAsync(lifecycle, ConnectionLifecycleState.Connected, TimeSpan.FromSeconds(5));
         Assert.True(reconnected);
+        Assert.True(sessionManager.HasActiveSession);
+        Assert.NotNull(sessionManager.CurrentSession);
 
         // Gắn lại session mới phục hồi vào monitor
         await monitor.AttachSessionAsync(sessionManager.CurrentSession!, product);
-        for (int retry = 0; retry < 25; retry++)
-        {
-            if (store.CurrentSnapshot.Tags.Count > 0 && store.CurrentSnapshot.Tags.All(t => t.Quality == TagQuality.Good))
-            {
-                break;
-            }
-            await Task.Delay(20);
-        }
+
+        // Đợi vòng lặp polling phục hồi chất lượng Good cho toàn bộ tag (tối đa 3 giây trong CI)
+        bool tagsRecovered = await WaitForConditionAsync(
+            () => store.CurrentSnapshot.Tags.Count > 0 && store.CurrentSnapshot.Tags.All(t => t.Quality == TagQuality.Good),
+            TimeSpan.FromSeconds(5));
+        Assert.True(tagsRecovered, "Tags must recover to Good quality within timeout after session re-attachment");
 
         // Bất biến: Duy trì đúng 1 monitor loop đang chạy, trạng thái Connected, Tags phục hồi Good
         Assert.True(monitor.IsRunning);

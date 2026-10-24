@@ -69,7 +69,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, cancellationToken, null);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, null, cancellationToken, null);
 
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
@@ -83,9 +83,28 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
+        IReadOnlyList<byte>? tagDataTypes = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null)
     {
+        // 0. Nạp bảng kiểu dữ liệu Tag Catalog (0x0080..0x00BF, 64 thanh ghi = 128 bytes)
+        if (tagDataTypes != null && tagDataTypes.Count > 0)
+        {
+            var typeRegs = new ushort[ModbusRegisterMap.TagDataTypesLength];
+            byte[] typeBytes = tagDataTypes is byte[] arr ? arr : tagDataTypes.ToArray();
+            RegisterCodec.EncodeTagDataTypes(typeBytes, typeRegs);
+
+            progressLogger?.Invoke($"[TAG TYPES] Writing {typeRegs.Length} registers to 0x{ModbusRegisterMap.TagDataTypesBaseAddress:X04} (Tag DataType Registry)...");
+            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                ModbusRegisterMap.TagDataTypesBaseAddress,
+                typeRegs.AsMemory());
+
+            foreach (var (chunkAddress, chunkMemory) in chunks)
+            {
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         // 1. Nạp cấu hình Timer blocks (0x0B00) nếu có
         // Giới hạn tối đa 3 khối (24 thanh ghi = 48 bytes payload, frame 57 bytes <= 64 bytes RX buffer của MCU)
         const int maxBlocksPerChunk = 3;

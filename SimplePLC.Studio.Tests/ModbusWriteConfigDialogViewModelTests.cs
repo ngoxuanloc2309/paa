@@ -1,4 +1,4 @@
-﻿using SimplePLC.Protocol.Enums;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
@@ -365,5 +365,77 @@ public class ModbusWriteConfigDialogViewModelTests
 
         // Reset back to English
         SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
+    }
+    [Fact]
+    public void PointCount_And_ChannelCount_AreClampedToLimits()
+    {
+        var node = new ModbusWriteNodeViewModel();
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+
+        // Test PointCount limit (1..16)
+        vm.PointCount = 256;
+        Assert.Equal((ushort)16, vm.PointCount);
+
+        vm.PointCount = 0;
+        Assert.Equal((ushort)1, vm.PointCount);
+
+        // Test ChannelCount limit (1..64)
+        vm.ChannelCount = 100;
+        Assert.Equal((ushort)64, vm.ChannelCount);
+
+        vm.ChannelCount = 0;
+        Assert.Equal((ushort)1, vm.ChannelCount);
+    }
+
+    [Fact]
+    public void RefreshAvailablePorts_PreservesSelectedValues_AndDoesNotClearStaticDropdowns()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            PortIndex = 1,
+            WriteMode = ModbusWriteMode.DirectRegisters,
+            FunctionCode = ModbusMasterWriteFunctionCode.WriteSingleRegister,
+            TriggerMode = ModbusWriteTriggerMode.OnDataChange
+        };
+
+        var initialPorts = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "Port 1", Enabled = true },
+            new() { PortIndex = 1, PortName = "Port 2", Enabled = true }
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel(), initialPorts);
+
+        Assert.Equal(1, vm.PortIndex);
+        Assert.Equal(ModbusWriteMode.DirectRegisters, vm.WriteMode);
+        Assert.Equal(ModbusMasterWriteFunctionCode.WriteSingleRegister, vm.FunctionCode);
+        Assert.Equal(ModbusWriteTriggerMode.OnDataChange, vm.TriggerMode);
+        Assert.Equal(2, vm.AvailablePorts.Count);
+        Assert.Equal(2, vm.AvailableWriteModes.Count);
+        Assert.Equal(4, vm.AvailableFunctionCodes.Count);
+        Assert.Equal(3, vm.AvailableTriggerModes.Count);
+
+        // Simulate returning from RS-485 port settings dialog with updated baud/settings
+        var updatedPorts = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "Port 1 (RS485-A)", BaudRate = 9600, Enabled = true },
+            new() { PortIndex = 1, PortName = "Port 2 (RS485-B)", BaudRate = 115200, Enabled = true },
+            new() { PortIndex = 2, PortName = "Port 3", BaudRate = 19200, Enabled = true }
+        };
+
+        vm.RefreshAvailablePorts(updatedPorts);
+
+        // Core properties must remain exactly intact
+        Assert.Equal(1, vm.PortIndex);
+        Assert.Equal(ModbusWriteMode.DirectRegisters, vm.WriteMode);
+        Assert.Equal(ModbusMasterWriteFunctionCode.WriteSingleRegister, vm.FunctionCode);
+        Assert.Equal(ModbusWriteTriggerMode.OnDataChange, vm.TriggerMode);
+
+        // Dropdown counts must be updated properly without being wiped
+        Assert.Equal(3, vm.AvailablePorts.Count);
+        Assert.Equal(2, vm.AvailableWriteModes.Count);
+        Assert.Equal(4, vm.AvailableFunctionCodes.Count);
+        Assert.Equal(3, vm.AvailableTriggerModes.Count);
+        Assert.Contains(vm.AvailablePorts, p => p.Value == 1 && p.DisplayName.Contains("RS485-B"));
     }
 }

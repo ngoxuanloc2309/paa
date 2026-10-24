@@ -5,6 +5,7 @@ using System.Windows;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
+using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
 
@@ -556,7 +557,7 @@ public partial class BlueprintsViewModel : ObservableObject
             BadgeEn = "Modbus Read",
             BadgeColor = "#0284C7",
             Icon = "🔄",
-            RuleCount = 0,
+            RuleCount = 1,
             TagsSummaryVi = "DI0 (EN), VREG0 (Áp suất), DO6 (Đèn báo Valid)",
             TagsSummaryEn = "DI0 (EN), VREG0 (Pressure), DO6 (Valid Indicator)"
         });
@@ -597,6 +598,25 @@ public partial class BlueprintsViewModel : ObservableObject
             RuleCount = 0,
             TagsSummaryVi = "MQTT SUB, VREG0 (Mã ô 1..18), PULSE_OUT (DO3), DO4 (Còi)",
             TagsSummaryEn = "MQTT SUB, VREG0 (Bin ID 1..18), PULSE_OUT (DO3), DO4 (Buzzer)"
+        });
+
+        // 27. 3-Phase Energy Monitoring & IIoT Telemetry (SELEC MFM383A -> MQTT)
+        Blueprints.Add(new BlueprintModel
+        {
+            Id = "mfm383a_energy_mqtt",
+            TitleVi = "Giám Sát Điện Năng 3 Pha (SELEC MFM383A ➔ MQTT)",
+            TitleEn = "3-Phase Energy Monitoring (SELEC MFM383A ➔ MQTT)",
+            SubtitleVi = "Đọc đồng hồ MFM383A qua RS-485 Modbus RTU và phát MQTT định kỳ 5s",
+            SubtitleEn = "Poll MFM383A via RS-485 Modbus RTU and publish MQTT cyclically every 5s",
+            DescriptionVi = "Khối MODBUS_READ đọc định kỳ 1000ms đồng hồ SELEC MFM383A-C (Slave ID 1, FC04, Float32 ABCD) và ghi dữ liệu đo đạc vào các thanh ghi nội tại VREG0 (Điện áp TB), VREG1 (Dòng điện TB), VREG2 (Tổng công suất) và VREG_RETAIN0 (Điện năng tích lũy). Khối MQTT_PUB đọc độc lập từ các thanh ghi này định kỳ 5000ms để đóng gói JSON telemetry phát lên Cloud Broker ('factory/energy/meter1', QoS 1). Hai đèn báo DO6 (Online) và DO7 (Lỗi) được điều khiển từ cờ trạng thái Valid/Error của Modbus.",
+            DescriptionEn = "MODBUS_READ cyclically polls SELEC MFM383A-C meter (Slave ID 1, FC04, Float32 ABCD) every 1000ms, mapping measured values directly into PLC registers VREG0 (Avg Voltage), VREG1 (Avg Current), VREG2 (Total Power), and VREG_RETAIN0 (Total Energy). MQTT_PUB independently reads from these registers every 5000ms to package JSON telemetry to Cloud Broker ('factory/energy/meter1', QoS 1). DO6 (Online) and DO7 (Fault) indicators are driven by Modbus Valid/Error status flags.",
+            BadgeVi = "Năng lượng / IIoT",
+            BadgeEn = "Energy / IIoT",
+            BadgeColor = "#006487",
+            Icon = "⚡",
+            RuleCount = 2,
+            TagsSummaryVi = "RS-485 #1, VREG0 (V), VREG1 (A), VREG2 (kW), VREG_RETAIN0 (kWh), MQTT PUB",
+            TagsSummaryEn = "RS-485 #1, VREG0 (V), VREG1 (A), VREG2 (kW), VREG_RETAIN0 (kWh), MQTT PUB"
         });
     }
 
@@ -1275,6 +1295,164 @@ public partial class BlueprintsViewModel : ObservableObject
             _logicEditor.Connect(mqttSub.ValidConnector, dirWrite.TrigConnector);
             _logicEditor.Connect(inpBin.OutputConnectors[0], dirWrite.ChannelConnector);
             _logicEditor.Connect(dirWrite.DoneConnector, actChime.InputConnectors[0]);
+        }
+        else if (bp.Id == "mfm383a_energy_mqtt")
+        {
+            var vreg0 = tags.FirstOrDefault(t => t.Name == "VREG0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.VirtualRegister) ?? tags[33];
+            var vreg1 = tags.FirstOrDefault(t => t.Name == "VREG1") ?? tags[34];
+            var vreg2 = tags.FirstOrDefault(t => t.Name == "VREG2") ?? tags[35];
+            var vregRetain0 = tags.FirstOrDefault(t => t.Name == "VREG_RETAIN0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.VirtualRegisterRetain) ?? tags[36];
+            var do6 = tags.FirstOrDefault(t => t.Name == "DO6") ?? tags[15];
+            var do7 = tags.FirstOrDefault(t => t.Name == "DO7") ?? tags[16];
+
+            // Cấu hình kiểu dữ liệu Float32 (REAL) chuẩn cho các thông số đo lường công tơ điện
+            vreg0.DataType = TagDataType.Float32;
+            vreg1.DataType = TagDataType.Float32;
+            vreg2.DataType = TagDataType.Float32;
+            vregRetain0.DataType = TagDataType.Float32;
+
+            // Gán Alias cục bộ cho các Tag trong phạm vi Blueprint mẫu này (không can thiệp mặc định hệ thống)
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            vreg0.Alias = isVi ? "Điện áp TB (V)" : "Avg Voltage (V)";
+            vreg1.Alias = isVi ? "Dòng điện TB (A)" : "Avg Current (A)";
+            vreg2.Alias = isVi ? "Tổng công suất (kW)" : "Total Power (kW)";
+            vregRetain0.Alias = isVi ? "Điện năng tích lũy (kWh)" : "Total Energy (kWh)";
+            do6.Alias = isVi ? "Đèn báo Modbus Online" : "Modbus Online Indicator";
+            do7.Alias = isVi ? "Đèn báo lỗi truyền thông" : "Modbus Fault Indicator";
+
+            // Cột 1 (X = 80, Y = 80): Khối MODBUS_READ đọc đồng hồ SELEC MFM383A-C qua RS-485 #1
+            var mbRead = new ModbusReadNodeViewModel
+            {
+                CustomLabel = "SELEC MFM383A-C",
+                PortIndex = 0,
+                SlaveId = 1,
+                FunctionCode = ModbusMasterFunctionCode.ReadInputRegisters,
+                StartAddress = 0,
+                RegCount = 60,
+                PollIntervalMs = 1000,
+                ReadMode = ModbusReadMode.Cyclic,
+                Location = new Point(80, 80)
+            };
+
+            var pinV = new ModbusPinBindingViewModel
+            {
+                Label = "V_avg",
+                RegOffset = 6,
+                DataType = ModbusDataType.Real,
+                Endianness = ModbusEndianness.BigEndian_ABCD,
+                TargetTag = vreg0
+            };
+            var pinI = new ModbusPinBindingViewModel
+            {
+                Label = "I_avg",
+                RegOffset = 22,
+                DataType = ModbusDataType.Real,
+                Endianness = ModbusEndianness.BigEndian_ABCD,
+                TargetTag = vreg1
+            };
+            var pinKw = new ModbusPinBindingViewModel
+            {
+                Label = "Total_kW",
+                RegOffset = 30,
+                DataType = ModbusDataType.Real,
+                Endianness = ModbusEndianness.BigEndian_ABCD,
+                TargetTag = vreg2
+            };
+            var pinKwh = new ModbusPinBindingViewModel
+            {
+                Label = "Total_kWh",
+                RegOffset = 58,
+                DataType = ModbusDataType.Real,
+                Endianness = ModbusEndianness.BigEndian_ABCD,
+                TargetTag = vregRetain0
+            };
+
+            mbRead.Pins.Add(pinV);
+            mbRead.Pins.Add(pinI);
+            mbRead.Pins.Add(pinKw);
+            mbRead.Pins.Add(pinKwh);
+
+            // Cột 2 (X = 520, Y = 60): Đèn báo Online DO6
+            var actOnline = new ActionNodeViewModel(do6)
+            {
+                ActionType = ActionType.SET_TAG,
+                ActionParam = 1,
+                Location = new Point(520, 60)
+            };
+
+            // Cột 2 (X = 520, Y = 160): Đèn báo Lỗi DO7
+            var actFault = new ActionNodeViewModel(do7)
+            {
+                ActionType = ActionType.SET_TAG,
+                ActionParam = 1,
+                Location = new Point(520, 160)
+            };
+
+            // Cột 2 (X = 520): Các khối hành động ghi vào thanh ghi nội tại PLC (VREG) nhận dữ liệu từ các chân Modbus Read
+            var actV = new ActionNodeViewModel(vreg0)
+            {
+                CustomLabel = "➔ VREG0",
+                ActionType = ActionType.SET_TAG,
+                Location = new Point(520, 260)
+            };
+            var actI = new ActionNodeViewModel(vreg1)
+            {
+                CustomLabel = "➔ VREG1",
+                ActionType = ActionType.SET_TAG,
+                Location = new Point(520, 360)
+            };
+            var actKw = new ActionNodeViewModel(vreg2)
+            {
+                CustomLabel = "➔ VREG2",
+                ActionType = ActionType.SET_TAG,
+                Location = new Point(520, 460)
+            };
+            var actKwh = new ActionNodeViewModel(vregRetain0)
+            {
+                CustomLabel = "➔ VREG_RETAIN0",
+                ActionType = ActionType.SET_TAG,
+                Location = new Point(520, 560)
+            };
+
+            // Cột 3 (X = 880, Y = 160): Khối MQTT Publish phát Telemetry định kỳ mỗi 5s (Cyclic Mode)
+            // Khối MQTT độc lập đọc trực tiếp từ các thanh ghi PLC đã gán trong cấu hình (v_avg -> VREG0, v.v.), không cần nối dây
+            var mqttPub = new MqttPublishNodeViewModel(null, "factory/energy/meter1")
+            {
+                CustomLabel = "IIoT Telemetry",
+                Qos = 1,
+                PublishMode = "Cyclic",
+                IntervalMs = 5000,
+                PayloadMode = "JSON",
+                Location = new Point(880, 160)
+            };
+
+            mqttPub.AddFieldWithDetails("v_avg", vreg0, "V");
+            mqttPub.AddFieldWithDetails("i_avg", vreg1, "A");
+            mqttPub.AddFieldWithDetails("power_kw", vreg2, "kW");
+            mqttPub.AddFieldWithDetails("energy_kwh", vregRetain0, "kWh");
+
+            _logicEditor.Nodes.Add(mbRead);
+            _logicEditor.Nodes.Add(actOnline);
+            _logicEditor.Nodes.Add(actFault);
+            _logicEditor.Nodes.Add(actV);
+            _logicEditor.Nodes.Add(actI);
+            _logicEditor.Nodes.Add(actKw);
+            _logicEditor.Nodes.Add(actKwh);
+            _logicEditor.Nodes.Add(mqttPub);
+
+            // 1. Kết nối đèn chẩn đoán trạng thái Modbus
+            _logicEditor.Connect(mbRead.ValidConnector, actOnline.InputConnectors[0]);
+            _logicEditor.Connect(mbRead.ErrorConnector, actFault.InputConnectors[0]);
+
+            // 2. Kết nối các chân dữ liệu Modbus trực tiếp vào các thanh ghi nội tại PLC (VREG)
+            if (pinV.Connector != null && actV.InputConnectors.Count > 0)
+                _logicEditor.Connect(pinV.Connector, actV.InputConnectors[0]);
+            if (pinI.Connector != null && actI.InputConnectors.Count > 0)
+                _logicEditor.Connect(pinI.Connector, actI.InputConnectors[0]);
+            if (pinKw.Connector != null && actKw.InputConnectors.Count > 0)
+                _logicEditor.Connect(pinKw.Connector, actKw.InputConnectors[0]);
+            if (pinKwh.Connector != null && actKwh.InputConnectors.Count > 0)
+                _logicEditor.Connect(pinKwh.Connector, actKwh.InputConnectors[0]);
         }
 
         // Tự động biên dịch ngay lập tức để đồng bộ sang bảng Rule

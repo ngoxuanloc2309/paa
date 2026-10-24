@@ -24,6 +24,42 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
     public ObservableCollection<WatchTagItemModel> AllTags { get; } = new();
     public ObservableCollection<WatchTagItemModel> FilteredTags { get; } = new();
 
+    /// <summary>
+    /// Hàm cung cấp Alias từ Project / TagCatalog để hiển thị tên gợi nhớ theo dự án.
+    /// </summary>
+    public Func<ushort, string?>? ProjectAliasProvider { get; set; }
+
+    /// <summary>
+    /// Hàm cung cấp TagDataType từ Project / TagCatalog.
+    /// </summary>
+    public Func<ushort, TagDataType?>? ProjectDataTypeProvider { get; set; }
+
+    public void SyncProjectAliases()
+    {
+        if (ProjectAliasProvider == null && ProjectDataTypeProvider == null) return;
+
+        foreach (var item in AllTags)
+        {
+            if (ProjectAliasProvider != null)
+            {
+                var customAlias = ProjectAliasProvider(item.Index);
+                if (!string.IsNullOrWhiteSpace(customAlias) && customAlias != "— Không chọn —")
+                {
+                    item.Alias = customAlias;
+                }
+            }
+
+            if (ProjectDataTypeProvider != null)
+            {
+                var dt = ProjectDataTypeProvider(item.Index);
+                if (dt.HasValue && item.DataType != dt.Value)
+                {
+                    item.DataType = dt.Value;
+                }
+            }
+        }
+    }
+
     [ObservableProperty]
     private WatchTagItemModel? _selectedTag;
 
@@ -284,6 +320,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(WatchlistCount));
             OnPropertyChanged(nameof(WatchlistButtonText));
             ApplyFilter();
+            SyncProjectAliases();
         }
         else
         {
@@ -295,6 +332,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
                     item.UpdateFromSnapshot(tag);
                 }
             }
+            SyncProjectAliases();
         }
 
         // 2. Đồng bộ Connection & Diagnostics theo đúng ngôn ngữ chuẩn 100%
@@ -451,7 +489,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
     private static void RunOnUi(Action action)
     {
         var app = System.Windows.Application.Current;
-        if (app != null && app.Dispatcher != null && !app.Dispatcher.HasShutdownStarted && !app.Dispatcher.CheckAccess())
+        if (app != null && app.Dispatcher != null && app.Dispatcher.Thread.IsAlive && !app.Dispatcher.HasShutdownStarted && !app.Dispatcher.CheckAccess())
         {
             try
             {

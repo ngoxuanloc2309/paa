@@ -453,7 +453,8 @@ typedef enum {
     SPLC_CAP_MQTT_TLS_CERT = 0x0080, /* Bit 7: Hỗ trợ nạp và giải mã chứng chỉ TLS/SSL theo khối struct (0x0F00) */
     SPLC_CAP_MODBUS_MASTER = 0x0100, /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
     SPLC_CAP_WIFI          = 0x0200, /* Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF) */
-    SPLC_CAP_MODBUS_TCP    = 0x0400  /* Bit 10: Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502) */
+    SPLC_CAP_MODBUS_TCP    = 0x0400, /* Bit 10: Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502) */
+    SPLC_CAP_FLOAT32       = 0x0800  /* Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -581,7 +582,8 @@ typedef enum {
     SPLC_TIMER_MODE_NONE          = 0,
     SPLC_TIMER_MODE_TON           = 1, /* On-Delay Timer */
     SPLC_TIMER_MODE_TOF           = 2, /* Off-Delay Timer */
-    SPLC_TIMER_MODE_TP            = 3  /* Pulse Timer */
+    SPLC_TIMER_MODE_TP            = 3, /* Pulse Timer */
+    SPLC_TIMER_MODE_CYCLE         = 4  /* Periodic Cycle Timer (T_ON / T_OFF) */
 } SPLC_TimerMode_t;
 
 typedef enum {
@@ -718,8 +720,10 @@ typedef struct SPLC_PACKED {
 } SPLC_FbCounterRecord_t;
 
 typedef enum {
-    SPLC_RULE_FLAG_NONE       = 0x00,
-    SPLC_RULE_FLAG_FLOAT_DATA = 0x01   /* Bit 0: 1 = Thresholds & ActionParam are IEEE-754 Float32 */
+    SPLC_RULE_FLAG_NONE          = 0x00,
+    SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01,  /* Bit 0: 1 = Thresholds (threshold_lo, threshold_hi) are IEEE-754 Float32 */
+    SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02,  /* Bit 1: 1 = Action parameter (action_param) is IEEE-754 Float32 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03   /* Legacy alias: 1 = Both Trigger and Action are IEEE-754 Float32 */
 } SPLC_RuleFlags_t;
 
 /**
@@ -747,7 +751,7 @@ typedef struct SPLC_PACKED {
     uint8_t  trigger_type;            /* [11L]  SPLC_TriggerType_t */
     uint8_t  compare_op;              /* [12H]  SPLC_CompareOp_t */
     uint8_t  action_type;             /* [12L]  SPLC_ActionType_t */
-    uint8_t  flags;                   /* [13H]  SPLC_RuleFlags_t (Bit 0: FLOAT_DATA) */
+    uint8_t  flags;                   /* [13H]  SPLC_RuleFlags_t: Bit 0=TRIGGER_FLOAT (0x01), Bit 1=ACTION_FLOAT (0x02) */
     uint8_t  reserved[5];             /* [13L..15] Reserved, sender writes 0x00 */
 } SPLC_RuleRecord_t;
 
@@ -911,7 +915,7 @@ typedef struct SPLC_PACKED {
     uint8_t  slave_id;
     uint8_t  function_code;             /* FC05, FC06, FC15, FC16 */
     uint16_t start_or_base_cmd;         /* Direct: Start Address; Indexed: Base Command Address */
-    uint16_t count_or_channels;         /* Direct: Point Count; Indexed: Channel Count */
+    uint16_t count_or_channels;         /* Direct: Point Count (1..16); Indexed: Channel Count (1..64) */
     uint32_t base_address_param;        /* Indexed: Base Param / Color Address */
     uint32_t cyclic_interval_ms;
     uint32_t timeout_ms;

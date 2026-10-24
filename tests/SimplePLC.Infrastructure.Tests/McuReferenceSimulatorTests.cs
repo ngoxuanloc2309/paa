@@ -429,4 +429,65 @@ public class McuReferenceSimulatorTests
         var activeRegs = await sim.ReadHoldingRegistersAsync(1, ModbusRegisterMap.ActiveRuleTableBaseAddress, 16);
         Assert.Equal(staging1, activeRegs);
     }
+    [Fact]
+    public async Task TagDataTypesRegistry_ReadWrite0x0080_PermittedAndVerified()
+    {
+        // Arrange
+        var sim = new McuReferenceSimulator();
+        byte[] expectedTypes = new byte[ModbusRegisterMap.MaxRuntimeTags];
+        expectedTypes[0] = (byte)SPLC_TagDataType.BOOL;
+        expectedTypes[1] = (byte)SPLC_TagDataType.INT32;
+        expectedTypes[2] = (byte)SPLC_TagDataType.REAL;
+        expectedTypes[16] = (byte)SPLC_TagDataType.REAL;
+
+        ushort[] regs = new ushort[ModbusRegisterMap.TagDataTypesLength];
+        RegisterCodec.EncodeTagDataTypes(expectedTypes, regs);
+
+        // Act: Write to 0x0080
+        await sim.WriteMultipleRegistersAsync(1, ModbusRegisterMap.TagDataTypesBaseAddress, regs);
+
+        // Read back from 0x0080
+        var readBackRegs = await sim.ReadHoldingRegistersAsync(1, ModbusRegisterMap.TagDataTypesBaseAddress, ModbusRegisterMap.TagDataTypesLength);
+        byte[] decodedTypes = RegisterCodec.DecodeTagDataTypes(readBackRegs);
+
+        // Assert
+        Assert.Equal(regs, readBackRegs);
+        Assert.Equal((byte)SPLC_TagDataType.BOOL, decodedTypes[0]);
+        Assert.Equal((byte)SPLC_TagDataType.INT32, decodedTypes[1]);
+        Assert.Equal((byte)SPLC_TagDataType.REAL, decodedTypes[2]);
+        Assert.Equal((byte)SPLC_TagDataType.REAL, decodedTypes[16]);
+    }
+
+    [Fact]
+    public void ScanEngine_MixedRule_IntegerTriggerEvaluatedAsIntAndFloatActionWritten()
+    {
+        // Arrange: AI tag 0 > 80 (Int) -> SET VREG tag 16 = 2.5f (Float)
+        var sim = new McuReferenceSimulator();
+        var ruleMixed = new RuleRecordDto
+        {
+            Flags = (byte)SPLC_RuleFlags.ACTION_FLOAT, // 0x02
+            ThresholdLo = 80, // Int32
+            ActionParamFloat = 2.5f, // Float32
+            TriggerTag = 0,
+            ActionTag = 16,
+            Enabled = true,
+            TriggerType = SPLC_TriggerType.ON_CHANGE,
+            CompareOp = SPLC_CompareOp.GT,
+            ActionType = SPLC_ActionType.SET_TAG
+        };
+
+        sim.Control.SetActiveRule(0, ruleMixed);
+
+        // Case 1: Tag 0 = 50 (50 > 80 is FALSE in Int32).
+        sim.Control.SetTagValue(0, 50);
+        sim.ExecuteScanPass(10);
+        Assert.Equal(0, sim.Control.GetTagValue(16));
+
+        // Case 2: Tag 0 = 85 (85 > 80 is TRUE in Int32). Action writes 2.5f.
+        sim.Control.SetTagValue(0, 85);
+        sim.ExecuteScanPass(10);
+        int tag16Raw = sim.Control.GetTagValue(16);
+        float tag16Float = BitConverter.Int32BitsToSingle(tag16Raw);
+        Assert.Equal(2.5f, tag16Float, precision: 4);
+    }
 }

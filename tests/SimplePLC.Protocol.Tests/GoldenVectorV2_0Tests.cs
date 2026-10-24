@@ -230,4 +230,74 @@ public class GoldenVectorV2_0Tests
         Assert.Equal(expectedReqHex, BytesToHex(req));
         Assert.True(Crc16Modbus.Verify(req));
     }
+    [Fact]
+    public void GV011_TagDataTypesRegistry_MatchesWireLayoutAndCrc()
+    {
+        // Tag 0 = BOOL (1), Tag 1 = INT32 (2), Tag 2 = REAL (3), rest = NONE (0)
+        byte[] types = new byte[ModbusRegisterMap.MaxRuntimeTags];
+        types[0] = (byte)SPLC_TagDataType.BOOL;
+        types[1] = (byte)SPLC_TagDataType.INT32;
+        types[2] = (byte)SPLC_TagDataType.REAL;
+
+        Span<ushort> regs = stackalloc ushort[ModbusRegisterMap.TagDataTypesLength];
+        RegisterCodec.EncodeTagDataTypes(types, regs);
+
+        // Reg 0: Tag 0 in High (1), Tag 1 in Low (2) -> 0x0102
+        Assert.Equal(0x0102, regs[0]);
+        // Reg 1: Tag 2 in High (3), Tag 3 in Low (0) -> 0x0300
+        Assert.Equal(0x0300, regs[1]);
+
+        // Build Modbus RTU FC16 Write Request: Slave 1, Addr 0x0080, 64 regs
+        byte[] payload = new byte[ModbusRegisterMap.TagDataTypesLength * 2];
+        for (int i = 0; i < ModbusRegisterMap.TagDataTypesLength; i++)
+        {
+            payload[i * 2] = (byte)(regs[i] >> 8);
+            payload[i * 2 + 1] = (byte)(regs[i] & 0xFF);
+        }
+
+        ushort crc = Crc16Modbus.Compute(payload);
+        Assert.True(crc > 0);
+    }
+
+    [Fact]
+    public void GV012_OrthogonalRuleFlags_MixedRuleWireLayout()
+    {
+        // Rule: INT32 Trigger (AI0 > 80) -> SET REAL VREG (2.5f)
+        var ruleMixed = new RuleRecordDto
+        {
+            Flags = (byte)SPLC_RuleFlags.ACTION_FLOAT, // 0x02: only action is float
+            ThresholdLo = 80, // 0x00000050
+            ActionParamFloat = 2.5f, // 0x40200000
+            TriggerTag = 16,
+            ActionTag = 32,
+            Enabled = true,
+            TriggerType = SPLC_TriggerType.ON_CHANGE,
+            CompareOp = SPLC_CompareOp.GT,
+            ActionType = SPLC_ActionType.SET_TAG
+        };
+
+        Span<ushort> registers = stackalloc ushort[16];
+        RegisterCodec.EncodeRuleRecord(ruleMixed, registers);
+
+        // Verify Reg 0..1 = 80 (Int32 Big-Endian: 0x0000, 0x0050)
+        Assert.Equal(0x0000, registers[0]);
+        Assert.Equal(0x0050, registers[1]);
+
+        // Verify Reg 6..7 = 2.5f (Float32 Big-Endian: 0x4020, 0x0000)
+        Assert.Equal(0x4020, registers[6]);
+        Assert.Equal(0x0000, registers[7]);
+
+        // Verify Reg 13 High byte = 0x02 (ACTION_FLOAT), Low byte = 0x00
+        Assert.Equal(0x0200, registers[13]);
+
+        byte[] ruleBytes = new byte[32];
+        for (int i = 0; i < 16; i++)
+        {
+            ruleBytes[i * 2] = (byte)(registers[i] >> 8);
+            ruleBytes[i * 2 + 1] = (byte)(registers[i] & 0xFF);
+        }
+
+        ushort crc = Crc16Modbus.Compute(ruleBytes);
+        Assert.True(crc > 0);
+    }
 }

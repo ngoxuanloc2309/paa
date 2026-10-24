@@ -19,6 +19,14 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
     public MqttSubscribeNodeViewModel Node { get; }
     public TagCatalogViewModel TagCatalog { get; }
 
+    public Action? OnOpenDeviceBrokerSettings { get; set; }
+
+    [RelayCommand]
+    public void OpenDeviceBrokerSettings()
+    {
+        OnOpenDeviceBrokerSettings?.Invoke();
+    }
+
     [ObservableProperty]
     private string _simulationInput = string.Empty;
 

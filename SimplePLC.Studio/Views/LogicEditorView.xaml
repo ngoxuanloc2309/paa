@@ -436,7 +436,7 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 3: Standard Timers (TON, TOF, TP) -->
+                        <!-- Category 3: Standard Timers (TON, TOF, TP, CYCLE) -->
                         <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True">
                             <Expander.Header>
                                 <DockPanel LastChildFill="True">
@@ -509,6 +509,29 @@
                                                            FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
                                             </DockPanel>
                                             <TextBlock Text="{Binding [ToolboxTpDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- CYCLE Block -->
+                                <Border Tag="CYCLE" Style="{StaticResource ToolboxCardStyle}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding [ToolboxCycleDesc], Source={x:Static services:LocalizationService.Instance}}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#7C3AED" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="🔄" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxCycleTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxCycleDesc], Source={x:Static services:LocalizationService.Instance}}" 
                                                        FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
                                         </StackPanel>
                                     </Grid>
@@ -2230,32 +2253,82 @@
                         <ComboBox SelectedValue="{Binding SelectedTimerNode.TimerMode}"
                                   SelectedValuePath="Tag"
                                   Margin="0,0,0,10">
-                            <ComboBoxItem Content="TON — On-Delay Timer" Tag="TON" />
-                            <ComboBoxItem Content="TOF — Off-Delay Timer" Tag="TOF" />
-                            <ComboBoxItem Content="TP — Pulse Timer" Tag="TP" />
+                            <ComboBoxItem Content="{Binding [OptTimerTon], Source={x:Static services:LocalizationService.Instance}}" Tag="TON" />
+                            <ComboBoxItem Content="{Binding [OptTimerTof], Source={x:Static services:LocalizationService.Instance}}" Tag="TOF" />
+                            <ComboBoxItem Content="{Binding [OptTimerTp], Source={x:Static services:LocalizationService.Instance}}" Tag="TP" />
+                            <ComboBoxItem Content="{Binding [OptTimerCycle], Source={x:Static services:LocalizationService.Instance}}" Tag="CYCLE" />
                         </ComboBox>
 
-                        <!-- Preset Time PT (Value + Unit) -->
-                        <TextBlock Text="{Binding [InspectorPresetTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="6" />
-                                <ColumnDefinition Width="145" />
-                            </Grid.ColumnDefinitions>
+                        <!-- Preset Time PT (Value + Unit) - Khi KHONG o che do CYCLE -->
+                        <StackPanel Visibility="{Binding SelectedTimerNode.IsCycleMode, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="{Binding [InspectorPresetTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="145" />
+                                </Grid.ColumnDefinitions>
 
-                            <!-- Value Input (supports integer and decimals, e.g. 30, 1.5, 500) -->
-                            <TextBox Grid.Column="0" Text="{Binding SelectedTimerNode.DurationValueText, UpdateSourceTrigger=PropertyChanged}" 
-                                     Padding="6,4" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center" />
+                                <!-- Value Input (supports integer and decimals, e.g. 30, 1.5, 500) -->
+                                <TextBox Grid.Column="0" Text="{Binding SelectedTimerNode.DurationValueText, UpdateSourceTrigger=PropertyChanged}" 
+                                         Padding="6,4" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center" />
 
-                            <!-- Unit Selector: ms, s, min, h (dynamically localized) -->
-                            <ComboBox Grid.Column="2" 
-                                      ItemsSource="{x:Static vm:TimerNodeViewModel.AvailableUnits}"
-                                      SelectedValue="{Binding SelectedTimerNode.TimeUnit, Mode=TwoWay}"
-                                      SelectedValuePath="Key"
-                                      DisplayMemberPath="Label"
-                                      Height="28" Padding="5,3" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
-                        </Grid>
+                                <!-- Unit Selector: ms, s, min, h (dynamically localized) -->
+                                <ComboBox Grid.Column="2" 
+                                          ItemsSource="{x:Static vm:TimerNodeViewModel.AvailableUnits}"
+                                          SelectedValue="{Binding SelectedTimerNode.TimeUnit, Mode=TwoWay}"
+                                          SelectedValuePath="Key"
+                                          DisplayMemberPath="Label"
+                                          Height="28" Padding="5,3" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Cycle Parameters: T_ON, T_OFF, StartPhase - Khi o che do CYCLE -->
+                        <StackPanel Visibility="{Binding SelectedTimerNode.IsCycleMode, Converter={StaticResource BoolToVis}}">
+                            <!-- T_ON (Thoi gian BAT) -->
+                            <TextBlock Text="{Binding [TimerOnTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#107C41" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="145" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding SelectedTimerNode.OnDurationValueText, UpdateSourceTrigger=PropertyChanged}" 
+                                         Padding="6,4" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="2" 
+                                          ItemsSource="{x:Static vm:TimerNodeViewModel.AvailableUnits}"
+                                          SelectedValue="{Binding SelectedTimerNode.OnTimeUnit, Mode=TwoWay}"
+                                          SelectedValuePath="Key"
+                                          DisplayMemberPath="Label"
+                                          Height="28" Padding="5,3" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                            </Grid>
+
+                            <!-- T_OFF (Thoi gian NGHI) -->
+                            <TextBlock Text="{Binding [TimerOffTime], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="145" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding SelectedTimerNode.OffDurationValueText, UpdateSourceTrigger=PropertyChanged}" 
+                                         Padding="6,4" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="2" 
+                                          ItemsSource="{x:Static vm:TimerNodeViewModel.AvailableUnits}"
+                                          SelectedValue="{Binding SelectedTimerNode.OffTimeUnit, Mode=TwoWay}"
+                                          SelectedValuePath="Key"
+                                          DisplayMemberPath="Label"
+                                          Height="28" Padding="5,3" FontSize="11" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" />
+                            </Grid>
+
+                            <!-- Pha khoi dau (Start Phase) -->
+                            <TextBlock Text="{Binding [TimerStartPhase], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                            <ComboBox SelectedIndex="{Binding SelectedTimerNode.StartPhaseIndex, Mode=TwoWay}"
+                                      Margin="0,0,0,10">
+                                <ComboBoxItem Content="{Binding [TimerStartWithOn], Source={x:Static services:LocalizationService.Instance}}" />
+                                <ComboBoxItem Content="{Binding [TimerStartWithOff], Source={x:Static services:LocalizationService.Instance}}" />
+                            </ComboBox>
+                        </StackPanel>
 
                         <!-- Output Tag Q (DO or VFLAG) -->
                         <TextBlock Text="{Binding [InspectorOutputTag], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
@@ -2281,8 +2354,8 @@
                         <ComboBox SelectedValue="{Binding SelectedCounterNode.CounterMode}"
                                   SelectedValuePath="Tag"
                                   Margin="0,0,0,10">
-                            <ComboBoxItem Content="CTU — Count Up (Đếm tiến)" Tag="CTU" />
-                            <ComboBoxItem Content="CTD — Count Down (Đếm lùi)" Tag="CTD" />
+                            <ComboBoxItem Content="{Binding [OptCounterCtu], Source={x:Static services:LocalizationService.Instance}}" Tag="CTU" />
+                            <ComboBoxItem Content="{Binding [OptCounterCtd], Source={x:Static services:LocalizationService.Instance}}" Tag="CTD" />
                         </ComboBox>
 
                         <!-- Preset Value PV -->

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -6,6 +6,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Protocol.Codec;
+using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Services;
 
@@ -97,7 +98,21 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         new(ModbusEndianness.LittleEndian_DCBA, "Little-Endian (DCBA)")
     };
 
-    private readonly IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+    private IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+
+    public Action? OnOpenDevicePortSettings { get; set; }
+
+    [RelayCommand]
+    public void OpenDevicePortSettings()
+    {
+        OnOpenDevicePortSettings?.Invoke();
+    }
+
+    public void RefreshAvailablePorts(IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts)
+    {
+        _modbusPorts = newPorts?.ToList();
+        UpdatePortOptions();
+    }
 
     public ModbusReadConfigDialogViewModel(
         ModbusReadNodeViewModel node, 
@@ -125,18 +140,24 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         UpdateRegCountFromPins();
 
         PopulateLocalizedOptions();
+        ResetSampleHex();
         LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
     }
 
     public void PopulateLocalizedOptions()
     {
-        var curPort = PortIndex;
-        var curMode = ReadMode;
-        var curFc = FunctionCode;
+        UpdatePortOptions();
+        UpdateReadModes();
+        UpdateFunctionCodes();
+    }
 
-        AvailablePorts.Clear();
+    private void UpdatePortOptions()
+    {
+        var curPort = PortIndex;
         bool isVi = LocalizationService.Instance.IsVietnamese;
         string prefix = isVi ? "Cổng" : "Port";
+
+        var targetList = new List<OptionItem<byte>>();
 
         if (_modbusPorts != null && _modbusPorts.Count > 0)
         {
@@ -145,7 +166,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
             {
                 foreach (var p in enabledPorts)
                 {
-                    AvailablePorts.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
+                    targetList.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
                 }
 
                 if (!enabledPorts.Any(p => p.PortIndex == curPort))
@@ -153,37 +174,88 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
                     var disabledPort = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
                     if (disabledPort != null)
                     {
-                        AvailablePorts.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
+                        targetList.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
                     }
                 }
             }
             else
             {
                 string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485]" : "[No RS-485 Ports Enabled]");
-                AvailablePorts.Add(new OptionItem<byte>(curPort, noPortsMsg));
+                targetList.Add(new OptionItem<byte>(curPort, noPortsMsg));
             }
         }
         else
         {
             for (byte i = 0; i < 4; i++)
             {
-                AvailablePorts.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
+                targetList.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
             }
         }
 
-        AvailableReadModes.Clear();
-        AvailableReadModes.Add(new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"));
-        AvailableReadModes.Add(new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)"));
+        SyncOptions(AvailablePorts, targetList);
 
-        AvailableFunctionCodes.Clear();
-        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadHoldingRegisters, LocalizationService.Tr("ModbusReadFc03") ?? "FC 03: Read Holding Registers (4x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadInputRegisters, LocalizationService.Tr("ModbusReadFc04") ?? "FC 04: Read Input Registers (3x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadCoils, LocalizationService.Tr("ModbusReadFc01") ?? "FC 01: Read Coils (0x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterFunctionCode.ReadDiscreteInputs, LocalizationService.Tr("ModbusReadFc02") ?? "FC 02: Read Discrete Inputs (1x)"));
+        if (!AvailablePorts.Any(p => p.Value == curPort) && AvailablePorts.Count > 0)
+        {
+            PortIndex = AvailablePorts[0].Value;
+        }
+        else
+        {
+            OnPropertyChanged(nameof(PortIndex));
+        }
 
-        PortIndex = curPort;
-        ReadMode = curMode;
-        FunctionCode = curFc;
+        OnPropertyChanged(nameof(PortSelectorTooltip));
+        OnPropertyChanged(nameof(SummaryBadgeText));
+    }
+
+    private void UpdateReadModes()
+    {
+        var targetModes = new List<OptionItem<ModbusReadMode>>
+        {
+            new(ModbusReadMode.Cyclic, LocalizationService.Tr("ModbusReadModeCyclic") ?? "Cyclic (Periodic Polling)"),
+            new(ModbusReadMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusReadModeTrigger") ?? "On Rising Edge (Trig)")
+        };
+
+        SyncOptions(AvailableReadModes, targetModes);
+        OnPropertyChanged(nameof(ReadMode));
+    }
+
+    private void UpdateFunctionCodes()
+    {
+        var targetFc = new List<OptionItem<ModbusMasterFunctionCode>>
+        {
+            new(ModbusMasterFunctionCode.ReadHoldingRegisters, LocalizationService.Tr("ModbusReadFc03") ?? "FC 03: Read Holding Registers (4x)"),
+            new(ModbusMasterFunctionCode.ReadInputRegisters, LocalizationService.Tr("ModbusReadFc04") ?? "FC 04: Read Input Registers (3x)"),
+            new(ModbusMasterFunctionCode.ReadCoils, LocalizationService.Tr("ModbusReadFc01") ?? "FC 01: Read Coils (0x)"),
+            new(ModbusMasterFunctionCode.ReadDiscreteInputs, LocalizationService.Tr("ModbusReadFc02") ?? "FC 02: Read Discrete Inputs (1x)")
+        };
+
+        SyncOptions(AvailableFunctionCodes, targetFc);
+        OnPropertyChanged(nameof(FunctionCode));
+    }
+
+    private static void SyncOptions<T>(ObservableCollection<OptionItem<T>> current, IList<OptionItem<T>> target)
+    {
+        if (current.SequenceEqual(target)) return;
+
+        for (int i = 0; i < target.Count; i++)
+        {
+            if (i < current.Count)
+            {
+                if (!EqualityComparer<OptionItem<T>>.Default.Equals(current[i], target[i]))
+                {
+                    current[i] = target[i];
+                }
+            }
+            else
+            {
+                current.Add(target[i]);
+            }
+        }
+
+        while (current.Count > target.Count)
+        {
+            current.RemoveAt(current.Count - 1);
+        }
     }
 
     public string PortSelectorTooltip
@@ -360,7 +432,9 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
             }
             else
             {
-                details.Add($"{pin.Label}: [Thiếu thanh ghi offset +{pin.RegOffset}]");
+                details.Add(isVi 
+                    ? $"{pin.Label}: [Thiếu thanh ghi offset +{pin.RegOffset}]"
+                    : $"{pin.Label}: [Missing register offset +{pin.RegOffset}]");
             }
         }
 
@@ -383,10 +457,105 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void ResetSampleHex()
     {
-        // Khung tin mẫu chuẩn Modbus RTU FC03 (2 thanh ghi: 0x0064 = 100, 0x00C8 = 200)
-        SimulationHexInput = "01 03 04 00 64 00 C8 3A 12";
+        SimulationHexInput = GenerateRealisticSampleHex();
         HasRunSimulation = false;
-        SimulationStatusMessage = LocalizationService.Tr("ModbusTestWaitingText") ?? "Nhập chuỗi Hex phản hồi từ cảm biến rồi nhấn 'Kiểm tra giải mã'.";
+        SimulationStatusMessage = LocalizationService.Tr("ModbusTestWaitingText") ?? (LocalizationService.Instance.IsVietnamese 
+            ? "Nhập chuỗi Hex phản hồi từ cảm biến rồi nhấn 'Kiểm tra giải mã'."
+            : "Enter raw hex response from sensor and click 'Run Frame Test'.");
+    }
+
+    private string GenerateRealisticSampleHex()
+    {
+        if (Node.Pins.Count == 0)
+        {
+            return "01 03 04 00 64 00 C8 3A 12";
+        }
+
+        int maxNeededWords = 2;
+        foreach (var pin in Node.Pins)
+        {
+            int words = (pin.DataType is ModbusDataType.Real or ModbusDataType.UInt32 or ModbusDataType.Int32) ? 2 : 1;
+            int needed = pin.RegOffset + words;
+            if (needed > maxNeededWords) maxNeededWords = needed;
+        }
+
+        int totalRegs = Math.Max((int)Node.RegCount, maxNeededWords);
+        if (totalRegs > 125) totalRegs = 125;
+
+        ushort[] registers = new ushort[totalRegs];
+
+        foreach (var pin in Node.Pins)
+        {
+            if (pin.RegOffset >= totalRegs) continue;
+
+            float sampleVal = 0f;
+            string lbl = pin.Label.ToLowerInvariant();
+            if (lbl.Contains('v') || lbl.Contains("volt")) sampleVal = 230.5f;
+            else if (lbl.Contains('i') || lbl.Contains("curr") || lbl.Contains("amp")) sampleVal = 15.2f;
+            else if (lbl.Contains("kw") || lbl.Contains("p_") || lbl.Contains("power")) sampleVal = 10.5f;
+            else if (lbl.Contains("kwh") || lbl.Contains("energy")) sampleVal = 1250.0f;
+            else if (lbl.Contains("freq") || lbl.Contains("hz")) sampleVal = 50.0f;
+            else if (lbl.Contains("pf") || lbl.Contains("cos")) sampleVal = 0.98f;
+            else sampleVal = (float)(100 + pin.RegOffset);
+
+            if (pin.DataType == ModbusDataType.Real)
+            {
+                if (pin.RegOffset + 1 < totalRegs)
+                {
+                    uint bits = BitConverter.SingleToUInt32Bits(sampleVal);
+                    ushort w1 = (ushort)((bits >> 16) & 0xFFFF);
+                    ushort w2 = (ushort)(bits & 0xFFFF);
+                    if (pin.Endianness is ModbusEndianness.BigEndian_ABCD or ModbusEndianness.ByteSwap_BADC)
+                    {
+                        registers[pin.RegOffset] = w1;
+                        registers[pin.RegOffset + 1] = w2;
+                    }
+                    else
+                    {
+                        registers[pin.RegOffset] = w2;
+                        registers[pin.RegOffset + 1] = w1;
+                    }
+                }
+            }
+            else if (pin.DataType == ModbusDataType.Int16)
+            {
+                registers[pin.RegOffset] = (ushort)(short)sampleVal;
+            }
+            else if (pin.DataType == ModbusDataType.UInt16)
+            {
+                registers[pin.RegOffset] = (ushort)sampleVal;
+            }
+            else if (pin.DataType is ModbusDataType.Int32 or ModbusDataType.UInt32)
+            {
+                if (pin.RegOffset + 1 < totalRegs)
+                {
+                    uint val = (uint)sampleVal;
+                    registers[pin.RegOffset] = (ushort)((val >> 16) & 0xFFFF);
+                    registers[pin.RegOffset + 1] = (ushort)(val & 0xFFFF);
+                }
+            }
+        }
+
+        byte slaveId = SlaveId > 0 ? SlaveId : (byte)1;
+        byte fc = (byte)FunctionCode;
+        if (fc == 0) fc = 3;
+        int byteCount = totalRegs * 2;
+        byte[] frame = new byte[3 + byteCount + 2];
+        frame[0] = slaveId;
+        frame[1] = fc;
+        frame[2] = (byte)byteCount;
+
+        for (int i = 0; i < totalRegs; i++)
+        {
+            frame[3 + i * 2] = (byte)((registers[i] >> 8) & 0xFF);
+            frame[3 + i * 2 + 1] = (byte)(registers[i] & 0xFF);
+        }
+
+        ushort crc = Crc16Modbus.Compute(frame.AsSpan(0, 3 + byteCount));
+        frame[3 + byteCount] = (byte)(crc & 0xFF);
+        frame[3 + byteCount + 1] = (byte)((crc >> 8) & 0xFF);
+
+        return string.Join(" ", frame.Select(b => b.ToString("X2")));
     }
 
     [RelayCommand]

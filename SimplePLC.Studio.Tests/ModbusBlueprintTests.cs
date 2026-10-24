@@ -115,4 +115,84 @@ public class ModbusBlueprintTests
         logicEditor.CompileNow();
         Assert.DoesNotContain(logicEditor.Diagnostics, d => d.Severity == Models.DiagnosticSeverity.Error);
     }
+    [Fact]
+    public void ApplyBlueprint_SelecMfm383aEnergyMqtt_GeneratesCompleteLayout_WithLocalAliases_AndCompilesSuccessfully()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTable = new RuleTableViewModel(tagCatalog);
+        var logicEditor = new LogicEditorViewModel(tagCatalog, ruleTable: ruleTable, uiDispatcher: act => act());
+        var blueprints = new BlueprintsViewModel(logicEditor, () => { });
+
+        var bp = blueprints.Blueprints.First(b => b.Id == "mfm383a_energy_mqtt");
+        Assert.Equal("⚡", bp.Icon);
+        Assert.Equal("#006487", bp.BadgeColor);
+
+        blueprints.ApplyBlueprint(bp);
+
+        // 1. Kiểm tra 8 khối trên Canvas chuẩn kiến trúc PLC: MB_READ, 6 Action (DO6, DO7, VREG0..2, VREG_RETAIN0), MQTT_PUB
+        Assert.Equal(8, logicEditor.Nodes.Count);
+
+        var mbRead = logicEditor.Nodes.OfType<ModbusReadNodeViewModel>().Single();
+        var mqttPub = logicEditor.Nodes.OfType<MqttPublishNodeViewModel>().Single();
+        var actNodes = logicEditor.Nodes.OfType<ActionNodeViewModel>().ToList();
+        Assert.Equal(6, actNodes.Count);
+        Assert.Contains(actNodes, a => a.TargetTag?.Name == "VREG0");
+        Assert.Contains(actNodes, a => a.TargetTag?.Name == "VREG1");
+        Assert.Contains(actNodes, a => a.TargetTag?.Name == "VREG2");
+        Assert.Contains(actNodes, a => a.TargetTag?.Name == "VREG_RETAIN0");
+
+        // 2. Kiểm tra thông số Modbus đọc MFM383A
+        Assert.Equal(1, mbRead.SlaveId);
+        Assert.Equal(0, mbRead.PortIndex); // RS-485 #1
+        Assert.Equal(ModbusMasterFunctionCode.ReadInputRegisters, mbRead.FunctionCode); // FC04
+        Assert.Equal((ushort)0, mbRead.StartAddress);
+        Assert.Equal((ushort)60, mbRead.RegCount);
+        Assert.Equal(ModbusReadMode.Cyclic, mbRead.ReadMode);
+        Assert.Equal(4, mbRead.Pins.Count);
+
+        Assert.Equal("V_avg", mbRead.Pins[0].Label);
+        Assert.Equal((ushort)6, mbRead.Pins[0].RegOffset);
+        Assert.Equal(ModbusDataType.Real, mbRead.Pins[0].DataType);
+        Assert.Equal("VREG0", mbRead.Pins[0].TargetTag?.Name);
+
+        Assert.Equal("I_avg", mbRead.Pins[1].Label);
+        Assert.Equal((ushort)22, mbRead.Pins[1].RegOffset);
+        Assert.Equal(ModbusDataType.Real, mbRead.Pins[1].DataType);
+        Assert.Equal("VREG1", mbRead.Pins[1].TargetTag?.Name);
+
+        Assert.Equal("Total_kW", mbRead.Pins[2].Label);
+        Assert.Equal((ushort)30, mbRead.Pins[2].RegOffset);
+        Assert.Equal(ModbusDataType.Real, mbRead.Pins[2].DataType);
+        Assert.Equal("VREG2", mbRead.Pins[2].TargetTag?.Name);
+
+        Assert.Equal("Total_kWh", mbRead.Pins[3].Label);
+        Assert.Equal((ushort)58, mbRead.Pins[3].RegOffset);
+        Assert.Equal(ModbusDataType.Real, mbRead.Pins[3].DataType);
+        Assert.Equal("VREG_RETAIN0", mbRead.Pins[3].TargetTag?.Name);
+
+        // 3. Kiểm tra thông số MQTT Publish
+        Assert.Equal("factory/energy/meter1", mqttPub.Topic);
+        Assert.Equal(1, mqttPub.Qos);
+        Assert.Equal("Cyclic", mqttPub.PublishMode);
+        Assert.Equal((uint)5000, mqttPub.IntervalMs);
+        Assert.Equal(4, mqttPub.Fields.Count);
+        Assert.Equal("v_avg", mqttPub.Fields[0].Key);
+        Assert.Equal("i_avg", mqttPub.Fields[1].Key);
+        Assert.Equal("power_kw", mqttPub.Fields[2].Key);
+        Assert.Equal("energy_kwh", mqttPub.Fields[3].Key);
+
+        // 4. Kiểm tra Tag Alias được gán cục bộ trong Blueprint
+        Assert.False(string.IsNullOrWhiteSpace(mbRead.Pins[0].TargetTag?.Alias));
+        Assert.False(string.IsNullOrWhiteSpace(mbRead.Pins[3].TargetTag?.Alias));
+        Assert.Contains("kWh", mbRead.Pins[3].TargetTag?.Alias);
+
+        // 5. Kiểm tra kết nối dây trực giao (6 connections)
+        // 2 dây từ MB_READ sang 2 Action (DO6, DO7) + 4 dây từ 4 khối VREG InputNodes sang MQTT_PUB fields
+        Assert.Equal(6, logicEditor.Connections.Count);
+
+        // 6. Biên dịch thành công không sinh lỗi và sinh 2 macro rules cho DO6 (Valid) và DO7 (Error)
+        logicEditor.CompileNow();
+        Assert.DoesNotContain(logicEditor.Diagnostics, d => d.Severity == Models.DiagnosticSeverity.Error);
+        Assert.Equal(2, ruleTable.Rules.Count);
+    }
 }

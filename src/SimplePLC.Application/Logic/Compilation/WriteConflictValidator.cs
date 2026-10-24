@@ -68,6 +68,18 @@ public static class WriteConflictValidator
                         continue;
                     }
 
+                    // 1b. Nhom Cycle Timer Macro (CYCLE): gom cac quy tac SetTag (1 va 0) lap tuan hoan va ngat an toan
+                    bool isWellFormedCycleTimer =
+                        (macroType is "CYCLE" or "REPEAT_CYCLE") &&
+                        writers.All(w => w.Action.Type == ActionKind.SetTag) &&
+                        writers.Any(w => w.Action.Parameter == 1) &&
+                        writers.Any(w => w.Action.Parameter == 0);
+
+                    if (isWellFormedCycleTimer)
+                    {
+                        continue;
+                    }
+
                     // 2. Nhóm Counter Macro (CTU, CTD):
                     //    - Trên thanh ghi CV: 1 quy tắc IncrementCounter + 1 quy tắc SetTag (Reset)
                     //    - Trên ngõ ra Q: 2 quy tắc SetTag (Trip=1, Clear=0)

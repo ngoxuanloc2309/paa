@@ -12,7 +12,10 @@ public static class RuleMapper
     {
         ArgumentNullException.ThrowIfNull(domainRule);
 
-        bool isFloat = domainRule.Trigger.IsFloat || domainRule.Action.IsFloat;
+        byte flags = (byte)SPLC_RuleFlags.NONE;
+        if (domainRule.Trigger.IsFloat) flags |= (byte)SPLC_RuleFlags.TRIGGER_FLOAT;
+        if (domainRule.Action.IsFloat)  flags |= (byte)SPLC_RuleFlags.ACTION_FLOAT;
+
         var dto = new RuleRecordDto
         {
             ThresholdLo = domainRule.Trigger.IsFloat
@@ -31,7 +34,7 @@ public static class RuleMapper
             TriggerType = (SPLC_TriggerType)domainRule.Trigger.Type,
             CompareOp = (SPLC_CompareOp)domainRule.Trigger.CompareOp,
             ActionType = (SPLC_ActionType)domainRule.Action.Type,
-            Flags = isFloat ? (byte)0x01 : (byte)0x00
+            Flags = flags
         };
 
         if (domainRule.Guard.HasGuard && domainRule.Guard.Tag != null)
@@ -58,18 +61,21 @@ public static class RuleMapper
         var actionTag = product?.FindTagByIndex(dto.ActionTag) ??
                         new TagDefinition(dto.ActionTag, $"TAG_{dto.ActionTag}", TagKind.DiscreteOutput, TagDataType.Boolean, isReadOnly: false);
 
+        bool isTriggerFloat = dto.IsTriggerFloat;
+        bool isActionFloat = dto.IsActionFloat || (dto.IsTriggerFloat && actionTag.DataType == TagDataType.Float32);
+
         var trigger = new TriggerModel(triggerTag, (TriggerKind)dto.TriggerType)
         {
             CompareOp = (CompareOperator)dto.CompareOp,
-            ThresholdLo = dto.IsFloatData ? dto.ThresholdLoFloat : dto.ThresholdLo,
-            ThresholdHi = dto.IsFloatData ? dto.ThresholdHiFloat : dto.ThresholdHi,
-            IsFloat = dto.IsFloatData,
+            ThresholdLo = isTriggerFloat ? dto.ThresholdLoFloat : dto.ThresholdLo,
+            ThresholdHi = isTriggerFloat ? dto.ThresholdHiFloat : dto.ThresholdHi,
+            IsFloat = isTriggerFloat,
             ForMs = dto.ForMs
         };
 
-        var action = new ActionModel(actionTag, (ActionKind)dto.ActionType, dto.IsFloatData ? dto.ActionParamFloat : dto.ActionParam)
+        var action = new ActionModel(actionTag, (ActionKind)dto.ActionType, isActionFloat ? dto.ActionParamFloat : dto.ActionParam)
         {
-            IsFloat = dto.IsFloatData
+            IsFloat = isActionFloat
         };
 
         GuardModel guard = GuardModel.Empty;

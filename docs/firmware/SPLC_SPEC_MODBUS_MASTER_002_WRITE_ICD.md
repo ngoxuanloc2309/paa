@@ -89,7 +89,7 @@ Chuẩn hóa đồng bộ 100% với `ModbusMasterCodec.cs` và struct `SPLC_Mod
 | `+0` | `CONTROL_FLAGS` | `uint16` | Bitmask | **Bit 0:** Block Enabled (1 = Bật, 0 = Tắt)<br>**Bit 1:** Exclusive Channel (1 = Tự động xóa kênh khác khi bật kênh mới)<br>**Bit 2..3:** Write Mode (`0` = DirectRegisters, `1` = ChannelIndexed)<br>**Bit 4..15:** Dự phòng (0x0000) |
 | `+1` | `FC_AND_SLAVE_ID` | `uint16` | Pack Byte | **High Byte:** Function Code (`0x05`, `0x06`, `0x0F`, `0x10`)<br>**Low Byte:** Slave ID (`1..247`) |
 | `+2` | `START_OR_BASE_CMD`| `uint16` | `0..65535` | Direct: Starting Address.<br>Channel-Indexed: Base Command Address (VD: `0x0100`). |
-| `+3` | `COUNT_OR_CHANNELS`| `uint16` | `1..256` | Direct: Point Count (Quantity of Coils/Registers).<br>Channel-Indexed: Total Channel Count (VD: `18`). |
+| `+3` | `COUNT_OR_CHANNELS`| `uint16` | `Direct: 1..16`<br>`Channel: 1..64` | Direct: Point Count (Giới hạn 1..16 coils/registers theo bộ nhớ đệm RTOS MCU).<br>Channel-Indexed: Total Channel Count (Giới hạn 1..64 kênh, VD: `18`). |
 | `+4..+5`| `BASE_PARAM_ADDR` | `uint32` | `0..0xFFFFFFFF` | Channel-Indexed: Base Parameter Address (VD: `0x0120` cho màu RGB, High Word first). Direct: `0x00000000`. |
 | `+6..+7`| `INTERVAL_MS` | `uint32` | `0..60000` | Chu kỳ gửi lệnh lặp lại nếu ở chế độ Cyclic (ms), Big-Endian High Word first. |
 | `+8..+9`| `TIMEOUT_MS` | `uint32` | `50..10000` | Thời gian chờ phản hồi tối đa trước khi báo lỗi Timeout (ms), High Word first. |

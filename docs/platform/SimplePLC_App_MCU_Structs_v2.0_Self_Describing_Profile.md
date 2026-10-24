@@ -250,10 +250,12 @@ typedef struct SPLC_PACKED {
 Bản ghi logic nhị phân chuẩn hóa thực thi trên MCU Rule Engine, hỗ trợ kép: **Chế độ Số nguyên (Legacy Int32)** và **Chế độ Số thực dấu phẩy động (IEEE-754 Float32 / REAL)**:
 
 ```c
-/* Cờ định dạng dữ liệu (Rule Flags) lưu tại Reg 13 High */
+/* Cờ định dạng dữ liệu trực giao (Rule Flags) lưu tại Reg 13 High */
 typedef enum {
-    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
-    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_NONE          = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01, /* Bit 0 (0x01): Ngưỡng Trigger là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02, /* Bit 1 (0x02): Tham số Action là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03  /* 0x03: Cả Trigger và Action đều là Float32 (Legacy alias) */
 } SPLC_RuleFlags_t;
 
 typedef struct SPLC_PACKED {
@@ -277,7 +279,7 @@ typedef struct SPLC_PACKED {
     uint8_t  trigger_type;        /* [11L]    SPLC_TriggerType_t */
     uint8_t  compare_op;          /* [12H]    SPLC_CompareOp_t */
     uint8_t  action_type;         /* [12L]    SPLC_ActionType_t */
-    uint8_t  flags;               /* [13H]    SPLC_RuleFlags_t (0x01 = FLOAT_DATA) */
+    uint8_t  flags;               /* [13H]    SPLC_RuleFlags_t: Bit 0=TRIGGER_FLOAT (0x01), Bit 1=ACTION_FLOAT (0x02) */
     uint8_t  reserved[5];         /* [13L..15] Luôn ghi 0x00; receiver bỏ qua */
 } SPLC_RuleRecord_t;
 ```
@@ -505,6 +507,8 @@ Bitmask định nghĩa (`SPLC_HardwareCapabilities_t` trong `simpleplc_protocol_
 * `0x0080` (`SPLC_CAP_MQTT_TLS_CERT`): Hỗ trợ nạp chứng chỉ TLS/SSL qua struct chunk (`0x0F00`).
 * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master (`0x1000..0x11FF`, `0x1400..0x143F`).
 * `0x0200` (`SPLC_CAP_WIFI`): Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (`0x1300..0x13FF`).
+* `0x0400` (`SPLC_CAP_MODBUS_TCP`): Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502).
+* `0x0800` (`SPLC_CAP_FLOAT32`): Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math.
 
 #### 3.15.1. Thanh Ghi Tự Mô Tả Số Cổng RS-485 Vật Lý (`0x0A0A`, SPLC_ADDR_HW_RS485_PORT_COUNT)
 Địa chỉ: `0x0A0A` (16-bit uint16, 1 holding register, FC03 Read-Only).

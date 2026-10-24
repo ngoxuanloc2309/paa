@@ -411,4 +411,50 @@ public static class RegisterCodec
             IsBatteryLow = (flags & ModbusRegisterMap.RtcFlagBatteryLow) != 0
         };
     }
+
+    // ==========================================
+    // 8. TAG DATA TYPES REGISTRY (64 REGISTERS = 128 BYTES)
+    // ==========================================
+
+    /// <summary>
+    /// Mã hóa bảng kiểu dữ liệu Tag (128 tags, mỗi tag 1 byte) thành 64 thanh ghi Modbus (0x0080..0x00BF).
+    /// Mỗi thanh ghi: High Byte = Tag 2k, Low Byte = Tag 2k + 1.
+    /// </summary>
+    public static void EncodeTagDataTypes(ReadOnlySpan<byte> tagDataTypes, Span<ushort> destination)
+    {
+        if (destination.Length < ModbusRegisterMap.TagDataTypesLength)
+            throw new ArgumentException($"Destination span must have at least {ModbusRegisterMap.TagDataTypesLength} registers.", nameof(destination));
+
+        destination.Slice(0, ModbusRegisterMap.TagDataTypesLength).Clear();
+        int maxTags = Math.Min(tagDataTypes.Length, ModbusRegisterMap.MaxRuntimeTags);
+
+        for (int k = 0; k < ModbusRegisterMap.TagDataTypesLength; k++)
+        {
+            int idxHigh = k * 2;
+            int idxLow = k * 2 + 1;
+
+            byte high = idxHigh < maxTags ? tagDataTypes[idxHigh] : (byte)0;
+            byte low = idxLow < maxTags ? tagDataTypes[idxLow] : (byte)0;
+
+            destination[k] = (ushort)((high << 8) | low);
+        }
+    }
+
+    /// <summary>
+    /// Giải mã 64 thanh ghi Modbus (0x0080..0x00BF) thành mảng kiểu dữ liệu cho 128 tags.
+    /// </summary>
+    public static byte[] DecodeTagDataTypes(ReadOnlySpan<ushort> source)
+    {
+        if (source.Length < ModbusRegisterMap.TagDataTypesLength)
+            throw new ArgumentException($"Source span must have at least {ModbusRegisterMap.TagDataTypesLength} registers.", nameof(source));
+
+        var result = new byte[ModbusRegisterMap.MaxRuntimeTags];
+        for (int k = 0; k < ModbusRegisterMap.TagDataTypesLength; k++)
+        {
+            ushort reg = source[k];
+            result[k * 2] = (byte)(reg >> 8);
+            result[k * 2 + 1] = (byte)(reg & 0xFF);
+        }
+        return result;
+    }
 }

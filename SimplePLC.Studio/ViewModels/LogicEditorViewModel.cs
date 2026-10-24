@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -21,6 +21,8 @@ public partial class LogicEditorViewModel : ObservableObject
     public TagCatalogViewModel TagCatalog { get; } = null!;
 
     public Func<SimplePLC.Studio.Models.ProjectMetadata>? GetProjectMetadata { get; set; }
+    public Action? OpenDeviceModbusPortConfig { get; set; }
+    public Action? OpenDeviceMqttBrokerConfig { get; set; }
 
     public ObservableCollection<GraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<ConnectionViewModel> Connections { get; } = new();
@@ -62,6 +64,7 @@ public partial class LogicEditorViewModel : ObservableObject
         if (targetNode == null) return;
 
         var dialogVm = new MqttConfigDialogViewModel(targetNode, TagCatalog);
+        dialogVm.OnOpenDeviceBrokerSettings = () => OpenDeviceMqttBrokerConfig?.Invoke();
         var dialog = new Views.MqttConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -77,6 +80,7 @@ public partial class LogicEditorViewModel : ObservableObject
         if (targetNode == null) return;
 
         var dialogVm = new MqttSubConfigDialogViewModel(targetNode, TagCatalog);
+        dialogVm.OnOpenDeviceBrokerSettings = () => OpenDeviceMqttBrokerConfig?.Invoke();
         var dialog = new Views.MqttSubConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -93,6 +97,12 @@ public partial class LogicEditorViewModel : ObservableObject
 
         var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
         var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog, ports);
+        dialogVm.OnOpenDevicePortSettings = () =>
+        {
+            OpenDeviceModbusPortConfig?.Invoke();
+            var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
+            dialogVm.RefreshAvailablePorts(refreshedPorts);
+        };
         var dialog = new Views.ModbusReadConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -109,6 +119,12 @@ public partial class LogicEditorViewModel : ObservableObject
 
         var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
         var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog, ports);
+        dialogVm.OnOpenDevicePortSettings = () =>
+        {
+            OpenDeviceModbusPortConfig?.Invoke();
+            var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
+            dialogVm.RefreshAvailablePorts(refreshedPorts);
+        };
         var dialog = new Views.ModbusWriteConfigDialogView(dialogVm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -376,7 +392,10 @@ public partial class LogicEditorViewModel : ObservableObject
             if (e.PropertyName == nameof(TimerNodeViewModel.InputTag) ||
                 e.PropertyName == nameof(TimerNodeViewModel.OutputTag) ||
                 e.PropertyName == nameof(TimerNodeViewModel.PresetMs) ||
-                e.PropertyName == nameof(TimerNodeViewModel.TimerMode))
+                e.PropertyName == nameof(TimerNodeViewModel.TimerMode) ||
+                e.PropertyName == nameof(TimerNodeViewModel.OnTimeMs) ||
+                e.PropertyName == nameof(TimerNodeViewModel.OffTimeMs) ||
+                e.PropertyName == nameof(TimerNodeViewModel.StartWithOn))
             {
                 OnPropertyChanged(nameof(NarrativePreview));
                 NotifyGraphModified();
@@ -537,6 +556,11 @@ public partial class LogicEditorViewModel : ObservableObject
             if (SelectedNode is ScaleNodeViewModel scaleNode)
             {
                 return scaleNode.NarrativeText;
+            }
+
+            if (SelectedNode is DirectWriteNodeViewModel dwNode)
+            {
+                return dwNode.NarrativeText;
             }
 
             return SelectedNode.SummaryText;
@@ -2073,6 +2097,9 @@ public partial class LogicEditorViewModel : ObservableObject
         nameof(ActionNodeViewModel.TargetTag),
         nameof(TimerNodeViewModel.TimerMode),
         nameof(TimerNodeViewModel.PresetMs),
+        nameof(TimerNodeViewModel.OnTimeMs),
+        nameof(TimerNodeViewModel.OffTimeMs),
+        nameof(TimerNodeViewModel.StartWithOn),
         nameof(TimerNodeViewModel.InputTag),
         nameof(TimerNodeViewModel.OutputTag),
         nameof(CounterNodeViewModel.CounterMode),
@@ -2563,6 +2590,7 @@ public partial class LogicEditorViewModel : ObservableObject
             "Timer" or "TON" => new TimerNodeViewModel("TON", tag, null),
             "TOF" => new TimerNodeViewModel("TOF", tag, null),
             "TP" => new TimerNodeViewModel("TP", tag, null),
+            "CYCLE" or "Cycle" or "Cycle Timer" or "REPEAT_CYCLE" => new TimerNodeViewModel("CYCLE", tag, null),
             "Counter" or "CTU" => CreateCounterNode("CTU", tag),
             "CTD" => CreateCounterNode("CTD", tag),
             "Scale" => new ScaleNodeViewModel(
@@ -3319,6 +3347,9 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.DurationValue = tm.DurationValue;
             pNode.TagName = tm.InputTag?.Name ?? string.Empty;
             pNode.OutputTagName = tm.OutputTag?.Name ?? string.Empty;
+            pNode.OnTimeMs = tm.OnTimeMs;
+            pNode.OffTimeMs = tm.OffTimeMs;
+            pNode.StartWithOn = tm.StartWithOn;
         }
         else if (node is CounterNodeViewModel cnt)
         {
@@ -3515,7 +3546,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 mode: string.IsNullOrWhiteSpace(pNode.TimerMode) ? "TON" : pNode.TimerMode,
                 inTag: inTag,
                 qTag: qTag,
-                presetMs: pNode.PresetMs > 0 ? pNode.PresetMs : 3000);
+                presetMs: pNode.PresetMs > 0 ? pNode.PresetMs : 3000,
+                onTimeMs: pNode.OnTimeMs > 0 ? pNode.OnTimeMs : 1000,
+                offTimeMs: pNode.OffTimeMs > 0 ? pNode.OffTimeMs : 1000,
+                startWithOn: pNode.StartWithOn);
             if (!string.IsNullOrEmpty(pNode.TimeUnit))
             {
                 timerNode.SetDuration(pNode.DurationValue > 0 ? pNode.DurationValue : (pNode.PresetMs / 1000.0), pNode.TimeUnit);
@@ -4923,6 +4957,7 @@ public partial class LogicEditorViewModel : ObservableObject
                     ? updated[0].Id
                     : string.Join(", ", updated.Select(r => r.Id));
             }
+            _ruleTable.UpdateSubsystemsFromProgram(result.Program);
         }
 
         UpdateNetworkNumbersOnNodes();

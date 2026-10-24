@@ -25,6 +25,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(TargetPinDisplay))]
     [NotifyPropertyChangedFor(nameof(TargetPinName))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private DirectWriteTargetPin _targetPin = DirectWriteTargetPin.Do0;
 
     [ObservableProperty]
@@ -35,6 +36,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(IsPwmMode))]
     [NotifyPropertyChangedFor(nameof(IsPulseTrainMode))]
     [NotifyPropertyChangedFor(nameof(IsAddressableBusMode))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private DirectWriteMode _mode = DirectWriteMode.DigitalOutput;
 
     [ObservableProperty]
@@ -42,29 +44,36 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
     [NotifyPropertyChangedFor(nameof(IsCovMode))]
     [NotifyPropertyChangedFor(nameof(IsTriggerMode))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private DirectWriteTriggerMode _triggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge;
 
     // --- COV / Deadband Settings ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TriggerModeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private float _deadband = 0.5f;
 
     // --- Mode 0: Digital Output (DO) Settings ---
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private bool _isActiveHigh = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private byte _failSafeState = 0;
 
     // --- Mode 1: PWM Duty Settings ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ModeSummaryDisplay))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private uint _pwmFrequencyHz = 1000;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private ushort _dutyMin = 0;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private ushort _dutyMax = 100;
 
     [ObservableProperty]
@@ -73,20 +82,24 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     // --- Mode 2: Pulse Train (PTO) Settings ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ModeSummaryDisplay))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private uint _pulseWidthUs = 50;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private uint _maxFrequencyHz = 20000;
 
     // --- Mode 3: Addressable Actuator Bus Settings ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(ModeSummaryDisplay))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private ushort _channelCount = 18;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(ModeSummaryDisplay))]
+    [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private bool _isExclusiveChannel = true;
 
     [ObservableProperty]
@@ -210,6 +223,50 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     public ConnectorViewModel ParamConnector { get; }
     public ConnectorViewModel DoneConnector { get; }
     public ConnectorViewModel ErrorConnector { get; }
+
+    public string NarrativeText
+    {
+        get
+        {
+            string pin = TargetPinName;
+            string trig = TriggerModeName;
+
+            return Mode switch
+            {
+                DirectWriteMode.DigitalOutput => string.Format(
+                    LocalizationService.Tr("NarrPulseOutDo"),
+                    pin,
+                    trig,
+                    IsActiveHigh ? "Active-High (1=24V, 0=0V)" : "Active-Low (0=24V, 1=0V)",
+                    FailSafeState == 0 ? "0 (OFF/Safe)" : "1 (ON/Energized)"),
+
+                DirectWriteMode.PwmDuty => string.Format(
+                    LocalizationService.Tr("NarrPulseOutPwm"),
+                    pin,
+                    trig,
+                    DutyMin,
+                    DutyMax,
+                    PwmFrequencyHz),
+
+                DirectWriteMode.PulseTrain => string.Format(
+                    LocalizationService.Tr("NarrPulseOutPto"),
+                    pin,
+                    trig,
+                    MaxFrequencyHz,
+                    PulseWidthUs),
+
+                DirectWriteMode.AddressableBus => string.Format(
+                    LocalizationService.Tr("NarrPulseOutBus"),
+                    pin,
+                    ChannelCount,
+                    IsExclusiveChannel
+                        ? LocalizationService.Tr("NarrPulseOutBusExcl")
+                        : LocalizationService.Tr("NarrPulseOutBusIndep")),
+
+                _ => SummaryText
+            };
+        }
+    }
 
     public override string SummaryText => string.IsNullOrWhiteSpace(CustomLabel)
         ? $"PULSE_OUT [{TargetPinDisplay} | {ModeSummaryDisplay}]"
@@ -400,6 +457,19 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
 
     /// <summary>Legacy shim — kept for backward compatibility with any call sites; delegates to SynchronizeConnectors.</summary>
     public void UpdateConnectorTitles() => SynchronizeConnectors();
+
+    protected override void OnLanguageChanged()
+    {
+        base.OnLanguageChanged();
+        Title = LocalizationService.Instance.IsVietnamese ? "Bộ Phát Xung" : "Pulse Output";
+        OnPropertyChanged(nameof(NarrativeText));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(ModeName));
+        OnPropertyChanged(nameof(TriggerModeName));
+        OnPropertyChanged(nameof(TriggerModeSummaryText));
+        OnPropertyChanged(nameof(StatusPillText));
+        OnPropertyChanged(nameof(TargetPinDisplay));
+    }
 
     [RelayCommand]
     private void OpenConfigDialog()

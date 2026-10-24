@@ -224,7 +224,7 @@ SynaptiX IDE hỗ trợ 13 khối chức năng chuẩn hóa, phân thành 4 nhó
 | **3** | **`COMPARATOR`** `[CMP]` | Đánh giá & So sánh (Giai đoạn 2) | Vào: `In` (Data)<br>Ra: `Pass` (Logic) | So sánh giá trị số nguyên hoặc số thực Float32 với ngưỡng: `>`, `>=`, `==`, `!=`, `<=`, `<` (phù hợp giám sát áp suất, nhiệt độ, mức bồn). |
 | **4** | **`GUARD`** `[GUARD]` | Chốt an toàn liên động (Giai đoạn 3) | Vào: `In` (Logic)<br>Ra: `Permit` (Logic) | Chuỗi liên động bảo vệ an toàn (Safety Interlock). Cho phép tín hiệu đi qua khi điều kiện an toàn thỏa mãn (`E-Stop = 1`, `Cửa đóng = 1`, `Nhiệt độ OK`). |
 | **5** | **`ACTION`** `[ACTION]` | Chấp hành đầu ra (Giai đoạn 4) | Vào: `Exec` (Event/Logic)<br>Ra: Trạng thái DO/VREG | Thực thi thao tác điều khiển: `SET` (bật), `RESET` (tắt), `TOGGLE` (đảo) rơ-le DO0..DO7, gán giá trị số vào VREG hoặc tăng/giảm bộ đếm. |
-| **6** | **`TIMER`** `[TON / TOF / TP]` | Định thời IEC 61131-3 | Vào: `IN`, `PT` (ms)<br>Ra: `Q` (Logic), `ET` (ms) | Bộ định thời chuẩn: `TON` (Trễ bật cuộn dây), `TOF` (Trễ ngắt quạt làm mát), `TP` (Phát xung đơn định lượng thời gian cho van khí nén). |
+| **6** | **`TIMER`** `[TON / TOF / TP / CYCLE]` | Định thời IEC 61131-3 & Tuần hoàn | Vào: `IN`, `PT` / `T_ON`, `T_OFF`<br>Ra: `Q` (Logic), `ET` (ms) | Bộ định thời chuẩn & tuần hoàn: `TON` (Trễ bật), `TOF` (Trễ ngắt), `TP` (Phát xung đơn), `CYCLE` (Chu kỳ tuần hoàn T_ON/T_OFF độc lập cho còi/đèn chớp, đảo bơm luân phiên và ngắt fail-safe). |
 | **7** | **`COUNTER`** `[CTU / CTD]` | Bộ đếm IEC 61131-3 | Vào: `CU`/`CD`, `R`/`LD`, `PV`<br>Ra: `Q` (Logic), `CV` (Int) | Bộ đếm công nghiệp: `CTU` (Đếm tiến sản lượng đóng thùng), `CTD` (Đếm lùi phôi dập còn lại). Lưu trữ an toàn trong vùng Flash Retentive. |
 | **8** | **`SCALE`** `[SCALE]` | Chuẩn hóa đo lường tuyến tính | Vào: `In` (Raw ADC)<br>Ra: `Out` (Scaled Float) | Chuyển đổi tỉ lệ tuyến tính $y = k \cdot x + b$: Chuẩn hóa ADC 0..4095 hoặc dòng 4-20mA sang đơn vị kỹ thuật (0..10 bar, -20..80 °C, 0..100%). |
 | **9** | **`PULSE_OUT`** `[PULSE]` | Phát xung cao tốc & Chấp hành | Vào: `Trig`, `In/Chan`, `En/Param`<br>Ra: `Done`, `Err` | Điều khiển xung cao tốc & chấp hành cấp thấp trên DO0..DO7: DO Logic, PWM băm xung (1..20 kHz), PTO phát chuỗi xung động cơ bước, Bus 1-dây LED Sort-to-Light (1..18 ô). *(Tương thích ngược DIRECT_WRITE)*. |
@@ -233,16 +233,31 @@ SynaptiX IDE hỗ trợ 13 khối chức năng chuẩn hóa, phân thành 4 nhó
 | **12** | **`MQTT_PUB`** `[MQTT_PUB]` | Xuất bản Viễn trắc IIoT | Vào: `Trig`, `In0..In3` (Data)<br>Ra: `Done`, `Err` | Đóng gói dữ liệu đo lường thành bản tin JSON gửi lên MQTT Broker qua mạng LAN/Wi-Fi (QoS 0/1/2, Retain) chu kỳ tuần hoàn hoặc theo sự kiện. |
 | **13** | **`MQTT_SUB`** `[MQTT_SUB]` | Đăng ký Lệnh Điều khiển IIoT | Ra: `Out0..Out3` (Data), `NewMsg` (Event) | Lắng nghe topic chỉ thị từ Cloud/WMS qua broker MQTT, trích xuất các trường dữ liệu JSON vào chân ngõ ra và phát xung thông báo bản tin mới. |
 
-### 3.2 Bảng Luật Logic Kép & Trình Biên dịch Cú pháp AST
-Tab 2 (Rule Table) hiển thị song song hai góc nhìn đồng bộ: Cột bên trái diễn giải câu lệnh kỹ thuật bằng tiếng người rõ ràng, cột bên phải là các tham số mã máy 32-byte nhị phân:
+### 3.2 Trung tâm Quản trị Luật & Phân hệ Đa Dịch vụ (Rule & Subsystem Table Hub)
+Tab 2 (Rule Table) trong SynaptiX IDE đóng vai trò là bảng điều phối tổng thể đa phân hệ, cung cấp khả năng giám sát tập trung toàn bộ các tập luật logic và dịch vụ công nghiệp theo 4 Sub-Tabs chuyên biệt:
 
-![Figure 3-2: Bảng Luật Logic Kép — Diễn giải Tiếng người & Mã máy Nhị phân Bytecode](proposals/images/synaptix_rule_table.png)
-*Figure 3-2: Bảng Luật Logic Kép — Diễn giải Tiếng người & Mã máy Nhị phân Bytecode*
+![Figure 3-2: Bảng Luật Logic Kép & Bảng Phân hệ Đa Dịch vụ](proposals/images/synaptix_rule_table.png)
+*Figure 3-2: Bảng Luật Logic Kép & Bảng Phân hệ Đa Dịch vụ (Logic Rules, Modbus Master, MQTT, Function Blocks)*
 
-Động cơ phân tích cú pháp AST chạy ngầm liên tục kiểm tra tính toàn vẹn của sơ đồ. Nếu có chân kết nối bị bỏ trống hoặc xuất hiện vòng lặp kín trái phép, thẻ cảnh báo đỏ sẽ xuất hiện ở thanh trạng thái cùng liên kết trực tiếp tới vị trí lỗi để kỹ sư sửa chữa.
+#### Kiến trúc 4 Sub-Tabs Chuyên biệt
+
+| Sub-Tab | Phân hệ Quản trị | Các trường Dữ liệu Hiển thị | Thao tác Tương tác Trực tiếp |
+| :--- | :--- | :--- | :--- |
+| **Tab 0: Luật Logic (Rules)** | Luật điều khiển logic tự động hóa (Trigger - Guard - Action) | Bật/Tắt, ID, Điều kiện Kích hoạt (Trigger), Khóa chéo (Guard), Hành động (Action), Phân bổ Macro, Diễn giải ngôn ngữ tự nhiên (Narrative) | Lọc nhanh trạng thái (All / Active / Disabled), Tìm kiếm từ khóa, Xem trên Canvas (`✏️`), Xóa luật (`🗑️`), Mở rộng thẻ thanh tra giải mã bytecode 32-byte |
+| **Tab 1: Modbus Master** | Lệnh thu thập & điều khiển RS-485 Modbus RTU Master | ID (`MB1..`), Loại khối (`MB_READ`, `MB_WRITE`), Cổng RS-485 (`Port 1..4`), Slave ID, Mã chức năng FC, Địa chỉ thanh ghi (Hex/Dec), Độ dài, Chế độ quét (Periodic/Event), Chân/VREG ánh xạ, Trạng thái kích hoạt | Xem trực tiếp trên Canvas (`✏️`), Xóa lệnh (`🗑️`) đồng bộ ngược về Canvas, Nút mở cài đặt cổng RS-485 phần cứng trong bảng Device Settings |
+| **Tab 2: Dịch vụ MQTT** | Dịch vụ Viễn trắc & Đăng ký Lệnh IIoT Cloud | ID (`MQ1..`), Loại dịch vụ (`MQTT_PUB`, `MQTT_SUB`), Topic đường dẫn, Cấp độ QoS (0/1/2), Chế độ quét, Tóm tắt gói tin Payload, Trạng thái | Xem trực tiếp trên Canvas (`✏️`), Xóa dịch vụ (`🗑️`) đồng bộ ngược về Canvas, Nút điều hướng nhanh đến cấu hình Broker/Wi-Fi |
+| **Tab 3: Khối Chức Năng** | Khối hàm chuẩn IEC 61131-3 (Timer, Counter, Scaler) | ID (`FB1..`), Loại khối (`TON`, `TOF`, `TP`, `CYCLE`, `CTU`, `CTD`, `SCALE`), Thông số cài đặt Preset ($PT$, $PV$, Tỉ lệ), Tín hiệu Ngõ vào, Tín hiệu Ngõ ra, Trạng thái | Xem trực tiếp trên Canvas (`✏️`), Xóa khối hàm (`🗑️`) đồng bộ ngược về Canvas |
+
+#### Chuẩn hóa Công thái học & Thiết kế Giao diện Công nghiệp (Industrial Slate Gray Ergonomics)
+1. **Căn lề Thẳng hàng Tuyệt đối (Left-Aligned Precision):** Toàn bộ tiêu đề cột (Column Headers) và các ô nội dung dữ liệu (Data Cells) đều được căn lề trái chuẩn xác với lề thụt `10px`, loại bỏ hoàn toàn hiện tượng lệch hàng ziczac.
+2. **Loại bỏ Hoàn toàn Ô Selection Dư thừa:** Cấu hình `HeadersVisibility="Column"` và ẩn triệt để `DataGridRowHeader`, đảm bảo mép bảng phẳng mịn, hiện đại và chuẩn hóa theo hướng dẫn thiết kế ISA-101.
+3. **Cột Thao tác Đồng bộ (Standardized Action Column):** Cột Action trên cả 4 bảng được chuẩn hóa cố định độ rộng `120px` với 2 nút icon xúc giác nhỏ gọn:
+   - `✏️` (*View on Canvas*): Nhảy trực tiếp đến vị trí khối lệnh tương ứng trên sơ đồ FBD Canvas và tự động focus.
+   - `🗑️` (*Delete*): Xóa trực tiếp khối lệnh hoặc luật khỏi dự án với cơ chế xác nhận an toàn và tự động đồng bộ hóa ngược về sơ đồ logic và danh mục Tag Catalog.
+4. **Tách biệt Cấu hình Logic và Cấu hình Phần cứng:** Các thông số phần cứng cấp thấp (Baud rate cổng COM, Wi-Fi SSID, MQTT Broker IP) được phân định rõ ràng chuyển giao cho bảng cấu hình Device Settings quản lý, tránh tình trạng ghi đè cấu hình phần cứng khi cập nhật sơ đồ logic.
 
 ### 3.3 Thư viện Hàm Chuẩn & Kho Mẫu Thiết kế Blueprints
-SynaptiX IDE cung cấp đầy đủ các khối lệnh tiêu chuẩn IEC 61131-3 (Bộ định thời TON/TOF/TP, bộ đếm CTU/CTD, hàm tỉ lệ SCALE và bộ so sánh CMP) cùng các khối truyền thông nâng cao (MQTT PUB/SUB, Modbus Master MB_READ/MB_WRITE). Tại Tab 3 (Blueprints), kỹ sư có thể nạp các mẫu thiết kế công nghiệp có sẵn chỉ với 1 cú nhấp chuột:
+SynaptiX IDE cung cấp đầy đủ các khối lệnh tiêu chuẩn IEC 61131-3 (Bộ định thời TON/TOF/TP/CYCLE, bộ đếm CTU/CTD, hàm tỉ lệ SCALE và bộ so sánh CMP) cùng các khối truyền thông nâng cao (MQTT PUB/SUB, Modbus Master MB_READ/MB_WRITE). Tại Tab 3 (Blueprints), kỹ sư có thể nạp các mẫu thiết kế công nghiệp có sẵn chỉ với 1 cú nhấp chuột:
 
 ![Figure 3-3: Thư viện Mẫu Thiết kế Tự động hóa Công nghiệp (Blueprints) & Khởi tạo Nhanh](proposals/images/synaptix_blueprints.png)
 *Figure 3-3: Thư viện Mẫu Thiết kế Tự động hóa Công nghiệp (Blueprints) & Khởi tạo Nhanh*
@@ -253,7 +268,7 @@ SynaptiX IDE cung cấp đầy đủ các khối lệnh tiêu chuẩn IEC 61131-
 | :--- | :---: | :--- |
 | **Nhóm 1: Logic Số & Liên Khóa An Toàn** | 5 | Báo động Andon OEE, Đếm sản lượng Flash Retain, Gọi cấp liệu, Bơm thoát nước, Cửa an toàn Guard Đảo. |
 | **Nhóm 2: Đảo Chiều Động Cơ & Khóa Chéo** | 3 | Khởi động trực tiếp DOL, Đảo chiều quay động cơ khóa chéo phần cứng/phần mềm, Khởi động Sao - Tam giác. |
-| **Nhóm 3: Bộ Định Thời Thời Gian Thực TON/TOF/TP** | 3 | Trễ bật bơm bôi trơn (TON), Trễ ngắt quạt làm mát (TOF), Xung khí nén thổi phôi (TP). |
+| **Nhóm 3: Bộ Định Thời Thời Gian Thực TON/TOF/TP/CYCLE** | 4 | Trễ bật bơm bôi trơn (TON), Trễ ngắt quạt làm mát (TOF), Xung khí nén thổi phôi (TP), Còi/đèn chớp chu kỳ tuần hoàn (CYCLE). |
 | **Nhóm 4: Bộ Đếm Sản Lượng & Đóng Thùng CTU/CTD** | 3 | Đóng thùng tự động đếm tiến (CTU), Đếm lùi phôi dập (CTD), Quản lý dung lượng bãi đỗ xe (CTUD). |
 | **Nhóm 5: Chuẩn Hóa Đo Lường & Tỉ Lệ Tuyến Tính** | 5 | Đọc áp suất 4-20mA, Cảm biến nhiệt PT100/NTC, Can mức bồn chứa chất lỏng, Đo dòng động cơ CT. |
 | **Nhóm 6: Truyền Thông Đám Mây & IIoT MQTT** | 2 | Xuất bản đo lường IIoT lên Broker (MQTT PUB), Điều phối lệnh điều khiển từ xa (MQTT SUB). |

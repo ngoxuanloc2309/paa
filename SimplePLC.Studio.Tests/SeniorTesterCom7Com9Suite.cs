@@ -442,4 +442,209 @@ public class SeniorTesterCom7Com9Suite : IDisposable
             harness.serverPort?.Dispose();
         }
     }
+    [Fact]
+    public async Task Hardware_CapabilitiesAndTagRegistry_DeployAndVerifyOverCom()
+    {
+        // Kiểm toán phần cứng MCU COM7 <-> COM9:
+        // 1. Đọc và xác thực cờ SPLC_CAP_FLOAT32 (0x0800) từ thanh ghi HardwareCapabilities (0x0A08).
+        // 2. Nạp mảng kiểu dữ liệu Tag Registry (0x0080..0x00BF, 64 thanh ghi = 128 bytes) qua cổng COM.
+        // 3. Đọc lại và giải mã toàn bộ 128 tags từ bộ nhớ MCU.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var harness = CreateComHarness(cts.Token);
+        try
+        {
+            var factory = new DeviceConnectionFactory(transportFactory: harness.testTransport != null ? _ => harness.testTransport : null);
+            var connectResult = await factory.ConnectAsync(harness.endpoint, slaveId: 1);
+            Assert.True(connectResult.IsSuccess, $"Kết nối COM thất bại: {connectResult.FailureReason}");
+            var session = (InfraSession)connectResult.Session!;
+            var client = session.Client;
+
+            // 1. Kiểm tra HardwareCapabilities qua COM
+            var rawCaps = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.HardwareCapabilitiesAddress, ModbusRegisterMap.HardwareCapabilitiesLength, cts.Token);
+            var caps = RegisterCodec.DecodeHardwareCapabilities(rawCaps);
+            Assert.True(caps.HasFlag(SPLC_HardwareCapabilities.FLOAT32), "MCU trên COM7 phải báo cáo cờ năng lực phần cứng FLOAT32 (0x0800)!");
+
+            // 2. Chuẩn bị bảng kiểu dữ liệu Tag: 0=BOOL, 1=INT32, 2=REAL, 16=REAL
+            byte[] expectedTypes = new byte[ModbusRegisterMap.MaxRuntimeTags];
+            expectedTypes[0] = (byte)SPLC_TagDataType.BOOL;
+            expectedTypes[1] = (byte)SPLC_TagDataType.INT32;
+            expectedTypes[2] = (byte)SPLC_TagDataType.REAL;
+            expectedTypes[16] = (byte)SPLC_TagDataType.REAL;
+
+            // Nạp qua session.Rules (có kèm tagDataTypes)
+            var deployResult = await session.Rules.DeployRulesAsync(
+                slaveId: 1,
+                rules: new List<RuleRecordDto>(),
+                timers: null,
+                counters: null,
+                mqttConfigs: null,
+                brokerConfig: null,
+                mqttSubConfigs: null,
+                modbusMasterConfigs: null,
+                modbusMasterWriteConfigs: null,
+                directWriteConfigs: null,
+                modbusPortConfigs: null,
+                tagDataTypes: expectedTypes,
+                cancellationToken: cts.Token);
+
+            Assert.True(deployResult.IsSuccess, $"Nạp bảng Tag Data Types qua COM thất bại: {deployResult.ErrorMessage}");
+
+            // 3. Đọc lại 64 thanh ghi tại 0x0080 qua Modbus FC03 trên COM
+            var readBackRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.TagDataTypesBaseAddress, ModbusRegisterMap.TagDataTypesLength, cts.Token);
+            Assert.Equal(ModbusRegisterMap.TagDataTypesLength, readBackRegs.Length);
+
+            byte[] decodedTypes = RegisterCodec.DecodeTagDataTypes(readBackRegs);
+            Assert.Equal((byte)SPLC_TagDataType.BOOL, decodedTypes[0]);
+            Assert.Equal((byte)SPLC_TagDataType.INT32, decodedTypes[1]);
+            Assert.Equal((byte)SPLC_TagDataType.REAL, decodedTypes[2]);
+            Assert.Equal((byte)SPLC_TagDataType.REAL, decodedTypes[16]);
+
+            await session.DisposeAsync();
+        }
+        finally
+        {
+            cts.Cancel();
+            harness.serverPort?.Close();
+            harness.serverPort?.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Hardware_MixedRule_TriggerInt_ActionReal_ExecutedOverCom()
+    {
+        // Kiểm toán thực thi logic hỗn hợp trên MCU giả lập COM7 <-> COM9:
+        // Rule: AI0 (Tag 0, Int32) > 80 -> SET VREG_REAL (Tag 16, Float32) = 2.5f
+        // Cờ Flags = 0x02 (ACTION_FLOAT), Trigger so sánh số nguyên thô 80, Action ghi chuẩn IEEE-754 2.5f
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var harness = CreateComHarness(cts.Token);
+        try
+        {
+            var factory = new DeviceConnectionFactory(transportFactory: harness.testTransport != null ? _ => harness.testTransport : null);
+            var connectResult = await factory.ConnectAsync(harness.endpoint, slaveId: 1);
+            Assert.True(connectResult.IsSuccess);
+            var session = (InfraSession)connectResult.Session!;
+            var client = session.Client;
+
+            var ruleMixed = new RuleRecordDto
+            {
+                Flags = (byte)SPLC_RuleFlags.ACTION_FLOAT, // 0x02
+                ThresholdLo = 80, // Int32
+                ActionParamFloat = 2.5f, // Float32
+                TriggerTag = 0,
+                ActionTag = 16,
+                Enabled = true,
+                TriggerType = SPLC_TriggerType.ON_CHANGE,
+                CompareOp = SPLC_CompareOp.GT,
+                ActionType = SPLC_ActionType.SET_TAG
+            };
+
+            var deployResult = await session.Rules.DeployRulesAsync(
+                slaveId: 1,
+                rules: new[] { ruleMixed },
+                cancellationToken: cts.Token);
+
+            Assert.True(deployResult.IsSuccess, $"Nạp mixed rule qua COM thất bại: {deployResult.ErrorMessage}");
+
+            // Đọc lại Active Rule Record từ 0x0100 qua COM
+            var activeRuleRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.ActiveRuleTableBaseAddress, 16, cts.Token);
+            Assert.Equal(16, activeRuleRegs.Length);
+            Assert.Equal(0x0200, activeRuleRegs[13]); // Flags = 0x02 trong High Byte!
+
+            // Kịch bản A: Đặt Tag 0 = 50 (50 không > 80) -> Chạy scan passes
+            harness.sim.Control.SetTagValue(0, 50);
+            for (int i = 0; i < 5; i++) harness.sim.ExecuteScanPass(20);
+
+            // Đọc Tag 16 từ địa chỉ Runtime Tag Store qua COM
+            ushort tag16Addr = ModbusRegisterMap.GetRuntimeTagAddress(16);
+            var tag16RegsA = await client.ReadHoldingRegistersAsync(1, tag16Addr, 2, cts.Token);
+            int tag16ValA = RegisterCodec.DecodeInt32(tag16RegsA);
+            Assert.Equal(0, tag16ValA); // Chưa bị kích hoạt
+
+            // Kịch bản B: Đặt Tag 0 = 85 (85 > 80 là TRUE) -> Chạy scan passes
+            harness.sim.Control.SetTagValue(0, 85);
+            for (int i = 0; i < 5; i++) harness.sim.ExecuteScanPass(20);
+
+            // Đọc lại Tag 16 qua COM và giải mã Float32 IEEE-754
+            var tag16RegsB = await client.ReadHoldingRegistersAsync(1, tag16Addr, 2, cts.Token);
+            float tag16FloatB = RegisterCodec.DecodeFloat(tag16RegsB);
+            Assert.Equal(2.5f, tag16FloatB, precision: 4);
+
+            await session.DisposeAsync();
+        }
+        finally
+        {
+            cts.Cancel();
+            harness.serverPort?.Close();
+            harness.serverPort?.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Hardware_ModbusWriteLimits_DeployDirectAndChannelOverCom()
+    {
+        // Kiểm toán nạp khối MB_WRITE qua COM7 <-> COM9 với cấu hình giới hạn hợp lệ:
+        // Khối 0: Direct Mode với PointCount = 16 (giới hạn trên an toàn)
+        // Khối 1: Channel-Indexed Mode với ChannelCount = 64 (giới hạn trên an toàn)
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var harness = CreateComHarness(cts.Token);
+        try
+        {
+            var factory = new DeviceConnectionFactory(transportFactory: harness.testTransport != null ? _ => harness.testTransport : null);
+            var connectResult = await factory.ConnectAsync(harness.endpoint, slaveId: 1);
+            Assert.True(connectResult.IsSuccess);
+            var session = (InfraSession)connectResult.Session!;
+            var client = session.Client;
+
+            var directBlock = new ModbusMasterWriteConfigDto
+            {
+                Enabled = true,
+                SlaveId = 2,
+                WriteMode = ModbusWriteMode.DirectRegisters,
+                FunctionCode = ModbusMasterWriteFunctionCode.WriteMultipleRegisters,
+                StartAddress = 100,
+                PointCount = 16
+            };
+
+            var channelBlock = new ModbusMasterWriteConfigDto
+            {
+                Enabled = true,
+                SlaveId = 3,
+                WriteMode = ModbusWriteMode.ChannelIndexed,
+                BaseAddressCommand = 0x0100,
+                BaseAddressParam = 0x0120,
+                ChannelCount = 64
+            };
+
+            var deployResult = await session.Rules.DeployRulesAsync(
+                slaveId: 1,
+                rules: new List<RuleRecordDto>(),
+                timers: null,
+                counters: null,
+                mqttConfigs: null,
+                brokerConfig: null,
+                mqttSubConfigs: null,
+                modbusMasterConfigs: null,
+                modbusMasterWriteConfigs: new[] { directBlock, channelBlock },
+                directWriteConfigs: null,
+                cancellationToken: cts.Token);
+
+            Assert.True(deployResult.IsSuccess, $"Nạp MB_WRITE qua COM thất bại: {deployResult.ErrorMessage}");
+
+            // Đọc lại vùng 0x1100 (Khối 0) và 0x1140 (Khối 1) qua COM
+            var block0Regs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.ModbusMasterWriteTableBaseAddress, 64, cts.Token);
+            Assert.Equal(16, block0Regs[3]); // PointCount = 16
+
+            ushort block1Addr = (ushort)(ModbusRegisterMap.ModbusMasterWriteTableBaseAddress + ModbusRegisterMap.ModbusMasterWriteRegistersPerBlock);
+            var block1Regs = await client.ReadHoldingRegistersAsync(1, block1Addr, 64, cts.Token);
+            Assert.Equal(64, block1Regs[3]); // ChannelCount = 64
+
+            await session.DisposeAsync();
+        }
+        finally
+        {
+            cts.Cancel();
+            harness.serverPort?.Close();
+            harness.serverPort?.Dispose();
+        }
+    }
 }

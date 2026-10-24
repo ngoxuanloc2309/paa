@@ -28,6 +28,36 @@ public sealed class RuleTableGateway : IRuleTableGateway
     public Task<IReadOnlyList<RuleRecordDto>> ReadActiveRulesAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
         _reader.ReadActiveRulesAsync(slaveId, cancellationToken);
 
+    public Task<IReadOnlyList<FbTimerRecordDto>> ReadActiveTimersAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveTimersAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<FbCounterRecordDto>> ReadActiveCountersAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveCountersAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<ModbusMasterReadConfigDto>> ReadActiveModbusMasterConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveModbusMasterConfigsAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<ModbusMasterWriteConfigDto>> ReadActiveModbusMasterWriteConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveModbusMasterWriteConfigsAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<DirectWriteConfigDto>> ReadActiveDirectWriteConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveDirectWriteConfigsAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<MqttTelemetryConfigDto>> ReadActiveMqttTelemetryConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveMqttTelemetryConfigsAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<MqttSubscriptionConfigDto>> ReadActiveMqttSubscribeConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveMqttSubscribeConfigsAsync(slaveId, cancellationToken);
+
+    public Task<MqttBrokerConfigDto?> ReadActiveMqttBrokerConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveMqttBrokerConfigAsync(slaveId, cancellationToken);
+
+    public Task<IReadOnlyList<ModbusPortConfigDto>> ReadActiveModbusPortsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveModbusPortsAsync(slaveId, cancellationToken);
+
+    public Task<FullDeviceConfigurationDto> ReadFullDeviceConfigurationAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadFullDeviceConfigurationAsync(slaveId, cancellationToken);
+
     public Task<RuleDeployResult> DeployRulesAsync(byte slaveId, IReadOnlyList<RuleRecordDto> rules, CancellationToken cancellationToken = default) =>
         _writer.DeployRulesAsync(slaveId, rules, cancellationToken);
 
@@ -51,6 +81,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
+        IReadOnlyList<byte>? tagDataTypes = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null) =>
         _writer.DeployRulesAsync(
@@ -65,6 +96,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
             modbusMasterWriteConfigs,
             directWriteConfigs,
             modbusPortConfigs,
+            tagDataTypes,
             cancellationToken,
             progressLogger);
 }

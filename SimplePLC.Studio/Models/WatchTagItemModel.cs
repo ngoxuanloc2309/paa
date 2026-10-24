@@ -20,9 +20,19 @@ public partial class WatchTagItemModel : ObservableObject
 
     public ushort Index { get; init; }
     public string Name { get; init; } = string.Empty;
-    public string? Alias { get; init; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LocalizedAlias))]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    private string? _alias;
+
     public TagKind Kind { get; init; }
-    public TagDataType DataType { get; init; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(FormattedValue))]
+    [NotifyPropertyChangedFor(nameof(FormattedDisplayValue))]
+    private TagDataType _dataType;
 
     public ushort ModbusAddress => (ushort)(0x0900 + Index * 2);
     public string ModbusAddressHex => $"0x{ModbusAddress:X4}";

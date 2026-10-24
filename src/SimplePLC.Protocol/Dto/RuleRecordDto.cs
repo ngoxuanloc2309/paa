@@ -28,12 +28,37 @@ public sealed class RuleRecordDto
     public byte Flags { get; set; }
 
     /// <summary>
-    /// Bit 0 của Flags: 1 = Dữ liệu ngưỡng và tham số tác động là số thực Float32 IEEE-754.
+    /// Bit 0 của Flags: 1 = Dữ liệu ngưỡng Trigger (ThresholdLo, ThresholdHi) là số thực Float32 IEEE-754.
+    /// </summary>
+    public bool IsTriggerFloat
+    {
+        get => (Flags & (byte)SPLC_RuleFlags.TRIGGER_FLOAT) != 0;
+        set => Flags = value ? (byte)(Flags | (byte)SPLC_RuleFlags.TRIGGER_FLOAT) : (byte)(Flags & ~(byte)SPLC_RuleFlags.TRIGGER_FLOAT);
+    }
+
+    /// <summary>
+    /// Bit 1 của Flags: 1 = Tham số tác động Action (ActionParam) là số thực Float32 IEEE-754.
+    /// </summary>
+    public bool IsActionFloat
+    {
+        get => (Flags & (byte)SPLC_RuleFlags.ACTION_FLOAT) != 0;
+        set => Flags = value ? (byte)(Flags | (byte)SPLC_RuleFlags.ACTION_FLOAT) : (byte)(Flags & ~(byte)SPLC_RuleFlags.ACTION_FLOAT);
+    }
+
+    /// <summary>
+    /// Thuộc tính tương thích ngược: get trả về true nếu Trigger là float;
+    /// set = true sẽ bật cả 2 cờ (0x03 = FLOAT_DATA) để tương thích chuẩn cũ.
     /// </summary>
     public bool IsFloatData
     {
         get => (Flags & 0x01) != 0;
-        set => Flags = value ? (byte)(Flags | 0x01) : (byte)(Flags & ~0x01);
+        set
+        {
+            if (value)
+                Flags |= 0x03;
+            else
+                Flags &= 0xFC;
+        }
     }
 
     public float ThresholdLoFloat

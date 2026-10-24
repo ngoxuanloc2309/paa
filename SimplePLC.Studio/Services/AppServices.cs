@@ -46,6 +46,7 @@ public sealed class AppServices
     public ConnectDeviceUseCase ConnectUseCase { get; private set; } = null!;
     public DeployRulesUseCase DeployUseCase { get; private set; } = null!;
     public LoadRulesUseCase LoadUseCase { get; private set; } = null!;
+    public LoadFullDeviceProjectUseCase LoadFullDeviceUseCase { get; private set; } = null!;
     public ExecuteSystemCommandUseCase CommandUseCase { get; private set; } = null!;
     public RuntimeMonitorService MonitorService { get; private set; } = null!;
     public RuntimeStateStore StateStore { get; } = new();
@@ -121,6 +122,7 @@ public sealed class AppServices
 
         DeployUseCase = new DeployRulesUseCase(RuleWriter, Coordinator);
         LoadUseCase = new LoadRulesUseCase(RuleReader);
+        LoadFullDeviceUseCase = new LoadFullDeviceProjectUseCase(RuleReader);
 
         // D3.2: CommandUseCase nhận LifecycleManager để REBOOT delegate đúng chỗ
         CommandUseCase = new ExecuteSystemCommandUseCase(CommandClient, Coordinator, SessionManager, LifecycleManager);
@@ -176,6 +178,7 @@ public sealed class AppServices
         ConnectUseCase = new ConnectDeviceUseCase(ConnectionFactory, SessionManager);
         DeployUseCase = new DeployRulesUseCase(RuleWriter, Coordinator);
         LoadUseCase = new LoadRulesUseCase(RuleReader);
+        LoadFullDeviceUseCase = new LoadFullDeviceProjectUseCase(RuleReader);
         CommandUseCase = new ExecuteSystemCommandUseCase(CommandClient, Coordinator, SessionManager, LifecycleManager);
     }
 

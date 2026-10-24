@@ -260,5 +260,40 @@ public class RuleMapperTests
         Assert.Equal(3400, dto.ThresholdHi);
         Assert.Equal(42, dto.ActionParam);
     }
-}
+    [Fact]
+    public void ToDto_MixedRule_IntegerTriggerAndFloatAction_SetsOnlyActionFloatFlag()
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var vreg0 = _product.FindTagByName("VREG0")!;
 
+        // AI0 nguyên > 80 -> SET VREG0 (REAL) = 2.5f
+        var trigger = new TriggerModel(ai0, TriggerKind.OnChange, thresholdLo: 80, thresholdHi: 0)
+        {
+            CompareOp = CompareOperator.GreaterThan,
+            IsFloat = false
+        };
+        var action = new ActionModel(vreg0, ActionKind.SetTag, parameter: 2.5)
+        {
+            IsFloat = true
+        };
+
+        var rule = new Rule(3, "MixedRule", trigger, action, GuardModel.Empty, enabled: true);
+
+        // Act
+        var dto = RuleMapper.ToDto(rule);
+
+        // Assert
+        Assert.Equal((byte)SPLC_RuleFlags.ACTION_FLOAT, dto.Flags); // 0x02
+        Assert.False(dto.IsTriggerFloat);
+        Assert.True(dto.IsActionFloat);
+        Assert.Equal(80, dto.ThresholdLo); // Giữ nguyên số nguyên 80 thô, không bị ép thành float!
+        Assert.Equal(2.5f, dto.ActionParamFloat, precision: 4);
+
+        // Roundtrip to domain
+        var restored = RuleMapper.ToDomain(dto, 3, _product);
+        Assert.False(restored.Trigger.IsFloat);
+        Assert.True(restored.Action.IsFloat);
+        Assert.Equal(80, restored.Trigger.ThresholdLo);
+        Assert.Equal(2.5, restored.Action.Parameter, tolerance: 1e-4);
+    }
+}

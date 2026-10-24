@@ -238,6 +238,7 @@ public sealed class RuleCompiler : IRuleCompiler
                     {
                         "TOF" => TimerMacroType.Tof,
                         "TP" => TimerMacroType.Tp,
+                        "CYCLE" => TimerMacroType.Cycle,
                         _ => TimerMacroType.Ton
                     };
                     graph.Nodes.Add(LogicNode.CreateTimer(
@@ -247,7 +248,10 @@ public sealed class RuleCompiler : IRuleCompiler
                         tm.PresetMs,
                         tmQTag.Value,
                         executionOrder: actionOrder++,
-                        tm.DisplayTitle));
+                        tm.DisplayTitle,
+                        onTimeMs: tm.OnTimeMs,
+                        offTimeMs: tm.OffTimeMs,
+                        startWithOn: tm.StartWithOn));
                     break;
 
                 case CounterNodeViewModel cnt:
@@ -443,6 +447,14 @@ public sealed class RuleCompiler : IRuleCompiler
                         {
                             tagIndex = ResolveTagIndex(fScl.OutputTag, targetProduct);
                         }
+                        else if (fConn?.Source?.Node is ModbusReadNodeViewModel mbSrc)
+                        {
+                            var srcPin = mbSrc.Pins.FirstOrDefault(p => p.Connector == fConn.Source || string.Equals(p.Label, fConn.Source.Title, StringComparison.OrdinalIgnoreCase) || string.Equals(p.DisplayTitle, fConn.Source.Title, StringComparison.OrdinalIgnoreCase));
+                            if (srcPin?.TargetTag != null)
+                            {
+                                tagIndex = ResolveTagIndex(srcPin.TargetTag, targetProduct);
+                            }
+                        }
 
                         return new SimplePLC.Protocol.Dto.MqttPayloadFieldDto
                         {
@@ -596,6 +608,14 @@ public sealed class RuleCompiler : IRuleCompiler
                             {
                                 dto.TargetTagIndex = ResolveTagIndex(mbActNode.TargetTag, targetProduct);
                             }
+                            else if (pinConn?.Target?.Node is MqttPublishNodeViewModel mqttTarget)
+                            {
+                                var targetField = mqttTarget.Fields.FirstOrDefault(fld => fld.Connector == pinConn.Target || string.Equals(fld.Key, pinConn.Target.Title, StringComparison.OrdinalIgnoreCase));
+                                if (targetField?.Tag != null)
+                                {
+                                    dto.TargetTagIndex = ResolveTagIndex(targetField.Tag, targetProduct);
+                                }
+                            }
                         }
                         mbPinDtos.Add(dto);
                     }
@@ -614,6 +634,30 @@ public sealed class RuleCompiler : IRuleCompiler
                         }
                     }
 
+                    ushort? mbValidTag = null;
+                    var mbValidConn = connectionList.FirstOrDefault(c => c.Source?.Node == mb &&
+                        (c.Source == mb.ValidConnector || string.Equals(c.Source.Title, "Valid", StringComparison.OrdinalIgnoreCase)));
+                    if (mbValidConn?.Target?.Node is ActionNodeViewModel actValid && actValid.TargetTag != null)
+                    {
+                        mbValidTag = ResolveTagIndex(actValid.TargetTag, targetProduct);
+                    }
+
+                    ushort? mbErrorTag = null;
+                    var mbErrorConn = connectionList.FirstOrDefault(c => c.Source?.Node == mb &&
+                        (c.Source == mb.ErrorConnector || string.Equals(c.Source.Title, "Error", StringComparison.OrdinalIgnoreCase)));
+                    if (mbErrorConn?.Target?.Node is ActionNodeViewModel actError && actError.TargetTag != null)
+                    {
+                        mbErrorTag = ResolveTagIndex(actError.TargetTag, targetProduct);
+                    }
+
+                    ushort? mbErrCodeTag = null;
+                    var mbErrCodeConn = connectionList.FirstOrDefault(c => c.Source?.Node == mb &&
+                        (c.Source == mb.ErrCodeConnector || string.Equals(c.Source.Title, "ErrCode", StringComparison.OrdinalIgnoreCase)));
+                    if (mbErrCodeConn?.Target?.Node is ActionNodeViewModel actErrCode && actErrCode.TargetTag != null)
+                    {
+                        mbErrCodeTag = ResolveTagIndex(actErrCode.TargetTag, targetProduct);
+                    }
+
                     graph.Nodes.Add(LogicNode.CreateModbusRead(
                         mb.Id,
                         mbEnTag,
@@ -626,7 +670,10 @@ public sealed class RuleCompiler : IRuleCompiler
                         mbPinDtos,
                         portIndex: mb.PortIndex,
                         executionOrder: actionOrder++,
-                        label: mb.DisplayTitle));
+                        label: mb.DisplayTitle,
+                        validTag: mbValidTag,
+                        errorTag: mbErrorTag,
+                        errCodeTag: mbErrCodeTag));
                     break;
 
                 case ModbusWriteNodeViewModel mbw:

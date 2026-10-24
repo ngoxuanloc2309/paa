@@ -437,5 +437,47 @@ public class LiveWatchViewModelTests
 
         Assert.Equal(4, vm.WatchlistCount);
     }
+
+    [Fact]
+    public void LiveWatchViewModel_ProjectAliasProvider_SyncsCustomAliasesAndDataType_Reactively()
+    {
+        var store = new RuntimeStateStore();
+        store.InitializeProduct(CreateProduct());
+        using var vm = new LiveWatchViewModel(store);
+
+        // VREG0 index = 52
+        var vreg0 = vm.AllTags.First(t => t.Index == 52);
+        Assert.Equal("Virtual Register 0", vreg0.Alias);
+
+        // Cấu hình Alias và DataType từ Project / TagCatalog
+        vm.ProjectAliasProvider = idx => idx == 52 ? "Avg Voltage (V)" : null;
+        vm.ProjectDataTypeProvider = idx => idx == 52 ? TagDataType.Float32 : null;
+
+        vm.SyncProjectAliases();
+
+        Assert.Equal("Avg Voltage (V)", vreg0.Alias);
+        Assert.Equal("Avg Voltage (V)", vreg0.LocalizedAlias);
+        Assert.Equal(TagDataType.Float32, vreg0.DataType);
+        Assert.Equal("REAL", vreg0.DataTypeText);
+    }
+
+    [Fact]
+    public void WatchTagItemModel_Float32_FormatsRealDecimalValueCorrectly()
+    {
+        var tag = new SimplePLC.Studio.Models.WatchTagItemModel
+        {
+            Index = 52,
+            Name = "VREG0",
+            Alias = "Avg Voltage (V)",
+            Kind = TagKind.VirtualRegister,
+            DataType = TagDataType.Float32,
+            Quality = TagQuality.Good,
+            RawValue = BitConverter.SingleToInt32Bits(230.45f)
+        };
+
+        Assert.Equal("Avg Voltage (V)", tag.LocalizedAlias);
+        Assert.Equal("230.45", tag.FormattedValue);
+        Assert.Equal("230.45", tag.FormattedDisplayValue);
+    }
 }
 

@@ -117,10 +117,12 @@ Mỗi bản ghi Rule chiếm đúng 16 thanh ghi Modbus (32 bytes), định dạ
 SimplePLC V2.0 hỗ trợ cả **Chế độ Số nguyên (Legacy Int32)** và **Chế độ Số thực dấu phẩy động (IEEE-754 Single-Precision Float32 / REAL)** mà không làm thay đổi kích thước 32-byte của Wire Contract:
 
 ```c
-/* Cờ thuộc tính Rule (Rule Flags) lưu tại Reg 13 High */
+/* Cờ thuộc tính Rule trực giao (Rule Flags) lưu tại Reg 13 High */
 typedef enum {
-    SPLC_RULE_FLAG_NONE       = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
-    SPLC_RULE_FLAG_FLOAT_DATA = 0x01  /* 0x01: Chế độ số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_NONE          = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01, /* Bit 0 (0x01): Ngưỡng Trigger là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02, /* Bit 1 (0x02): Tham số Action là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03  /* 0x03: Cả Trigger và Action đều là Float32 (Legacy alias) */
 } SPLC_RuleFlags_t;
 
 typedef struct SPLC_PACKED {
@@ -144,20 +146,25 @@ typedef struct SPLC_PACKED {
     uint8_t  trigger_type;        /* [Reg 11 Low]  SPLC_TriggerType_t */
     uint8_t  compare_op;          /* [Reg 12 High] SPLC_CompareOp_t */
     uint8_t  action_type;         /* [Reg 12 Low]  SPLC_ActionType_t */
-    uint8_t  flags;               /* [Reg 13 High] SPLC_RuleFlags_t (0x01 = FLOAT_DATA) */
+    uint8_t  flags;               /* [Reg 13 High] SPLC_RuleFlags_t: Bit 0=TRIGGER_FLOAT (0x01), Bit 1=ACTION_FLOAT (0x02) */
     uint8_t  reserved[5];         /* [Reg 13 Low..15] Luôn ghi 0x00; receiver bỏ qua */
 } SPLC_RuleRecord_t;
 ```
 
-### 5.1. Cơ chế Chuyển đổi và Tương thích Ngược (Float vs Int32)
-* Khi **`flags == 0x00` (Legacy / Integer Mode)**:
-  * Toàn bộ các trường `threshold_lo`, `threshold_hi`, `action_param` được tính toán số học số nguyên 32-bit có dấu thông thường.
-  * Tương thích 100% với các phiên bản Firmware và dự án SimplePLC cũ.
-* Khi **`flags & 0x01 != 0` (Float32 / REAL Mode)**:
-  * Ngưỡng so sánh `threshold_lo_f`, `threshold_hi_f` và tham số `action_param_f` được diễn giải dưới dạng chuẩn **IEEE-754 Single Precision (32-bit float)**.
-  * Các phép toán so sánh `EQ`, `NEQ` sử dụng epsilon công nghiệp $\epsilon = 1 \times 10^{-5}$:
-    * `EQ`: $|x - \text{threshold}| \le 10^{-5}$
-    * `GT`: $x > \text{threshold}$
+### 5.1. Cơ chế Chuyển đổi Trực Giao và Tương thích Ngược (Orthogonal Float vs Int32 Matrix)
+Để triệt tiêu hoàn toàn lỗi ép kiểu sai số nhị phân khi Trigger và Action có kiểu dữ liệu khác nhau (ví dụ: Trigger là số nguyên thô `AI > 80` nhưng Action là số thực `SET VREG_REAL = 2.5f`), trường `flags` (Byte 13 High) được chia thành 2 cờ bitmask trực giao độc lập:
+
+| Trạng thái Flags | Ý nghĩa kỹ thuật | Cơ chế đối sánh Trigger | Cơ chế thực thi Action |
+| :---: | :--- | :--- | :--- |
+| `0x00` | Pure Integer Rule | So sánh số nguyên thô (`as_int32`) với `threshold_lo/hi` | Ghi giá trị nguyên (`as_int32`) từ `action_param` |
+| `0x01` (`TRIGGER_FLOAT`) | Float Trigger + Int Action | So sánh số thực IEEE-754 (`as_real`) với `threshold_lo/hi_f` (sai số $\epsilon = 10^{-5}$) | Ghi giá trị nguyên (`as_int32`) từ `action_param` |
+| `0x02` (`ACTION_FLOAT`) | Int Trigger + Float Action | So sánh số nguyên thô (`as_int32`) với `threshold_lo/hi` | Ghi trực tiếp bit float IEEE-754 (`as_real`) từ `action_param_f` |
+| `0x03` (`FLOAT_DATA`) | Pure Float Rule | So sánh số thực IEEE-754 (`as_real`) với `threshold_lo/hi_f` | Ghi trực tiếp bit float IEEE-754 (`as_real`) từ `action_param_f` |
+
+* **Đặc tả Action Function Blocks đối với dữ liệu REAL:**
+  * `ACT_SCALE_TAG (7)`: Bắt buộc `flags = 0x03` khi tag là REAL (cả hệ số góc $k$ `action_param_f` và offset $b$ `threshold_hi_f` đều là Float32). Công thức: $y = x \times k + b$.
+  * `INC_COUNTER`: Chỉ áp dụng cho số nguyên thô (`flags = 0x00`).
+  * `ADD_TAG`: Nếu `flags & 0x02`, MCU thực hiện cộng số thực dấu phẩy động IEEE-754: $V_{\text{dest}} = V_{\text{dest}} + V_{\text{src}}$. Ngược lại thực hiện cộng số nguyên có dấu 32-bit.
     * `BETWEEN`: $\text{threshold\_lo\_f} \le x \le \text{threshold\_hi\_f}$
   * Hỗ trợ đặt ngưỡng thập phân trực quan từ IDE (ví dụ: `55.5°C`, `-12.3 bar`).
 
@@ -491,8 +498,10 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
   * `0x0020` (`SPLC_CAP_MQTT_SUB`): Hỗ trợ nhận lệnh điều khiển Inbound MQTT SUB (0x0D80).
   * `0x0040` (`SPLC_CAP_SD_DATALOG`): Có khe cắm thẻ nhớ MicroSD.
   * `0x0080` (`SPLC_CAP_MQTT_TLS_CERT`): Hỗ trợ nạp và giải mã chứng chỉ bảo mật TLS/SSL theo khối struct (0x0F00, SPLC-SPEC-MQTT-003).
-  * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master Poller (`MB_READ`, 0x1000..0x10FF, SPLC-SPEC-MBM-001).
+  * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master Poller & Writer (`MB_READ` 0x1000, `MB_WRITE` 0x1100, SPLC-SPEC-MBM-001/002).
   * `0x0200` (`SPLC_CAP_WIFI`): Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (`0x1300..0x13FF`, SPLC-SPEC-WIFI-004).
+  * `0x0400` (`SPLC_CAP_MODBUS_TCP`): Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502).
+  * `0x0800` (`SPLC_CAP_FLOAT32`): Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math.
 
 ### 13.4.1. Thanh Ghi Tự Mô Tả Số Cổng RS-485 Vật Lý (`0x0A0A`, SPLC_ADDR_HW_RS485_PORT_COUNT)
 * Địa chỉ: `0x0A0A` (16-bit uint16, 1 holding register, FC03 Read-Only).
@@ -658,7 +667,11 @@ sequenceDiagram
     MCU-->>IDE: Trả về Port Count (0, 1, 2, hoặc 4)
     Note over IDE: Nếu thiếu cờ năng lực hoặc cổng vượt giới hạn -> Fail-Safe ABORT
 
-    Note over IDE,MCU: BƯỚC 2: NẠP CẤU HÌNH NGOẠI VI (HOLDING REGISTERS)
+    Note over IDE,MCU: BƯỚC 2: NẠP CẤU HÌNH NGOẠI VI & BẢNG KIỂU DỮ LIỆU TAG
+    opt Có Tag DataType Registry (0x0080..0x00BF)
+        IDE->>MCU: FC16 Write 0x0080.. (Tag DataType Registry 64 regs = 128 bytes)
+        Note over MCU: Lưu vào staging buffer, chuẩn bị atomic swap cùng rule table
+    end
     opt Có Timer / Counter
         IDE->>MCU: FC16 Write 0x0B00.. (Timers 8 blocks * 8 regs)
         IDE->>MCU: FC16 Write 0x0B40.. (Counters 8 blocks * 8 regs)

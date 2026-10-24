@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -187,7 +187,21 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         new(ModbusEndianness.LittleEndian_DCBA, "Little-Endian (DCBA)")
     };
 
-    private readonly IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+    private IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+
+    public Action? OnOpenDevicePortSettings { get; set; }
+
+    [RelayCommand]
+    public void OpenDevicePortSettings()
+    {
+        OnOpenDevicePortSettings?.Invoke();
+    }
+
+    public void RefreshAvailablePorts(IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts)
+    {
+        _modbusPorts = newPorts?.ToList();
+        UpdatePortOptions();
+    }
 
     public ModbusWriteConfigDialogViewModel(
         ModbusWriteNodeViewModel node, 
@@ -203,10 +217,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         _writeMode = node.WriteMode;
         _functionCode = node.FunctionCode;
         _startAddress = node.StartAddress;
-        _pointCount = Math.Max((ushort)1, node.PointCount);
+        _pointCount = Math.Clamp(node.PointCount == 0 ? (ushort)1 : node.PointCount, (ushort)1, (ushort)16);
         _baseAddressCommand = node.BaseAddressCommand;
         _baseAddressParam = node.BaseAddressParam;
-        _channelCount = Math.Max((ushort)1, node.ChannelCount);
+        _channelCount = Math.Clamp(node.ChannelCount == 0 ? (ushort)1 : node.ChannelCount, (ushort)1, (ushort)64);
         _isExclusiveChannel = node.IsExclusiveChannel;
         _triggerMode = node.TriggerMode;
         _cyclicIntervalMs = node.CyclicIntervalMs;
@@ -232,14 +246,19 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     public void PopulateLocalizedOptions()
     {
-        var curPort = PortIndex;
-        var curMode = WriteMode;
-        var curFc = FunctionCode;
-        var curTrig = TriggerMode;
+        UpdatePortOptions();
+        UpdateWriteModes();
+        UpdateFunctionCodes();
+        UpdateTriggerModes();
+    }
 
-        AvailablePorts.Clear();
+    private void UpdatePortOptions()
+    {
+        var curPort = PortIndex;
         bool isVi = LocalizationService.Instance.IsVietnamese;
         string prefix = isVi ? "Cổng" : "Port";
+
+        var targetList = new List<OptionItem<byte>>();
 
         if (_modbusPorts != null && _modbusPorts.Count > 0)
         {
@@ -248,7 +267,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             {
                 foreach (var p in enabledPorts)
                 {
-                    AvailablePorts.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
+                    targetList.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
                 }
 
                 if (!enabledPorts.Any(p => p.PortIndex == curPort))
@@ -256,43 +275,101 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
                     var disabledPort = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
                     if (disabledPort != null)
                     {
-                        AvailablePorts.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
+                        targetList.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
                     }
                 }
             }
             else
             {
                 string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485]" : "[No RS-485 Ports Enabled]");
-                AvailablePorts.Add(new OptionItem<byte>(curPort, noPortsMsg));
+                targetList.Add(new OptionItem<byte>(curPort, noPortsMsg));
             }
         }
         else
         {
             for (byte i = 0; i < 4; i++)
             {
-                AvailablePorts.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
+                targetList.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
             }
         }
 
-        AvailableWriteModes.Clear();
-        AvailableWriteModes.Add(new(ModbusWriteMode.ChannelIndexed, LocalizationService.Tr("ModbusWriteModeIndexed") ?? "Channel-Indexed Target"));
-        AvailableWriteModes.Add(new(ModbusWriteMode.DirectRegisters, LocalizationService.Tr("ModbusWriteModeDirect") ?? "Direct Registers"));
+        SyncOptions(AvailablePorts, targetList);
 
-        AvailableFunctionCodes.Clear();
-        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteSingleRegister, LocalizationService.Tr("ModbusWriteFc06") ?? "FC 06: Write Register (4x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteMultipleRegisters, LocalizationService.Tr("ModbusWriteFc16") ?? "FC 16: Write Multiple (4x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteSingleCoil, LocalizationService.Tr("ModbusWriteFc05") ?? "FC 05: Write Coil (0x)"));
-        AvailableFunctionCodes.Add(new(ModbusMasterWriteFunctionCode.WriteMultipleCoils, LocalizationService.Tr("ModbusWriteFc15") ?? "FC 15: Write Multiple Coils (0x)"));
+        if (!AvailablePorts.Any(p => p.Value == curPort) && AvailablePorts.Count > 0)
+        {
+            PortIndex = AvailablePorts[0].Value;
+        }
+        else
+        {
+            OnPropertyChanged(nameof(PortIndex));
+        }
 
-        AvailableTriggerModes.Clear();
-        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusWriteTrigEdge") ?? "Rising Edge (Trig)"));
-        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.OnDataChange, LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change"));
-        AvailableTriggerModes.Add(new(ModbusWriteTriggerMode.Cyclic, LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic (Periodic)"));
+        OnPropertyChanged(nameof(PortSelectorTooltip));
+        OnPropertyChanged(nameof(SummaryBadgeText));
+    }
 
-        PortIndex = curPort;
-        WriteMode = curMode;
-        FunctionCode = curFc;
-        TriggerMode = curTrig;
+    private void UpdateWriteModes()
+    {
+        var targetModes = new List<OptionItem<ModbusWriteMode>>
+        {
+            new(ModbusWriteMode.ChannelIndexed, LocalizationService.Tr("ModbusWriteModeIndexed") ?? "Channel-Indexed Target"),
+            new(ModbusWriteMode.DirectRegisters, LocalizationService.Tr("ModbusWriteModeDirect") ?? "Direct Registers")
+        };
+
+        SyncOptions(AvailableWriteModes, targetModes);
+        OnPropertyChanged(nameof(WriteMode));
+    }
+
+    private void UpdateFunctionCodes()
+    {
+        var targetFc = new List<OptionItem<ModbusMasterWriteFunctionCode>>
+        {
+            new(ModbusMasterWriteFunctionCode.WriteSingleRegister, LocalizationService.Tr("ModbusWriteFc06") ?? "FC 06: Write Register (4x)"),
+            new(ModbusMasterWriteFunctionCode.WriteMultipleRegisters, LocalizationService.Tr("ModbusWriteFc16") ?? "FC 16: Write Multiple (4x)"),
+            new(ModbusMasterWriteFunctionCode.WriteSingleCoil, LocalizationService.Tr("ModbusWriteFc05") ?? "FC 05: Write Coil (0x)"),
+            new(ModbusMasterWriteFunctionCode.WriteMultipleCoils, LocalizationService.Tr("ModbusWriteFc15") ?? "FC 15: Write Multiple Coils (0x)")
+        };
+
+        SyncOptions(AvailableFunctionCodes, targetFc);
+        OnPropertyChanged(nameof(FunctionCode));
+    }
+
+    private void UpdateTriggerModes()
+    {
+        var targetTrig = new List<OptionItem<ModbusWriteTriggerMode>>
+        {
+            new(ModbusWriteTriggerMode.OnTriggerRisingEdge, LocalizationService.Tr("ModbusWriteTrigEdge") ?? "Rising Edge (Trig)"),
+            new(ModbusWriteTriggerMode.OnDataChange, LocalizationService.Tr("ModbusWriteTrigChange") ?? "On Data Change"),
+            new(ModbusWriteTriggerMode.Cyclic, LocalizationService.Tr("ModbusWriteTrigCyclic") ?? "Cyclic (Periodic)")
+        };
+
+        SyncOptions(AvailableTriggerModes, targetTrig);
+        OnPropertyChanged(nameof(TriggerMode));
+    }
+
+    private static void SyncOptions<T>(ObservableCollection<OptionItem<T>> current, IList<OptionItem<T>> target)
+    {
+        if (current.SequenceEqual(target)) return;
+
+        for (int i = 0; i < target.Count; i++)
+        {
+            if (i < current.Count)
+            {
+                if (!EqualityComparer<OptionItem<T>>.Default.Equals(current[i], target[i]))
+                {
+                    current[i] = target[i];
+                }
+            }
+            else
+            {
+                current.Add(target[i]);
+            }
+        }
+
+        while (current.Count > target.Count)
+        {
+            current.RemoveAt(current.Count - 1);
+        }
     }
 
     public string PortSelectorTooltip
@@ -358,6 +435,16 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     partial void OnChannelCountChanged(ushort value)
     {
+        if (value > 64)
+        {
+            ChannelCount = 64;
+            return;
+        }
+        if (value < 1)
+        {
+            ChannelCount = 1;
+            return;
+        }
         UpdateChannelMappings();
         GenerateFramePreview();
     }
@@ -395,6 +482,16 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     partial void OnPointCountChanged(ushort value)
     {
+        if (value > 16)
+        {
+            PointCount = 16;
+            return;
+        }
+        if (value < 1)
+        {
+            PointCount = 1;
+            return;
+        }
         GenerateFramePreview();
     }
 
@@ -812,10 +909,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         Node.WriteMode = WriteMode;
         Node.FunctionCode = FunctionCode;
         Node.StartAddress = StartAddress;
-        Node.PointCount = Math.Max((ushort)1, PointCount);
+        Node.PointCount = Math.Clamp(PointCount, (ushort)1, (ushort)16);
         Node.BaseAddressCommand = BaseAddressCommand;
         Node.BaseAddressParam = BaseAddressParam;
-        Node.ChannelCount = Math.Max((ushort)1, ChannelCount);
+        Node.ChannelCount = Math.Clamp(ChannelCount, (ushort)1, (ushort)64);
         Node.IsExclusiveChannel = IsExclusiveChannel;
         Node.TriggerMode = TriggerMode;
         Node.CyclicIntervalMs = Math.Max(50u, CyclicIntervalMs);

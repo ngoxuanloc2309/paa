@@ -224,7 +224,7 @@ SynaptiX IDE standardizes on 13 modular Function Blocks classified into 4 functi
 | **3** | **`COMPARATOR`** `[CMP]` | Evaluation & Threshold (Stage 2) | In: `In` (Data)<br>Out: `Pass` (Logic) | Compares integer or Float32 values against threshold: `>`, `>=`, `==`, `!=`, `<=`, `<` (pressure, temperature, tank level supervision). |
 | **4** | **`GUARD`** `[GUARD]` | Permissive Interlock (Stage 3) | In: `In` (Logic)<br>Out: `Permit` (Logic) | Series safety interlock chain. Passes execution signal only when permissive condition is satisfied (`E-Stop = 1`, `Door Closed = 1`, `Thermal OK = 1`). |
 | **5** | **`ACTION`** `[ACTION]` | Actuator Command (Stage 4) | In: `Exec` (Event/Logic)<br>Out: Terminal DO/VREG | Executes control actions: `SET` (energize), `RESET` (de-energize), `TOGGLE` relay outputs DO0..DO7, assigns numeric value to VREG, or adjusts counters. |
-| **6** | **`TIMER`** `[TON / TOF / TP]` | IEC 61131-3 Timers | In: `IN`, `PT` (ms)<br>Out: `Q` (Logic), `ET` (ms) | Standard timers: `TON` (On-delay pump spin-up), `TOF` (Off-delay cooling fan), `TP` (Monostable single pulse duration for pneumatic ejectors). |
+| **6** | **`TIMER`** `[TON / TOF / TP / CYCLE]` | IEC 61131-3 & Periodic Timers | In: `IN`, `PT` / `T_ON`, `T_OFF`<br>Out: `Q` (Logic), `ET` (ms) | Standard & periodic timers: `TON` (On-delay), `TOF` (Off-delay), `TP` (Monostable pulse), `CYCLE` (Periodic repeat cycle with independent T_ON/T_OFF for beacon flashers, alarms, duty/standby pumps, and instant fail-safe cutoff). |
 | **7** | **`COUNTER`** `[CTU / CTD]` | IEC 61131-3 Counters | In: `CU`/`CD`, `R`/`LD`, `PV`<br>Out: `Q` (Logic), `CV` (Int) | Industrial counters: `CTU` (Up-count batch production), `CTD` (Down-count remaining blanks). Retained in non-volatile Flash. |
 | **8** | **`SCALE`** `[SCALE]` | Linear Engineering Scaling | In: `In` (Raw ADC)<br>Out: `Out` (Scaled Float) | Linear transformation $y = k \cdot x + b$: Maps raw ADC 0..4095 or 4-20mA current to engineering units (0..10 bar, -20..80 °C, 0..100%). |
 | **9** | **`PULSE_OUT`** `[PULSE]` | High-Speed Waveform & Actuator | In: `Trig`, `In/Chan`, `En/Param`<br>Out: `Done`, `Err` | Direct high-speed control on DO0..DO7: Discrete DO, PWM duty cycle (1..20 kHz), PTO stepper pulses, WS2812B/UCS16703 18-bin Sort-to-Light addressable LED bus. *(Backward compatible with DIRECT_WRITE)*. |
@@ -233,16 +233,31 @@ SynaptiX IDE standardizes on 13 modular Function Blocks classified into 4 functi
 | **12** | **`MQTT_PUB`** `[MQTT_PUB]` | IIoT Telemetry Publisher | In: `Trig`, `In0..In3` (Data)<br>Out: `Done`, `Err` | Encapsulates process telemetry into structured JSON payloads published to MQTT Broker over TCP/TLS (QoS 0/1/2, Retain) cyclically or on event. |
 | **13** | **`MQTT_SUB`** `[MQTT_SUB]` | IIoT Inbound Command Ingest | Out: `Out0..Out3` (Data), `NewMsg` (Event) | Subscribes to Cloud/WMS supervisory topics, extracts JSON payload key-value fields onto connector pins, and asserts 1-scan notification pulse. |
 
-### 3.2 Dual Rule Table & AST Syntax Validation
-Tab 2 (Rule Table) presents logic in two synchronized perspectives: Left view provides human-readable engineering narratives, while right view displays compiled 32-byte bytecode parameters:
+### 3.2 Multi-Subsystem Rule & Service Table Hub
+Tab 2 (Rule Table) in SynaptiX IDE acts as an industrial command and orchestration hub, offering centralized, tabular visibility across logic rules and hardware/cloud communication subsystems via 4 dedicated sub-tabs:
 
-![Figure 3-2: Dual Rule Table — Human-Readable Logic Narratives and Compiled Bytecode Grid](proposals/images/synaptix_rule_table.png)
-*Figure 3-2: Dual Rule Table — Human-Readable Logic Narratives and Compiled Bytecode Grid*
+![Figure 3-2: Multi-Subsystem Rule & Service Table Hub](proposals/images/synaptix_rule_table.png)
+*Figure 3-2: Multi-Subsystem Rule & Service Table Hub (Logic Rules, Modbus Master, MQTT, Function Blocks)*
 
-The Abstract Syntax Tree (AST) engine continuously parses the logic network in the background. If any pin is left un-wired or a cyclic loop is created, a red diagnostic badge appears in the status bar with an immediate navigation link to the error source.
+#### 4 Dedicated Subsystem Tabs Architecture
+
+| Sub-Tab | Managed Subsystem | Displayed Fields | Direct Interactive Actions |
+| :--- | :--- | :--- | :--- |
+| **Tab 0: Logic Rules** | Industrial automation logic rules (Trigger - Guard - Action) | Enabled, ID, Trigger Condition, Guard Interlock, Action, Macro Attribution, Natural Engineering Narrative | Status filter pills (All / Active / Disabled), Keyword search, View on Canvas (`✏️`), Delete Rule (`🗑️`), Expandable 32-byte bytecode disassembly card |
+| **Tab 1: Modbus Master** | RS-485 Modbus RTU Master polling & control commands | ID (`MB1..`), Block Type (`MB_READ`, `MB_WRITE`), RS-485 Port (`Port 1..4`), Slave ID, Function Code (FC), Register Address (Hex/Dec), Length, Polling Mode, Mapped Pin/VREG, Status | View directly on Canvas (`✏️`), Delete command (`🗑️`) with two-way canvas sync, Open hardware RS-485 port settings in Device Settings dialog |
+| **Tab 2: MQTT Services** | Cloud IIoT Telemetry Publish & Remote Command Subscribe | ID (`MQ1..`), Service Type (`MQTT_PUB`, `MQTT_SUB`), Topic URI, QoS Level (0/1/2), Polling Mode, Payload Summary, Status | View directly on Canvas (`✏️`), Delete service (`🗑️`) with two-way canvas sync, Direct jump to Broker & Wi-Fi configuration |
+| **Tab 3: Function Blocks** | IEC 61131-3 standard function blocks (Timer, Counter, Scaler) | ID (`FB1..`), Block Type (`TON`, `TOF`, `TP`, `CYCLE`, `CTU`, `CTD`, `SCALE`), Preset Parameters ($PT$, $PV$, Scaling factors), Input Signal, Output Signal, Status | View directly on Canvas (`✏️`), Delete function block (`🗑️`) with two-way canvas sync |
+
+#### Industrial Ergonomics & Slate Gray Aesthetics (ISA-101 Standardized)
+1. **Left-Aligned Precision Layout:** Column headers and table cell data align perfectly with a standardized `10px` left margin, completely eliminating awkward zigzag visual scanning.
+2. **Elimination of Extraneous Selection Gutter:** Configured `HeadersVisibility="Column"` and collapsed `DataGridRowHeader` globally, providing a modern, border-to-border flat layout compliant with ISA-101 ergonomic guidelines.
+3. **Standardized Action Column:** The Action column across all 4 tables features a uniform `120px` width with two compact tactile icon buttons:
+   - `✏️` (*View on Canvas*): Directly jumps to and centers the corresponding block on the FBD Canvas.
+   - `🗑️` (*Delete*): Deletes the item with safe confirmation and bidirectional synchronization back to the Canvas logic graph and Tag Catalog.
+4. **Separation of Logic vs Device Settings:** Low-level hardware configuration (COM baud rates, Wi-Fi credentials, Broker host IP) is decoupled and managed directly by the dedicated Device Settings pane, preventing accidental parameter overwrite during logic uploads.
 
 ### 3.3 Standard Instruction Library & Blueprints Gallery
-SynaptiX IDE provides standard IEC 61131-3 instruction blocks (TON, TOF, TP timers, CTU/CTD counters, linear SCALE, and relational CMP) alongside advanced communication blocks (MQTT PUB/SUB, Modbus Master MB_READ/MB_WRITE). In Tab 3 (Blueprints), engineers can instantiate pre-engineered application templates with 1 click:
+SynaptiX IDE provides standard IEC 61131-3 instruction blocks (TON, TOF, TP, CYCLE timers, CTU/CTD counters, linear SCALE, and relational CMP) alongside advanced communication blocks (MQTT PUB/SUB, Modbus Master MB_READ/MB_WRITE). In Tab 3 (Blueprints), engineers can instantiate pre-engineered application templates with 1 click:
 
 ![Figure 3-3: Industrial Blueprints Gallery and Pre-Engineered Application Templates](proposals/images/synaptix_blueprints.png)
 *Figure 3-3: Industrial Blueprints Gallery and Pre-Engineered Application Templates*
@@ -253,7 +268,7 @@ SynaptiX IDE provides standard IEC 61131-3 instruction blocks (TON, TOF, TP time
 | :--- | :---: | :--- |
 | **Group 1: Discrete Logic & Safety Interlocks** | 5 | Andon OEE Alert, Flash Retentive Production Counter, Material Feed Call, Sump Pump, Inverted Door Guard. |
 | **Group 2: Motor Interlocking & Reversing** | 3 | Direct-On-Line (DOL) starter, Forward/Reverse Interlocked starter, Star-Delta sequencer. |
-| **Group 3: IEC 61131-3 Real-Time Timers (TON/TOF/TP)** | 3 | Lube pump on-delay (TON), Cooling fan run-on off-delay (TOF), Part reject air pulse (TP). |
+| **Group 3: IEC 61131-3 Real-Time Timers (TON/TOF/TP/CYCLE)** | 4 | Lube pump on-delay (TON), Cooling fan run-on off-delay (TOF), Part reject air pulse (TP), Periodic beacon / alarm cycle (CYCLE). |
 | **Group 4: IEC 61131-3 Batch Counters (CTU/CTD)** | 3 | Automatic boxing up-counter (CTU), Blank feeder countdown (CTD), Parking garage up-down counter (CTUD). |
 | **Group 5: Analog Signal Normalization & Linear Scaling** | 5 | 4-20mA pressure transmitter, PT100/NTC RTD temperature, Hydrostatic tank level, CT current transformer. |
 | **Group 6: Cloud Telemetry & Industrial IIoT (MQTT)** | 2 | Cloud Telemetry Publisher (MQTT PUB), Remote Supervisory Command Dispatcher (MQTT SUB). |

@@ -279,5 +279,75 @@ public class RegisterCodecTests
         Assert.Equal(80.25f, decoded.ThresholdHiFloat, precision: 4);
         Assert.Equal(1.5f, decoded.ActionParamFloat, precision: 4);
     }
-}
+    [Fact]
+    public void TagDataTypesRegistry_EncodeAndDecode_PreservesAll128Tags()
+    {
+        // Arrange
+        byte[] expectedTypes = new byte[ModbusRegisterMap.MaxRuntimeTags];
+        for (int i = 0; i < expectedTypes.Length; i++)
+        {
+            expectedTypes[i] = (byte)(i % 4); // 0=NONE, 1=BOOL, 2=INT32, 3=REAL
+        }
 
+        Span<ushort> regs = stackalloc ushort[ModbusRegisterMap.TagDataTypesLength];
+
+        // Act
+        RegisterCodec.EncodeTagDataTypes(expectedTypes, regs);
+        byte[] decodedTypes = RegisterCodec.DecodeTagDataTypes(regs);
+
+        // Assert
+        Assert.Equal(ModbusRegisterMap.TagDataTypesLength, regs.Length);
+        Assert.Equal(expectedTypes.Length, decodedTypes.Length);
+        for (int i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], decodedTypes[i]);
+        }
+
+        // Verify packing: Reg 0 has Tag 0 in High Byte, Tag 1 in Low Byte
+        ushort reg0 = regs[0];
+        Assert.Equal((expectedTypes[0] << 8) | expectedTypes[1], reg0);
+    }
+
+    [Fact]
+    public void EncodeRuleRecord_OrthogonalFlags_DistinguishesTriggerAndActionFloat()
+    {
+        // Rule: Integer Trigger (AI0 > 80) -> Set Real Action (VREG_REAL = 2.5f)
+        var ruleMixed = new RuleRecordDto
+        {
+            Flags = (byte)SPLC_RuleFlags.ACTION_FLOAT, // 0x02
+            ThresholdLo = 80, // Int32
+            ActionParamFloat = 2.5f, // Float32
+            TriggerTag = 16,
+            ActionTag = 32,
+            Enabled = true,
+            TriggerType = SPLC_TriggerType.ON_CHANGE,
+            CompareOp = SPLC_CompareOp.GT,
+            ActionType = SPLC_ActionType.SET_TAG
+        };
+
+        Span<ushort> registers = stackalloc ushort[16];
+        RegisterCodec.EncodeRuleRecord(ruleMixed, registers);
+
+        // Reg 13: High byte = flags (0x02), Low byte = reserved (0x00) -> 0x0200
+        Assert.Equal(0x0200, registers[13]);
+
+        var decoded = RegisterCodec.DecodeRuleRecord(registers);
+        Assert.False(decoded.IsTriggerFloat);
+        Assert.True(decoded.IsActionFloat);
+        Assert.Equal(80, decoded.ThresholdLo);
+        Assert.Equal(2.5f, decoded.ActionParamFloat, precision: 4);
+    }
+
+    [Fact]
+    public void HardwareCapabilities_Float32_EncodesAndDecodesCorrectly()
+    {
+        var caps = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.FLOAT32;
+        Span<ushort> regs = stackalloc ushort[2];
+
+        RegisterCodec.EncodeHardwareCapabilities(caps, regs);
+        var decoded = RegisterCodec.DecodeHardwareCapabilities(regs);
+
+        Assert.True(decoded.HasFlag(SPLC_HardwareCapabilities.FLOAT32));
+        Assert.Equal(0x0801u, (uint)decoded);
+    }
+}

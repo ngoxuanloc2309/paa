@@ -3,6 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
+using SimplePLC.Application.Logic.Compilation;
+using SimplePLC.Protocol.Dto;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
@@ -15,6 +18,26 @@ public partial class RuleTableViewModel : ObservableObject
 
     public ObservableCollection<RuleItemModel> Rules { get; } = new();
     public ObservableCollection<RuleItemModel> FilteredRules { get; } = new();
+
+    public ObservableCollection<ModbusCommandItemViewModel> ModbusCommands { get; } = new();
+    public ObservableCollection<MqttServiceItemViewModel> MqttServices { get; } = new();
+    public ObservableCollection<FunctionBlockItemViewModel> FunctionBlocks { get; } = new();
+
+    [ObservableProperty]
+    private int _selectedSubTabIndex = 0; // 0: Rules, 1: Modbus, 2: MQTT, 3: Function Blocks
+
+    public int ModbusCommandCount => ModbusCommands.Count;
+    public int MqttServiceCount => MqttServices.Count;
+    public int FunctionBlockCount => FunctionBlocks.Count;
+
+    [RelayCommand]
+    public void SelectSubTab(object? param)
+    {
+        if (param != null && int.TryParse(param.ToString(), out int tabIndex))
+        {
+            SelectedSubTabIndex = tabIndex;
+        }
+    }
 
     [ObservableProperty]
     private RuleItemModel? _selectedRule;
@@ -108,6 +131,28 @@ public partial class RuleTableViewModel : ObservableObject
     public Action<RuleItemModel>? OnEditRuleRequested { get; set; }
     public Action? OnNewRuleRequested { get; set; }
     public Func<Task>? OnUploadFromDeviceRequested { get; set; }
+    public Action? OnOpenModbusPortSettingsRequested { get; set; }
+    public Action? OnOpenMqttBrokerSettingsRequested { get; set; }
+    public Action<ModbusCommandItemViewModel>? OnDeleteModbusCommandRequested { get; set; }
+    public Action<MqttServiceItemViewModel>? OnDeleteMqttServiceRequested { get; set; }
+    public Action<FunctionBlockItemViewModel>? OnDeleteFunctionBlockRequested { get; set; }
+
+    [RelayCommand]
+    public void OpenModbusPortSettings()
+    {
+        OnOpenModbusPortSettingsRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    public void OpenMqttBrokerSettings()
+    {
+        OnOpenMqttBrokerSettingsRequested?.Invoke();
+    }
+
+    public string SubTabLogicLabel => $"{LocalizationService.Tr("RuleSubTabLogic")} ({TotalRuleCount})";
+    public string SubTabModbusLabel => $"{LocalizationService.Tr("RuleSubTabModbus")} ({ModbusCommandCount})";
+    public string SubTabMqttLabel => $"{LocalizationService.Tr("RuleSubTabMqtt")} ({MqttServiceCount})";
+    public string SubTabFunctionBlocksLabel => $"{LocalizationService.Tr("RuleSubTabFunctionBlocks")} ({FunctionBlockCount})";
 
     [RelayCommand]
     public async Task UploadFromDeviceAsync()
@@ -149,6 +194,36 @@ public partial class RuleTableViewModel : ObservableObject
             Rules[i].Id = $"R{i + 1}";
         }
         ApplyFilter();
+    }
+
+    [RelayCommand]
+    public void DeleteModbusCommand(ModbusCommandItemViewModel? cmd)
+    {
+        if (cmd == null) return;
+        ModbusCommands.Remove(cmd);
+        OnPropertyChanged(nameof(ModbusCommandCount));
+        OnPropertyChanged(nameof(SubTabModbusLabel));
+        OnDeleteModbusCommandRequested?.Invoke(cmd);
+    }
+
+    [RelayCommand]
+    public void DeleteMqttService(MqttServiceItemViewModel? svc)
+    {
+        if (svc == null) return;
+        MqttServices.Remove(svc);
+        OnPropertyChanged(nameof(MqttServiceCount));
+        OnPropertyChanged(nameof(SubTabMqttLabel));
+        OnDeleteMqttServiceRequested?.Invoke(svc);
+    }
+
+    [RelayCommand]
+    public void DeleteFunctionBlock(FunctionBlockItemViewModel? fb)
+    {
+        if (fb == null) return;
+        FunctionBlocks.Remove(fb);
+        OnPropertyChanged(nameof(FunctionBlockCount));
+        OnPropertyChanged(nameof(SubTabFunctionBlocksLabel));
+        OnDeleteFunctionBlockRequested?.Invoke(fb);
     }
 
     [RelayCommand]
@@ -235,6 +310,10 @@ public partial class RuleTableViewModel : ObservableObject
         IsFlowInspectorExpanded = !IsFlowInspectorExpanded;
         OnPropertyChanged(nameof(FlowInspectorToggleText));
         OnPropertyChanged(nameof(FlowInspectorToggleIcon));
+        OnPropertyChanged(nameof(SubTabLogicLabel));
+        OnPropertyChanged(nameof(SubTabModbusLabel));
+        OnPropertyChanged(nameof(SubTabMqttLabel));
+        OnPropertyChanged(nameof(SubTabFunctionBlocksLabel));
     }
 
     [RelayCommand]
@@ -721,5 +800,345 @@ public partial class RuleTableViewModel : ObservableObject
             Rules.Add(r);
         }
         ApplyFilter();
+    }
+
+    /// <summary>
+    /// Cập nhật các bảng phân hệ (Modbus Master, MQTT Services, Function Blocks) từ hình ảnh thiết bị đọc ngược từ MCU.
+    /// </summary>
+    public void UpdateSubsystemsFromDevice(FullDeviceConfigurationDto fullConfig)
+    {
+        ModbusCommands.Clear();
+        if (fullConfig.ModbusMasterReads != null)
+        {
+            for (int i = 0; i < fullConfig.ModbusMasterReads.Count; i++)
+            {
+                var r = fullConfig.ModbusMasterReads[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"MB{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Đọc Modbus (Poller)" : "Modbus Read (Poller)",
+                    PortDisplay = $"{(LocalizationService.Instance.IsVietnamese ? "Cổng" : "Port")} {r.PortIndex + 1}",
+                    SlaveId = r.SlaveId,
+                    FunctionCodeDisplay = $"FC{(byte)r.FunctionCode:D2} ({r.FunctionCode})",
+                    AddressDisplay = $"0x{r.StartAddress:X4} ({r.StartAddress})",
+                    LengthDisplay = $"{r.RegCount} regs",
+                    ModeDisplay = r.ReadMode == ModbusReadMode.Cyclic 
+                        ? $"Cyclic ({r.PollIntervalMs}ms)" 
+                        : (LocalizationService.Instance.IsVietnamese ? "Xung sườn lên" : "Rising Edge"),
+                    PinsOrTargetDisplay = r.Pins.Count > 0 
+                        ? $"{r.Pins.Count} Pins ({string.Join(", ", r.Pins.Select(p => p.Label))})" 
+                        : "0 Pins",
+                    Status = r.Enabled ? "Active" : "Disabled",
+                    IsActive = r.Enabled
+                });
+            }
+        }
+
+        if (fullConfig.ModbusMasterWrites != null)
+        {
+            for (int i = 0; i < fullConfig.ModbusMasterWrites.Count; i++)
+            {
+                var w = fullConfig.ModbusMasterWrites[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"MW{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Ghi Modbus (Writer)" : "Modbus Write (Writer)",
+                    PortDisplay = $"{(LocalizationService.Instance.IsVietnamese ? "Cổng" : "Port")} {w.PortIndex + 1}",
+                    SlaveId = w.SlaveId,
+                    FunctionCodeDisplay = $"FC{(byte)w.FunctionCode:D2} ({w.FunctionCode})",
+                    AddressDisplay = $"0x{w.StartAddress:X4} ({w.StartAddress})",
+                    LengthDisplay = $"{w.PointCount} pts",
+                    ModeDisplay = w.TriggerMode == ModbusWriteTriggerMode.Cyclic 
+                        ? $"Cyclic ({w.CyclicIntervalMs}ms)" 
+                        : (LocalizationService.Instance.IsVietnamese ? "Xung kích hoạt" : "Trigger"),
+                    PinsOrTargetDisplay = $"{w.WriteMode}",
+                    Status = w.Enabled ? "Active" : "Disabled",
+                    IsActive = w.Enabled
+                });
+            }
+        }
+
+        if (fullConfig.DirectWrites != null)
+        {
+            for (int i = 0; i < fullConfig.DirectWrites.Count; i++)
+            {
+                var dw = fullConfig.DirectWrites[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"DW{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Ghi trực tiếp (Direct)" : "Direct Write",
+                    PortDisplay = LocalizationService.Instance.IsVietnamese ? "Nội bộ" : "Internal",
+                    SlaveId = 0,
+                    FunctionCodeDisplay = $"{dw.Mode}",
+                    AddressDisplay = $"{dw.TargetPin}",
+                    LengthDisplay = $"{dw.ChannelCount} ch",
+                    ModeDisplay = LocalizationService.Instance.IsVietnamese ? "Xung kích hoạt" : "Action Trigger",
+                    PinsOrTargetDisplay = $"{dw.TargetPin}",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        MqttServices.Clear();
+        if (fullConfig.MqttTelemetries != null)
+        {
+            for (int i = 0; i < fullConfig.MqttTelemetries.Count; i++)
+            {
+                var pub = fullConfig.MqttTelemetries[i];
+                MqttServices.Add(new MqttServiceItemViewModel
+                {
+                    Id = $"PUB{i + 1}",
+                    ServiceType = LocalizationService.Instance.IsVietnamese ? "Phát dữ liệu (Telemetry)" : "Telemetry Publish",
+                    Topic = pub.Topic,
+                    Qos = (byte)pub.Qos,
+                    ModeDisplay = pub.PublishMode == "Periodic" 
+                        ? $"Cyclic ({pub.IntervalMs}ms)" 
+                        : pub.PublishMode,
+                    PayloadSummary = $"{pub.Fields.Count} JSON fields",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        if (fullConfig.MqttSubscriptions != null)
+        {
+            for (int i = 0; i < fullConfig.MqttSubscriptions.Count; i++)
+            {
+                var sub = fullConfig.MqttSubscriptions[i];
+                MqttServices.Add(new MqttServiceItemViewModel
+                {
+                    Id = $"SUB{i + 1}",
+                    ServiceType = LocalizationService.Instance.IsVietnamese ? "Nhận lệnh (Inbound)" : "Inbound Subscribe",
+                    Topic = sub.Topic,
+                    Qos = (byte)sub.Qos,
+                    ModeDisplay = LocalizationService.Instance.IsVietnamese ? "Bóc tách lệnh" : "Message Ingestion",
+                    PayloadSummary = $"{sub.Pins.Count} output pins",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        FunctionBlocks.Clear();
+        if (fullConfig.Timers != null)
+        {
+            for (int i = 0; i < fullConfig.Timers.Count; i++)
+            {
+                var t = fullConfig.Timers[i];
+                if (t.Mode != SPLC_TimerMode.DISABLED)
+                {
+                    FunctionBlocks.Add(new FunctionBlockItemViewModel
+                    {
+                        Id = $"T{i + 1}",
+                        BlockType = $"{t.Mode} Timer",
+                        PresetDisplay = $"{t.PresetMs} ms",
+                        InputSignal = $"RuleRef #{t.RuleRef}",
+                        OutputSignal = $"Elapsed {t.ElapsedMs}ms",
+                        Status = t.Running ? "Running" : (t.Q ? "Done" : "Idle"),
+                        IsActive = true
+                    });
+                }
+            }
+        }
+
+        if (fullConfig.Counters != null)
+        {
+            for (int i = 0; i < fullConfig.Counters.Count; i++)
+            {
+                var c = fullConfig.Counters[i];
+                if (c.Mode != SPLC_CounterMode.DISABLED)
+                {
+                    FunctionBlocks.Add(new FunctionBlockItemViewModel
+                    {
+                        Id = $"C{i + 1}",
+                        BlockType = $"{c.Mode} Counter",
+                        PresetDisplay = $"{c.PresetValue} pulses",
+                        InputSignal = $"Current {c.CurrentValue}",
+                        OutputSignal = c.Q ? "Done (TRUE)" : "Counting",
+                        Status = c.Q ? "Done" : "Counting",
+                        IsActive = true
+                    });
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(ModbusCommandCount));
+        OnPropertyChanged(nameof(MqttServiceCount));
+        OnPropertyChanged(nameof(FunctionBlockCount));
+        OnPropertyChanged(nameof(SubTabModbusLabel));
+        OnPropertyChanged(nameof(SubTabMqttLabel));
+        OnPropertyChanged(nameof(SubTabFunctionBlocksLabel));
+    }
+
+    /// <summary>
+    /// Cập nhật các bảng phân hệ (Modbus Master, MQTT Services, Function Blocks) từ chương trình đã biên dịch.
+    /// </summary>
+    public void UpdateSubsystemsFromProgram(CompiledProgram program)
+    {
+        ModbusCommands.Clear();
+        if (program.ModbusMasterConfigs != null)
+        {
+            for (int i = 0; i < program.ModbusMasterConfigs.Count; i++)
+            {
+                var r = program.ModbusMasterConfigs[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"MB{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Đọc Modbus (Poller)" : "Modbus Read (Poller)",
+                    PortDisplay = $"{(LocalizationService.Instance.IsVietnamese ? "Cổng" : "Port")} {r.PortIndex + 1}",
+                    SlaveId = r.SlaveId,
+                    FunctionCodeDisplay = $"FC{(byte)r.FunctionCode:D2} ({r.FunctionCode})",
+                    AddressDisplay = $"0x{r.StartAddress:X4} ({r.StartAddress})",
+                    LengthDisplay = $"{r.RegCount} regs",
+                    ModeDisplay = r.ReadMode == ModbusReadMode.Cyclic 
+                        ? $"Cyclic ({r.PollIntervalMs}ms)" 
+                        : (LocalizationService.Instance.IsVietnamese ? "Xung sườn lên" : "Rising Edge"),
+                    PinsOrTargetDisplay = r.Pins.Count > 0 
+                        ? $"{r.Pins.Count} Pins ({string.Join(", ", r.Pins.Select(p => p.Label))})" 
+                        : "0 Pins",
+                    Status = r.Enabled ? "Active" : "Disabled",
+                    IsActive = r.Enabled
+                });
+            }
+        }
+
+        if (program.ModbusMasterWriteConfigs != null)
+        {
+            for (int i = 0; i < program.ModbusMasterWriteConfigs.Count; i++)
+            {
+                var w = program.ModbusMasterWriteConfigs[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"MW{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Ghi Modbus (Writer)" : "Modbus Write (Writer)",
+                    PortDisplay = $"{(LocalizationService.Instance.IsVietnamese ? "Cổng" : "Port")} {w.PortIndex + 1}",
+                    SlaveId = w.SlaveId,
+                    FunctionCodeDisplay = $"FC{(byte)w.FunctionCode:D2} ({w.FunctionCode})",
+                    AddressDisplay = $"0x{w.StartAddress:X4} ({w.StartAddress})",
+                    LengthDisplay = $"{w.PointCount} pts",
+                    ModeDisplay = w.TriggerMode == ModbusWriteTriggerMode.Cyclic 
+                        ? $"Cyclic ({w.CyclicIntervalMs}ms)" 
+                        : (LocalizationService.Instance.IsVietnamese ? "Xung kích hoạt" : "Trigger"),
+                    PinsOrTargetDisplay = $"{w.WriteMode}",
+                    Status = w.Enabled ? "Active" : "Disabled",
+                    IsActive = w.Enabled
+                });
+            }
+        }
+
+        if (program.DirectWriteConfigs != null)
+        {
+            for (int i = 0; i < program.DirectWriteConfigs.Count; i++)
+            {
+                var dw = program.DirectWriteConfigs[i];
+                ModbusCommands.Add(new ModbusCommandItemViewModel
+                {
+                    Id = $"DW{i + 1}",
+                    BlockType = LocalizationService.Instance.IsVietnamese ? "Ghi trực tiếp (Direct)" : "Direct Write",
+                    PortDisplay = LocalizationService.Instance.IsVietnamese ? "Nội bộ" : "Internal",
+                    SlaveId = 0,
+                    FunctionCodeDisplay = $"{dw.Mode}",
+                    AddressDisplay = $"{dw.TargetPin}",
+                    LengthDisplay = $"{dw.ChannelCount} ch",
+                    ModeDisplay = LocalizationService.Instance.IsVietnamese ? "Xung kích hoạt" : "Action Trigger",
+                    PinsOrTargetDisplay = $"{dw.TargetPin}",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        MqttServices.Clear();
+        if (program.MqttTelemetryConfigs != null)
+        {
+            for (int i = 0; i < program.MqttTelemetryConfigs.Count; i++)
+            {
+                var pub = program.MqttTelemetryConfigs[i];
+                MqttServices.Add(new MqttServiceItemViewModel
+                {
+                    Id = $"PUB{i + 1}",
+                    ServiceType = LocalizationService.Instance.IsVietnamese ? "Phát dữ liệu (Telemetry)" : "Telemetry Publish",
+                    Topic = pub.Topic,
+                    Qos = (byte)pub.Qos,
+                    ModeDisplay = pub.PublishMode == "Periodic" 
+                        ? $"Cyclic ({pub.IntervalMs}ms)" 
+                        : pub.PublishMode,
+                    PayloadSummary = $"{pub.Fields.Count} JSON fields",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        if (program.MqttSubscriptionConfigs != null)
+        {
+            for (int i = 0; i < program.MqttSubscriptionConfigs.Count; i++)
+            {
+                var sub = program.MqttSubscriptionConfigs[i];
+                MqttServices.Add(new MqttServiceItemViewModel
+                {
+                    Id = $"SUB{i + 1}",
+                    ServiceType = LocalizationService.Instance.IsVietnamese ? "Nhận lệnh (Inbound)" : "Inbound Subscribe",
+                    Topic = sub.Topic,
+                    Qos = (byte)sub.Qos,
+                    ModeDisplay = LocalizationService.Instance.IsVietnamese ? "Bóc tách lệnh" : "Message Ingestion",
+                    PayloadSummary = $"{sub.Pins.Count} output pins",
+                    Status = "Active",
+                    IsActive = true
+                });
+            }
+        }
+
+        FunctionBlocks.Clear();
+        if (program.FunctionBlockTimers != null)
+        {
+            for (int i = 0; i < program.FunctionBlockTimers.Count; i++)
+            {
+                var t = program.FunctionBlockTimers[i];
+                if (t.Mode != SPLC_TimerMode.DISABLED)
+                {
+                    FunctionBlocks.Add(new FunctionBlockItemViewModel
+                    {
+                        Id = $"T{i + 1}",
+                        BlockType = $"{t.Mode} Timer",
+                        PresetDisplay = $"{t.PresetMs} ms",
+                        InputSignal = $"RuleRef #{t.RuleRef}",
+                        OutputSignal = $"Elapsed {t.ElapsedMs}ms",
+                        Status = t.Running ? "Running" : (t.Q ? "Done" : "Idle"),
+                        IsActive = true
+                    });
+                }
+            }
+        }
+
+        if (program.FunctionBlockCounters != null)
+        {
+            for (int i = 0; i < program.FunctionBlockCounters.Count; i++)
+            {
+                var c = program.FunctionBlockCounters[i];
+                if (c.Mode != SPLC_CounterMode.DISABLED)
+                {
+                    FunctionBlocks.Add(new FunctionBlockItemViewModel
+                    {
+                        Id = $"C{i + 1}",
+                        BlockType = $"{c.Mode} Counter",
+                        PresetDisplay = $"{c.PresetValue} pulses",
+                        InputSignal = $"Current {c.CurrentValue}",
+                        OutputSignal = c.Q ? "Done (TRUE)" : "Counting",
+                        Status = c.Q ? "Done" : "Counting",
+                        IsActive = true
+                    });
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(ModbusCommandCount));
+        OnPropertyChanged(nameof(MqttServiceCount));
+        OnPropertyChanged(nameof(FunctionBlockCount));
+        OnPropertyChanged(nameof(SubTabModbusLabel));
+        OnPropertyChanged(nameof(SubTabMqttLabel));
+        OnPropertyChanged(nameof(SubTabFunctionBlocksLabel));
     }
 }

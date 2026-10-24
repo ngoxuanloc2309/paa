@@ -4,8 +4,8 @@
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
         Title="{Binding [DirectWriteDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="980" Height="620"
-        MinWidth="920" MinHeight="560"
+        Width="1020" Height="640"
+        ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Background="#F8FAFC"
@@ -297,6 +297,17 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
+
+                            <!-- Pin Flow Topology Reference Card -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding [DirectWritePinTopologyTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,4" />
+                                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="8,5">
+                                        <TextBlock Text="{Binding PinTopologyDiagram}" FontFamily="Consolas" FontSize="10.5" FontWeight="Bold" Foreground="#006487" HorizontalAlignment="Center" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -453,9 +464,9 @@
                                                         ToolTip="{Binding Tooltip}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="135" />
+                                                            <ColumnDefinition Width="130" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="80" />
+                                                            <ColumnDefinition Width="Auto" MinWidth="65" />
                                                             <ColumnDefinition Width="6" />
                                                             <ColumnDefinition Width="*" />
                                                         </Grid.ColumnDefinitions>
@@ -466,7 +477,7 @@
                                                             <TextBlock Text="{Binding RawHex}" FontFamily="Consolas" FontWeight="Bold" FontSize="10" Foreground="#006487" />
                                                         </Border>
 
-                                                        <TextBlock Grid.Column="4" Text="{Binding Interpretation}" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="4" Text="{Binding Interpretation}" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center" TextWrapping="Wrap" />
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>

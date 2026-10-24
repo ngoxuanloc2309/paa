@@ -1,5 +1,91 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.11.1 / Studio v2.11.1] - 2026-10-24 (MODBUS CONFIG PERSISTENCE, DIALOG ERGONOMICS, VECTOR REMOVE ICONS & PIN DISPLAY SIMPLIFICATION)
+
+### Added & Standardized
+- **1. Bảo Toàn Cấu Hình Modbus Master Khi Tải/Đổi Cổng RS-485 (`ModbusReadConfigDialogViewModel`, `ModbusWriteConfigDialogViewModel`)**:
+  - Triển khai cơ chế đồng bộ in-place (`RefreshAvailablePorts`): Cập nhật danh sách cổng mà không xóa/gán lại toàn bộ collection, bảo toàn 100% `PortIndex`, `ReadMode`, `FunctionCode`, `TriggerMode`.
+  - Khắc phục hoàn toàn tình trạng mất dữ liệu cấu hình và viền đỏ validation ComboBox khi mở lại hộp thoại cấu hình cổng.
+- **2. Chuẩn Hóa Cửa Sổ Cấu Hình & Công Thái Học HMI (ISA-101 / Slate Gray Ergonomics)**:
+  - Loại bỏ hoàn toàn nút Minimize và Maximize (`ResizeMode="NoResize"`) trên toàn bộ 5 hộp thoại cấu hình (`ModbusReadConfigDialogView`, `ModbusWriteConfigDialogView`, `MqttConfigDialogView`, `MqttSubConfigDialogView`, `DirectWriteConfigDialogView`), chỉ giữ lại duy nhất nút đóng **[X]**.
+  - Thiết kế `TableRowDeleteBtnStyle` chuẩn kích thước `25x25px`, vector `Path` đối xứng 4 chiều (`M 3,3 L 13,13 M 13,3 L 3,13`) nằm chính giữa `Canvas (16x16)` & `Viewbox (9x9)`, triệt tiêu hiện tượng lệch subpixel và méo viền nút xóa.
+  - Đồng bộ chiều cao toàn bộ các điều khiển trên dòng cấu hình (`Height="25"` cho TextBox, ComboBox, Type Border, Remove Button), loại bỏ rung giật baseline khi hiển thị.
+- **3. Tối Giản Nhãn Chân Khối Modbus FBD (Nodify Canvas Clarity)**:
+  - Đơn giản hóa `DisplayTitle` và `Connector.Title` của `ModbusPinBindingViewModel` chỉ hiển thị nhãn ngắn gọn của Pin (ví dụ: `Total_kWh`), triệt tiêu xung đột va chạm chữ với các tham số khối ở cột trái trên Canvas.
+  - Lưu giữ thông tin thanh ghi chi tiết (`offset +58`, `VREG_RETAIN...`) trong tooltip `Connector.Description` đa ngữ.
+- **4. Tách Bạch Khối Đọc Modbus và Khối Phát MQTT Qua Thanh Ghi PLC**:
+  - Chuẩn hóa kiến trúc kết nối: `MB_READ` đưa trực tiếp dữ liệu vào các thanh ghi PLC (`VREG`, `VREG_RETAIN`), `MQTT_PUB` trỏ trực tiếp đến thanh ghi trong bảng cấu hình mà không cần dây nối bắc cầu phức tạp.
+- **5. Kiểm Thử & Kiểm Định Độ Tin Cậy (Verification & 100% Pass Rate)**:
+  - Bổ sung bộ kiểm thử `DialogStylingAndWindowResizeTests` và `ModbusReadNodeViewModelTests`.
+  - Khắc phục race condition trong stress test `F3_02_Unplug_During_ActivePolling_TerminatesLoop_RecoversOnReplug`.
+  - Vượt qua toàn bộ 1,483 / 1,483 test case (0 Failed) trên toàn bộ 5 dự án test.
+
+---
+
+## [2.12.0 / Studio v2.8.0] - 2026-10-23 (WIRE PROTOCOL V2.0 CONTRACT HARMONIZATION: TAG REGISTRY 0x0080, ORTHOGONAL RULE FLAGS & MB_WRITE HARDWARE LIMITS)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Bảng Kiểu Dữ Liệu Tag (`0x0080..0x00BF`) & Bit Capability `SPLC_CAP_FLOAT32` (0x0800)**:
+  - Khởi tạo chính thức bit capability phần cứng `SPLC_CAP_FLOAT32 = 0x0800` (Bit 11) trong thanh ghi `0x0A08` (`simpleplc_protocol_v2_0.h`, `DeviceEnums.cs`).
+  - Hiện thực hóa hàm mã hóa/giải mã bảng kiểu tag `RegisterCodec.EncodeTagDataTypes` và `DecodeTagDataTypes` (64 registers = 128 bytes, 2 tags/reg: High Byte = Tag $2k$, Low Byte = Tag $2k+1$).
+  - Tích hợp bước nạp an toàn bảng `0x0080..0x00BF` qua `ModbusChunkPlanner` trong `RuleTableWriter.DeployRulesAsync` trước khi kích hoạt atomic commit `0xA000 = 0xA5A5`.
+  - Mặc định byte `0 = SPLC_DATA_TYPE_NONE` được coi là `INT32` tương thích ngược 100%.
+- **2. Chuẩn Hóa Ranh Giới Giới Hạn Khung Tin `MB_WRITE` (ICD MBM-002 Alignment)**:
+  - Hiệu chỉnh tài liệu ICD MBM-002: Direct Mode giới hạn `1..16` coils/registers (khớp chính xác với mảng vật lý `direct_pins[4]` và bộ đệm RTOS MCU); Channel-Indexed Mode giới hạn `1..64` kênh.
+  - Bổ sung chốt an toàn xác thực 2 cấp: Chặn ngay tại UI Dialog (`ModbusWriteConfigDialogViewModel.cs`) và chặn tại `RuleCompiler.cs` với chẩn đoán lỗi `ERR_MB_WRITE_DIRECT_LIMIT` / `ERR_MB_WRITE_CHANNEL_LIMIT`.
+  - Xác nhận dùng chung bit capability `SPLC_CAP_MODBUS_MASTER = 0x0100` cho cả `MB_READ` và `MB_WRITE`.
+- **3. Phân Tách Trực Giao Cờ `flags` Rule (Orthogonal Rule Flags - Khắc Phục Lỗi Ép Kiểu IEEE-754)**:
+  - Tách trường `flags` (Byte 13 High trong `SPLC_RuleRecord_t`) thành 2 cờ độc lập:
+    * `Bit 0 (0x01)`: `SPLC_RULE_FLAG_TRIGGER_FLOAT` (Quy định ngưỡng `threshold_lo` và `threshold_hi` là số thực Float32 IEEE-754).
+    * `Bit 1 (0x02)`: `SPLC_RULE_FLAG_ACTION_FLOAT` (Quy định tham số tác động `action_param` là số thực Float32 IEEE-754).
+    * `0x03`: `SPLC_RULE_FLAG_FLOAT_DATA` (Legacy alias khi cả Trigger và Action đều là Float32).
+  - Khắc phục triệt để lỗi ép kiểu sai số nhị phân khi Trigger là số nguyên INT32 (ví dụ `AI > 80`) nhưng Action là số thực REAL (ví dụ `SET VREG_REAL = 2.5f`), đảm bảo MCU so sánh nguyên chính xác và ghi đúng giá trị float.
+  - Chuẩn hóa: `ACT_SCALE_TAG` dùng `flags = 0x03`, `INC_COUNTER` chỉ hỗ trợ số nguyên, `ADD_TAG` hỗ trợ số thực khi `flags & 0x02`.
+- **4. Độ Tin Cậy & Bộ Kiểm Thử (Verification & Testing)**:
+  - Bổ sung kiểm thử `RegisterCodecTests` cho bảng `0x0080` và cờ trực giao `SPLC_RuleFlags`.
+  - Bổ sung kiểm thử `RuleMapperTests` cho mixed rule (Trigger Int + Action Float).
+  - Bổ sung kiểm thử `McuReferenceSimulatorTests` đọc/ghi `0x0080` và quét chu kỳ thực tế với mixed rule.
+  - Toàn bộ 1,446 unit tests trên cả 5 project test suite (`Protocol`, `Application`, `Domain`, `Infrastructure`, `Studio`) đều vượt qua 100%.
+
+---
+
+## [2.11.0 / Studio v2.7.0] - 2026-10-23 (MULTI-SUBSYSTEM RULE TABLE HUB, LEFT-ALIGNED INDUSTRIAL ERGONOMICS & TWO-WAY CANVAS DELETION SYNC)
+
+### Added & Standardized
+- **Trung Tâm Quản Trị Luật & Phân Hệ Đa Dịch Vụ 4 Sub-Tabs (`RuleTableView.xaml`, `RuleTableViewModel.cs`)**:
+  - Tái cấu trúc màn hình Rule Table thành trung tâm chỉ huy 4 Sub-Tabs chuyên biệt:
+    1. **SubTab 0 (Logic Rules)**: Tập luật điều khiển tự động hóa (Trigger - Guard - Action), bộ lọc Status Pills (All / Active / Disabled), tìm kiếm thời gian thực, thẻ thanh tra giải mã bytecode 32-byte.
+    2. **SubTab 1 (Modbus Master)**: Tổng hợp toàn bộ lệnh `MB_READ`/`MB_WRITE` từ Canvas (FC01/FC02/FC03/FC04/FC05/FC06/FC15/FC16), phân định cổng RS-485 Port 1..4, Slave ID, Địa chỉ thanh ghi (Hex/Dec), Độ dài, Chế độ đọc/ghi (Periodic/Event), Chân/VREG đích.
+    3. **SubTab 2 (MQTT Services)**: Tổng hợp toàn bộ dịch vụ viễn trắc `MQTT_PUB` và điều khiển `MQTT_SUB`, Topic URI, Cấp độ QoS (0/1/2), Payload Summary và trạng thái kết nối.
+    4. **SubTab 3 (Function Blocks)**: Tổng hợp các khối hàm chuẩn IEC 61131-3 (Bộ định thời TON/TOF/TP/CYCLE, Bộ đếm CTU/CTD, Khối chuẩn hóa Scale), thông số Preset ($PT$, $PV$), Tín hiệu vào/ra.
+- **Cơ Chế Đồng Bộ & Xóa Hai Chiều (Bidirectional Deletion & Canvas Sync)**:
+  - Bổ sung lệnh xóa và callback điều phối: `DeleteModbusCommandCommand`, `DeleteMqttServiceCommand`, `DeleteFunctionBlockCommand`.
+  - Khi xóa một dòng lệnh từ bất kỳ Sub-Tab nào trong Rule Table, hệ thống tự động tìm và xóa node tương ứng trên FBD Canvas, ngắt các dây kết nối liên quan, dọn dẹp Tag Catalog và cập nhật lại bộ nhớ định mức.
+  - Tách bạch cấu hình logic và phần cứng: Các thông số vật lý (Baud rate cổng RS-485, Wi-Fi credentials, MQTT Broker IP) được liên kết trực tiếp tới hộp thoại Device Settings.
+- **Chuẩn Hóa Công Thái Học & Thẩm Mỹ Công Nghiệp (ISA-101 / Slate Gray Ergonomics)**:
+  - **Căn lề trái thẳng hàng tuyệt đối (Left-Aligned Precision)**: Toàn bộ Column Headers và Text Cells trong các bảng đều được căn lề trái chuẩn xác với lề thụt `Margin="10,0"` khớp với `Padding="10,8"` của Header, khắc phục hoàn toàn hiện tượng lệch hàng ziczac.
+  - **Triệt tiêu ô Selection dư thừa (Hidden RowHeader)**: Cấu hình `HeadersVisibility="Column"` và ẩn triệt để `DataGridRowHeader (Width=0, Visibility=Collapsed)` trên toàn bộ hệ thống Studio.
+  - **Chuẩn hóa cột Action đồng bộ (Uniform 120px Action Column)**: Cột Action trên cả 4 Sub-Tabs đều có độ rộng cố định `120px` với 2 nút icon xúc giác nhỏ gọn: `[ ✏️ ]` (*View on Canvas*) và `[ 🗑️ ]` (*Delete*) kèm Tooltip đa ngữ đầy đủ.
+- **Hỗ Trợ Song Ngữ Toàn Diện (Full Bilingual i18n Vi/En)**:
+  - Bản địa hóa 100% các tiêu đề Sub-Tab, tiêu đề cột bảng dữ liệu, thanh thông báo liên kết phần cứng và trạng thái trống (Empty State Cards).
+- **Độ Tin Cậy & Bộ Kiểm Thử (Verification & Testing)**:
+  - Bổ sung unit test `Test_RuleTableViewModel_DeleteSubsystemItems_RemovesFromCollectionAndFiresCallback` trong `SimplePLC.Studio.Tests`.
+  - Bộ kiểm thử 827/827 tests vượt qua 100%, biên dịch sạch 0 cảnh báo, 0 lỗi.
+
+---
+
+## [v2.0.1 / Studio v2.6.1] - 2026-10-22
+### Added
+- **Cycle Timer Function Block (`REPEAT_CYCLE` / `SPLC_TimerMode.CYCLE = 4`)**:
+  - Khối định thời chu kỳ lặp lại tuần hoàn với 2 thông số thời gian độc lập $T_{ON}$ (Thời gian bật) và $T_{OFF}$ (Thời gian nghỉ).
+  - Hỗ trợ lựa chọn pha khởi đầu: Bật trước (`StartWithOn = true`) hoặc Nghỉ trước (`StartWithOn = false`).
+  - Cơ chế bảo vệ ngắt an toàn tức thì (Instant Fail-Safe Cutoff): Khi $In = 0$, $Q$ rớt về $0$ ngay lập tức và $ET$ reset về $0$.
+  - Compiler Step 2b: Phân rã macro thành 4 candidate rules an toàn kết hợp Stable Topological Sort.
+  - Đồng bộ bảng Dedicated Timers MCU (`0x0B00..0x0B3F` mode `CYCLE = 4`) và firmware header `SPLC_TIMER_MODE_CYCLE = 4`.
+  - Hỗ trợ song ngữ đầy đủ Tiếng Việt và Tiếng Anh trên UI Studio, Inspector và Natural Logic Narrative.
+
+---
+
 ## [2.10.0] - 2026-10-22 (HARDWARE-AWARE RS-485 AUTO-SYNC, MULTI-PORT MODBUS MASTER CONFIGURATION & SAFETY GATES)
 
 ### Added & Standardized
@@ -263,7 +349,7 @@
     - `0x0A24`: `DIAG_ERROR_CODE` (RO diagnostic error code: `NONE=0`, `DENIED_FAULT=1`, `LEASE_EXPIRED=2`, `FLASH_CRC_MISMATCH=3`, `INVALID_COMMAND=4`, `RETAIN_DIRTY=5`).
   - Defined mutual-exclusive Tag Store ownership: `ENGINE_RUNNING` (Rule Engine owns tags; Modbus writes to `0x0900` locked by safety interlock) vs `DIAG_CONTROL` (Studio owns tags; FC16 writes enabled).
 - **Dedicated Function Blocks Subsystem (`0x0B00..0x0B7F`)**:
-  - `0x0B00..0x0B3F`: 8 Dedicated Timers (TON, TOF, TP), 8 registers each (16 bytes).
+  - `0x0B00..0x0B3F`: 8 Dedicated Timers (TON, TOF, TP, CYCLE), 8 registers each (16 bytes).
   - `0x0B40..0x0B7F`: 8 Dedicated Counters (CTU, CTD, CTUD), 8 registers each (16 bytes).
 - **Real-Time Clock Subsystem (RTC Clock `0x0810..0x0813`)**:
   - `epoch_utc_s` (u32), `tz_offset_min` (i16), `rtc_flags` (u16: `SYNCED 0x0001`, `HW_PRESENT 0x0002`, `BATTERY_LOW 0x0004`).

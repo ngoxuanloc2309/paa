@@ -1,4 +1,4 @@
-﻿# SimplePLC Engineering Documentation (Tài Liệu Kỹ Thuật Dự Án)
+# SimplePLC Engineering Documentation (Tài Liệu Kỹ Thuật Dự Án)
 
 Chào mừng đến với cổng tài liệu kỹ thuật chính thức của **SimplePLC / SynaptiX IDE Platform V2.0**.  
 Toàn bộ tài liệu được chuẩn hóa, phân loại rõ ràng theo từng lĩnh vực chuyên môn (User Manuals, Architecture, Firmware Specs, Wire Contracts, Solutions & Proposals, Design Audits, Hardware Testing, và Design Presentations).
@@ -39,6 +39,7 @@ Tài liệu hướng dẫn trực quan dành cho Kỹ sư Vận hành, Tích h�
   * 📥 [`MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MQTT_SUB_FUNCTION_BLOCK_USER_MANUAL.md): Khối nhận lệnh MQTT Subscribe (Source Node thường trực, bóc tách JSON, xung Valid, cờ lỗi Err).
   * 🔄 [`MB_READ_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_READ_FUNCTION_BLOCK_USER_MANUAL.md): Khối đọc dữ liệu Modbus RTU Master.
   * 💾 [`MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md): Khối phát lệnh ghi Modbus RTU Master.
+  * 🔄 [`CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL.md`](manuals/CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL.md) | 🇬🇧 [`CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL_EN.md`](manuals/CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL_EN.md): Khối định thời chu kỳ tuần hoàn lặp lại (T_ON/T_OFF độc lập, hỗ trợ đảo luân phiên, còi/đèn chớp và ngắt an toàn fail-safe tức thời).
   * 🔀 [`MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md`](manuals/MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md): Hướng dẫn cấu hình định tuyến đa cổng RS-485 Modbus Master (4 cổng vật lý, phím tắt Ctrl+Shift+B, gán cổng MB_READ/MB_WRITE).
 
 ---
@@ -70,7 +71,7 @@ Tập tài liệu đặc tả giao diện kỹ thuật (Interface Control Docume
 Cổng đặc tả kỹ thuật nền tảng toàn diện và duy nhất dành cho Kỹ sư Firmware MCU & Kỹ sư Hệ thống:
 * 🌟 [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[BẢN ĐẶC TẢ MASTER CHUẨN CỐT LÕI DUY NHẤT]**  
   Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x143F`, `0x9000..0xA001`), tất cả C binary structs, quy chuẩn an toàn Diag `0x0A20`, nhận thức số cổng RS-485 `0x0A0A`, phân vùng đa cổng `0x1400`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe, phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..22 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
-* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.10.0).
+* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.11.1).
 * [`STANDARD_RELEASE_PROCEDURE_SOP.md`](platform/STANDARD_RELEASE_PROCEDURE_SOP.md): Quy trình thao tác chuẩn (SOP) cho việc đóng gói, gắn thẻ phiên bản và phát hành hệ thống.
 * *(Các bản nháp cũ V1.9, V1 Register Map đã được lưu trữ an toàn trong `docs/history/`).*
 

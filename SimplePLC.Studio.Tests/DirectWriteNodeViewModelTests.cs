@@ -174,4 +174,47 @@ public class DirectWriteNodeViewModelTests
         Assert.Equal("Pulses", node.InputConnectors[1].Title);
         Assert.Equal("Freq", node.InputConnectors[2].Title);
     }
+    [Fact]
+    public void NarrativeText_RendersRichDescription_ForAllModes_ViAndEn()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do1, DirectWriteMode.DigitalOutput);
+        var origLang = Services.LocalizationService.Instance.CurrentLanguage;
+
+        try
+        {
+            // Test Vietnamese
+            Services.LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Contains("DO1", node.NarrativeText);
+            Assert.Contains("Ngõ ra số DO", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.PwmDuty;
+            Assert.Contains("PWM", node.NarrativeText);
+            Assert.Contains("1000 Hz", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.PulseTrain;
+            Assert.Contains("PTO", node.NarrativeText);
+            Assert.Contains("20000 Hz", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.AddressableBus;
+            Assert.Contains("Bus chấp hành nối tiếp", node.NarrativeText);
+
+            // Test English
+            Services.LocalizationService.Instance.CurrentLanguage = "en";
+            node.Mode = DirectWriteMode.DigitalOutput;
+            Assert.Contains("Direct Output - Digital Discrete DO", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.PwmDuty;
+            Assert.Contains("PWM Duty Cycle", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.PulseTrain;
+            Assert.Contains("Pulse Train Output PTO", node.NarrativeText);
+
+            node.Mode = DirectWriteMode.AddressableBus;
+            Assert.Contains("Serial Actuator Bus", node.NarrativeText);
+        }
+        finally
+        {
+            Services.LocalizationService.Instance.CurrentLanguage = origLang;
+        }
+    }
 }

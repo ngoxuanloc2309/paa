@@ -237,7 +237,8 @@ public class DirectWriteConfigDialogViewModelTests
                 "DirectWriteSimColMeaningTooltip",
                 "DirectWriteBtnApplyTooltip",
                 "DirectWriteBtnCancelTooltip",
-                "InspectorDirectWriteConfigureTooltip"
+                "InspectorDirectWriteConfigureTooltip",
+                "DirectWritePinTopologyTitle"
             };
 
             foreach (var key in keys)
@@ -251,5 +252,31 @@ public class DirectWriteConfigDialogViewModelTests
         {
             Services.LocalizationService.Instance.CurrentLanguage = originalLang;
         }
+    }
+    [Fact]
+    public void PinTopologyDiagram_ReturnsExpectedFlow_PerModeAndTrigger()
+    {
+        var node = new DirectWriteNodeViewModel(DirectWriteTargetPin.Do0, DirectWriteMode.DigitalOutput)
+        {
+            TriggerMode = DirectWriteTriggerMode.OnTriggerRisingEdge
+        };
+        var vm = new DirectWriteConfigDialogViewModel(node);
+
+        Assert.Contains("[Trig] [In] [En]", vm.PinTopologyDiagram);
+        Assert.Contains("DO0", vm.PinTopologyDiagram);
+        Assert.Contains("[Done] [Err]", vm.PinTopologyDiagram);
+
+        vm.TriggerMode = DirectWriteTriggerMode.Continuous;
+        Assert.DoesNotContain("[Trig]", vm.PinTopologyDiagram);
+        Assert.Contains("[In] [En]", vm.PinTopologyDiagram);
+
+        vm.Mode = DirectWriteMode.PwmDuty;
+        Assert.Contains("[Duty%]", vm.PinTopologyDiagram);
+
+        vm.Mode = DirectWriteMode.PulseTrain;
+        Assert.Contains("[Pulses] [Freq]", vm.PinTopologyDiagram);
+
+        vm.Mode = DirectWriteMode.AddressableBus;
+        Assert.Contains("[Chan] [Param]", vm.PinTopologyDiagram);
     }
 }

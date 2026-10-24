@@ -220,6 +220,45 @@ public class ModbusReadNodeViewModelTests
         Assert.Single(restoredNode.InputConnectors);
         Assert.Equal("Trig", restoredNode.InputConnectors[0].Title);
     }
+
+    [Fact]
+    public void Pin_DisplayTitle_AlwaysEqualsLabel_EvenWhenTargetTagIsAssigned()
+    {
+        var node = new ModbusReadNodeViewModel();
+        var pin = new ModbusPinBindingViewModel
+        {
+            Label = "Total_kWh",
+            RegOffset = 58,
+            DataType = ModbusDataType.Real,
+            Multiplier = 1.0f
+        };
+        node.Pins.Add(pin);
+
+        Assert.Equal("Total_kWh", pin.DisplayTitle);
+        Assert.Equal("Total_kWh", pin.Connector?.Title);
+
+        // Assign a TargetTag
+        var targetTag = new Models.TagModel
+        {
+            Name = "VREG_RETAIN0",
+            DataType = SimplePLC.Domain.Enums.TagDataType.Float32
+        };
+        pin.TargetTag = targetTag;
+
+        // DisplayTitle must remain concise ('Total_kWh'), NOT appending '(➔ VREG_RETAIN0)'
+        Assert.Equal("Total_kWh", pin.DisplayTitle);
+        Assert.Equal("Total_kWh", pin.Connector?.Title);
+
+        // Tooltip description must preserve the register mapping
+        Assert.NotNull(pin.Connector?.Description);
+        Assert.Contains("VREG_RETAIN0", pin.Connector?.Description);
+        Assert.Contains("offset +58", pin.Connector?.Description);
+
+        // Renaming label updates DisplayTitle and Connector.Title immediately
+        pin.Label = "Energy_Total";
+        Assert.Equal("Energy_Total", pin.DisplayTitle);
+        Assert.Equal("Energy_Total", pin.Connector?.Title);
+    }
 }
 
 

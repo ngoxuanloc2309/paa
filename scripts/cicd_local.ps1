@@ -155,12 +155,12 @@ $releaseContent = @"
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
 ## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Nhận thức phần cứng tự động số cổng RS-485 (`0x0A0A`)**: Tự động nhận diện số cổng vật lý MCU trang bị (0, 1, 2, 4 cổng), đồng bộ giao diện ComboBox/Canvas và ẩn các cổng không tồn tại; cơ chế fail-safe fallback về 2 cổng nếu MCU chạy firmware đời cũ.
-- **Cấu hình đa cổng RS-485 Modbus Master (`0x1400..0x143F`, SPLC-SPEC-MBM-003)**: Hỗ trợ cấu hình độc lập 4 cổng RS-485 vật lý (BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName), nạp cấu hình xuống MCU khi Deploy.
-- **Hai tầng chốt an toàn chặn lỗi vượt cổng (Safety Gates)**: Compiler Gate chặn biên dịch với lỗi Error khi khối MB_READ/MB_WRITE trỏ vào cổng không tồn tại; Deploy Gate hủy nạp an toàn với mã lỗi UNSUPPORTED.
-- **Thanh kết nối mục tiêu hợp nhất (Unified Target Connection Bar)**: Hiện đại hóa thanh Toolbar với Segmented Switch (USB CDC vs Modbus TCP), triệt tiêu 100% hiện tượng nhảy xô lệch giao diện (Zero Layout Shift).
-- **Đồng bộ đặc tả kỹ thuật toàn diện & Conformance CHKL-22**: Cập nhật Master Profile Spec, MCU Conformance Spec, C Header nhúng và tài liệu hướng dẫn vận hành.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,417 bài kiểm thử tự động trên toàn giải pháp.
+- **Bảo toàn cấu hình Modbus Master khi chuyển/đổi cổng RS-485**: Tự động đồng bộ in-place danh sách cổng trong hộp thoại cấu hình `MB_READ`/`MB_WRITE`, bảo toàn 100% PortIndex, ReadMode, FunctionCode, TriggerMode và loại bỏ hoàn toàn viền đỏ lỗi validation dropdown.
+- **Chuẩn hóa công thái học cửa sổ cấu hình (NoResize & Clean Close X)**: Khóa phóng to/thu nhỏ trên toàn bộ 5 hộp thoại cấu hình, giữ lại duy nhất nút đóng X thanh thoát; thiết kế lại nút xóa dòng TableRowDeleteBtnStyle với vector Path đối xứng 4 chiều và kích thước 25x25px căn giữa chuẩn xác.
+- **Tối giản nhãn chân Pin khối Modbus FBD**: Tên chân pin trên canvas Nodify chỉ hiển thị tên nhãn ngắn gọn, không bị nối dài chuỗi register gây che khuất tham số khối lân cận; giữ nguyên chi tiết mapping trong tooltip đa ngữ.
+- **Tách bạch kết nối khối Modbus Read và MQTT qua thanh ghi PLC**: Chuẩn hóa luồng dữ liệu Modbus trực tiếp ra các thanh ghi PLC (VREG/VREG_RETAIN) và MQTT trỏ đọc cấu hình trực tiếp từ thanh ghi.
+- **Bộ kiểm thử & Độ bao phủ tự động**: Bổ sung bộ kiểm thử chuyên sâu cho Dialog Styling, Window ResizeMode NoResize và Modbus Pin DisplayTitle.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Khắc phục race condition kiểm thử rút cắm nóng F3_02; vượt qua 100% toàn bộ 1,483 bài kiểm thử tự động trên toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

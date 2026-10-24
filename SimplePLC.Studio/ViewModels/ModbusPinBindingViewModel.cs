@@ -36,7 +36,21 @@ public partial class ModbusPinBindingViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasMultiplierWarning))]
     [NotifyPropertyChangedFor(nameof(MultiplierWarningText))]
     [NotifyPropertyChangedFor(nameof(MultiplierBorderBrush))]
+    [NotifyPropertyChangedFor(nameof(DisplayTitle))]
     private TagModel? _targetTag;
+
+    partial void OnTargetTagChanged(TagModel? value)
+    {
+        if (Connector != null)
+        {
+            Connector.Title = DisplayTitle;
+            Connector.SetBilingualDescription(
+                $"Giá trị đo '{Label}' lưu vào thanh ghi {value?.Name ?? "VREG"} (offset +{RegOffset}, {DataType}, x{Multiplier})",
+                $"Measurement '{Label}' stored in register {value?.Name ?? "VREG"} (offset +{RegOffset}, {DataType}, x{Multiplier})");
+        }
+    }
+
+    public string DisplayTitle => Label;
 
     public bool HasMultiplierWarning =>
         TargetTag != null &&
@@ -63,7 +77,7 @@ public partial class ModbusPinBindingViewModel : ObservableObject
     {
         if (Connector != null)
         {
-            Connector.Title = newValue;
+            Connector.Title = DisplayTitle;
         }
     }
 

@@ -32,6 +32,7 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
     [NotifyPropertyChangedFor(nameof(PinDescription))]
     [NotifyPropertyChangedFor(nameof(PinLoadType))]
+    [NotifyPropertyChangedFor(nameof(PinTopologyDiagram))]
     private DirectWriteTargetPin _targetPin;
 
     [ObservableProperty]
@@ -40,10 +41,12 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsPwmMode))]
     [NotifyPropertyChangedFor(nameof(IsPulseTrainMode))]
     [NotifyPropertyChangedFor(nameof(IsAddressableBusMode))]
+    [NotifyPropertyChangedFor(nameof(PinTopologyDiagram))]
     private DirectWriteMode _mode;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCovMode))]
+    [NotifyPropertyChangedFor(nameof(PinTopologyDiagram))]
     private DirectWriteTriggerMode _triggerMode;
 
     [ObservableProperty]
@@ -152,6 +155,31 @@ public partial class DirectWriteConfigDialogViewModel : ObservableObject
         DirectWriteMode.AddressableBus => LocalizationService.Instance.IsVietnamese ? "Dải LED / Bus chấp hành nối tiếp" : "Addressable LED / Serial Bus",
         _ => "24VDC"
     };
+
+    public string PinTopologyDiagram
+    {
+        get
+        {
+            string pinName = FormatTargetPin(TargetPin);
+            bool hasTrig = TriggerMode == DirectWriteTriggerMode.OnTriggerRisingEdge;
+
+            return Mode switch
+            {
+                DirectWriteMode.DigitalOutput => hasTrig
+                    ? $"[Trig] [In] [En] ➔ {pinName} (24VDC Out) ➔ [Done] [Err]"
+                    : $"[In] [En] ➔ {pinName} (24VDC Out) ➔ [Done] [Err]",
+                DirectWriteMode.PwmDuty => hasTrig
+                    ? $"[Trig] [Duty%] ➔ {pinName} (PWM Out) ➔ [Done] [Err]"
+                    : $"[Duty%] ➔ {pinName} (PWM Out) ➔ [Done] [Err]",
+                DirectWriteMode.PulseTrain => hasTrig
+                    ? $"[Trig] [Pulses] [Freq] ➔ {pinName} (PTO Out) ➔ [Done] [Err]"
+                    : $"[Pulses] [Freq] ➔ {pinName} (PTO Out) ➔ [Done] [Err]",
+                DirectWriteMode.AddressableBus =>
+                    $"[Chan] [Param] ➔ {pinName} (Serial Bus) ➔ [Done] [Err]",
+                _ => $"[In] ➔ {pinName} ➔ [Done] [Err]"
+            };
+        }
+    }
 
     public int MaxDigitalOutputs { get; }
 

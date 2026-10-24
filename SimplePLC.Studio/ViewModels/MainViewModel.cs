@@ -235,15 +235,31 @@ public partial class MainViewModel : ObservableObject
         RuleTableVM = new RuleTableViewModel(TagCatalogVM, (tabIndex) => SelectTab(tabIndex));
         LogicEditorVM = new LogicEditorViewModel(TagCatalogVM, RuleTableVM, (tabIndex) => SelectTab(tabIndex), uiDispatcher: uiDispatcher)
         {
-            GetProjectMetadata = () => CurrentProjectMetadata
+            GetProjectMetadata = () => CurrentProjectMetadata,
+            OpenDeviceModbusPortConfig = () => OpenModbusPortConfig(),
+            OpenDeviceMqttBrokerConfig = () => OpenMqttBrokerConfig()
         };
         RuleTableVM.OnEditRuleRequested = (rule) => LogicEditorVM.LoadRuleToCanvas(rule);
         RuleTableVM.OnNewRuleRequested = () => LogicEditorVM.NewRuleCanvas();
         RuleTableVM.OnUploadFromDeviceRequested = () => UploadFromDeviceAsync();
+        RuleTableVM.OnOpenModbusPortSettingsRequested = () => OpenModbusPortConfig();
+        RuleTableVM.OnOpenMqttBrokerSettingsRequested = () => OpenMqttBrokerConfig();
         BlueprintsVM = new BlueprintsViewModel(LogicEditorVM, () => SelectTab(0));
         DeployVM = new DeployViewModel(deployUseCase: null, RuleTableVM, LogicEditorVM, (tabIndex) => SelectTab(tabIndex), () => CurrentProjectMetadata);
         SimulatorVM = new SimulatorViewModel(TagCatalogVM, RuleTableVM, LogicEditorVM);
-        LiveWatchVM = new LiveWatchViewModel(AppServices.Instance.StateStore);
+        LiveWatchVM = new LiveWatchViewModel(AppServices.Instance.StateStore)
+        {
+            ProjectAliasProvider = tagIndex =>
+            {
+                var tag = TagCatalogVM.AllTags.FirstOrDefault(t => t.Index == tagIndex);
+                return (tag != null && !string.IsNullOrWhiteSpace(tag.Alias) && tag.Alias != "— Không chọn —") ? tag.Alias : null;
+            },
+            ProjectDataTypeProvider = tagIndex =>
+            {
+                var tag = TagCatalogVM.AllTags.FirstOrDefault(t => t.Index == tagIndex);
+                return tag?.DataType;
+            }
+        };
         AiChatVM = new AiChatViewModel(
             () => TagCatalogVM?.AllTags,
             () => RuleTableVM?.Rules,
@@ -1332,6 +1348,11 @@ public partial class MainViewModel : ObservableObject
             6 => SimulatorVM,
             _ => LogicEditorVM
         };
+
+        if (index == 5)
+        {
+            LiveWatchVM.SyncProjectAliases();
+        }
     }
 
     [RelayCommand]
@@ -1978,6 +1999,19 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        if (IsProjectDirty || (LogicEditorVM != null && LogicEditorVM.Nodes.Count > 0))
+        {
+            var res = ShowConfirm(
+                Loc["UploadConfirmOverwriteMessage"],
+                Loc["UploadConfirmOverwriteTitle"],
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question);
+            if (res != System.Windows.MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
         try
         {
             var product = AppServices.Instance.CurrentProduct;
@@ -1986,11 +2020,44 @@ public partial class MainViewModel : ObservableObject
                 TagCatalogVM.SyncWithProductDefinition(product);
             }
 
-            var domainTable = await AppServices.Instance.LoadUseCase.ExecuteAsync(product: product);
+            var (domainTable, fullConfig) = await AppServices.Instance.LoadFullDeviceUseCase.ExecuteAsync(product: product);
+
+            // Đồng bộ cấu hình phần cứng và truyền thông toàn cục vào Phân hệ Thiết bị (Device Layer / ProjectMetadata)
+            if (fullConfig.BrokerConfig != null)
+            {
+                CurrentProjectMetadata.MqttBrokerEnabled = fullConfig.BrokerConfig.Enabled;
+                CurrentProjectMetadata.MqttBrokerHost = fullConfig.BrokerConfig.Host ?? string.Empty;
+                CurrentProjectMetadata.MqttBrokerPort = fullConfig.BrokerConfig.Port > 0 ? fullConfig.BrokerConfig.Port : 1883;
+                CurrentProjectMetadata.MqttTlsEnabled = fullConfig.BrokerConfig.UseTls;
+                CurrentProjectMetadata.MqttCleanSession = fullConfig.BrokerConfig.CleanSession;
+                CurrentProjectMetadata.MqttKeepAliveSec = fullConfig.BrokerConfig.KeepAliveSec > 0 ? fullConfig.BrokerConfig.KeepAliveSec : (ushort)60;
+                CurrentProjectMetadata.MqttClientId = fullConfig.BrokerConfig.ClientId ?? string.Empty;
+                CurrentProjectMetadata.MqttUsername = fullConfig.BrokerConfig.Username ?? string.Empty;
+                CurrentProjectMetadata.MqttPassword = fullConfig.BrokerConfig.Password ?? string.Empty;
+            }
+
+            if (fullConfig.ModbusPorts != null && fullConfig.ModbusPorts.Count > 0)
+            {
+                CurrentProjectMetadata.ModbusPorts = fullConfig.ModbusPorts.Select(p => new ModbusPortConfigModel
+                {
+                    PortIndex = p.PortIndex,
+                    PortName = string.IsNullOrWhiteSpace(p.PortName) ? $"RS-485 #{p.PortIndex + 1}" : p.PortName,
+                    Enabled = p.Enabled,
+                    BaudRate = p.BaudRate > 0 ? p.BaudRate : 9600,
+                    DataBits = p.DataBits > 0 ? p.DataBits : (byte)8,
+                    Parity = p.Parity.ToString(),
+                    StopBits = p.StopBits > 0 ? p.StopBits : (byte)1,
+                    ResponseTimeoutMs = p.ResponseTimeoutMs > 0 ? p.ResponseTimeoutMs : (ushort)200,
+                    InterFrameDelayMs = p.InterFrameDelayMs > 0 ? p.InterFrameDelayMs : (ushort)20,
+                    RetryCount = p.RetryCount
+                }).ToList();
+            }
 
             RuleTableVM.LoadFromDomainRuleTable(domainTable);
-            IsProjectDirty = true;
-            SelectTab(2); // Chuyển sang tab Bảng Rule
+            RuleTableVM.UpdateSubsystemsFromDevice(fullConfig);
+            LogicEditorVM?.ReconstructFullGraphFromDevice(fullConfig, RuleTableVM.Rules);
+            IsProjectDirty = false;
+            SelectTab(2); // Giữ nguyên màn hình Bảng quy tắc (Rule Table), không nhảy sang màn Logic Canvas
 
             ShowNotification(
                 string.Format(Loc["UploadSuccessMessage"], domainTable.Count),

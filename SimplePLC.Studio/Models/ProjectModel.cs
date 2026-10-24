@@ -119,6 +119,12 @@ public class ProjectNodeData
     public double DurationValue { get; set; } = 3.0;
     public string OutputTagName { get; set; } = string.Empty;
 
+    public uint OnTimeMs { get; set; } = 1000;
+
+    public uint OffTimeMs { get; set; } = 1000;
+
+    public bool StartWithOn { get; set; } = true;
+
     // Counter node properties
     public string CounterMode { get; set; } = "CTU"; // "CTU", "CTD"
     public string CvTagName { get; set; } = string.Empty;

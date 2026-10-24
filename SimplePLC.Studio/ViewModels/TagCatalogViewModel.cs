@@ -466,7 +466,7 @@ public partial class TagCatalogViewModel : ObservableObject
             }
         }
 
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && dispatcher.Thread.IsAlive && !dispatcher.HasShutdownStarted && !dispatcher.CheckAccess())
         {
             dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(Apply));
         }
