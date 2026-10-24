@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.ObjectModel;
@@ -99,10 +99,6 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
                 if (System.Text.RegularExpressions.Regex.IsMatch(token, @"^val[1-8](:[0-3])?$"))
                     continue;
                 if (System.Text.RegularExpressions.Regex.IsMatch(token, @"^tag[1-8]$"))
-                    continue;
-                if (Fields.Any(f => string.Equals(f.Key, token, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-                if (Fields.Any(f => f.Tag != null && string.Equals(f.Tag.Name, token, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 return $"Token '{{{token}}}' không được firmware MCU hỗ trợ. Hỗ trợ: {{val1}}..{{val8}}, {{val1:N}}, {{tag1}}..{{tag8}}, {{vals}}, {{ts}}, {{device}}.";

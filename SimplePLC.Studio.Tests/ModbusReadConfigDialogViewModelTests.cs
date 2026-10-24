@@ -323,4 +323,39 @@ public class ModbusReadConfigDialogViewModelTests
         Assert.Equal(4, vm.AvailableFunctionCodes.Count);
         Assert.Contains(vm.AvailablePorts, p => p.Value == 1 && p.DisplayName.Contains("RS485-B"));
     }
+
+    [Fact]
+    public void AvailableTags_ExposesTagCatalogTags_AndInitializesDefaultPinsToNone()
+    {
+        var node = new ModbusReadNodeViewModel();
+        var pin1 = new ModbusPinBindingViewModel { Label = "Pin_1", RegOffset = 0 };
+        node.Pins.Add(pin1);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog);
+
+        Assert.NotNull(vm.AvailableTags);
+        Assert.NotEmpty(vm.AvailableTags);
+        Assert.Same(tagCatalog.AllTags, vm.AvailableTags);
+
+        // pin1 should be defaulted to NONE tag
+        Assert.NotNull(pin1.TargetTag);
+        Assert.Equal(SimplePLC.Domain.Enums.TagKind.None, pin1.TargetTag.Kind);
+        Assert.Null(pin1.ToDto().TargetTagIndex);
+
+        // Adding a new pin should also default TargetTag to NONE
+        vm.AddPin();
+        Assert.Equal(2, node.Pins.Count);
+        var pin2 = node.Pins[1];
+        Assert.NotNull(pin2.TargetTag);
+        Assert.Equal(SimplePLC.Domain.Enums.TagKind.None, pin2.TargetTag.Kind);
+        Assert.Null(pin2.ToDto().TargetTagIndex);
+
+        // Select a real tag for pin1 (e.g. VREG0)
+        var vregTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.VirtualRegister);
+        Assert.NotNull(vregTag);
+        pin1.TargetTag = vregTag;
+
+        Assert.Equal((ushort)vregTag.Index, pin1.ToDto().TargetTagIndex);
+    }
 }

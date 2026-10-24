@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text.Json;
 using SimplePLC.Application.Services;
@@ -403,5 +403,44 @@ public class MqttVisualFieldBuilderTests
         {
             Services.LocalizationService.Instance.CurrentLanguage = originalLang;
         }
+    }
+
+    [Fact]
+    public void RuleCompiler_VisualFieldsMode_GeneratesCustomTemplateWithValPlaceholders()
+    {
+        var compiler = new RuleCompiler();
+        var nodes = new System.Collections.ObjectModel.ObservableCollection<GraphNodeViewModel>();
+        var connections = new System.Collections.ObjectModel.ObservableCollection<ConnectionViewModel>();
+
+        var catalog = new TagCatalogViewModel();
+        var product = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai(
+            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC |
+                                  SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_PUB |
+                                  SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.ETHERNET);
+
+        var node = new MqttPublishNodeViewModel
+        {
+            Topic = "factory/telemetry",
+            PayloadMode = "JSON",
+            IncludeDevice = true,
+            IncludeTimestamp = true,
+            WrapValues = true
+        };
+        node.Fields.Add(new MqttPayloadFieldViewModel { Key = "v_avg" });
+        node.Fields.Add(new MqttPayloadFieldViewModel { Key = "i_avg" });
+        nodes.Add(node);
+
+        var result = compiler.Compile(nodes, connections, catalog, product);
+        Assert.NotNull(result.Program);
+        Assert.Single(result.Program.MqttTelemetryConfigs);
+        var config = result.Program.MqttTelemetryConfigs[0];
+
+        // Should be converted to Custom with standard tokens
+        Assert.Equal("Custom", config.PayloadMode);
+        Assert.Contains("\"v_avg\":{val1}", config.CustomTemplate);
+        Assert.Contains("\"i_avg\":{val2}", config.CustomTemplate);
+        Assert.Contains("\"{device}\"", config.CustomTemplate);
+        Assert.Contains("{ts}", config.CustomTemplate);
+        Assert.DoesNotContain("{v_avg}", config.CustomTemplate);
     }
 }

@@ -135,6 +135,41 @@ public sealed class RuleCompiler : IRuleCompiler
                 telemetryFields.AddRange(mData.Fields);
             }
 
+            string effectiveTemplate = mData.CustomTemplate;
+            string effectivePayloadMode = mData.PayloadMode;
+
+            if (!string.Equals(mData.PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase) && 
+                (telemetryFields.Count > 0 || mData.DataTagIndex.HasValue))
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append('{');
+                if (mData.IncludeDevice) sb.Append("\"device\":\"{device}\",");
+                if (mData.IncludeTimestamp) sb.Append("\"ts\":{ts},");
+                if (mData.WrapValues) sb.Append("\"values\":{");
+
+                if (telemetryFields.Count > 0)
+                {
+                    for (int f = 0; f < telemetryFields.Count; f++)
+                    {
+                        if (f > 0) sb.Append(',');
+                        string k = string.IsNullOrWhiteSpace(telemetryFields[f].Key) ? $"val{f + 1}" : telemetryFields[f].Key;
+                        sb.Append($"\"{k}\":{{val{f + 1}}}");
+                    }
+                }
+                else if (mData.DataTagIndex.HasValue)
+                {
+                    var t = product.FindTagByIndex(mData.DataTagIndex.Value);
+                    string k = t?.Name.ToLowerInvariant() ?? "val";
+                    sb.Append($"\"{k}\":{{val1}}");
+                }
+
+                if (mData.WrapValues) sb.Append('}');
+                sb.Append('}');
+
+                effectiveTemplate = sb.ToString();
+                effectivePayloadMode = "Custom";
+            }
+
             compiledMqttConfigs.Add(new MqttTelemetryConfigDto
             {
                 NodeId = mqttNode.Id,
@@ -144,10 +179,10 @@ public sealed class RuleCompiler : IRuleCompiler
                 IntervalMs = mData.IntervalMs,
                 Qos = mData.Qos,
                 Retain = mData.Retain,
-                PayloadMode = mData.PayloadMode,
+                PayloadMode = effectivePayloadMode,
                 EnTagIndex = enTag,
                 DataTagIndex = mData.DataTagIndex,
-                CustomTemplate = mData.CustomTemplate,
+                CustomTemplate = effectiveTemplate,
                 IncludeDevice = mData.IncludeDevice,
                 IncludeTimestamp = mData.IncludeTimestamp,
                 Fields = telemetryFields

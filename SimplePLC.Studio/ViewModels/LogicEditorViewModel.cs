@@ -425,9 +425,16 @@ public partial class LogicEditorViewModel : ObservableObject
                     mqtt.DataTag.PropertyChanged -= OnTagPropertyChanged;
                     mqtt.DataTag.PropertyChanged += OnTagPropertyChanged;
                 }
+                OnPropertyChanged(nameof(NarrativePreview));
+                NotifyGraphModified();
+                return;
             }
-            OnPropertyChanged(nameof(NarrativePreview));
-            NotifyGraphModified();
+
+            if (e.PropertyName != null && SemanticNodeProperties.Contains(e.PropertyName))
+            {
+                OnPropertyChanged(nameof(NarrativePreview));
+                NotifyGraphModified();
+            }
             return;
         }
 
@@ -644,8 +651,12 @@ public partial class LogicEditorViewModel : ObservableObject
     [ObservableProperty]
     private bool _isGraphDeployed = false;
 
-    public void MarkGraphDeployed()
+    [ObservableProperty]
+    private string? _lastDeployedProgramHash;
+
+    public void MarkGraphDeployed(string? programHash = null)
     {
+        LastDeployedProgramHash = programHash ?? CurrentProgram?.ComputeSemanticHash();
         IsGraphDeployed = true;
         SimGateWarning = string.Empty;
     }
@@ -2296,6 +2307,31 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             scaleNodeFrom.OutputTag = sclActNode.TargetTag;
         }
+        else if (source.Node is ModbusReadNodeViewModel mbReadNode && target.Node is ActionNodeViewModel mbActNode)
+        {
+            var pin = mbReadNode.Pins.FirstOrDefault(p =>
+                p.Connector == source ||
+                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null && mbActNode.TargetTag != null)
+            {
+                pin.TargetTag = mbActNode.TargetTag;
+            }
+        }
+        else if (source.Node is ModbusReadNodeViewModel mbReadToMqtt && target.Node is MqttPublishNodeViewModel mqttTarget)
+        {
+            var pin = mbReadToMqtt.Pins.FirstOrDefault(p =>
+                p.Connector == source ||
+                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+            var targetField = mqttTarget.Fields.FirstOrDefault(fld =>
+                fld.Connector == target ||
+                string.Equals(fld.Key, target.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null && targetField?.Tag != null)
+            {
+                pin.TargetTag = targetField.Tag;
+            }
+        }
     }
 
     internal static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
@@ -2304,11 +2340,11 @@ public partial class LogicEditorViewModel : ObservableObject
         TriggerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Trigger,
         GuardNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Guard,
         ActionNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-        MqttPublishNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-        MqttSubscribeNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-        ModbusReadNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-        ModbusWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
-        DirectWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Action,
+        MqttPublishNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.MqttPublish,
+        MqttSubscribeNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.MqttSubscribe,
+        ModbusReadNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.ModbusRead,
+        ModbusWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.ModbusWrite,
+        DirectWriteNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.DirectWrite,
         TimerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Timer,
         CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
         ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
@@ -2438,6 +2474,31 @@ public partial class LogicEditorViewModel : ObservableObject
         else if (source.Node is ScaleNodeViewModel scaleNodeFrom && target.Node is ActionNodeViewModel sclActNode)
         {
             scaleNodeFrom.OutputTag = sclActNode.TargetTag;
+        }
+        else if (source.Node is ModbusReadNodeViewModel mbReadNode && target.Node is ActionNodeViewModel mbActNode)
+        {
+            var pin = mbReadNode.Pins.FirstOrDefault(p =>
+                p.Connector == source ||
+                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null && mbActNode.TargetTag != null)
+            {
+                pin.TargetTag = mbActNode.TargetTag;
+            }
+        }
+        else if (source.Node is ModbusReadNodeViewModel mbReadToMqtt && target.Node is MqttPublishNodeViewModel mqttTarget)
+        {
+            var pin = mbReadToMqtt.Pins.FirstOrDefault(p =>
+                p.Connector == source ||
+                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+            var targetField = mqttTarget.Fields.FirstOrDefault(fld =>
+                fld.Connector == target ||
+                string.Equals(fld.Key, target.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null && targetField?.Tag != null)
+            {
+                pin.TargetTag = targetField.Tag;
+            }
         }
 
         // Tự động căn thẳng hàng ngang hai khối theo chân cắm nếu độ cao ban đầu tương đối gần nhau (chênh lệch Pin <= 50px)
@@ -3701,6 +3762,10 @@ public partial class LogicEditorViewModel : ObservableObject
                     {
                         binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, p.TargetTagName, StringComparison.OrdinalIgnoreCase));
                     }
+                    if (binding.TargetTag == null && p.TargetTagIndex.HasValue)
+                    {
+                        binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == p.TargetTagIndex.Value);
+                    }
                     mb.Pins.Add(binding);
                 }
             }
@@ -3753,6 +3818,10 @@ public partial class LogicEditorViewModel : ObservableObject
                     if (!string.IsNullOrEmpty(p.TargetTagName))
                     {
                         binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, p.TargetTagName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    if (binding.TargetTag == null && p.TargetTagIndex.HasValue)
+                    {
+                        binding.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == p.TargetTagIndex.Value);
                     }
                     mbw.Pins.Add(binding);
                 }
@@ -4838,6 +4907,14 @@ public partial class LogicEditorViewModel : ObservableObject
                 LastSuccessfulProgram = result.Program;
                 ValidRuleCount = result.Rules.Count > 0 ? result.Rules.Count : totalDeployable;
                 SimGateWarning = string.Empty;
+
+                // Nếu chương trình logic thực thi có cùng mã băm với bản đã nạp gần nhất (LastDeployedProgramHash)
+                // (ví dụ: chỉ thay đổi vị trí các khối X, Y hoặc căn gióng đồ họa), duy trì trạng thái đã nạp!
+                string currentHash = result.Program?.ComputeSemanticHash() ?? string.Empty;
+                if (!string.IsNullOrEmpty(LastDeployedProgramHash) && string.Equals(currentHash, LastDeployedProgramHash, StringComparison.Ordinal))
+                {
+                    IsGraphDeployed = true;
+                }
                 IsSaved = true;
                 SaveStatusMessage = result.Rules.Count > 0
                     ? string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count)
@@ -4945,6 +5022,13 @@ public partial class LogicEditorViewModel : ObservableObject
         LastSuccessfulProgram = result.Program;
         ValidRuleCount = result.Rules.Count > 0 ? result.Rules.Count : totalDeployableExplicit;
         SimGateWarning = string.Empty;
+
+        // Bảo toàn cờ IsGraphDeployed nếu bytecode logic không đổi so với bản đã nạp
+        string currentExplicitHash = result.Program?.ComputeSemanticHash() ?? string.Empty;
+        if (!string.IsNullOrEmpty(LastDeployedProgramHash) && string.Equals(currentExplicitHash, LastDeployedProgramHash, StringComparison.Ordinal))
+        {
+            IsGraphDeployed = true;
+        }
 
         // Chỉ thêm/cập nhật vào Bảng Rule khi người dùng chủ động bấm Compile / Save & Compile
         if (!isAutoSync && _ruleTable != null && result.Program != null)

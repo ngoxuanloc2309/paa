@@ -21,6 +21,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 {
     public ModbusReadNodeViewModel Node { get; }
     public TagCatalogViewModel TagCatalog { get; }
+    public ObservableCollection<SimplePLC.Studio.Models.TagModel> AvailableTags => TagCatalog.AllTags;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -134,6 +135,10 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 
         foreach (var pin in node.Pins)
         {
+            if (pin.TargetTag == null && tagCatalog != null)
+            {
+                pin.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+            }
             pin.PropertyChanged += OnPinPropertyChanged;
         }
 
@@ -325,7 +330,8 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
             RegOffset = nextOffset,
             DataType = ModbusDataType.Int16,
             Endianness = ModbusEndianness.BigEndian_ABCD,
-            Multiplier = 1.0f
+            Multiplier = 1.0f,
+            TargetTag = TagCatalog?.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None)
         };
         newPin.PropertyChanged += OnPinPropertyChanged;
         Node.Pins.Add(newPin);

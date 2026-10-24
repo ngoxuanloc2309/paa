@@ -1,703 +1,772 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using System.Collections.ObjectModel;
-using SimplePLC.Application.Models;
-using SimplePLC.Application.UseCases;
-using SimplePLC.Domain.Models;
-using SimplePLC.Domain.Validation;
-using SimplePLC.Protocol.Dto;
-using SimplePLC.Protocol.Enums;
-using SimplePLC.Studio.Models;
-using SimplePLC.Studio.Services;
-
-namespace SimplePLC.Studio.ViewModels;
-
-public enum StepStatus { Pending, InProgress, Success, Failed }
-
-public partial class DeployStepItem : ObservableObject
-{
-    [ObservableProperty] private int _index;
-    [ObservableProperty] private string _title = string.Empty;
-    [ObservableProperty] private string _detail = string.Empty;
-    [ObservableProperty] private StepStatus _status = StepStatus.Pending;
-}
-
-public partial class DeployViewModel : ObservableObject
-{
-    private readonly DeployRulesUseCase? _injectedDeployUseCase;
-    private readonly RuleTableViewModel? _ruleTableVM;
-    private readonly LogicEditorViewModel? _logicEditorVM;
-    private readonly Action<int>? _navigateTab;
-    private readonly Func<ProjectMetadata>? _getMetadata;
-
-    public ObservableCollection<DeployStepItem> Steps { get; } = new();
-
-    [ObservableProperty] private int _progressPercent;
-    [ObservableProperty] private bool _isDeploying;
-    [ObservableProperty] private bool _isSuccess;
-    [ObservableProperty] private DeployState _deployState = DeployState.Idle;
-    [ObservableProperty] private string _preflightSummary = "";
-    [ObservableProperty] private string _statusMessage = "";
-    [ObservableProperty] private string _statusTitle = "";
-    [ObservableProperty] private string _statusSubtitle = "";
-    [ObservableProperty] private string _stepperBadgeText = "Chờ bắt đầu";
-    [ObservableProperty] private bool _showProgressBar;
-    [ObservableProperty] private string _actionButtonText = "Bắt Đầu Nạp Xuống Thiết Bị";
-    [ObservableProperty] private string _consoleLog = "--- STAGED MODBUS DEPLOYMENT (R10) ---\n";
-    [ObservableProperty] private string _deviceInfoBadge = "SynaptiX Controller · RS-485/USB · Chưa kết nối";
-    [ObservableProperty] private string _manifestRuleSummary = "";
-    [ObservableProperty] private int _manifestRuleCount;
-    [ObservableProperty] private string _manifestRuleCountText = "";
-    [ObservableProperty] private long _lastDeployDurationMs;
-    [ObservableProperty] private bool _hasValidRules;
-    [ObservableProperty] private bool _isDeviceConnected;
-
-    public bool CanDeploy => !IsDeploying
-        && (
-            // Kiểm tra kết nối nếu đang trong môi trường ứng dụng thực tế
-            !AppServices.Instance.SessionManager.HasActiveSession && !AppServices.Instance.ModbusClient.IsConnected
-                ? false 
-                : true
-        )
-        && (_logicEditorVM == null || _logicEditorVM.CompileState == CompileState.Valid)
-        && (
-            (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0) ||
-            (_logicEditorVM?.CurrentProgram != null)
-        );
-
-    public DeployViewModel(
-        DeployRulesUseCase? deployUseCase = null, 
-        RuleTableViewModel? ruleTableVM = null,
-        LogicEditorViewModel? logicEditorVM = null,
-        Action<int>? navigateTab = null,
-        Func<ProjectMetadata>? getMetadata = null)
-    {
-        _injectedDeployUseCase = deployUseCase;
-        _ruleTableVM = ruleTableVM;
-        _logicEditorVM = logicEditorVM;
-        _navigateTab = navigateTab;
-        _getMetadata = getMetadata;
-
-        if (_ruleTableVM != null)
-        {
-            _ruleTableVM.Rules.CollectionChanged += OnRulesCollectionChanged;
-            foreach (var rule in _ruleTableVM.Rules)
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
+using SimplePLC.Application.Models;
+using SimplePLC.Application.UseCases;
+using SimplePLC.Domain.Models;
+using SimplePLC.Domain.Validation;
+using SimplePLC.Protocol.Dto;
+using SimplePLC.Protocol.Enums;
+using SimplePLC.Studio.Models;
+using SimplePLC.Studio.Services;
+
+namespace SimplePLC.Studio.ViewModels;
+
+public enum StepStatus { Pending, InProgress, Success, Failed }
+
+public partial class DeployStepItem : ObservableObject
+{
+    [ObservableProperty] private int _index;
+    [ObservableProperty] private string _title = string.Empty;
+    [ObservableProperty] private string _detail = string.Empty;
+    [ObservableProperty] private StepStatus _status = StepStatus.Pending;
+}
+
+public partial class DeployViewModel : ObservableObject
+{
+    private readonly DeployRulesUseCase? _injectedDeployUseCase;
+    private readonly RuleTableViewModel? _ruleTableVM;
+    private readonly LogicEditorViewModel? _logicEditorVM;
+    private readonly Action<int>? _navigateTab;
+    private readonly Func<ProjectMetadata>? _getMetadata;
+
+    public ObservableCollection<DeployStepItem> Steps { get; } = new();
+
+    [ObservableProperty] private int _progressPercent;
+    [ObservableProperty] private bool _isDeploying;
+    [ObservableProperty] private bool _isSuccess;
+    [ObservableProperty] private DeployState _deployState = DeployState.Idle;
+    [ObservableProperty] private string _preflightSummary = "";
+    [ObservableProperty] private string _statusMessage = "";
+    [ObservableProperty] private string _statusTitle = "";
+    [ObservableProperty] private string _statusSubtitle = "";
+    [ObservableProperty] private string _stepperBadgeText = "Chờ bắt đầu";
+    [ObservableProperty] private bool _showProgressBar;
+    [ObservableProperty] private string _actionButtonText = "Bắt Đầu Nạp Xuống Thiết Bị";
+    [ObservableProperty] private string _consoleLog = "--- STAGED MODBUS DEPLOYMENT (R10) ---\n";
+    [ObservableProperty] private string _deviceInfoBadge = "SynaptiX Controller · RS-485/USB · Chưa kết nối";
+    [ObservableProperty] private string _manifestRuleSummary = "";
+    [ObservableProperty] private int _manifestRuleCount;
+    [ObservableProperty] private string _manifestRuleCountText = "";
+    [ObservableProperty] private long _lastDeployDurationMs;
+    [ObservableProperty] private bool _hasValidRules;
+    [ObservableProperty] private bool _isDeviceConnected;
+
+    public bool CanDeploy => !IsDeploying
+        && (
+            // Kiểm tra kết nối nếu đang trong môi trường ứng dụng thực tế
+            !AppServices.Instance.SessionManager.HasActiveSession && !AppServices.Instance.ModbusClient.IsConnected
+                ? false 
+                : true
+        )
+        && (_logicEditorVM == null || _logicEditorVM.CompileState == CompileState.Valid)
+        && (
+            (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0) ||
+            (_logicEditorVM?.CurrentProgram != null)
+        );
+
+    public DeployViewModel(
+        DeployRulesUseCase? deployUseCase = null, 
+        RuleTableViewModel? ruleTableVM = null,
+        LogicEditorViewModel? logicEditorVM = null,
+        Action<int>? navigateTab = null,
+        Func<ProjectMetadata>? getMetadata = null)
+    {
+        _injectedDeployUseCase = deployUseCase;
+        _ruleTableVM = ruleTableVM;
+        _logicEditorVM = logicEditorVM;
+        _navigateTab = navigateTab;
+        _getMetadata = getMetadata;
+
+        if (_ruleTableVM != null)
+        {
+            _ruleTableVM.Rules.CollectionChanged += OnRulesCollectionChanged;
+            foreach (var rule in _ruleTableVM.Rules)
+            {
+                rule.PropertyChanged += OnRulePropertyChanged;
+            }
+        }
+
+        if (_logicEditorVM != null)
+        {
+            _logicEditorVM.PropertyChanged += OnLogicEditorPropertyChanged;
+        }
+
+        // Theo dõi thay đổi trạng thái kết nối để cập nhật CanDeploy
+        AppServices.Instance.SessionManager.SessionChanged += OnSessionChanged;
+
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+        InitializeSteps();
+        UpdateDeviceInfo(AppServices.Instance.SessionManager.HasActiveSession ? AppServices.Instance.SessionManager.CurrentSession : null);
+        UpdatePreflightSummary();
+    }
+
+    private void OnSessionChanged(SimplePLC.Application.Abstractions.IDeviceSession? session)
+    {
+        void Update()
+        {
+            UpdateDeviceInfo(session);
+            UpdatePreflightSummary();
+            OnPropertyChanged(nameof(CanDeploy));
+            StartDeployCommand.NotifyCanExecuteChanged();
+            PrimaryActionCommand.NotifyCanExecuteChanged();
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(Update);
+        }
+        else
+        {
+            Update();
+        }
+    }
+
+    public void UpdateDeviceInfo(SimplePLC.Application.Abstractions.IDeviceSession? session)
+    {
+        var active = session ?? (AppServices.Instance.SessionManager.HasActiveSession ? AppServices.Instance.SessionManager.CurrentSession : null);
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        if (active?.Descriptor != null)
+        {
+            var d = active.Descriptor;
+            string port = active.Endpoint is UsbCdcEndpoint usb ? usb.PortName : (active.Endpoint?.ToString() ?? "COM");
+            DeviceInfoBadge = $"SynaptiX Controller · RS-485/USB ({port}) · {(isVi ? "Trực tuyến" : "Online")}";
+        }
+        else
+        {
+            DeviceInfoBadge = isVi
+                ? "SynaptiX Controller · RS-485/USB · Chưa kết nối"
+                : "SynaptiX Controller · RS-485/USB · Disconnected";
+        }
+    }
+
+    private void OnLanguageChanged()
+    {
+        UpdateDeviceInfo(null);
+        UpdatePreflightSummary();
+        InitializeSteps();
+    }
+
+    private void OnRulesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (RuleItemModel r in e.OldItems)
+                r.PropertyChanged -= OnRulePropertyChanged;
+        }
+        if (e.NewItems != null)
+        {
+            foreach (RuleItemModel r in e.NewItems)
+                r.PropertyChanged += OnRulePropertyChanged;
+        }
+
+        ResetDeployStateOnConfigChange();
+    }
+
+    private void OnRulePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Khi lưu sơ đồ (Save / Ctrl+S), SourceNodes (chứa X, Y) trên RuleItemModel bị cập nhật.
+        // Bỏ qua các thay đổi tọa độ thuần túy giao diện; bảo toàn trạng thái nạp nếu mã băm logic không đổi.
+        if (e.PropertyName is nameof(RuleItemModel.SourceNodes) or nameof(RuleItemModel.SourceConnections))
+        {
+            return;
+        }
+
+        if (IsSuccess && _logicEditorVM?.CurrentProgram != null && !string.IsNullOrEmpty(_logicEditorVM.LastDeployedProgramHash))
+        {
+            string currentHash = _logicEditorVM.CurrentProgram.ComputeSemanticHash();
+            if (string.Equals(currentHash, _logicEditorVM.LastDeployedProgramHash, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        ResetDeployStateOnConfigChange();
+    }
+
+    private void OnLogicEditorPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(LogicEditorViewModel.CompileState) or nameof(LogicEditorViewModel.CurrentProgram))
+        {
+            // Nếu chương trình logic thực thi có cùng mã băm với bản đã nạp gần nhất (ví dụ: chỉ thay đổi vị trí các khối X, Y),
+            // không reset trạng thái nạp thành công!
+            if (IsSuccess && _logicEditorVM?.CurrentProgram != null && !string.IsNullOrEmpty(_logicEditorVM.LastDeployedProgramHash))
+            {
+                string currentHash = _logicEditorVM.CurrentProgram.ComputeSemanticHash();
+                if (string.Equals(currentHash, _logicEditorVM.LastDeployedProgramHash, StringComparison.Ordinal))
+                {
+                    UpdatePreflightSummary();
+                    return;
+                }
+            }
+
+            ResetDeployStateOnConfigChange();
+        }
+    }
+
+    private void ResetDeployStateOnConfigChange()
+    {
+        if (IsSuccess)
+        {
+            IsSuccess = false;
+            DeployState = DeployState.Idle;
+            InitializeSteps();
+        }
+        UpdatePreflightSummary();
+        OnPropertyChanged(nameof(CanDeploy));
+        StartDeployCommand.NotifyCanExecuteChanged();
+        PrimaryActionCommand.NotifyCanExecuteChanged();
+    }
+
+    public void UpdatePreflightSummary()
+    {
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        bool isConnected = AppServices.Instance.SessionManager.HasActiveSession || AppServices.Instance.ModbusClient.IsConnected;
+        IsDeviceConnected = isConnected;
+
+        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
+        {
+            HasValidRules = false;
+            ManifestRuleCount = 0;
+            PreflightSummary = _logicEditorVM.CompileState switch
+            {
+                CompileState.Stale => LocalizationService.Tr("DeployPreflightStale"),
+                CompileState.Invalid => LocalizationService.Tr("DeployPreflightInvalid"),
+                _ => LocalizationService.Tr("DeployPreflightNone")
+            };
+            StatusTitle = isVi ? "Chương Trình Logic Chưa Hợp Lệ" : "Invalid Logic Program";
+            StatusSubtitle = PreflightSummary;
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
+            ActionButtonText = isVi ? "Mở Đồ Thị Logic Để Sửa" : "Open Logic Editor";
+            ShowProgressBar = false;
+            return;
+        }
+
+        int ruleCount = 0;
+        string ruleDesc = "";
+        int fbCount = _logicEditorVM?.CurrentProgram != null 
+            ? (_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count + _logicEditorVM.CurrentProgram.FunctionBlockCounters.Count) 
+            : 0;
+        int mqttCount = (_logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0)
+            + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
+        int modbusCount = (_logicEditorVM?.CurrentProgram?.ModbusMasterConfigs?.Count ?? 0)
+            + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
+        int directWriteCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
+
+        if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
+        {
+            ruleCount = _ruleTableVM.Rules.Count;
+            int enabledCount = _ruleTableVM.Rules.Count(r => r.Enabled);
+            var firstRule = _ruleTableVM.Rules.FirstOrDefault(r => r.Enabled) ?? _ruleTableVM.Rules.FirstOrDefault();
+            if (firstRule != null)
+            {
+                ruleDesc = $"{firstRule.Id} ({firstRule.TriggerSummary} ➔ {firstRule.ActionSummary})";
+            }
+            HasValidRules = enabledCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
+            ManifestRuleCount = enabledCount;
+            ManifestRuleSummary = ruleDesc;
+            string extraDesc = "";
+            if (fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0)
+            {
+                extraDesc = isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)";
+            }
+            string baseSummary = isVi
+                ? $"Sẵn sàng nạp: {ruleCount} quy tắc trong Bảng Rule ({enabledCount} đang bật){extraDesc}"
+                : $"Ready to deploy: {ruleCount} rules from Rule Table ({enabledCount} enabled){extraDesc}";
+
+            PreflightSummary = isConnected
+                ? baseSummary + "."
+                : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
+        }
+        else if (_logicEditorVM?.CurrentProgram != null)
+        {
+            ruleCount = _logicEditorVM.CurrentProgram.RuleCount;
+            HasValidRules = ruleCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
+            ManifestRuleCount = ruleCount;
+
+            if ((fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0) && ruleCount == 0)
+            {
+                ruleDesc = isVi
+                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)"
+                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)";
+                string baseSummary = isVi
+                    ? $"Sẵn sàng nạp {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks xuống thiết bị."
+                    : $"Ready to deploy {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks to device.";
+                PreflightSummary = isConnected
+                    ? baseSummary
+                    : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
+            }
+            else
+            {
+                ruleDesc = isVi ? $"{ruleCount} quy tắc từ bản vẽ logic" : $"{ruleCount} rules from logic canvas";
+                string baseSummary = string.Format(LocalizationService.Tr("DeployPreflightReady"), ruleCount);
+                if (fbCount > 0 || mqttCount > 0 || modbusCount > 0)
+                {
+                    baseSummary += isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)";
+                }
+                PreflightSummary = isConnected
+                    ? baseSummary
+                    : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
+            }
+            ManifestRuleSummary = ruleDesc;
+        }
+        else
+        {
+            HasValidRules = false;
+            ManifestRuleCount = 0;
+            ManifestRuleSummary = "";
+            PreflightSummary = LocalizationService.Tr("DeployPreflightNone");
+        }
+
+        ManifestRuleCountText = isVi
+            ? $"{ManifestRuleCount} quy tắc (Đang bật)"
+            : $"{ManifestRuleCount} rule(s) (Enabled)";
+
+        if (IsSuccess)
+        {
+            StatusTitle = isVi ? "Đã Nạp Thành Công Xuống Thiết Bị!" : "✓ Deployed Successfully to Device!";
+            StatusSubtitle = isVi
+                ? (LastDeployDurationMs > 0
+                    ? $"Thiết bị đang chạy logic mới · Thời gian nạp: {LastDeployDurationMs}ms · Sẵn sàng nạp tiếp."
+                    : "Thiết bị đang chạy cấu hình mới · Sẵn sàng nạp tiếp.")
+                : (LastDeployDurationMs > 0
+                    ? $"Device is running updated logic · Deployed in {LastDeployDurationMs}ms · Ready for next deploy."
+                    : "Device is running updated logic safely · Ready for next deploy.");
+            StepperBadgeText = isVi ? "Hoàn thành 100%" : "Completed 100%";
+            ActionButtonText = isVi ? "⚡ Bắt Đầu Nạp Xuống Thiết Bị" : "⚡ Start Deploy to Device";
+            ShowProgressBar = true;
+        }
+        else if (IsDeploying)
+        {
+            StatusTitle = isVi ? "Đang Nạp Xuống Thiết Bị..." : "Deploying to Device...";
+            StatusSubtitle = isVi ? "Vui lòng không ngắt kết nối trong khi nạp." : "Please do not disconnect during deployment.";
+            StepperBadgeText = isVi ? "Đang nạp..." : "Deploying...";
+            ShowProgressBar = true;
+        }
+        else if (!isConnected)
+        {
+            StatusTitle = isVi ? "Chưa Kết Nối Thiết Bị" : "Device Disconnected";
+            StatusSubtitle = isVi ? "Vui lòng kết nối cổng COM ở thanh công cụ phía trên trước khi nạp." : "Please connect COM port in the top bar before deploying.";
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
+            ActionButtonText = isVi ? "Chưa Kết Nối Thiết Bị" : "Device Disconnected";
+            ShowProgressBar = false;
+        }
+        else if (!HasValidRules)
+        {
+            StatusTitle = isVi ? "Chưa Có Quy Tắc Hợp Lệ Để Nạp" : "No Valid Rules to Deploy";
+            StatusSubtitle = isVi ? "Bảng Rule hiện tại chưa có quy tắc nào đang được bật." : "Rule Table has no active rules.";
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
+            ActionButtonText = isVi ? "Mở Bảng Rule Để Thêm Quy Tắc" : "Open Rule Table";
+            ShowProgressBar = false;
+        }
+        else
+        {
+            StatusTitle = isVi ? $"Sẵn Sàng Nạp {ManifestRuleCount} Quy Tắc Xuống Thiết Bị" : $"Ready to Deploy {ManifestRuleCount} Rules to Device";
+            StatusSubtitle = string.IsNullOrEmpty(ruleDesc)
+                ? (isVi ? "Nạp an toàn không ngắt quãng (Zero-Downtime Atomic Staging)" : "Zero-downtime atomic staging")
+                : (isVi ? $"Quy tắc: {ruleDesc} · Nạp an toàn không ngắt quãng" : $"Rules: {ruleDesc} · Bumpless transfer");
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Sẵn sàng" : "Ready";
+            ActionButtonText = isVi ? "⚡ Bắt Đầu Nạp Xuống Thiết Bị" : "⚡ Start Deploy to Device";
+            ShowProgressBar = false;
+        }
+    }
+
+    private DeployRulesUseCase GetDeployUseCase() =>
+        AppServices.Instance.SessionManager.HasActiveSession
+            ? AppServices.Instance.DeployUseCase
+            : (_injectedDeployUseCase ?? AppServices.Instance.DeployUseCase);
+
+    private void InitializeSteps()
+    {
+        Steps.Clear();
+        Steps.Add(new() { Index = 1, Title = LocalizationService.Tr("DeployStep1Title"), Detail = LocalizationService.Tr("DeployStep1Detail"), Status = StepStatus.Pending });
+        Steps.Add(new() { Index = 2, Title = LocalizationService.Tr("DeployStep2Title"), Detail = LocalizationService.Tr("DeployStep2Detail"), Status = StepStatus.Pending });
+        Steps.Add(new() { Index = 3, Title = LocalizationService.Tr("DeployStep3Title"), Detail = LocalizationService.Tr("DeployStep3Detail"), Status = StepStatus.Pending });
+        Steps.Add(new() { Index = 4, Title = LocalizationService.Tr("DeployStep4Title"), Detail = LocalizationService.Tr("DeployStep4Detail"), Status = StepStatus.Pending });
+        Steps.Add(new() { Index = 5, Title = LocalizationService.Tr("DeployStep5Title"), Detail = LocalizationService.Tr("DeployStep5Detail"), Status = StepStatus.Pending });
+    }
+
+    private void AppendLog(string message) => ConsoleLog += $"[{DateTime.Now:HH:mm:ss}] {message}\n";
+
+    [RelayCommand]
+    public void PrimaryAction()
+    {
+        if (CanDeploy)
+        {
+            _ = StartDeployAsync();
+        }
+        else if (!HasValidRules)
+        {
+            NavigateToRules();
+        }
+        else if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
+        {
+            NavigateToLogicEditor();
+        }
+    }
+
+    [RelayCommand]
+    public void NavigateToRules() => _navigateTab?.Invoke(2);
+
+    [RelayCommand]
+    public void NavigateToLogicEditor() => _navigateTab?.Invoke(0);
+
+    [RelayCommand]
+    public void NavigateToLiveWatch() => _navigateTab?.Invoke(5);
+
+    [RelayCommand]
+    public void ClearLog() => ConsoleLog = LocalizationService.Instance.IsVietnamese ? "// Đã xóa nhật ký.\n" : "// Log cleared.\n";
+
+    [RelayCommand]
+    public void CopyLog()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(ConsoleLog))
+            {
+                System.Windows.Clipboard.SetText(ConsoleLog);
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeploy))]
+    public async Task StartDeployAsync()
+    {
+        if (IsDeploying) return;
+
+        // Strict Pre-flight Safety Gate: If logic editor is present and invalid/stale, abort
+        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
+        {
+            DeployState = DeployState.Failed;
+            UpdatePreflightSummary();
+            StatusMessage = PreflightSummary;
+            AppendLog(string.Format(LocalizationService.Tr("DeployLogStop"), PreflightSummary));
+            return;
+        }
+
+        IsDeploying = true;
+        IsSuccess = false;
+        DeployState = DeployState.Preparing;
+        ProgressPercent = 0;
+        InitializeSteps();
+        ConsoleLog = string.Empty;
+        AppendLog(LocalizationService.Tr("DeployLogStart"));
+        UpdatePreflightSummary();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            var services = AppServices.Instance;
+            var client = services.ModbusClient;
+
+            // Check connection via SessionManager and ModbusClient
+            if (!services.SessionManager.HasActiveSession && !client.IsConnected)
+            {
+                Steps[0].Status = StepStatus.Failed;
+                DeployState = DeployState.Failed;
+                PreflightSummary = LocalizationService.Tr("DeployLogNoDevice");
+                StatusMessage = PreflightSummary;
+                AppendLog(LocalizationService.Tr("DeployLogNoConn"));
+                IsDeploying = false;
+                UpdatePreflightSummary();
+                return;
+            }
+
+            // Step 1: Pre-flight Domain Validation
+            Steps[0].Status = StepStatus.InProgress;
+            ProgressPercent = 15;
+            AppendLog(LocalizationService.Tr("DeployLogPreflight"));
+            await Task.Delay(60).ConfigureAwait(true);
+
+            var product = services.CurrentProduct;
+            RuleTable ruleTable;
+            IReadOnlyList<FbTimerRecordDto>? fbTimers = null;
+            IReadOnlyList<FbCounterRecordDto>? fbCounters = null;
+            IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null;
+            IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null;
+            IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null;
+
+            // Luôn trích xuất Function Blocks (Timer, Counter), MQTT và Modbus Master blocks từ Logic Editor nếu có
+            if (_logicEditorVM?.CurrentProgram != null)
+            {
+                fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
+                fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
+                mqttConfigs = _logicEditorVM.CurrentProgram.MqttTelemetryConfigs;
+                mqttSubConfigs = _logicEditorVM.CurrentProgram.MqttSubscriptionConfigs;
+                modbusMasterConfigs = _logicEditorVM.CurrentProgram.ModbusMasterConfigs;
+            }
+
+            // Trích xuất Rule Table: Ưu tiên bảng rule đã biên tập trong Rule Table, hoặc fallback về Logic Editor
+            if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
+            {
+                ruleTable = _ruleTableVM.ToDomainRuleTable(product);
+            }
+            else if (_logicEditorVM?.CurrentProgram != null)
+            {
+                ruleTable = _logicEditorVM.CurrentProgram.ToRuleTable();
+            }
+            else
+            {
+                ruleTable = new RuleTable();
+            }
+
+            int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
+            int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
+            int totalModbus = (modbusMasterConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
+            int totalDirectWrite = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
+            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0)
+            {
+                Steps[0].Status = StepStatus.Failed;
+                DeployState = DeployState.Failed;
+                PreflightSummary = LocalizationService.Instance.IsVietnamese
+                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus và Direct Write đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
+                    : "Cannot deploy: Rule table, Function Blocks, MQTT blocks, Modbus, and Direct Write are empty. Please add at least one rule or function block.";
+                StatusMessage = PreflightSummary;
+                AppendLog(PreflightSummary);
+                IsDeploying = false;
+                UpdatePreflightSummary();
+                return;
+            }
+
+            var validationResult = RuleTableValidator.Validate(ruleTable);
+            if (!validationResult.IsValid)
+            {
+                Steps[0].Status = StepStatus.Failed;
+                DeployState = DeployState.Failed;
+                var errStr = string.Join("; ", validationResult.Errors.Select(e => e.Message));
+                PreflightSummary = string.Format(LocalizationService.Tr("DeployLogValidErr"), errStr);
+                StatusMessage = PreflightSummary;
+                AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightFail"), errStr));
+                IsDeploying = false;
+                UpdatePreflightSummary();
+                return;
+            }
+
+            Steps[0].Status = StepStatus.Success;
+            ProgressPercent = 30;
+            AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
+            var meta = _getMetadata?.Invoke();
+            if (totalFbs > 0 || totalMqtt > 0 || totalModbus > 0 || totalDirectWrite > 0)
+            {
+                bool isVi = LocalizationService.Instance.IsVietnamese;
+                AppendLog(isVi
+                    ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks."
+                    : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks.");
+
+                int subCount = mqttSubConfigs?.Count ?? 0;
+                if (subCount > 0)
+                {
+                    if (product != null && product.SupportsMqttSubscribe)
+                    {
+                        AppendLog(isVi
+                            ? $"[MQTT SUB] Phát hiện {subCount} khối Subscribe -> Nạp cấu hình Inbound xuống phân vùng 0x0D80 của MCU."
+                            : $"[MQTT SUB] Detected {subCount} Subscribe block(s) -> Deploying inbound config to MCU partition 0x0D80.");
+                    }
+                    else
+                    {
+                        AppendLog(isVi
+                            ? $"[MQTT SUB] {subCount} khối Subscribe đang vận hành ở chế độ Host Simulation & Sandbox (MCU chưa kích hoạt cờ 0x0020)."
+                            : $"[MQTT SUB] {subCount} Subscribe block(s) running in Host Simulation & Sandbox mode (MCU flag 0x0020 inactive).");
+                    }
+                }
+
+                int mbWriteCount = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0;
+                if (mbWriteCount > 0)
+                {
+                    AppendLog(isVi
+                        ? $"[MB WRITE] Phát hiện {mbWriteCount} khối Modbus Write -> Nạp cấu hình xuống phân vùng 0x1100 của MCU."
+                        : $"[MB WRITE] Detected {mbWriteCount} Modbus Write block(s) -> Deploying config to MCU partition 0x1100.");
+                }
+
+                int dwCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
+                if (dwCount > 0)
+                {
+                    AppendLog(isVi
+                        ? $"[PULSE_OUT] Phát hiện {dwCount} khối phát xung / chấp hành -> Nạp cấu hình xuống phân vùng 0x1200 của MCU."
+                        : $"[PULSE_OUT] Detected {dwCount} Pulse Output block(s) -> Deploying config to MCU partition 0x1200.");
+                }
+
+                if (product != null && !product.SupportsMqttPublish && (mqttConfigs?.Count > 0 || meta?.MqttBrokerEnabled == true))
+                {
+                    AppendLog(isVi
+                        ? $"[Cảnh báo Phần cứng] Thiết bị '{product.ProductName}' không hỗ trợ MQTT Telemetry (Thiếu cờ SPLC_CAP_MQTT_PUB tại 0x0A08). Bỏ qua nạp cấu hình MQTT."
+                        : $"[Hardware Warning] Device '{product.ProductName}' does not support MQTT Telemetry (Missing SPLC_CAP_MQTT_PUB at 0x0A08). Skipping MQTT configuration.");
+                }
+            }
+            await Task.Delay(60).ConfigureAwait(true);
+
+            // Build MQTT Broker config if available
+            MqttBrokerConfigDto? brokerConfig = null;
+            if (meta != null && (totalMqtt > 0 || meta.MqttBrokerEnabled))
+            {
+                brokerConfig = new MqttBrokerConfigDto
+                {
+                    Enabled = meta.MqttBrokerEnabled,
+                    Host = meta.MqttBrokerHost?.Trim() ?? string.Empty,
+                    Port = (ushort)(meta.MqttBrokerPort > 0 ? meta.MqttBrokerPort : 1883),
+                    UseTls = meta.MqttTlsEnabled,
+                    CleanSession = meta.MqttCleanSession,
+                    KeepAliveSec = meta.MqttKeepAliveSec > 0 ? meta.MqttKeepAliveSec : (ushort)60,
+                    ClientId = meta.MqttClientId ?? string.Empty,
+                    Username = meta.MqttUsername ?? string.Empty,
+                    Password = meta.MqttPassword ?? string.Empty
+                };
+
+                bool isVi = LocalizationService.Instance.IsVietnamese;
+                AppendLog(isVi
+                    ? $"[Cấu hình Broker] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Kích hoạt: {brokerConfig.Enabled})"
+                    : $"[Broker Config] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Enabled: {brokerConfig.Enabled})");
+            }
+
+            // Steps 2-4: Staging and Commit
+            Steps[1].Status = StepStatus.InProgress;
+            ProgressPercent = 45;
+            AppendLog(LocalizationService.Tr("DeployLogStaging"));
+
+            // Build Modbus Ports config if available (SPLC-SPEC-MBM-003)
+            IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null;
+            if (meta?.ModbusPorts != null && meta.ModbusPorts.Count > 0)
+            {
+                modbusPortConfigs = meta.ModbusPorts.Select(p => new ModbusPortConfigDto
+                {
+                    PortIndex = p.PortIndex,
+                    PortName = p.PortName,
+                    Enabled = p.Enabled,
+                    BaudRate = p.BaudRate,
+                    DataBits = p.DataBits,
+                    Parity = Enum.TryParse<ModbusParity>(p.Parity, true, out var par) ? par : ModbusParity.None,
+                    StopBits = p.StopBits,
+                    ResponseTimeoutMs = p.ResponseTimeoutMs,
+                    InterFrameDelayMs = p.InterFrameDelayMs,
+                    RetryCount = p.RetryCount
+                }).ToList();
+            }
+
+            var modbusWriteConfigs = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
+            var directWriteConfigs = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs;
+            // Dựng bảng kiểu dữ liệu Tag Registry (0x0080..0x00BF, 128 tags x 1 byte: 1=BOOL, 2=INT32, 3=REAL)
+            byte[] tagDataTypes = new byte[SimplePLC.Protocol.Constants.ModbusRegisterMap.MaxRuntimeTags];
+            var allTags = _logicEditorVM?.TagCatalog?.AllTags;
+            if (allTags != null)
             {
-                rule.PropertyChanged += OnRulePropertyChanged;
-            }
-        }
-
-        if (_logicEditorVM != null)
-        {
-            _logicEditorVM.PropertyChanged += OnLogicEditorPropertyChanged;
-        }
-
-        // Theo dõi thay đổi trạng thái kết nối để cập nhật CanDeploy
-        AppServices.Instance.SessionManager.SessionChanged += OnSessionChanged;
-
-        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
-        InitializeSteps();
-        UpdateDeviceInfo(AppServices.Instance.SessionManager.HasActiveSession ? AppServices.Instance.SessionManager.CurrentSession : null);
-        UpdatePreflightSummary();
-    }
-
-    private void OnSessionChanged(SimplePLC.Application.Abstractions.IDeviceSession? session)
-    {
-        void Update()
-        {
-            UpdateDeviceInfo(session);
-            UpdatePreflightSummary();
-            OnPropertyChanged(nameof(CanDeploy));
-            StartDeployCommand.NotifyCanExecuteChanged();
-            PrimaryActionCommand.NotifyCanExecuteChanged();
-        }
-
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
-        {
-            dispatcher.Invoke(Update);
-        }
-        else
-        {
-            Update();
-        }
-    }
-
-    public void UpdateDeviceInfo(SimplePLC.Application.Abstractions.IDeviceSession? session)
-    {
-        var active = session ?? (AppServices.Instance.SessionManager.HasActiveSession ? AppServices.Instance.SessionManager.CurrentSession : null);
-        bool isVi = LocalizationService.Instance.IsVietnamese;
-        if (active?.Descriptor != null)
-        {
-            var d = active.Descriptor;
-            string port = active.Endpoint is UsbCdcEndpoint usb ? usb.PortName : (active.Endpoint?.ToString() ?? "COM");
-            DeviceInfoBadge = $"SynaptiX Controller · RS-485/USB ({port}) · {(isVi ? "Trực tuyến" : "Online")}";
-        }
-        else
-        {
-            DeviceInfoBadge = isVi
-                ? "SynaptiX Controller · RS-485/USB · Chưa kết nối"
-                : "SynaptiX Controller · RS-485/USB · Disconnected";
-        }
-    }
-
-    private void OnLanguageChanged()
-    {
-        UpdateDeviceInfo(null);
-        UpdatePreflightSummary();
-        InitializeSteps();
-    }
-
-    private void OnRulesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-        {
-            foreach (RuleItemModel r in e.OldItems)
-                r.PropertyChanged -= OnRulePropertyChanged;
-        }
-        if (e.NewItems != null)
-        {
-            foreach (RuleItemModel r in e.NewItems)
-                r.PropertyChanged += OnRulePropertyChanged;
-        }
-
-        ResetDeployStateOnConfigChange();
-    }
-
-    private void OnRulePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        ResetDeployStateOnConfigChange();
-    }
-
-    private void OnLogicEditorPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(LogicEditorViewModel.CompileState) or nameof(LogicEditorViewModel.CurrentProgram))
-        {
-            ResetDeployStateOnConfigChange();
-        }
-    }
-
-    private void ResetDeployStateOnConfigChange()
-    {
-        if (IsSuccess)
-        {
-            IsSuccess = false;
-            DeployState = DeployState.Idle;
-            InitializeSteps();
-        }
-        UpdatePreflightSummary();
-        OnPropertyChanged(nameof(CanDeploy));
-        StartDeployCommand.NotifyCanExecuteChanged();
-        PrimaryActionCommand.NotifyCanExecuteChanged();
-    }
-
-    public void UpdatePreflightSummary()
-    {
-        bool isVi = LocalizationService.Instance.IsVietnamese;
-        bool isConnected = AppServices.Instance.SessionManager.HasActiveSession || AppServices.Instance.ModbusClient.IsConnected;
-        IsDeviceConnected = isConnected;
-
-        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
-        {
-            HasValidRules = false;
-            ManifestRuleCount = 0;
-            PreflightSummary = _logicEditorVM.CompileState switch
-            {
-                CompileState.Stale => LocalizationService.Tr("DeployPreflightStale"),
-                CompileState.Invalid => LocalizationService.Tr("DeployPreflightInvalid"),
-                _ => LocalizationService.Tr("DeployPreflightNone")
-            };
-            StatusTitle = isVi ? "Chương Trình Logic Chưa Hợp Lệ" : "Invalid Logic Program";
-            StatusSubtitle = PreflightSummary;
-            StatusMessage = PreflightSummary;
-            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
-            ActionButtonText = isVi ? "Mở Đồ Thị Logic Để Sửa" : "Open Logic Editor";
-            ShowProgressBar = false;
-            return;
-        }
-
-        int ruleCount = 0;
-        string ruleDesc = "";
-        int fbCount = _logicEditorVM?.CurrentProgram != null 
-            ? (_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count + _logicEditorVM.CurrentProgram.FunctionBlockCounters.Count) 
-            : 0;
-        int mqttCount = (_logicEditorVM?.CurrentProgram?.MqttTelemetryConfigs?.Count ?? 0)
-            + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
-        int modbusCount = (_logicEditorVM?.CurrentProgram?.ModbusMasterConfigs?.Count ?? 0)
-            + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
-        int directWriteCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
-
-        if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
-        {
-            ruleCount = _ruleTableVM.Rules.Count;
-            int enabledCount = _ruleTableVM.Rules.Count(r => r.Enabled);
-            var firstRule = _ruleTableVM.Rules.FirstOrDefault(r => r.Enabled) ?? _ruleTableVM.Rules.FirstOrDefault();
-            if (firstRule != null)
-            {
-                ruleDesc = $"{firstRule.Id} ({firstRule.TriggerSummary} ➔ {firstRule.ActionSummary})";
-            }
-            HasValidRules = enabledCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
-            ManifestRuleCount = enabledCount;
-            ManifestRuleSummary = ruleDesc;
-            string extraDesc = "";
-            if (fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0)
-            {
-                extraDesc = isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus, {directWriteCount} DirectOut)";
-            }
-            string baseSummary = isVi
-                ? $"Sẵn sàng nạp: {ruleCount} quy tắc trong Bảng Rule ({enabledCount} đang bật){extraDesc}"
-                : $"Ready to deploy: {ruleCount} rules from Rule Table ({enabledCount} enabled){extraDesc}";
-
-            PreflightSummary = isConnected
-                ? baseSummary + "."
-                : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
-        }
-        else if (_logicEditorVM?.CurrentProgram != null)
-        {
-            ruleCount = _logicEditorVM.CurrentProgram.RuleCount;
-            HasValidRules = ruleCount > 0 || fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0;
-            ManifestRuleCount = ruleCount;
-
-            if ((fbCount > 0 || mqttCount > 0 || modbusCount > 0 || directWriteCount > 0) && ruleCount == 0)
-            {
-                ruleDesc = isVi
-                    ? $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)"
-                    : $"{_logicEditorVM.CurrentProgram.FunctionBlockTimers.Count} Timers, {_logicEditorVM.CurrentProgram.FunctionBlockCounters.Count} Counters, {mqttCount} MQTT, {modbusCount} Modbus (0 Rule slots)";
-                string baseSummary = isVi
-                    ? $"Sẵn sàng nạp {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks xuống thiết bị."
-                    : $"Ready to deploy {fbCount} Function Blocks, {mqttCount} MQTT & {modbusCount} Modbus blocks to device.";
-                PreflightSummary = isConnected
-                    ? baseSummary
-                    : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
-            }
-            else
-            {
-                ruleDesc = isVi ? $"{ruleCount} quy tắc từ bản vẽ logic" : $"{ruleCount} rules from logic canvas";
-                string baseSummary = string.Format(LocalizationService.Tr("DeployPreflightReady"), ruleCount);
-                if (fbCount > 0 || mqttCount > 0 || modbusCount > 0)
+                foreach (var tag in allTags)
                 {
-                    baseSummary += isVi ? $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)" : $" (+ {fbCount} FBs, {mqttCount} MQTT, {modbusCount} Modbus)";
-                }
-                PreflightSummary = isConnected
-                    ? baseSummary
-                    : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
-            }
-            ManifestRuleSummary = ruleDesc;
-        }
-        else
-        {
-            HasValidRules = false;
-            ManifestRuleCount = 0;
-            ManifestRuleSummary = "";
-            PreflightSummary = LocalizationService.Tr("DeployPreflightNone");
-        }
-
-        ManifestRuleCountText = isVi
-            ? $"{ManifestRuleCount} quy tắc (Đang bật)"
-            : $"{ManifestRuleCount} rule(s) (Enabled)";
-
-        if (IsSuccess)
-        {
-            StatusTitle = isVi ? "Đã Nạp Thành Công Xuống Thiết Bị!" : "✓ Deployed Successfully to Device!";
-            StatusSubtitle = isVi
-                ? (LastDeployDurationMs > 0
-                    ? $"Thiết bị đang chạy logic mới · Thời gian nạp: {LastDeployDurationMs}ms · Sẵn sàng nạp tiếp."
-                    : "Thiết bị đang chạy cấu hình mới · Sẵn sàng nạp tiếp.")
-                : (LastDeployDurationMs > 0
-                    ? $"Device is running updated logic · Deployed in {LastDeployDurationMs}ms · Ready for next deploy."
-                    : "Device is running updated logic safely · Ready for next deploy.");
-            StepperBadgeText = isVi ? "Hoàn thành 100%" : "Completed 100%";
-            ActionButtonText = isVi ? "⚡ Bắt Đầu Nạp Xuống Thiết Bị" : "⚡ Start Deploy to Device";
-            ShowProgressBar = true;
-        }
-        else if (IsDeploying)
-        {
-            StatusTitle = isVi ? "Đang Nạp Xuống Thiết Bị..." : "Deploying to Device...";
-            StatusSubtitle = isVi ? "Vui lòng không ngắt kết nối trong khi nạp." : "Please do not disconnect during deployment.";
-            StepperBadgeText = isVi ? "Đang nạp..." : "Deploying...";
-            ShowProgressBar = true;
-        }
-        else if (!isConnected)
-        {
-            StatusTitle = isVi ? "Chưa Kết Nối Thiết Bị" : "Device Disconnected";
-            StatusSubtitle = isVi ? "Vui lòng kết nối cổng COM ở thanh công cụ phía trên trước khi nạp." : "Please connect COM port in the top bar before deploying.";
-            StatusMessage = PreflightSummary;
-            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
-            ActionButtonText = isVi ? "Chưa Kết Nối Thiết Bị" : "Device Disconnected";
-            ShowProgressBar = false;
-        }
-        else if (!HasValidRules)
-        {
-            StatusTitle = isVi ? "Chưa Có Quy Tắc Hợp Lệ Để Nạp" : "No Valid Rules to Deploy";
-            StatusSubtitle = isVi ? "Bảng Rule hiện tại chưa có quy tắc nào đang được bật." : "Rule Table has no active rules.";
-            StatusMessage = PreflightSummary;
-            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
-            ActionButtonText = isVi ? "Mở Bảng Rule Để Thêm Quy Tắc" : "Open Rule Table";
-            ShowProgressBar = false;
-        }
-        else
-        {
-            StatusTitle = isVi ? $"Sẵn Sàng Nạp {ManifestRuleCount} Quy Tắc Xuống Thiết Bị" : $"Ready to Deploy {ManifestRuleCount} Rules to Device";
-            StatusSubtitle = string.IsNullOrEmpty(ruleDesc)
-                ? (isVi ? "Nạp an toàn không ngắt quãng (Zero-Downtime Atomic Staging)" : "Zero-downtime atomic staging")
-                : (isVi ? $"Quy tắc: {ruleDesc} · Nạp an toàn không ngắt quãng" : $"Rules: {ruleDesc} · Bumpless transfer");
-            StatusMessage = PreflightSummary;
-            StepperBadgeText = isVi ? "Sẵn sàng" : "Ready";
-            ActionButtonText = isVi ? "⚡ Bắt Đầu Nạp Xuống Thiết Bị" : "⚡ Start Deploy to Device";
-            ShowProgressBar = false;
-        }
-    }
-
-    private DeployRulesUseCase GetDeployUseCase() =>
-        AppServices.Instance.SessionManager.HasActiveSession
-            ? AppServices.Instance.DeployUseCase
-            : (_injectedDeployUseCase ?? AppServices.Instance.DeployUseCase);
-
-    private void InitializeSteps()
-    {
-        Steps.Clear();
-        Steps.Add(new() { Index = 1, Title = LocalizationService.Tr("DeployStep1Title"), Detail = LocalizationService.Tr("DeployStep1Detail"), Status = StepStatus.Pending });
-        Steps.Add(new() { Index = 2, Title = LocalizationService.Tr("DeployStep2Title"), Detail = LocalizationService.Tr("DeployStep2Detail"), Status = StepStatus.Pending });
-        Steps.Add(new() { Index = 3, Title = LocalizationService.Tr("DeployStep3Title"), Detail = LocalizationService.Tr("DeployStep3Detail"), Status = StepStatus.Pending });
-        Steps.Add(new() { Index = 4, Title = LocalizationService.Tr("DeployStep4Title"), Detail = LocalizationService.Tr("DeployStep4Detail"), Status = StepStatus.Pending });
-        Steps.Add(new() { Index = 5, Title = LocalizationService.Tr("DeployStep5Title"), Detail = LocalizationService.Tr("DeployStep5Detail"), Status = StepStatus.Pending });
-    }
-
-    private void AppendLog(string message) => ConsoleLog += $"[{DateTime.Now:HH:mm:ss}] {message}\n";
-
-    [RelayCommand]
-    public void PrimaryAction()
-    {
-        if (CanDeploy)
-        {
-            _ = StartDeployAsync();
-        }
-        else if (!HasValidRules)
-        {
-            NavigateToRules();
-        }
-        else if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
-        {
-            NavigateToLogicEditor();
-        }
-    }
-
-    [RelayCommand]
-    public void NavigateToRules() => _navigateTab?.Invoke(2);
-
-    [RelayCommand]
-    public void NavigateToLogicEditor() => _navigateTab?.Invoke(0);
-
-    [RelayCommand]
-    public void NavigateToLiveWatch() => _navigateTab?.Invoke(5);
-
-    [RelayCommand]
-    public void ClearLog() => ConsoleLog = LocalizationService.Instance.IsVietnamese ? "// Đã xóa nhật ký.\n" : "// Log cleared.\n";
-
-    [RelayCommand]
-    public void CopyLog()
-    {
-        try
-        {
-            if (!string.IsNullOrEmpty(ConsoleLog))
-            {
-                System.Windows.Clipboard.SetText(ConsoleLog);
-            }
-        }
-        catch { }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanDeploy))]
-    public async Task StartDeployAsync()
-    {
-        if (IsDeploying) return;
-
-        // Strict Pre-flight Safety Gate: If logic editor is present and invalid/stale, abort
-        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
-        {
-            DeployState = DeployState.Failed;
-            UpdatePreflightSummary();
-            StatusMessage = PreflightSummary;
-            AppendLog(string.Format(LocalizationService.Tr("DeployLogStop"), PreflightSummary));
-            return;
-        }
-
-        IsDeploying = true;
-        IsSuccess = false;
-        DeployState = DeployState.Preparing;
-        ProgressPercent = 0;
-        InitializeSteps();
-        ConsoleLog = string.Empty;
-        AppendLog(LocalizationService.Tr("DeployLogStart"));
-        UpdatePreflightSummary();
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-
-        try
-        {
-            var services = AppServices.Instance;
-            var client = services.ModbusClient;
-
-            // Check connection via SessionManager and ModbusClient
-            if (!services.SessionManager.HasActiveSession && !client.IsConnected)
-            {
-                Steps[0].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                PreflightSummary = LocalizationService.Tr("DeployLogNoDevice");
-                StatusMessage = PreflightSummary;
-                AppendLog(LocalizationService.Tr("DeployLogNoConn"));
-                IsDeploying = false;
-                UpdatePreflightSummary();
-                return;
-            }
-
-            // Step 1: Pre-flight Domain Validation
-            Steps[0].Status = StepStatus.InProgress;
-            ProgressPercent = 15;
-            AppendLog(LocalizationService.Tr("DeployLogPreflight"));
-            await Task.Delay(60).ConfigureAwait(true);
-
-            var product = services.CurrentProduct;
-            RuleTable ruleTable;
-            IReadOnlyList<FbTimerRecordDto>? fbTimers = null;
-            IReadOnlyList<FbCounterRecordDto>? fbCounters = null;
-            IReadOnlyList<MqttTelemetryConfigDto>? mqttConfigs = null;
-            IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null;
-            IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null;
-
-            // Luôn trích xuất Function Blocks (Timer, Counter), MQTT và Modbus Master blocks từ Logic Editor nếu có
-            if (_logicEditorVM?.CurrentProgram != null)
-            {
-                fbTimers = _logicEditorVM.CurrentProgram.FunctionBlockTimers;
-                fbCounters = _logicEditorVM.CurrentProgram.FunctionBlockCounters;
-                mqttConfigs = _logicEditorVM.CurrentProgram.MqttTelemetryConfigs;
-                mqttSubConfigs = _logicEditorVM.CurrentProgram.MqttSubscriptionConfigs;
-                modbusMasterConfigs = _logicEditorVM.CurrentProgram.ModbusMasterConfigs;
-            }
-
-            // Trích xuất Rule Table: Ưu tiên bảng rule đã biên tập trong Rule Table, hoặc fallback về Logic Editor
-            if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
-            {
-                ruleTable = _ruleTableVM.ToDomainRuleTable(product);
-            }
-            else if (_logicEditorVM?.CurrentProgram != null)
-            {
-                ruleTable = _logicEditorVM.CurrentProgram.ToRuleTable();
-            }
-            else
-            {
-                ruleTable = new RuleTable();
-            }
-
-            int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
-            int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
-            int totalModbus = (modbusMasterConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
-            int totalDirectWrite = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
-            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0)
-            {
-                Steps[0].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus và Direct Write đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
-                    : "Cannot deploy: Rule table, Function Blocks, MQTT blocks, Modbus, and Direct Write are empty. Please add at least one rule or function block.";
-                StatusMessage = PreflightSummary;
-                AppendLog(PreflightSummary);
-                IsDeploying = false;
-                UpdatePreflightSummary();
-                return;
-            }
-
-            var validationResult = RuleTableValidator.Validate(ruleTable);
-            if (!validationResult.IsValid)
-            {
-                Steps[0].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                var errStr = string.Join("; ", validationResult.Errors.Select(e => e.Message));
-                PreflightSummary = string.Format(LocalizationService.Tr("DeployLogValidErr"), errStr);
-                StatusMessage = PreflightSummary;
-                AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightFail"), errStr));
-                IsDeploying = false;
-                UpdatePreflightSummary();
-                return;
-            }
-
-            Steps[0].Status = StepStatus.Success;
-            ProgressPercent = 30;
-            AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
-            var meta = _getMetadata?.Invoke();
-            if (totalFbs > 0 || totalMqtt > 0 || totalModbus > 0 || totalDirectWrite > 0)
-            {
-                bool isVi = LocalizationService.Instance.IsVietnamese;
-                AppendLog(isVi
-                    ? $"[Cấu hình V2] Phát hiện {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks."
-                    : $"[V2 Config] Detected {fbTimers?.Count ?? 0} Timers, {fbCounters?.Count ?? 0} Counters, {totalMqtt} MQTT blocks, {totalModbus} Modbus blocks, {totalDirectWrite} PULSE_OUT blocks.");
-
-                int subCount = mqttSubConfigs?.Count ?? 0;
-                if (subCount > 0)
-                {
-                    if (product != null && product.SupportsMqttSubscribe)
+                    if (tag.Index < tagDataTypes.Length && tag.Kind != SimplePLC.Domain.Enums.TagKind.None)
                     {
-                        AppendLog(isVi
-                            ? $"[MQTT SUB] Phát hiện {subCount} khối Subscribe -> Nạp cấu hình Inbound xuống phân vùng 0x0D80 của MCU."
-                            : $"[MQTT SUB] Detected {subCount} Subscribe block(s) -> Deploying inbound config to MCU partition 0x0D80.");
+                        byte typeCode = 2; // Default INT32 (DINT)
+                        if (tag.Kind is SimplePLC.Domain.Enums.TagKind.DiscreteInput or SimplePLC.Domain.Enums.TagKind.DiscreteOutput or SimplePLC.Domain.Enums.TagKind.VirtualFlag)
+                        {
+                            typeCode = 1; // BOOL
+                        }
+                        else if (tag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32 || tag.Kind == SimplePLC.Domain.Enums.TagKind.AnalogInput)
+                        {
+                            typeCode = 3; // REAL (Float32)
+                        }
+                        tagDataTypes[tag.Index] = typeCode;
                     }
-                    else
+                }
+            }
+
+            // Đồng bộ kiểu REAL cho bất kỳ Tag nào được liên kết từ chân kiểu Real của MB_READ
+            if (_logicEditorVM?.Nodes != null)
+            {
+                foreach (var mbReadNode in _logicEditorVM.Nodes.OfType<ModbusReadNodeViewModel>())
+                {
+                    foreach (var pin in mbReadNode.Pins)
                     {
-                        AppendLog(isVi
-                            ? $"[MQTT SUB] {subCount} khối Subscribe đang vận hành ở chế độ Host Simulation & Sandbox (MCU chưa kích hoạt cờ 0x0020)."
-                            : $"[MQTT SUB] {subCount} Subscribe block(s) running in Host Simulation & Sandbox mode (MCU flag 0x0020 inactive).");
+                        if (pin.DataType == SimplePLC.Protocol.Enums.ModbusDataType.Real && pin.TargetTag != null && pin.TargetTag.Index < tagDataTypes.Length)
+                        {
+                            tagDataTypes[pin.TargetTag.Index] = 3; // SPLC_TAG_TYPE_REAL
+                            pin.TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                        }
                     }
                 }
-
-                int mbWriteCount = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0;
-                if (mbWriteCount > 0)
-                {
-                    AppendLog(isVi
-                        ? $"[MB WRITE] Phát hiện {mbWriteCount} khối Modbus Write -> Nạp cấu hình xuống phân vùng 0x1100 của MCU."
-                        : $"[MB WRITE] Detected {mbWriteCount} Modbus Write block(s) -> Deploying config to MCU partition 0x1100.");
-                }
-
-                int dwCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
-                if (dwCount > 0)
-                {
-                    AppendLog(isVi
-                        ? $"[PULSE_OUT] Phát hiện {dwCount} khối phát xung / chấp hành -> Nạp cấu hình xuống phân vùng 0x1200 của MCU."
-                        : $"[PULSE_OUT] Detected {dwCount} Pulse Output block(s) -> Deploying config to MCU partition 0x1200.");
-                }
-
-                if (product != null && !product.SupportsMqttPublish && (mqttConfigs?.Count > 0 || meta?.MqttBrokerEnabled == true))
-                {
-                    AppendLog(isVi
-                        ? $"[Cảnh báo Phần cứng] Thiết bị '{product.ProductName}' không hỗ trợ MQTT Telemetry (Thiếu cờ SPLC_CAP_MQTT_PUB tại 0x0A08). Bỏ qua nạp cấu hình MQTT."
-                        : $"[Hardware Warning] Device '{product.ProductName}' does not support MQTT Telemetry (Missing SPLC_CAP_MQTT_PUB at 0x0A08). Skipping MQTT configuration.");
-                }
-            }
-            await Task.Delay(60).ConfigureAwait(true);
-
-            // Build MQTT Broker config if available
-            MqttBrokerConfigDto? brokerConfig = null;
-            if (meta != null && (totalMqtt > 0 || meta.MqttBrokerEnabled))
-            {
-                brokerConfig = new MqttBrokerConfigDto
-                {
-                    Enabled = meta.MqttBrokerEnabled,
-                    Host = meta.MqttBrokerHost?.Trim() ?? string.Empty,
-                    Port = (ushort)(meta.MqttBrokerPort > 0 ? meta.MqttBrokerPort : 1883),
-                    UseTls = meta.MqttTlsEnabled,
-                    CleanSession = meta.MqttCleanSession,
-                    KeepAliveSec = meta.MqttKeepAliveSec > 0 ? meta.MqttKeepAliveSec : (ushort)60,
-                    ClientId = meta.MqttClientId ?? string.Empty,
-                    Username = meta.MqttUsername ?? string.Empty,
-                    Password = meta.MqttPassword ?? string.Empty
-                };
-
-                bool isVi = LocalizationService.Instance.IsVietnamese;
-                AppendLog(isVi
-                    ? $"[Cấu hình Broker] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Kích hoạt: {brokerConfig.Enabled})"
-                    : $"[Broker Config] {brokerConfig.Host}:{brokerConfig.Port} (TLS: {brokerConfig.UseTls}, Enabled: {brokerConfig.Enabled})");
             }
 
-            // Steps 2-4: Staging and Commit
-            Steps[1].Status = StepStatus.InProgress;
-            ProgressPercent = 45;
-            AppendLog(LocalizationService.Tr("DeployLogStaging"));
-
-            // Build Modbus Ports config if available (SPLC-SPEC-MBM-003)
-            IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null;
-            if (meta?.ModbusPorts != null && meta.ModbusPorts.Count > 0)
-            {
-                modbusPortConfigs = meta.ModbusPorts.Select(p => new ModbusPortConfigDto
-                {
-                    PortIndex = p.PortIndex,
-                    PortName = p.PortName,
-                    Enabled = p.Enabled,
-                    BaudRate = p.BaudRate,
-                    DataBits = p.DataBits,
-                    Parity = Enum.TryParse<ModbusParity>(p.Parity, true, out var par) ? par : ModbusParity.None,
-                    StopBits = p.StopBits,
-                    ResponseTimeoutMs = p.ResponseTimeoutMs,
-                    InterFrameDelayMs = p.InterFrameDelayMs,
-                    RetryCount = p.RetryCount
-                }).ToList();
-            }
-
-            var modbusWriteConfigs = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
-            var directWriteConfigs = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs;
-            var deployUseCase = GetDeployUseCase();
-            var deployResult = await deployUseCase.ExecuteAsync(
-                ruleTable,
-                fbTimers,
-                fbCounters,
-                mqttConfigs,
-                brokerConfig,
-                mqttSubConfigs,
-                modbusMasterConfigs,
-                modbusWriteConfigs,
-                directWriteConfigs,
+            var deployUseCase = GetDeployUseCase();
+            var deployResult = await deployUseCase.ExecuteAsync(
+                ruleTable,
+                fbTimers,
+                fbCounters,
+                mqttConfigs,
+                brokerConfig,
+                mqttSubConfigs,
+                modbusMasterConfigs,
+                modbusWriteConfigs,
+                directWriteConfigs,
                 modbusPortConfigs,
-                slaveId: 1,
-                ct: default,
-                progressLogger: AppendLog).ConfigureAwait(true);
-
-            if (deployResult.IsSuccess)
-            {
-                Steps[1].Status = StepStatus.Success;
-                AppendLog(LocalizationService.Tr("DeployLogStagingOk"));
-                ProgressPercent = 60;
-                await Task.Delay(70).ConfigureAwait(true);
-
-                // Step 3: Xác minh CRC
-                Steps[2].Status = StepStatus.InProgress;
-                ProgressPercent = 75;
-                await Task.Delay(70).ConfigureAwait(true);
-                Steps[2].Status = StepStatus.Success;
-                AppendLog(LocalizationService.Tr("DeployLogCrcOk"));
-
-                // Step 4: Atomic Commit
-                Steps[3].Status = StepStatus.InProgress;
-                ProgressPercent = 88;
-                await Task.Delay(70).ConfigureAwait(true);
-                Steps[3].Status = StepStatus.Success;
-                AppendLog(string.Format(LocalizationService.Tr("DeployLogCommitOk"), deployResult.ActiveVersion));
-
-                // Step 5: Version Handshake
-                Steps[4].Status = StepStatus.InProgress;
-                ProgressPercent = 96;
-                await Task.Delay(70).ConfigureAwait(true);
-                Steps[4].Status = StepStatus.Success;
-                ProgressPercent = 100;
-
-                sw.Stop();
-                LastDeployDurationMs = sw.ElapsedMilliseconds;
-                IsSuccess = true;
-                DeployState = DeployState.Success;
-                _logicEditorVM?.MarkGraphDeployed();
-                StatusMessage = string.Format(LocalizationService.Tr("DeployLogSuccess"), deployResult.DeployedRuleCount, deployResult.ActiveVersion);
-                string completionSummary = LocalizationService.Instance.IsVietnamese
-                    ? $"[HOÀN TẤT] Nạp thành công trong {LastDeployDurationMs}ms · Phiên bản: {deployResult.ActiveVersion} · 100% hợp lệ."
-                    : $"[SUCCESS] Deployed in {LastDeployDurationMs}ms · Version: {deployResult.ActiveVersion} · 100% valid.";
-                AppendLog(completionSummary);
-            }
-            else
-            {
-                Steps[1].Status = StepStatus.Failed;
-                Steps[2].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                StatusMessage = string.Format(LocalizationService.Tr("DeployLogFailStatus"), deployResult.ErrorCode, deployResult.ErrorMessage);
-                AppendLog(string.Format(LocalizationService.Tr("DeployLogFail"), deployResult.ErrorCode, deployResult.ErrorMessage));
-            }
-        }
-        catch (Exception ex)
-        {
-            DeployState = DeployState.Failed;
-            StatusMessage = string.Format(LocalizationService.Tr("DeployExceptionStatus"), ex.Message);
-            AppendLog(string.Format(LocalizationService.Tr("DeployLogException"), ex.Message));
-        }
-        finally
-        {
-            IsDeploying = false;
-            UpdatePreflightSummary();
-            OnPropertyChanged(nameof(CanDeploy));
-            StartDeployCommand.NotifyCanExecuteChanged();
-            PrimaryActionCommand.NotifyCanExecuteChanged();
-        }
-    }
-}
+                tagDataTypes,
+                slaveId: 1,
+                ct: default,
+                progressLogger: AppendLog).ConfigureAwait(true);
+
+            if (deployResult.IsSuccess)
+            {
+                Steps[1].Status = StepStatus.Success;
+                AppendLog(LocalizationService.Tr("DeployLogStagingOk"));
+                ProgressPercent = 60;
+                await Task.Delay(70).ConfigureAwait(true);
+
+                // Step 3: Xác minh CRC
+                Steps[2].Status = StepStatus.InProgress;
+                ProgressPercent = 75;
+                await Task.Delay(70).ConfigureAwait(true);
+                Steps[2].Status = StepStatus.Success;
+                AppendLog(LocalizationService.Tr("DeployLogCrcOk"));
+
+                // Step 4: Atomic Commit
+                Steps[3].Status = StepStatus.InProgress;
+                ProgressPercent = 88;
+                await Task.Delay(70).ConfigureAwait(true);
+                Steps[3].Status = StepStatus.Success;
+                AppendLog(string.Format(LocalizationService.Tr("DeployLogCommitOk"), deployResult.ActiveVersion));
+
+                // Step 5: Version Handshake
+                Steps[4].Status = StepStatus.InProgress;
+                ProgressPercent = 96;
+                await Task.Delay(70).ConfigureAwait(true);
+                Steps[4].Status = StepStatus.Success;
+                ProgressPercent = 100;
+
+                sw.Stop();
+                LastDeployDurationMs = sw.ElapsedMilliseconds;
+                IsSuccess = true;
+                DeployState = DeployState.Success;
+                string? deployedHash = _logicEditorVM?.CurrentProgram?.ComputeSemanticHash();
+                _logicEditorVM?.MarkGraphDeployed(deployedHash);
+                StatusMessage = string.Format(LocalizationService.Tr("DeployLogSuccess"), deployResult.DeployedRuleCount, deployResult.ActiveVersion);
+                string completionSummary = LocalizationService.Instance.IsVietnamese
+                    ? $"[HOÀN TẤT] Nạp thành công trong {LastDeployDurationMs}ms · Phiên bản: {deployResult.ActiveVersion} · 100% hợp lệ."
+                    : $"[SUCCESS] Deployed in {LastDeployDurationMs}ms · Version: {deployResult.ActiveVersion} · 100% valid.";
+                AppendLog(completionSummary);
+            }
+            else
+            {
+                Steps[1].Status = StepStatus.Failed;
+                Steps[2].Status = StepStatus.Failed;
+                DeployState = DeployState.Failed;
+                StatusMessage = string.Format(LocalizationService.Tr("DeployLogFailStatus"), deployResult.ErrorCode, deployResult.ErrorMessage);
+                AppendLog(string.Format(LocalizationService.Tr("DeployLogFail"), deployResult.ErrorCode, deployResult.ErrorMessage));
+            }
+        }
+        catch (Exception ex)
+        {
+            DeployState = DeployState.Failed;
+            StatusMessage = string.Format(LocalizationService.Tr("DeployExceptionStatus"), ex.Message);
+            AppendLog(string.Format(LocalizationService.Tr("DeployLogException"), ex.Message));
+        }
+        finally
+        {
+            IsDeploying = false;
+            UpdatePreflightSummary();
+            OnPropertyChanged(nameof(CanDeploy));
+            StartDeployCommand.NotifyCanExecuteChanged();
+            PrimaryActionCommand.NotifyCanExecuteChanged();
+        }
+    }
+}

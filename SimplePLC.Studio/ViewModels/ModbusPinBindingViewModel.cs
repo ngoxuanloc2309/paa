@@ -89,7 +89,7 @@ public partial class ModbusPinBindingViewModel : ObservableObject
         DataType = DataType,
         Endianness = Endianness,
         Multiplier = Multiplier,
-        TargetTagIndex = TargetTag != null ? (ushort?)TargetTag.Index : null
+        TargetTagIndex = (TargetTag != null && TargetTag.Index < 65535 && !string.Equals(TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase)) ? (ushort?)TargetTag.Index : null
     };
 
     public static ModbusPinBindingViewModel FromDto(ModbusMasterPinBindingDto dto) => new()

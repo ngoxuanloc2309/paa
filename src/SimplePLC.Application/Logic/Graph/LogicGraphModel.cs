@@ -1,4 +1,4 @@
-﻿namespace SimplePLC.Application.Logic.Graph;
+namespace SimplePLC.Application.Logic.Graph;
 
 using SimplePLC.Domain.Enums;
 
@@ -116,6 +116,7 @@ public sealed class MqttPublishNodeData
     public string Unit { get; set; } = "bar";
     public bool IncludeDevice { get; set; } = true;
     public bool IncludeTimestamp { get; set; } = true;
+    public bool WrapValues { get; set; } = true;
     public List<SimplePLC.Protocol.Dto.MqttPayloadFieldDto> Fields { get; set; } = new();
     public string CustomTemplate { get; set; } = string.Empty;
 }

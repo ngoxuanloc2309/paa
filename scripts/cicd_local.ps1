@@ -155,12 +155,11 @@ $releaseContent = @"
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
 ## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Bảo toàn cấu hình Modbus Master khi chuyển/đổi cổng RS-485**: Tự động đồng bộ in-place danh sách cổng trong hộp thoại cấu hình `MB_READ`/`MB_WRITE`, bảo toàn 100% PortIndex, ReadMode, FunctionCode, TriggerMode và loại bỏ hoàn toàn viền đỏ lỗi validation dropdown.
-- **Chuẩn hóa công thái học cửa sổ cấu hình (NoResize & Clean Close X)**: Khóa phóng to/thu nhỏ trên toàn bộ 5 hộp thoại cấu hình, giữ lại duy nhất nút đóng X thanh thoát; thiết kế lại nút xóa dòng TableRowDeleteBtnStyle với vector Path đối xứng 4 chiều và kích thước 25x25px căn giữa chuẩn xác.
-- **Tối giản nhãn chân Pin khối Modbus FBD**: Tên chân pin trên canvas Nodify chỉ hiển thị tên nhãn ngắn gọn, không bị nối dài chuỗi register gây che khuất tham số khối lân cận; giữ nguyên chi tiết mapping trong tooltip đa ngữ.
-- **Tách bạch kết nối khối Modbus Read và MQTT qua thanh ghi PLC**: Chuẩn hóa luồng dữ liệu Modbus trực tiếp ra các thanh ghi PLC (VREG/VREG_RETAIN) và MQTT trỏ đọc cấu hình trực tiếp từ thanh ghi.
-- **Bộ kiểm thử & Độ bao phủ tự động**: Bổ sung bộ kiểm thử chuyên sâu cho Dialog Styling, Window ResizeMode NoResize và Modbus Pin DisplayTitle.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Khắc phục race condition kiểm thử rút cắm nóng F3_02; vượt qua 100% toàn bộ 1,483 bài kiểm thử tự động trên toàn giải pháp.
+- **Đồng bộ bảng kiểu dữ liệu Tag Registry (0x0080..0x00BF, 128 tags)**: Tự động nạp bảng kiểu dữ liệu (BOOL=1, INT32=2, REAL=3) từ Tag Catalog và các chân kiểu Real của MB_READ trước khi COMMIT; khắc phục triệt để lỗi in số thực dạng số nguyên thô (ví dụ 1130823396 thay vì 229.5).
+- **Tự động sinh template chuẩn trong chế độ Visual Fields / JSON**: Tự động chuyển đổi danh sách field thành template Custom chuẩn với các placeholder `{val1}`..`{val8}`, đảm bảo broker nhận đầy đủ tên thuộc tính đúng như Payload Preview mà MCU không cần lưu chuỗi tên.
+- **Bắt lỗi Commit trung thực & Xác thực ActiveRuleVersion (0xA001)**: Triệt tiêu false positive khi nạp cấu hình; bắt ngay trạng thái lỗi ERROR (4) và mã lỗi chi tiết từ MCU, chỉ xác nhận thành công khi phiên bản rule thực sự tăng lên.
+- **Công thái học cửa sổ & giao diện FBD Nodify**: Bảo toàn cấu hình Modbus khi đổi cổng, chuẩn hóa NoResize và nút đóng X trên toàn bộ 5 hộp thoại, nhãn chân pin tinh gọn trên canvas.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,489 bài kiểm thử tự động trên toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

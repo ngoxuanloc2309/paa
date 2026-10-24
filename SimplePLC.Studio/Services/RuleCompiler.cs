@@ -509,6 +509,39 @@ public sealed class RuleCompiler : IRuleCompiler
                         }
                     }
 
+                    string effectiveTemplate = mqtt.CustomTemplate;
+                    string effectivePayloadMode = mqtt.PayloadMode;
+
+                    if (!mqtt.IsCustomTemplateVisible && (fieldDtos.Count > 0 || mqttDataTag != null))
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        sb.Append('{');
+                        if (mqtt.IncludeDevice) sb.Append("\"device\":\"{device}\",");
+                        if (mqtt.IncludeTimestamp) sb.Append("\"ts\":{ts},");
+                        if (mqtt.WrapValues) sb.Append("\"values\":{");
+
+                        if (fieldDtos.Count > 0)
+                        {
+                            for (int i = 0; i < fieldDtos.Count; i++)
+                            {
+                                if (i > 0) sb.Append(',');
+                                string k = string.IsNullOrWhiteSpace(fieldDtos[i].Key) ? $"val{i + 1}" : fieldDtos[i].Key;
+                                sb.Append($"\"{k}\":{{val{i + 1}}}");
+                            }
+                        }
+                        else if (mqtt.DataTag != null)
+                        {
+                            string k = mqtt.DataTag.Name.ToLowerInvariant();
+                            sb.Append($"\"{k}\":{{val1}}");
+                        }
+
+                        if (mqtt.WrapValues) sb.Append('}');
+                        sb.Append('}');
+
+                        effectiveTemplate = sb.ToString();
+                        effectivePayloadMode = "Custom";
+                    }
+
                     graph.Nodes.Add(LogicNode.CreateMqttPublish(
                         mqtt.Id,
                         mqttEnTag,
@@ -519,12 +552,12 @@ public sealed class RuleCompiler : IRuleCompiler
                         mqtt.IntervalMs,
                         mqtt.Qos,
                         mqtt.Retain,
-                        mqtt.PayloadMode,
+                        effectivePayloadMode,
                         mqtt.Unit,
                         mqtt.IncludeDevice,
                         mqtt.IncludeTimestamp,
                         fieldDtos,
-                        mqtt.CustomTemplate,
+                        effectiveTemplate,
                         executionOrder: actionOrder++,
                         label: mqtt.DisplayTitle));
                     break;

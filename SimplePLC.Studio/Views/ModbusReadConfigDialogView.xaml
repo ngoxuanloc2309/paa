@@ -4,7 +4,7 @@
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
         Title="{Binding [ModbusDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="1040" Height="660"
+        Width="1160" Height="680"
         ResizeMode="NoResize"
         Icon="../Assets/app.png"
         WindowStartupLocation="CenterOwner"
@@ -58,11 +58,11 @@
             <!-- 1. Two-Column Body (Left: Wide Parameters & Pins, Right: Live Hex Simulation) -->
             <Grid Grid.Row="1" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
-                    <!-- Left: Parameters & Pins (Wide Column: ~570px) -->
-                    <ColumnDefinition Width="1.55*" />
+                    <!-- Left: Parameters & Pins (Wide Column: takes all available width) -->
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="14" />
-                    <!-- Right: Live Hex Test (~370px) -->
-                    <ColumnDefinition Width="1*" />
+                    <!-- Right: Live Hex Test (Compact fixed width: 340px) -->
+                    <ColumnDefinition Width="340" />
                 </Grid.ColumnDefinitions>
 
                 <!-- LEFT PANE: MODBUS PARAMETERS & PINS -->
@@ -143,14 +143,14 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Row 2: Function Code (2*) | Start Address (100px) | RegCount (100px) -->
+                            <!-- Row 2: Function Code (*) | Start Address (100px) | RegCount (135px) -->
                             <Grid Grid.Row="2">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="100" />
                                     <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="135" />
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Function Code -->
@@ -230,15 +230,17 @@
                                 <!-- Column Header Row (Pixel-Matched to Data Columns) -->
                                 <Grid Grid.Row="0" Background="#F1F5F9" Height="28" Margin="4,0,4,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="110" />
+                                        <ColumnDefinition Width="*" MinWidth="95" />
                                         <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="48" />
                                         <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="135" />
+                                        <ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="6" />
+                                        <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="6" />
                                         <ColumnDefinition Width="28" />
                                     </Grid.ColumnDefinitions>
@@ -257,6 +259,9 @@
                                     <TextBlock Grid.Column="8" Text="{Binding [ModbusColScale], Source={x:Static services:LocalizationService.Instance}}" 
                                                ToolTip="{Binding [ModbusReadPinScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" TextAlignment="Center" />
+                                    <TextBlock Grid.Column="10" Text="{Binding [ModbusColTargetTag], Source={x:Static services:LocalizationService.Instance}}" 
+                                               ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="4,0" />
                                 </Grid>
 
                                 <!-- Empty State Prompt -->
@@ -279,15 +284,17 @@
                                                 <Border BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="0,3">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" MinWidth="110" />
+                                                            <ColumnDefinition Width="*" MinWidth="95" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="60" />
+                                                            <ColumnDefinition Width="48" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="125" />
+                                                            <ColumnDefinition Width="110" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="135" />
+                                                            <ColumnDefinition Width="120" />
                                                             <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="70" />
+                                                            <ColumnDefinition Width="52" />
+                                                            <ColumnDefinition Width="6" />
+                                                            <ColumnDefinition Width="160" />
                                                             <ColumnDefinition Width="6" />
                                                             <ColumnDefinition Width="28" />
                                                         </Grid.ColumnDefinitions>
@@ -304,7 +311,7 @@
                                                                  Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
                                                                  Background="#FFFFFF" BorderBrush="#E2E8F0" />
 
-                                                        <!-- Data Type (120px Width - Fits INT16 / REAL / BOOL Comfortably) -->
+                                                        <!-- Data Type (110px Width - Fits INT16 / REAL / BOOL Comfortably) -->
                                                         <ComboBox Grid.Column="4" 
                                                                   ToolTip="{Binding [ModbusReadPinTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                   ItemsSource="{Binding DataContext.AvailableDataTypes, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -313,7 +320,7 @@
                                                                   DisplayMemberPath="DisplayName"
                                                                   Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
 
-                                                        <!-- Endianness (135px Width - Fits Big-Endian ABCD Without Truncation) -->
+                                                        <!-- Endianness (120px Width - Fits Big-Endian ABCD Without Truncation) -->
                                                         <ComboBox Grid.Column="6" 
                                                                   ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                   ItemsSource="{Binding DataContext.AvailableEndianness, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -328,8 +335,16 @@
                                                                  Background="#FFFFFF" BorderBrush="{Binding MultiplierBorderBrush}"
                                                                  ToolTip="{Binding MultiplierWarningText}" />
 
+                                                        <!-- Target Tag Selection (Direct Mapping) -->
+                                                        <ComboBox Grid.Column="10" 
+                                                                  ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                                  ItemsSource="{Binding DataContext.AvailableTags, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  SelectedItem="{Binding TargetTag, Mode=TwoWay}"
+                                                                  DisplayMemberPath="DisplayName"
+                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" BorderBrush="#E2E8F0" />
+
                                                         <!-- Delete Button -->
-                                                        <Button Grid.Column="10"
+                                                        <Button Grid.Column="12"
                                                                 Style="{StaticResource TableRowDeleteBtnStyle}"
                                                                 ToolTip="{Binding [ModbusReadPinDeleteTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                 Command="{Binding DataContext.RemovePinCommand, RelativeSource={RelativeSource AncestorType=Window}}" 

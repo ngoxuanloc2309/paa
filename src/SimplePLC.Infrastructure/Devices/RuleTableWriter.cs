@@ -1,4 +1,4 @@
-﻿using SimplePLC.Application.Abstractions;
+using SimplePLC.Application.Abstractions;
 using SimplePLC.Infrastructure.Abstractions;
 using SimplePLC.Infrastructure.Transport;
 using SimplePLC.Protocol.Codec;
@@ -559,6 +559,26 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
+        // Đọc phiên bản Active Rule Version hiện tại trước khi commit để kiểm chứng sau commit
+        ushort initialVersion = 0;
+        try
+        {
+            var initVerRegs = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.ActiveRuleVersionAddress,
+                1,
+                cancellationToken
+            ).ConfigureAwait(false);
+            if (initVerRegs.Length > 0)
+            {
+                initialVersion = initVerRegs[0];
+            }
+        }
+        catch
+        {
+            // Bỏ qua lỗi đọc phiên bản ban đầu nếu thiết bị chưa có phiên bản
+        }
+
         // 4. Bước 3 (R10): Ghi COMMIT_COMMAND (0xA000) với Magic 0xA5A5
         await _client.WriteSingleRegisterAsync(
             slaveId,
@@ -568,10 +588,10 @@ public sealed class RuleTableWriter : IRuleTableWriter
         );
 
         // 5. Bước 4 (R10): Chờ MCU xác thực CRC và kiểm tra trạng thái CONFIG_STATUS
-        return await WaitForCommitCompletionAsync(slaveId, cancellationToken);
+        return await WaitForCommitCompletionAsync(slaveId, initialVersion, cancellationToken);
     }
 
-    private async Task<RuleDeployResult> WaitForCommitCompletionAsync(byte slaveId, CancellationToken cancellationToken)
+    private async Task<RuleDeployResult> WaitForCommitCompletionAsync(byte slaveId, ushort initialVersion, CancellationToken cancellationToken)
     {
         var timeoutAt = DateTime.UtcNow.AddSeconds(5);
 
@@ -590,22 +610,6 @@ public sealed class RuleTableWriter : IRuleTableWriter
             var errorCode = (SPLC_ErrorCode)statusRegs[1];
 
             // 0=IDLE, 1=RECEIVING, 2=VERIFYING, 3=READY, 4=ERROR
-            if (status == 3) // READY (Commit thành công)
-            {
-                var verRegs = await _client.ReadHoldingRegistersAsync(
-                    slaveId,
-                    ModbusRegisterMap.ActiveRuleVersionAddress,
-                    1,
-                    cancellationToken
-                );
-                return new RuleDeployResult(
-                    IsSuccess: true,
-                    ConfigStatus: status,
-                    ErrorCode: SPLC_ErrorCode.NONE,
-                    ActiveVersion: verRegs[0]
-                );
-            }
-
             if (status == 4) // ERROR
             {
                 return new RuleDeployResult(
@@ -616,14 +620,32 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 );
             }
 
-            await Task.Delay(25, cancellationToken);
+            var verRegs = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.ActiveRuleVersionAddress,
+                1,
+                cancellationToken
+            );
+            ushort currentVersion = verRegs.Length > 0 ? verRegs[0] : (ushort)0;
+
+            if (status == 3 && (currentVersion != initialVersion || (initialVersion == 0 && currentVersion > 0)))
+            {
+                return new RuleDeployResult(
+                    IsSuccess: true,
+                    ConfigStatus: status,
+                    ErrorCode: SPLC_ErrorCode.NONE,
+                    ActiveVersion: currentVersion
+                );
+            }
+
+            await Task.Delay(35, cancellationToken);
         }
 
         return new RuleDeployResult(
             IsSuccess: false,
             ConfigStatus: 4,
             ErrorCode: SPLC_ErrorCode.BUSY,
-            ErrorMessage: "Timed out waiting for MCU to verify and commit staged rules."
+            ErrorMessage: $"Timed out waiting for MCU to verify and commit staged rules (Active version remained at {initialVersion})."
         );
     }
 }

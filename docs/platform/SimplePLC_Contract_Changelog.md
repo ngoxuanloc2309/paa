@@ -1,5 +1,27 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.11.2 / Studio v2.11.2] - 2026-10-24 (MQTT PUB COMMIT VALIDATION, AUTO-GENERATED CUSTOM TEMPLATE & TAG DATA TYPE REGISTRY 0x0080 SYNC)
+
+### Added & Fixed (Firmware MCU & App Studio Alignment)
+- **1. Đồng Bộ Bảng Kiểu Dữ Liệu Tag Registry (`0x0080..0x00BF`, 128 Tags x 1 Byte, SPLC-SPEC-IEC-002)**:
+  - Tự động nạp bảng kiểu dữ liệu (`1=BOOL, 2=INT32, 3=REAL`) từ Tag Catalog trước khi thực hiện COMMIT.
+  - Tự động nhận diện các chân kiểu `Real` từ khối `MB_READ` và đánh dấu kiểu `REAL (3)` cho tag đích (như tag 40, 72), khắc phục triệt để hiện tượng in số thực dưới dạng số nguyên raw bit (như 1130823396 thay vì 229.5).
+- **2. Tự Động Sinh Template Chuẩn Trong Chế Độ Visual Fields / JSON**:
+  - Studio tự động sinh Custom Template chuẩn từ danh sách Key và ánh xạ tới các token `{val1}`..`{val8}` tương ứng với `bound_tags[0..7]`:
+    `{"device":"{device}","ts":{ts},"values":{"v_avg":{val1},"i_avg":{val2}}}`
+    và chuyển cờ nạp xuống thiết bị thành `PayloadMode = 2 (Custom)`.
+  - Giúp broker nhận được JSON có đầy đủ tên thuộc tính đúng như Payload Preview mà không đòi hỏi MCU phải lưu trữ chuỗi tên trường.
+  - Chặn các token tùy biến không hợp lệ trong chế độ nhập tay, cảnh báo người dùng ngay trên giao diện.
+- **3. Bắt Lỗi Commit Trung Thực & Xác Thực Phiên Bản (`ActiveRuleVersion 0xA001`)**:
+  - Khắc phục lỗi false positive (Studio báo thành công dù MCU từ chối commit do sai cú pháp template).
+  - Đọc phiên bản active ban đầu tại `0xA001`, bắt lập tức trạng thái `CONFIG_STATUS == 4 (ERROR)` và hiển thị mã lỗi chi tiết từ `0xA003 (CONFIG_ERROR)`.
+  - Chỉ công nhận Deploy thành công khi `CONFIG_STATUS == 3 (READY)` VÀ `ActiveRuleVersion` thực sự tăng lên.
+- **4. Kiểm Thử Tự Động (Verification & Test Coverage)**:
+  - Bổ sung bộ kiểm thử `RuleCompiler_VisualFieldsMode_GeneratesCustomTemplateWithValPlaceholders` và xác thực xử lý lỗi commit.
+  - Vượt qua 100% toàn bộ 1,489 bài kiểm thử tự động trên toàn giải pháp.
+
+---
+
 ## [2.11.1 / Studio v2.11.1] - 2026-10-24 (MODBUS CONFIG PERSISTENCE, DIALOG ERGONOMICS, VECTOR REMOVE ICONS & PIN DISPLAY SIMPLIFICATION)
 
 ### Added & Standardized

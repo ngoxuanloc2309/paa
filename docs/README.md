@@ -71,7 +71,7 @@ Tập tài liệu đặc tả giao diện kỹ thuật (Interface Control Docume
 Cổng đặc tả kỹ thuật nền tảng toàn diện và duy nhất dành cho Kỹ sư Firmware MCU & Kỹ sư Hệ thống:
 * 🌟 [`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`](platform/SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md): **[BẢN ĐẶC TẢ MASTER CHUẨN CỐT LÕI DUY NHẤT]**  
   Tài liệu bao trọn 100% kiến trúc, Master Memory Map V2.0 (`0x0000..0x143F`, `0x9000..0xA001`), tất cả C binary structs, quy chuẩn an toàn Diag `0x0A20`, nhận thức số cổng RS-485 `0x0A0A`, phân vùng đa cổng `0x1400`, kiểm tra năng lực phần cứng `0x0A08` Fail-Safe, phân bổ 124 Active Tags, checklist nghiệm thu CHKL-01..22 và hướng dẫn lập trình C/C++ mẫu. Kỹ sư MCU chỉ cần đọc file này làm tài liệu chuẩn duy nhất và từ đó dẫn ra các ICD chuyên sâu ở Mục 3 khi cần.
-* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.11.1).
+* [`SimplePLC_Contract_Changelog.md`](platform/SimplePLC_Contract_Changelog.md): Nhật ký phiên bản và lịch sử thay đổi khế ước truyền thông (từ V1.0 đến V2.11.2).
 * [`STANDARD_RELEASE_PROCEDURE_SOP.md`](platform/STANDARD_RELEASE_PROCEDURE_SOP.md): Quy trình thao tác chuẩn (SOP) cho việc đóng gói, gắn thẻ phiên bản và phát hành hệ thống.
 * *(Các bản nháp cũ V1.9, V1 Register Map đã được lưu trữ an toàn trong `docs/history/`).*
 

@@ -875,13 +875,23 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 
 ### 10.3. Quy Chuẩn Xuất Bản MQTT Telemetry (`0x0C00`)
 Khi sinh chuỗi JSON từ `payload_template`:
-* Khi gặp `{val1}`..`{val8}` hoặc `{val}`:
-  * Nếu Tag cấu hình là `REAL`: Sử dụng `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `24.5` thay vì `24.5000`).
-  * Nếu Tag cấu hình là `DINT`/`INT32`: Sử dụng `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
-  * Nếu Tag cấu hình là `BOOL`: Sử dụng `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
-* Giới hạn `topic`: Tối đa 32 bytes (đã bao gồm byte null).
-* Giới hạn `payload_template`: Tối đa 128 bytes.
-* Giới hạn buffer xuất bản: Khuyến nghị tối thiểu 256 bytes để đủ dung lượng ghép chuỗi JSON hoàn chỉnh.
+* **Cơ chế Visual Fields (Chế độ Đồ Họa) từ Studio v2.11.2:**
+  * Khối Telemetry (`0x0C00`) chỉ lưu chỉ số tag liên kết (`bound_tags[8]`), không lưu chuỗi tên thuộc tính JSON.
+  * Khi người dùng cấu hình Visual Fields (đặt tên field như `v_avg`, `i_avg`, `p_kw`...), Studio sẽ **tự động sinh chuỗi template Custom** và nạp xuống MCU với cờ `PayloadMode = 2 (Custom)`:
+    ```json
+    {"device":"{device}","ts":{ts},"values":{"v_avg":{val1},"i_avg":{val2},"p_kw":{val3}}}
+    ```
+  * Firmware chỉ cần phân giải các token chuẩn `{device}`, `{ts}`, `{val1}`..`{val8}`, `{valK:N}`, `{tagK}`, `{vals}`. Firmware không cần và không chấp nhận token tên riêng lạ (như `{v_avg}` trong ngoặc token).
+* **Định Dạng Giá Trị Tag (Lookup `0x0080` Tag DataType Registry):**
+  * MCU tra cứu kiểu dữ liệu tại `tag_data_types[bound_tags[K-1]]`:
+    * Nếu Tag cấu hình là `REAL` (`3`): Format số thực `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `229.5` thay vì in nhị phân nguyên `1130823396`).
+    * Nếu Tag cấu hình là `DINT`/`INT32` (`2`): Format số nguyên `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
+    * Nếu Tag cấu hình là `BOOL` (`1`): Format boolean `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
+* **Giới Hạn Bộ Nhớ & Đề Xuất Nâng Cấp:**
+  * Giới hạn `topic`: Tối đa 32 bytes (16 thanh ghi packed ASCII).
+  * Giới hạn `payload_template` hiện tại: 128 bytes (64 thanh ghi packed ASCII).
+  * *Đề xuất nâng cấp Firmware:* Mở rộng vùng đệm template lên 256 bytes để đáp ứng các payload JSON telemetry mở rộng nhiều field.
+  * Giới hạn buffer xuất bản hoàn chỉnh trên MCU: Tối thiểu 512 bytes.
 
 ### 10.4. Hướng Dẫn Tích Hợp Phân Hệ Wi-Fi ST67 (`0x1300..0x13FF`)
 Kỹ sư Firmware cần thực hiện các nguyên tắc cốt lõi sau để đảm bảo tính thời gian thực của PLC:
@@ -898,6 +908,7 @@ Kỹ sư Firmware cần thực hiện các nguyên tắc cốt lõi sau để đ
 Kỹ sư Firmware cần lưu ý trình tự chuẩn mà SynaptiX IDE (C# App) sẽ giao tiếp khi người dùng nhấn nút **Deploy**:
 1. **Đọc Capabilities (`0x0A08`):** Host kiểm tra các bit năng lực (`SPLC_HardwareCapabilities_t`). Nếu dự án có MQTT, Timer, Wi-Fi,... mà MCU thiếu bit tương ứng, Host sẽ lập tức dừng và cảnh báo `UNSUPPORTED`.
 2. **Ghi cấu hình các phân hệ ngoại vi (Holding Registers):** Trước khi nạp bảng luật, Host gửi các gói lệnh Modbus FC16 ghi thẳng vào vùng Holding Registers của từng phân hệ:
+   * **Tag DataType Registry (`0x0080..0x00BF`):** 64 regs (128 bytes, 1 byte/tag: 1=BOOL, 2=INT32, 3=REAL). Studio v2.11.2 luôn nạp bảng này (bao gồm cả các tag đích kiểu REAL từ MB_READ) trước khi COMMIT.
    * Timers (`0x0B00..0x0B3F`): 8 khối TON/TOF/TP (mỗi khối 8 regs).
    * Counters (`0x0B40..0x0B7F`): 8 khối CTU/CTD (mỗi khối 8 regs).
    * MQTT Broker (`0x0E00..0x0E5F`): 96 regs.
@@ -910,10 +921,17 @@ Kỹ sư Firmware cần lưu ý trình tự chuẩn mà SynaptiX IDE (C# App) s�
 3. **Nạp luật vào Staging Buffer (`0x9010`):** Host ghi số lượng rule (`0x9002`) và nạp nhị phân từng mảng rule 16-regs vào `0x9010` (chia từng gói $\le 120$ regs).
 4. **Ghi CRC-16 (`0x9003`):** Host ghi mã kiểm tra CRC-16 của toàn bộ bảng luật.
 5. **Atomic Commit (`0xA000 = 0xA5A5`):** Host gửi FC06/FC16 ghi mã chốt ma thuật `0xA5A5`.
-6. **MCU Commit Handshake:** Firmware kiểm tra CRC của Staging Buffer. Nếu trùng khớp, Firmware thực hiện:
-   * Tráo con trỏ Active Rule Table tại ranh giới chu kỳ quét 10ms (`Atomic Swap`).
-   * Tăng biến phiên bản `active_rule_version` (`0xA001`) thêm 1.
-   * Lưu toàn bộ cấu hình mới vào Flash/NVS nội bộ.
-   * Bật cờ `app_configured=1` và xuất log gỡ lỗi qua UART: `app_configured=1 generation=N`.
+6. **MCU Commit Handshake & Validation:** Firmware kiểm tra tính hợp lệ của Staging Buffer và các phân hệ (bao gồm kiểm tra cú pháp MQTT template):
+   * **Nếu hợp lệ:**
+     * Tráo con trỏ Active Rule Table tại ranh giới chu kỳ quét 10ms (`Atomic Swap`).
+     * Tăng biến phiên bản `active_rule_version` (`0xA001`) thêm 1 (Studio kiểm tra biến này để xác nhận commit thành công).
+     * Chuyển trạng thái `CONFIG_STATUS (0xA002)` sang `3 (READY)`.
+     * Lưu toàn bộ cấu hình mới vào Flash/NVS nội bộ.
+     * Bật cờ `app_configured=1` và xuất log gỡ lỗi qua UART: `app_configured=1 generation=N`.
+   * **Nếu từ chối (Validation/CRC Failed):**
+     * Giữ nguyên cấu hình Active đang chạy (Fail-Safe bảo toàn).
+     * Chuyển `CONFIG_STATUS (0xA002)` sang `4 (ERROR)`.
+     * Ghi mã lỗi vào `CONFIG_ERROR (0xA003)` (ví dụ: `3 = BAD_PAYLOAD_TEMPLATE`, `1 = CRC_MISMATCH`).
+     * Studio sẽ bắt ngay trạng thái lỗi này và hiển thị thông báo FAIL kèm mã lỗi chi tiết tới kỹ sư vận hành.
 
 
