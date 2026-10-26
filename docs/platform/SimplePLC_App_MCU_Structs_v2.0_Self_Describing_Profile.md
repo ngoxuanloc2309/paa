@@ -24,6 +24,7 @@
   5. *Xuất Lệnh Chấp hành Modbus Master (0x1100):* [`docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md)
   6. *Khối Phát Xung & Chấp Hành Phần Cứng PULSE_OUT (0x1200):* [`docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md)
   7. *Định tuyến Đa Cổng RS-485 Modbus Master & Nhận thức Phần cứng (0x0A0A & 0x1400):* [`docs/manuals/MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MULTI_PORT_RS485_MODBUS_MASTER_USER_MANUAL.md) & [`docs/architecture/SPLC_SPEC_HARDWARE_AWARE_RS485_AUTO_SYNC.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/architecture/SPLC_SPEC_HARDWARE_AWARE_RS485_AUTO_SYNC.md)
+  8. *Ánh xạ Bộ nhớ Modbus Slave & Tích hợp SCADA Sandbox (0x1500):* [`docs/manuals/MODBUS_SLAVE_MAPPING_AND_SCADA_INTEGRATION_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MODBUS_SLAVE_MAPPING_AND_SCADA_INTEGRATION_MANUAL.md)
 
 ---
 
@@ -106,7 +107,8 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
 | `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
 | `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
-| `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Modbus Master vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName). Host nạp xuống MCU khi deploy. |
+| `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Master/Slave vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port/Role, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName, Role, SlaveId). Host nạp xuống MCU khi deploy. |
+| `0x1500..0x157F` | **Modbus Slave Data Mapping Table**| R/W | FC03/FC16 | 128 regs (256 B) | Bảng ánh xạ dữ liệu Modbus Slave (SPLC-SPEC-SLAVE-001, 32 entries × 4 registers = 128 regs) phục vụ SCADA/HMI đọc/ghi dữ liệu an toàn qua cơ chế Sandbox 3 cấp độ. |
 | `0x9000..0x9005` | **Staging Handshake** | R/W | FC03/FC16 | 6 regs (12 B) | Trạng thái bắt tay nạp Rule: Status, ErrorCode, StagedCount, ExpectedCRC, ActiveCount, ActiveCRC. |
 | `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | RAM đệm nạp Rule mới (nạp theo từng block tối đa 120 thanh ghi). |
 | `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và hoán đổi con trỏ bảng Rule. |
@@ -626,7 +628,60 @@ typedef struct SPLC_PACKED {
 | `+6` | `DELAY_MS` | `uint16` | Thời gian trễ giải phóng bus giữa các khung (`10..500 ms`, mặc định `20ms`) |
 | `+7` | `RETRY_COUNT` | `uint16` | Số lần phát lại khi lỗi timeout (`0..5`, mặc định `1`) |
 | `+8..+13` | `PORT_NAME` | `ASCII[12]` (6 Regs) | Tên nhãn đại diện của cổng (ví dụ: `"RS-485 #1"`, `"VFD_BUS"`), 2 ký tự/reg Big-Endian null-padded |
-| `+14..+15` | `RESERVED` | `uint16[2]` | Luôn ghi `0x0000`; thiết bị nhận bỏ qua |
+| `+14` | `PORT_ROLE` | `uint16` | Vai trò cổng RS-485: `0` = Modbus RTU Master, `1` = Modbus RTU Slave (Server) |
+| `+15` | `SLAVE_ID` | `uint16` | Mã trạm Modbus Slave (`1..247`) khi `PORT_ROLE = 1`; ghi `0` khi là Master |
+
+```c
+#pragma pack(push, 1)
+
+/**
+ * @brief Bản ghi cấu hình cổng RS-485 hỗ trợ cả Master & Slave (32 bytes).
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;        /* +0: Bit 8: ENABLED, Bit 9: ROLE_SLAVE (0x0200), Bit 0..7: PORT_NUM */
+    uint32_t baud_rate;            /* +1..+2: Tốc độ Baud (uint32 Big-Endian) */
+    uint16_t parity;               /* +3: 0 = None, 1 = Even, 2 = Odd */
+    uint16_t framing;              /* +4: High Byte: data_bits (7, 8), Low Byte: stop_bits (1, 2) */
+    uint16_t response_timeout_ms;  /* +5: Thời gian chờ phản hồi tối đa (Master) */
+    uint16_t inter_frame_delay_ms; /* +6: Thời gian giãn cách giải phóng bus */
+    uint16_t retry_count;          /* +7: Số lần phát lại khi timeout (Master) */
+    char     port_name[12];        /* +8..+13: 12 bytes ASCII packed string null-padded */
+    uint16_t port_role;            /* +14: 0 = Master, 1 = Slave */
+    uint16_t slave_id;             /* +15: Slave ID (1..247) */
+} SPLC_ModbusPortConfigRecord_v2_t;
+
+#pragma pack(pop)
+```
+
+---
+
+### 3.18. Phân Vùng Bảng Ánh Xạ Modbus Slave (`0x1500..0x157F`, SPLC-SPEC-SLAVE-001)
+
+Nhằm phục vụ hệ thống SCADA, DCS hoặc màn hình HMI bên ngoài đọc/ghi tham số an toàn, hệ thống cung cấp **Bảng Ánh Xạ Modbus Slave phẳng** gồm tối đa **32 Entries** (mỗi entry chiếm đúng 4 thanh ghi = 8 bytes):
+
+```c
+#pragma pack(push, 1)
+
+/**
+ * @brief Bản ghi ánh xạ 1 thanh ghi Modbus Slave (4 registers = 8 bytes).
+ * SPLC-SPEC-SLAVE-001: Memory Protection Sandbox.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t modbus_address;   /* +0: Địa chỉ Modbus bên ngoài SCADA truy vấn (0..65535) */
+    uint16_t target_tag_index; /* +1: Trỏ tới Tag nội bộ của PLC (0..127) */
+    uint16_t flags;            /* +2: Bit 0: IS_WRITABLE (0=ReadOnly, 1=ReadWrite)
+                                *     Bit 1..3: DATA_TYPE (1=BOOL, 2=INT32, 3=REAL, 4=UINT16)
+                                *     Bit 4..7: PORT_MASK (áp dụng cho cổng nào: Bit 0=Port 1..Bit 3=Port 4) */
+    uint16_t reserved;         /* +3: Dự phòng (luôn ghi 0x0000) */
+} SPLC_ModbusSlaveMapEntry_t;
+
+#pragma pack(pop)
+```
+
+#### Cơ chế Bảo vệ Vùng nhớ 3 Cấp độ (Memory Protection Sandbox):
+1. **Vùng Cấm Tuyệt Đối (Restricted System Area):** Tuyệt đối cô lập SCADA với vùng nạp rule (`0x9000`), lệnh chốt Flash COMMIT (`0xA000`), và cấu hình Wi-Fi. Mọi yêu cầu ghi/đọc ngoài bảng đều bị phản hồi **Modbus Exception 0x02 (Illegal Data Address)**.
+2. **Vùng Cấm Ghi (Read-Only):** Ngõ vào vật lý (`DI0..DI7`, `AI0..AI3`), dữ liệu từ cảm biến `MB_READ`. Khóa cứng quyền `ReadOnly`. Nếu SCADA cố ghi FC06/FC16, MCU lập tức từ chối và bắn **Modbus Exception 0x03 (Illegal Data Value / Access Denied)**.
+3. **Vùng Cho Phép Can Thiệp (Read/Write Sandbox):** Cờ lệnh điều khiển (`VFLAG0..VFLAG31`) và thông số cài đặt (`VREG0..VREG31`, `VREG_RETAIN0..VREG_RETAIN31`). Cho phép cấp quyền `Read-Only` hoặc `Read/Write`.
 
 ---
 
@@ -824,7 +879,8 @@ Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio,
 - [ ] **CHKL-19: Modbus Master RTU Sensor Poller Conformance (0x1000..0x10FF)**: Hỗ trợ nạp cấu hình 4 kênh Modbus Master tại `0x1000..0x10FF` (256 regs, SPLC-SPEC-MBM-001). Thực thi polling không nghẽn (Non-blocking RTOS Task), xác thực CRC-16 của frame phản hồi, phân giải 4 chuẩn Endianness (ABCD, CDAB, BADC, DCBA), cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét 10ms.
 - [ ] **CHKL-20: Pulse Output & Hardware Actuator (0x1200..0x12FF)**: Hỗ trợ nạp cấu hình tối đa 8 khối `PULSE_OUT` (DO, PWM, PTO, Bus Addressable) điều khiển chân ngõ ra số phần cứng DO0..DO7 theo chuẩn ICD SPLC-SPEC-PULSE-003 (tương thích DIRECT_WRITE).
 - [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD). Khi MCU có chip ST67, BẮT BUỘC bật cờ `SPLC_CAP_WIFI (0x0200)` tại `0x0A08`. Thực thi quét sóng (START_SCAN `0x0001`) và kết nối mạng (CONNECT `0x0002`) qua FreeRTOS Worker Task nền không làm nghẽn (non-blocking) chu kỳ quét 10ms của PLC; nạp danh sách tối đa 8 AP lân cận vào `0x1350`; phản hồi đúng trạng thái `GOT_IP (3)` và IP thực tế tại `0x133C`. Tự động lưu SSID/Password vào Flash/NVS để tự kết nối lại sau khi mất nguồn.
-- [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng Modbus Master tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay) và áp dụng đúng tham số truyền thông cho các luồng Modbus Master Poller (`0x1000`) và Writer (`0x1100`).
+- [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng RS-485 tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay, PortRole, SlaveId) và áp dụng đúng tham số truyền thông cho các luồng Modbus Master Poller (`0x1000`) và Writer (`0x1100`).
+- [ ] **CHKL-23: Modbus Slave Sandbox & Access Control Conformance (0x1500..0x157F & 0x1400 +14..+15)**: MCU hỗ trợ cấu hình cổng RS-485 sang vai trò Modbus Slave (`PORT_ROLE = 1`, `SLAVE_ID = 1..247`). Lưu trữ và thực thi bảng ánh xạ 32 entries tại `0x1500..0x157F` (128 registers = 256 bytes, SPLC-SPEC-SLAVE-001). Khi Master ngoài (SCADA/HMI) truy vấn qua cổng Slave, MCU phản hồi FC03 theo bảng ánh xạ, chặn ghi vào các ô Read-Only (DI/AI) với Modbus Exception 0x03, chặn truy cập ngoài bảng hoặc vào vùng cấm 0x9000/0xA000 với Modbus Exception 0x02.
 
 ---
 
@@ -917,7 +973,8 @@ Kỹ sư Firmware cần lưu ý trình tự chuẩn mà SynaptiX IDE (C# App) s�
    * Modbus Master Read (`0x1000..0x10FF`) & Write (`0x1100..0x11FF`): Tối đa 4 blocks $\times$ 64 regs.
    * Pulse Out (`0x1200..0x12FF`): Tối đa 8 blocks $\times$ 16 regs.
    * Wi-Fi ST67 (`0x1300..0x133F`): 64 regs.
-   * Cổng RS-485 Modbus Master (`0x1400..0x143F`): 4 cổng × 16 regs = 64 regs (SPLC-SPEC-MBM-003).
+   * Cổng RS-485 Modbus Master & Slave (`0x1400..0x143F`): 4 cổng × 16 regs = 64 regs (SPLC-SPEC-MBM-003).
+   * Bảng Ánh Xạ Modbus Slave Sandbox (`0x1500..0x157F`): 32 entries × 4 regs = 128 regs (SPLC-SPEC-SLAVE-001) nạp cấu hình bộ nhớ Sandbox SCADA.
 3. **Nạp luật vào Staging Buffer (`0x9010`):** Host ghi số lượng rule (`0x9002`) và nạp nhị phân từng mảng rule 16-regs vào `0x9010` (chia từng gói $\le 120$ regs).
 4. **Ghi CRC-16 (`0x9003`):** Host ghi mã kiểm tra CRC-16 của toàn bộ bảng luật.
 5. **Atomic Commit (`0xA000 = 0xA5A5`):** Host gửi FC06/FC16 ghi mã chốt ma thuật `0xA5A5`.
@@ -933,5 +990,13 @@ Kỹ sư Firmware cần lưu ý trình tự chuẩn mà SynaptiX IDE (C# App) s�
      * Chuyển `CONFIG_STATUS (0xA002)` sang `4 (ERROR)`.
      * Ghi mã lỗi vào `CONFIG_ERROR (0xA003)` (ví dụ: `3 = BAD_PAYLOAD_TEMPLATE`, `1 = CRC_MISMATCH`).
      * Studio sẽ bắt ngay trạng thái lỗi này và hiển thị thông báo FAIL kèm mã lỗi chi tiết tới kỹ sư vận hành.
+
+### 10.6. Hướng Dẫn Tích Hợp Sandbox Modbus Slave & Bảo Vệ Vùng Nhớ (`0x1500..0x157F`)
+Khi kỹ sư cấu hình ít nhất một cổng RS-485 ở vai trò **Modbus Slave** (`PORT_ROLE = 1`, `SLAVE_ID = 1..247`), firmware MCU đóng vai trò là một Modbus RTU Server độc lập nhận yêu cầu từ SCADA/HMI ngoài:
+1. **Kiểm tra Địa chỉ Cổng và Station ID:** MCU chỉ phản hồi các frame Modbus gửi tới đúng `SLAVE_ID` đã cấu hình cho cổng đó.
+2. **Xác thực Yêu cầu qua Bảng Ánh Xạ Sandbox (`0x1500..0x157F`):**
+   * **Khi SCADA gửi lệnh Đọc FC03:** MCU quét bảng 32 entries. Nếu tìm thấy mục có `modbus_address` tương ứng và cờ `IS_ACTIVE (0x0100)` được bật: lấy `target_tag_index` và đọc giá trị nhị phân từ `g_tag_store` phản hồi SCADA. Nếu không tìm thấy hoặc địa chỉ ngoài bảng, trả về **Modbus Exception 0x02 (Illegal Data Address)**.
+   * **Khi SCADA gửi lệnh Ghi FC06 / FC16:** MCU kiểm tra cờ `IS_WRITABLE (0x0001)`. Nếu là ô `ReadOnly` (bắt buộc với DI/AI hoặc VREG/VFLAG được người dùng cấu hình ReadOnly), MCU lập tức từ chối và phản hồi **Modbus Exception 0x03 (Illegal Data Value / Access Denied)**. Nếu ô có quyền `ReadWrite`, MCU chuyển đổi dữ liệu và ghi nguyên tử vào `g_tag_store[target_tag_index]` tại ranh giới chu kỳ quét 10ms.
+3. **Tuyệt đối Cô lập Vùng nhớ Hệ thống (Tier 1 Restriction):** Nghiêm cấm SCADA can thiệp vào vùng nạp Rule (`0x9000`), lệnh Commit (`0xA000`), hoặc cấu hình Wi-Fi/MQTT. Mọi truy vấn ngoài bảng Sandbox đều bị MCU chặn đứng với Exception 0x02.
 
 

@@ -1,4 +1,4 @@
-﻿using SimplePLC.Application.Abstractions;
+using SimplePLC.Application.Abstractions;
 using SimplePLC.Infrastructure.Abstractions;
 using SimplePLC.Infrastructure.Devices;
 using SimplePLC.Protocol.Dto;
@@ -55,6 +55,9 @@ public sealed class RuleTableGateway : IRuleTableGateway
     public Task<IReadOnlyList<ModbusPortConfigDto>> ReadActiveModbusPortsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
         _reader.ReadActiveModbusPortsAsync(slaveId, cancellationToken);
 
+    public Task<IReadOnlyList<ModbusSlaveMapEntryDto>> ReadActiveModbusSlaveMapConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveModbusSlaveMapConfigsAsync(slaveId, cancellationToken);
+
     public Task<FullDeviceConfigurationDto> ReadFullDeviceConfigurationAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
         _reader.ReadFullDeviceConfigurationAsync(slaveId, cancellationToken);
 
@@ -81,6 +84,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
+        IReadOnlyList<ModbusSlaveMapEntryDto>? slaveMapConfigs = null,
         IReadOnlyList<byte>? tagDataTypes = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null) =>
@@ -96,6 +100,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
             modbusMasterWriteConfigs,
             directWriteConfigs,
             modbusPortConfigs,
+            slaveMapConfigs,
             tagDataTypes,
             cancellationToken,
             progressLogger);

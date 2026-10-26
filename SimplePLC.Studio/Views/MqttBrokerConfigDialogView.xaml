@@ -1,355 +1,717 @@
 <Window x:Class="SimplePLC.Studio.Views.MqttBrokerConfigDialogView"
+
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+
+        xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
+
         xmlns:viewmodels="clr-namespace:SimplePLC.Studio.ViewModels"
+
         Title="{Binding [MqttBrokerDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="680" Height="640"
+
+        Width="620"
+
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
+        SizeToContent="Height"
+
+        ResizeMode="CanResizeWithGrip"
+
+        controls:WindowChromeHelper.EnableIndependentMinimize="True"
+
+        ShowInTaskbar="True"
+
+        MaxWidth="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Width}"
+
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
+
         Background="#F8FAFC"
+
         Icon="../Assets/app.png"
+
         FontFamily="Segoe UI"
+
         TextOptions.TextFormattingMode="Display"
+
         TextOptions.TextRenderingMode="ClearType"
-        RenderOptions.ClearTypeHint="Enabled">
+
+        RenderOptions.ClearTypeHint="Enabled"
+        MinWidth="560"
+        MinHeight="440">
+
+
 
     <Window.Resources>
+
         <ResourceDictionary>
+
             <ResourceDictionary.MergedDictionaries>
+
                 <ResourceDictionary Source="../Styles/Colors.xaml" />
+
                 <ResourceDictionary Source="../Styles/Controls.xaml" />
+
             </ResourceDictionary.MergedDictionaries>
+
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
         </ResourceDictionary>
+
     </Window.Resources>
 
+
+
     <Border BorderBrush="#CBD5E1" BorderThickness="1">
-        <Grid Margin="20">
+
+        <Grid Margin="16,14">
+
             <Grid.RowDefinitions>
+
                 <!-- 0. Header -->
+
                 <RowDefinition Height="Auto" />
+
                 <!-- 1. Content Cards -->
+
                 <RowDefinition Height="*" />
+
                 <!-- 2. Footer Action -->
+
                 <RowDefinition Height="Auto" />
+
             </Grid.RowDefinitions>
 
+
+
             <!-- 0. Header -->
-            <Grid Grid.Row="0" Margin="0,0,0,14">
+
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+
                 <Grid.ColumnDefinitions>
+
                     <ColumnDefinition Width="Auto" />
+
                     <ColumnDefinition Width="*" />
+
                 </Grid.ColumnDefinitions>
 
+
+
                 <Border Grid.Column="0" Width="44" Height="44" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
+
                     <TextBlock Text="📡" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
                 </Border>
 
+
+
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
+
                     <TextBlock Text="{Binding [MqttBrokerDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
+
                                FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+
                     <TextBlock Text="{Binding [MqttBrokerDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
+
                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+
                 </StackPanel>
+
             </Grid>
 
+
+
             <!-- 1. Content Cards -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+
                 <StackPanel>
+
                     <!-- Card 1: Dịch vụ & Máy chủ Broker -->
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+
+                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+
                         <StackPanel>
+
                             <Grid Margin="0,0,0,10">
+
                                 <Grid.ColumnDefinitions>
+
                                     <ColumnDefinition Width="*" />
+
                                     <ColumnDefinition Width="Auto" />
+
                                 </Grid.ColumnDefinitions>
+
                                 <TextBlock Text="{Binding [MqttBrokerSectionNetwork], Source={x:Static services:LocalizationService.Instance}}"
+
                                            FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+
                                 <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" Content="{Binding [MqttBrokerEnabledLabel], Source={x:Static services:LocalizationService.Instance}}"
+
                                           FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" />
+
                             </Grid>
+
+
 
                             <Grid Margin="0,4,0,0">
+
                                 <Grid.ColumnDefinitions>
+
                                     <ColumnDefinition Width="3*" />
+
                                     <ColumnDefinition Width="14" />
+
                                     <ColumnDefinition Width="1.2*" />
+
                                 </Grid.ColumnDefinitions>
+
+
 
                                 <!-- Host / IP -->
+
                                 <StackPanel Grid.Column="0">
+
                                     <TextBlock Text="{Binding [MqttBrokerHostLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+
                                     <Grid>
+
                                         <TextBox x:Name="HostTextBox" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" 
+
                                                  Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+
                                         <TextBlock Text="{Binding [MqttBrokerHostPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
+
                                                    FontSize="12" Foreground="#94A3B8" FontStyle="Italic"
+
                                                    Margin="9,7,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
+
                                             <TextBlock.Style>
+
                                                 <Style TargetType="TextBlock">
+
                                                     <Setter Property="Visibility" Value="Collapsed" />
+
                                                     <Style.Triggers>
+
                                                         <DataTrigger Binding="{Binding Text, ElementName=HostTextBox}" Value="">
+
                                                             <Setter Property="Visibility" Value="Visible" />
+
                                                         </DataTrigger>
+
                                                     </Style.Triggers>
+
                                                 </Style>
+
                                             </TextBlock.Style>
+
                                         </TextBlock>
+
                                     </Grid>
+
                                 </StackPanel>
+
+
 
                                 <!-- Port -->
+
                                 <StackPanel Grid.Column="2">
+
                                     <TextBlock Text="{Binding [MqttBrokerPortLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" 
-                                             Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+
+                                    <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="#CBD5E1" Width="80" HorizontalAlignment="Left" />
+
                                 </StackPanel>
+
                             </Grid>
+
+
 
                             <!-- TLS / SSL Toggle -->
+
                             <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+
                                  <CheckBox IsChecked="{Binding UseTls}" Content="{Binding [MqttBrokerTlsLabel], Source={x:Static services:LocalizationService.Instance}}"
+
                                            FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+
                             </StackPanel>
 
+
+
                             <!-- TLS / SSL Certificate & Security Parameters (Shows when UseTls is True) -->
+
                             <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="14,12" Margin="0,10,0,0"
+
                                     Visibility="{Binding UseTls, Converter={StaticResource BoolToVis}}">
+
                                 <StackPanel>
+
                                     <Grid Margin="0,0,0,8">
+
                                         <Grid.ColumnDefinitions>
+
                                             <ColumnDefinition Width="*" />
+
                                             <ColumnDefinition Width="Auto" />
+
                                         </Grid.ColumnDefinitions>
+
                                         <TextBlock Text="{Binding [MqttBrokerSectionTls], Source={x:Static services:LocalizationService.Instance}}"
+
                                                    FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+
                                         <Border Grid.Column="1" Background="#E2E8F0" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
+
                                             <TextBlock Text="TLS 1.2 / 1.3" FontSize="10" FontWeight="SemiBold" Foreground="#475569" />
+
                                         </Border>
+
                                     </Grid>
+
+
 
                                     <!-- CA Cert Path & Browse -->
+
                                     <TextBlock Text="{Binding [MqttBrokerCaCertLabel], Source={x:Static services:LocalizationService.Instance}}"
+
                                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+
                                     <Grid Margin="0,0,0,8">
+
                                         <Grid.ColumnDefinitions>
+
                                             <ColumnDefinition Width="*" />
+
                                             <ColumnDefinition Width="8" />
+
                                             <ColumnDefinition Width="Auto" />
+
                                             <ColumnDefinition Width="6" />
+
                                             <ColumnDefinition Width="Auto" />
+
                                         </Grid.ColumnDefinitions>
 
+
+
                                         <TextBox Grid.Column="0" Text="{Binding CaCertPath, Mode=OneWay}" IsReadOnly="True"
+
                                                  Padding="8,6" FontSize="11.5" BorderBrush="#CBD5E1" Background="#FFFFFF" />
 
+
+
                                         <Button Grid.Column="2" Content="{Binding [MqttBrokerBrowseBtn], Source={x:Static services:LocalizationService.Instance}}"
+
                                                 Command="{Binding BrowseCaCertCommand}"
+
                                                 Padding="14,5" FontSize="11.5" Style="{StaticResource BtnSecondary}" />
 
+
+
                                         <Button Grid.Column="4" Content="{Binding [MqttBrokerClearBtn], Source={x:Static services:LocalizationService.Instance}}"
+
                                                 Command="{Binding ClearCaCertCommand}"
+
                                                 IsEnabled="{Binding HasCaCert}"
+
                                                 Padding="10,5" FontSize="11.5" Style="{StaticResource BtnSecondary}" />
+
                                     </Grid>
 
+
+
                                     <!-- Cert Details Info Badge (When HasCaCert is True) -->
+
                                     <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8"
+
                                             Visibility="{Binding HasCaCert, Converter={StaticResource BoolToVis}}">
+
                                         <Grid>
+
                                             <Grid.RowDefinitions>
+
                                                 <RowDefinition Height="Auto" />
+
                                                 <RowDefinition Height="Auto" />
+
                                                 <RowDefinition Height="Auto" />
+
                                             </Grid.RowDefinitions>
+
                                             <Grid.ColumnDefinitions>
+
                                                 <ColumnDefinition Width="Auto" MinWidth="90" />
+
                                                 <ColumnDefinition Width="*" />
+
                                             </Grid.ColumnDefinitions>
 
+
+
                                             <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [MqttBrokerCertIssuer], Source={x:Static services:LocalizationService.Instance}}"
+
                                                        FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" />
+
                                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CaCertIssuer}"
+
                                                        FontSize="10.5" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
 
+
+
                                             <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [MqttBrokerCertExpiry], Source={x:Static services:LocalizationService.Instance}}"
+
                                                        FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" Margin="0,2,0,0" />
+
                                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CaCertExpiry}"
+
                                                        FontSize="10.5" Foreground="#0F172A" Margin="0,2,0,0" />
 
+
+
                                             <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [MqttBrokerCertFingerprint], Source={x:Static services:LocalizationService.Instance}}"
+
                                                        FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" Margin="0,2,0,0" />
+
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CaCertSha256}"
+
                                                        FontSize="10" FontFamily="Consolas" Foreground="#334155" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+
                                         </Grid>
+
                                     </Border>
 
+
+
                                     <!-- Default Root CA Note when HasCaCert is False -->
+
                                     <TextBlock Text="{Binding [MqttBrokerCertNone], Source={x:Static services:LocalizationService.Instance}}"
+
                                                FontSize="11" Foreground="#64748B" FontStyle="Italic" Margin="0,0,0,6">
+
                                         <TextBlock.Style>
+
                                             <Style TargetType="TextBlock">
+
                                                 <Setter Property="Visibility" Value="Collapsed" />
+
                                                 <Style.Triggers>
+
                                                     <DataTrigger Binding="{Binding HasCaCert}" Value="False">
+
                                                         <Setter Property="Visibility" Value="Visible" />
+
                                                     </DataTrigger>
+
                                                 </Style.Triggers>
+
                                             </Style>
+
                                         </TextBlock.Style>
+
                                     </TextBlock>
 
+
+
                                     <!-- Allow Self-Signed Checkbox -->
+
                                     <CheckBox IsChecked="{Binding AllowSelfSigned}"
+
                                               Content="{Binding [MqttBrokerAllowSelfSignedLabel], Source={x:Static services:LocalizationService.Instance}}"
+
                                               FontSize="11.5" Foreground="#334155" Margin="0,4,0,0" />
+
                                 </StackPanel>
+
                             </Border>
+
                         </StackPanel>
+
                     </Border>
+
+
 
                     <!-- Card 2: Xác thực & Định danh Client -->
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+
+                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+
                         <StackPanel>
+
                             <TextBlock Text="{Binding [MqttBrokerSectionAuth], Source={x:Static services:LocalizationService.Instance}}"
+
                                        FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+
+
 
                             <!-- Client ID -->
+
                             <TextBlock Text="{Binding [MqttBrokerClientIdLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                        FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+
                             <Grid Margin="0,0,0,10">
+
                                 <TextBox x:Name="ClientIdTextBox" Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" 
+
                                          Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+
                                 <TextBlock Text="{Binding [MqttBrokerClientIdPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
+
                                            FontSize="12" Foreground="#94A3B8" FontStyle="Italic"
+
                                            Margin="9,7,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
+
                                     <TextBlock.Style>
+
                                         <Style TargetType="TextBlock">
+
                                             <Setter Property="Visibility" Value="Collapsed" />
+
                                             <Style.Triggers>
+
                                                 <DataTrigger Binding="{Binding Text, ElementName=ClientIdTextBox}" Value="">
+
                                                     <Setter Property="Visibility" Value="Visible" />
+
                                                 </DataTrigger>
+
                                             </Style.Triggers>
+
                                         </Style>
+
                                     </TextBlock.Style>
+
                                 </TextBlock>
+
                             </Grid>
 
+
+
                             <Grid>
+
                                 <Grid.ColumnDefinitions>
+
                                     <ColumnDefinition Width="*" />
+
                                     <ColumnDefinition Width="14" />
+
                                     <ColumnDefinition Width="*" />
+
                                 </Grid.ColumnDefinitions>
+
+
 
                                 <!-- Username -->
+
                                 <StackPanel Grid.Column="0">
+
                                     <TextBlock Text="{Binding [MqttBrokerUserLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+
                                     <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
+
                                              Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+
                                 </StackPanel>
+
+
 
                                 <!-- Password -->
+
                                 <StackPanel Grid.Column="2">
+
                                     <TextBlock Text="{Binding [MqttBrokerPassLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                                FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+
                                     <TextBox Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}" 
+
                                              Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+
                                 </StackPanel>
+
                             </Grid>
+
                         </StackPanel>
+
                     </Border>
+
+
 
                     <!-- Card 3: Thông số Phiên (Session Options) -->
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+
+                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+
                         <StackPanel>
+
                             <TextBlock Text="{Binding [MqttBrokerSectionSession], Source={x:Static services:LocalizationService.Instance}}"
+
                                        FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
 
+
+
                             <Grid>
+
                                 <Grid.ColumnDefinitions>
+
                                     <ColumnDefinition Width="Auto" MinWidth="180" />
+
                                     <ColumnDefinition Width="120" />
+
                                     <ColumnDefinition Width="20" />
+
                                     <ColumnDefinition Width="*" />
+
                                 </Grid.ColumnDefinitions>
 
+
+
                                 <!-- KeepAlive -->
+
                                 <TextBlock Grid.Column="0" Text="{Binding [MqttBrokerKeepAliveLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
                                            FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                                <TextBox Grid.Column="1" Text="{Binding KeepAliveSec, UpdateSourceTrigger=PropertyChanged}" 
-                                         Padding="8,5" FontSize="12.5" BorderBrush="#CBD5E1" VerticalAlignment="Center" />
+
+                                <TextBox Grid.Column="1" Text="{Binding KeepAliveSec, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="#CBD5E1" Width="70" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+
 
                                 <!-- Clean Session -->
+
                                 <CheckBox Grid.Column="3" IsChecked="{Binding CleanSession}" 
+
                                           Content="{Binding [MqttBrokerCleanSessionLabel], Source={x:Static services:LocalizationService.Instance}}"
+
                                           FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+
                             </Grid>
+
                         </StackPanel>
+
                     </Border>
+
+
 
                     <!-- Card 4: Kiểm tra kết nối TCP -->
+
                     <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="14,10">
+
                         <Grid>
+
                             <Grid.ColumnDefinitions>
+
                                 <ColumnDefinition Width="Auto" />
+
                                 <ColumnDefinition Width="12" />
+
                                 <ColumnDefinition Width="*" />
+
                             </Grid.ColumnDefinitions>
 
+
+
                             <Button Grid.Column="0" 
+
                                     Content="{Binding [MqttBrokerTestBtn], Source={x:Static services:LocalizationService.Instance}}"
+
                                     ToolTip="{Binding [MqttBrokerTestBtnTip], Source={x:Static services:LocalizationService.Instance}}"
+
                                     Command="{Binding TestConnectionCommand}"
+
                                     Style="{StaticResource BtnSecondary}"
+
                                     Padding="14,6" FontSize="11.5" VerticalAlignment="Center" />
 
+
+
                             <TextBlock Grid.Column="2" 
+
                                        Text="{Binding TestStatusMessage}" 
+
                                        FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center">
+
                                 <TextBlock.Style>
+
                                     <Style TargetType="TextBlock">
+
                                         <Setter Property="Foreground" Value="#64748B" />
+
                                         <Style.Triggers>
+
                                             <DataTrigger Binding="{Binding IsTestSuccess}" Value="True">
+
                                                 <Setter Property="Foreground" Value="#107C41" />
+
                                                 <Setter Property="FontWeight" Value="SemiBold" />
+
                                             </DataTrigger>
+
                                             <DataTrigger Binding="{Binding IsTestSuccess}" Value="False">
+
                                                 <Setter Property="Foreground" Value="#B91C1C" />
+
                                                 <Setter Property="FontWeight" Value="SemiBold" />
+
                                             </DataTrigger>
+
                                         </Style.Triggers>
+
                                     </Style>
+
                                 </TextBlock.Style>
+
                             </TextBlock>
+
                         </Grid>
+
                     </Border>
+
                 </StackPanel>
+
             </ScrollViewer>
 
+
+
             <!-- 2. Footer Action -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+
                 <Button Content="{Binding [MqttBrokerCancelBtn], Source={x:Static services:LocalizationService.Instance}}"
+
                         Command="{Binding CancelCommand}"
+
                         Padding="20,6" FontSize="12" FontWeight="SemiBold"
+
                         Style="{StaticResource BtnSecondary}"
+
                         Margin="0,0,10,0" IsCancel="True" />
 
+
+
                 <Button Content="{Binding [MqttBrokerSaveBtn], Source={x:Static services:LocalizationService.Instance}}"
+
                         Command="{Binding SaveCommand}"
+
                         Padding="24,6" FontSize="12" FontWeight="SemiBold"
+
                         Style="{StaticResource BtnPrimary}"
+
                         IsDefault="True" />
+
             </StackPanel>
+
         </Grid>
+
     </Border>
+
 </Window>
+

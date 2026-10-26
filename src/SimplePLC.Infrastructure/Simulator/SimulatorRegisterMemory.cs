@@ -53,6 +53,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiControlAddress, ModbusRegisterMap.WifiControlRegisters) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiScanTableBaseAddress, ModbusRegisterMap.WifiScanTableRegisters) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusPortConfigBaseAddress, ModbusRegisterMap.ModbusPortConfigTableTotalLength) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusSlaveMapBaseAddress, ModbusRegisterMap.ModbusSlaveMapTableTotalLength) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.TagDataTypesBaseAddress, ModbusRegisterMap.TagDataTypesLength);
     }
 
@@ -84,6 +85,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiConfigBaseAddress, ModbusRegisterMap.WifiConfigRegisters) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.WifiControlAddress, ModbusRegisterMap.WifiControlRegisters) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusPortConfigBaseAddress, ModbusRegisterMap.ModbusPortConfigTableTotalLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.ModbusSlaveMapBaseAddress, ModbusRegisterMap.ModbusSlaveMapTableTotalLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.TagDataTypesBaseAddress, ModbusRegisterMap.TagDataTypesLength);
     }
 

@@ -101,9 +101,10 @@ public sealed class ModbusPortConfigViewModelTests
 
         Assert.Equal("ACTIVE", item.StatusPill);
         Assert.Equal("#107C41", item.StatusPillColor);
-        Assert.Contains("19200 bps", item.SummaryBadge);
-        Assert.Contains("Timeout 200ms", item.SummaryBadge);
-        Assert.Contains("Retries 2", item.SummaryBadge);
+        Assert.Contains("19200", item.SummaryBadge);
+        Assert.Contains("8-E-1", item.SummaryBadge);
+        Assert.Contains("Master", item.SummaryBadge);
+        Assert.Contains("200ms", item.SummaryBadge);
 
         item.Enabled = false;
         Assert.Equal("DISABLED", item.StatusPill);

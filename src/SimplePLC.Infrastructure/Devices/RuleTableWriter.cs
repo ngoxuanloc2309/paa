@@ -69,7 +69,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, null, cancellationToken, null);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, null, null, cancellationToken, null);
 
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
@@ -83,6 +83,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
+        IReadOnlyList<ModbusSlaveMapEntryDto>? slaveMapConfigs = null,
         IReadOnlyList<byte>? tagDataTypes = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null)

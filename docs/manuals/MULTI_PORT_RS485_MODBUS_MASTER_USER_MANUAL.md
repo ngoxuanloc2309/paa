@@ -68,10 +68,11 @@ Hệ thống quy hoạch phân vùng 64 thanh ghi (128 bytes) nhị phân cố �
 2. Hoặc nhấn tổ hợp phím tắt nhanh: **`Ctrl + Shift + B`**.
 
 ### Bước 2: Thiết lập thông số cổng
-Hộp thoại cấu hình xuất hiện kích thước chuẩn công nghiệp `840 x 560`:
+Hộp thoại cấu hình xuất hiện kích thước chuẩn công nghiệp `1020 x 680 (hỗ trợ thu phóng tối thiểu 920 x 560, độc lập Minimize/Maximize)`:
 - **Danh sách bên trái:** Bấm chọn cổng cần cấu hình (`Cổng 1` đến `Cổng 4`). Xem nhanh trạng thái `ACTIVE` / `DISABLED` và tóm tắt tốc độ.
 - **Bảng chi tiết bên phải:**
   - **Kích hoạt cổng:** Tích chọn checkbox nếu sử dụng cổng này.
+  - **Chế độ hoạt động (Mode):** Chọn Modbus Master (điều khiển thiết bị ngoại vi qua MB_READ/MB_WRITE) hoặc Modbus Slave (mở bảng ánh xạ nhớ Sandbox cho SCADA/HMI đọc/ghi).
   - **Tên cổng:** Nhập tên định danh (tối đa 12 ký tự, ví dụ: `SENSOR_BUS`, `INVERTER`).
   - **Baud Rate:** Chọn tốc độ phù hợp với mạng Slave (`9600`, `19200`, `38400`, `57600`, `115200`).
   - **Parity:** Chọn `None`, `Even` hoặc `Odd`.

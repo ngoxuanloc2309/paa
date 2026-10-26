@@ -1,5 +1,32 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.11.3 / Studio v2.11.3] - 2026-10-26 (RS-485 MODBUS MULTI-PORT MASTER & SLAVE SCADA INTEGRATION, MEMORY SANDBOX, 0x1500 EXPORT & DIALOG ERGONOMICS)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Đa Cổng RS-485 Hỗ Trợ Master & Slave (`0x1400..0x143F`, SPLC-SPEC-MBM-003)**:
+  - Cấu hình vai trò cổng `Master` hoặc `Slave` độc lập cho từng cổng RS-485 vật lý.
+  - Phân vùng cấu hình cổng mở rộng trường `PORT_ROLE (0=Master, 1=Slave)` và `SLAVE_ID (1..247)`.
+  - Tự động lọc sạch dropdown của các khối Master (`MB_READ`/`MB_WRITE`): Chỉ hiển thị các cổng Master thực sự khả dụng, loại bỏ chuỗi thô `[SLAVE - UNAVAILABLE]`, tự động chuyển sang cổng Master hợp lệ đầu tiên nếu cổng cũ chuyển thành Slave.
+- **2. Bảng Ánh Xạ Bộ Nhớ Modbus Slave & Cơ Chế Sandbox 3 Cấp Độ (`0x1500..0x157F`, SPLC-SPEC-SLAVE-001)**:
+  - Khai báo tối đa 32 bản ghi ánh xạ thanh ghi nhị phân (mỗi entry 4 regs = 8 bytes).
+  - Sandbox bảo vệ an toàn 3 tầng: Khóa cứng `🔒 ReadOnly` đối với ngõ vào vật lý `DI0..DI7`, `AI0..AI3` (ngăn SCADA ghi đè làm sai lệch cảm biến và nút E-Stop); cho phép tùy biến quyền `ReadOnly` / `ReadWrite` cho `VREG`, `VFLAG`, `DO`.
+  - Chặn đứng mọi truy vấn ngoài bảng hoặc vào vùng nạp rule (`0x9000`) và commit (`0xA000`) với ngoại lệ `Modbus Exception 0x02` (Illegal Data Address).
+- **3. Xuất Bản Đồ Ánh Xạ Không Giật Lag (Zero-Lag Async Export)**:
+  - Xuất bảng Modbus Slave Map ra tệp `.csv` (mã hóa chuẩn UTF-8 kèm BOM tương thích 100% Microsoft Excel tiếng Việt) và `.md` (Markdown).
+  - Triệt tiêu hoàn toàn hiện tượng freeze/lag UI: Chạy ngầm đa luồng `Task.Run`, cung cấp Owner Window handle, giới hạn thư mục duyệt Shell MRU và nút `[📁 Mở thư mục]` điều hướng tức thì.
+- **4. Safety Gate Trình Biên Dịch (`RuleCompilerSlavePortSafetyGate`)**:
+  - Chặn đứng tại thời điểm biên dịch F7 nếu phát hiện khối lệnh `MB_READ` hoặc `MB_WRITE` định tuyến vào cổng đang đặt chế độ `Slave`, cảnh báo rõ ràng mã lỗi và tên cổng.
+- **5. Công Thái Học Cửa Sổ & Chuẩn Hóa Đa Ngữ (Dialog Ergonomics & Localization)**:
+  - Nâng cấp kích thước hộp thoại cấu hình cổng RS-485 lên `1020 x 680` (hỗ trợ thu phóng tối thiểu `920 x 560`).
+  - Hỗ trợ độc lập Minimize/Maximize (`WindowChromeHelper.EnableIndependentMinimize="True"`).
+  - Việt hóa và Anh hóa 100% tất cả nhãn, thẻ thông tin Master, tooltip và huy hiệu trạng thái.
+- **6. Kiểm Thử Tự Động & Đo Lường Hiệu Năng (Test Automation & Benchmark Verification)**:
+  - Vượt qua 100% toàn bộ 31 kịch bản kiểm thử tự động trên cặp cổng nối tiếp vật lý thực `COM7` <-> `COM9` (115200 bps).
+  - Vượt qua 100% toàn bộ 229 bài kiểm thử chuyên biệt Modbus Master/Slave và 1,515+ tests toàn solution.
+  - Đo lường BenchmarkDotNet: Bộ giải mã nhị phân Wire V2 chạy ở mức nanosecond/microsecond, biên dịch FBD chỉ mất 38 µs, tính toán CRC-16 3.2KB đạt 6.8 µs (Zero-Alloc).
+
+---
+
 ## [2.11.2 / Studio v2.11.2] - 2026-10-24 (MQTT PUB COMMIT VALIDATION, AUTO-GENERATED CUSTOM TEMPLATE & TAG DATA TYPE REGISTRY 0x0080 SYNC)
 
 ### Added & Fixed (Firmware MCU & App Studio Alignment)

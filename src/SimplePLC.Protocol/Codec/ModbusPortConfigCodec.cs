@@ -39,8 +39,11 @@ public static class ModbusPortConfigCodec
 
         destination.Slice(0, ModbusRegisterMap.ModbusPortConfigRegistersPerPort).Fill(0);
 
-        // +0: ENABLED (bit 8) | PORT_NUMBER (1..4)
-        ushort control = (ushort)((config.Enabled ? 0x0100 : 0x0000) | ((config.PortIndex + 1) & 0xFF));
+        // +0: ENABLED (bit 8) | ROLE_SLAVE (bit 9) | PORT_NUMBER (1..4)
+        ushort control = (ushort)(
+            (config.Enabled ? ModbusRegisterMap.ModbusPortControlBitEnabled : 0x0000) |
+            (config.Role == ModbusPortRole.Slave ? ModbusRegisterMap.ModbusPortControlBitRoleSlave : 0x0000) |
+            ((config.PortIndex + 1) & ModbusRegisterMap.ModbusPortControlPortNumberMask));
         destination[0] = control;
 
         // +1..+2: BAUD_RATE (uint32 Big-Endian)
@@ -66,9 +69,11 @@ public static class ModbusPortConfigCodec
         // +8..+13: PORT_NAME (12 bytes ASCII = 6 registers)
         EncodePackedAscii(config.PortName ?? string.Empty, destination.Slice(8, 6), ModbusRegisterMap.ModbusPortNameMaxChars);
 
-        // +14..+15: RESERVED
-        destination[14] = 0;
-        destination[15] = 0;
+        // +14: PORT_ROLE (0=Master, 1=Slave)
+        destination[14] = (ushort)config.Role;
+
+        // +15: SLAVE_ID (1..247 khi là Slave, 0 khi là Master để tương thích ngược)
+        destination[15] = (ushort)(config.Role == ModbusPortRole.Slave ? (config.SlaveId == 0 ? 1 : config.SlaveId) : 0);
     }
 
     /// <summary>
@@ -112,11 +117,27 @@ public static class ModbusPortConfigCodec
             portName = $"RS-485 #{portIndex + 1}";
         }
 
+        ModbusPortRole role = ModbusPortRole.Master;
+        if (source.Length > 14 && source[14] == (ushort)ModbusPortRole.Slave)
+        {
+            role = ModbusPortRole.Slave;
+        }
+        else if ((control & ModbusRegisterMap.ModbusPortControlBitRoleSlave) != 0)
+        {
+            role = ModbusPortRole.Slave;
+        }
+
+        byte slaveId = (source.Length > 15 && source[15] > 0 && source[15] <= 247)
+            ? (byte)source[15]
+            : (byte)1;
+
         return new ModbusPortConfigDto
         {
             PortIndex = portIndex,
             PortName = portName,
             Enabled = enabled,
+            Role = role,
+            SlaveId = slaveId,
             BaudRate = baudRate,
             DataBits = dataBits,
             Parity = parity,

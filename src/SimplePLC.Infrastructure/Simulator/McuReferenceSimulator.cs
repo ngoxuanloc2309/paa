@@ -1366,4 +1366,149 @@ public sealed class McuReferenceSimulator
 
     internal bool IsStagingRegisterWritten(int index) =>
         index >= 0 && index < _stagingRegistersWritten.Length && _stagingRegistersWritten[index];
+
+    /// <summary>
+    /// Giả lập Modbus Master bên ngoài (SCADA/HMI) gửi yêu cầu FC03 đọc thanh ghi qua cổng RS-485 Slave.
+    /// Tra cứu trong bảng ánh xạ Modbus Slave tại 0x1500 và trả về giá trị Tag nội bộ trong sandbox an toàn.
+    /// </summary>
+    /// <summary>
+    /// Phương thức hỗ trợ kiểm thử nội bộ để ghi trực tiếp vào bộ nhớ giả lập.
+    /// </summary>
+    public void InternalWriteRegisters(ushort startAddress, ushort[] values)
+    {
+        for (int i = 0; i < values.Length; i++)
+        {
+            _memory.InternalWrite((ushort)(startAddress + i), values[i]);
+        }
+    }
+
+    public Task<ushort[]> ExecuteSlaveReadHoldingRegistersAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort modbusAddress,
+        ushort count,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+
+        // 1. Kiểm tra cấu hình cổng RS-485
+        var portBuffer = _memory.ReadRegisters(
+            ModbusRegisterMap.ModbusPortConfigBaseAddress,
+            ModbusRegisterMap.ModbusPortConfigTableTotalLength);
+        var ports = ModbusPortConfigCodec.DecodeAllPorts(portBuffer);
+
+        var targetPort = ports.FirstOrDefault(p => p.PortIndex == portIndex);
+        if (targetPort == null || !targetPort.Enabled || targetPort.Role != ModbusPortRole.Slave)
+        {
+            throw new InvalidOperationException($"Port {portIndex + 1} is not configured or not running in Modbus Slave mode.");
+        }
+
+        if (targetPort.SlaveId != slaveId)
+        {
+            throw new InvalidOperationException($"Slave ID mismatch on Port {portIndex + 1}. Expected: {targetPort.SlaveId}, Received: {slaveId}.");
+        }
+
+        // 2. Tra cứu trong bảng ánh xạ Modbus Slave tại 0x1500
+        var mapBuffer = _memory.ReadRegisters(
+            ModbusRegisterMap.ModbusSlaveMapBaseAddress,
+            ModbusRegisterMap.ModbusSlaveMapTableTotalLength);
+        var entries = ModbusSlaveMapCodec.DecodeEntries(mapBuffer);
+
+        var entry = entries.FirstOrDefault(e => e.ModbusAddress == modbusAddress);
+        if (entry == null)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not mapped in Slave Data Table.");
+        }
+
+        byte portBit = (byte)(1 << portIndex);
+        if ((entry.PortMask & portBit) == 0)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not exposed on Port {portIndex + 1}.");
+        }
+
+        // 3. Đọc dữ liệu từ Tag nội bộ (0x0900 + tagIndex * 2)
+        ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + entry.TargetTagIndex * 2);
+        var tagValues = _memory.ReadRegisters(tagRegAddr, 2);
+
+        if (count == 1)
+        {
+            return Task.FromResult(new ushort[] { tagValues[0] });
+        }
+        else if (count == 2)
+        {
+            return Task.FromResult(tagValues);
+        }
+        else
+        {
+            var res = new ushort[count];
+            Array.Copy(tagValues, res, Math.Min(2, (int)count));
+            return Task.FromResult(res);
+        }
+    }
+
+    /// <summary>
+    /// Giả lập Modbus Master bên ngoài (SCADA/HMI) gửi yêu cầu FC06/FC16 ghi thanh ghi qua cổng RS-485 Slave.
+    /// Áp dụng cơ chế Sandbox 3 cấp độ: Cấm ghi ngõ vào vật lý/cảm biến (Exception 0x03), cấm ghi ngoài bảng ánh xạ (Exception 0x02).
+    /// </summary>
+    public Task ExecuteSlaveWriteHoldingRegistersAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort modbusAddress,
+        ushort[] values,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+
+        // 1. Kiểm tra cấu hình cổng RS-485
+        var portBuffer = _memory.ReadRegisters(
+            ModbusRegisterMap.ModbusPortConfigBaseAddress,
+            ModbusRegisterMap.ModbusPortConfigTableTotalLength);
+        var ports = ModbusPortConfigCodec.DecodeAllPorts(portBuffer);
+
+        var targetPort = ports.FirstOrDefault(p => p.PortIndex == portIndex);
+        if (targetPort == null || !targetPort.Enabled || targetPort.Role != ModbusPortRole.Slave)
+        {
+            throw new InvalidOperationException($"Port {portIndex + 1} is not configured or not running in Modbus Slave mode.");
+        }
+
+        if (targetPort.SlaveId != slaveId)
+        {
+            throw new InvalidOperationException($"Slave ID mismatch on Port {portIndex + 1}. Expected: {targetPort.SlaveId}, Received: {slaveId}.");
+        }
+
+        // 2. Tra cứu trong bảng ánh xạ Modbus Slave tại 0x1500
+        var mapBuffer = _memory.ReadRegisters(
+            ModbusRegisterMap.ModbusSlaveMapBaseAddress,
+            ModbusRegisterMap.ModbusSlaveMapTableTotalLength);
+        var entries = ModbusSlaveMapCodec.DecodeEntries(mapBuffer);
+
+        var entry = entries.FirstOrDefault(e => e.ModbusAddress == modbusAddress);
+        if (entry == null)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not mapped in Slave Data Table.");
+        }
+
+        byte portBit = (byte)(1 << portIndex);
+        if ((entry.PortMask & portBit) == 0)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not exposed on Port {portIndex + 1}.");
+        }
+
+        // 3. Kiểm tra quyền truy cập (Sandbox Access Control)
+        if (entry.AccessRight == ModbusSlaveAccessRight.ReadOnly)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Address {modbusAddress} mapped to Tag #{entry.TargetTagIndex} is locked as Read-Only sandbox.");
+        }
+
+        // 4. Ghi nguyên tử vào vùng Runtime Tag Values
+        ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + entry.TargetTagIndex * 2);
+        for (int i = 0; i < values.Length && i < 2; i++)
+        {
+            _memory.InternalWrite((ushort)(tagRegAddr + i), values[i]);
+        }
+
+        return Task.CompletedTask;
+    }
 }

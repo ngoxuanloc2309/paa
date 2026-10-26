@@ -23,6 +23,7 @@ public sealed class CompiledProgram
     public IReadOnlyList<ModbusMasterReadConfigDto> ModbusMasterConfigs { get; }
     public IReadOnlyList<ModbusMasterWriteConfigDto> ModbusMasterWriteConfigs { get; }
     public IReadOnlyList<DirectWriteConfigDto> DirectWriteConfigs { get; }
+    public IReadOnlyList<ModbusSlaveMapEntryDto> ModbusSlaveMapConfigs { get; }
 
     public CompiledProgram(
         string programId,
@@ -35,7 +36,8 @@ public sealed class CompiledProgram
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs = null,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
-        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null)
+        IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
+        IReadOnlyList<ModbusSlaveMapEntryDto>? modbusSlaveMapConfigs = null)
     {
         ProgramId = programId ?? Guid.NewGuid().ToString("N");
         Rules = rules ?? Array.Empty<Rule>();
@@ -48,6 +50,7 @@ public sealed class CompiledProgram
         ModbusMasterConfigs = modbusMasterConfigs ?? Array.Empty<ModbusMasterReadConfigDto>();
         ModbusMasterWriteConfigs = modbusMasterWriteConfigs ?? Array.Empty<ModbusMasterWriteConfigDto>();
         DirectWriteConfigs = directWriteConfigs ?? Array.Empty<DirectWriteConfigDto>();
+        ModbusSlaveMapConfigs = modbusSlaveMapConfigs ?? Array.Empty<ModbusSlaveMapEntryDto>();
     }
 
     public RuleTable ToRuleTable()

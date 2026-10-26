@@ -263,13 +263,33 @@ extern "C" {
 #define SPLC_WIFI_REGS_PER_AP             22
 #define SPLC_WIFI_BYTES_PER_AP            44
 
-/* --- 2.13 Multi-Port RS-485 Modbus Master Config Space (0x1400 - 0x143F, SPLC-SPEC-MBM-003) --- */
+/* --- 2.13 Multi-Port RS-485 Modbus Master & Slave Config Space (0x1400 - 0x143F, SPLC-SPEC-MBM-003) --- */
 #define SPLC_ADDR_MODBUS_PORT_CONFIG      0x1400  /* 64 regs (128 B): 4 Ports * 16 regs (FC03/FC16, RW) */
 #define SPLC_LEN_MODBUS_PORT_CONFIG_TOTAL 64
 #define SPLC_MB_PORT_MAX_PORTS            4
 #define SPLC_MB_PORT_REGS_PER_PORT        16      /* 16 regs = 32 bytes per port */
 #define SPLC_MB_PORT_BYTES_PER_PORT       32
 #define SPLC_MB_PORT_NAME_MAX_CHARS       12
+
+/* Port Roles & Control Bit at 0x1400 */
+#define SPLC_MB_PORT_ROLE_MASTER          0
+#define SPLC_MB_PORT_ROLE_SLAVE           1
+#define SPLC_MB_PORT_CONTROL_ROLE_SLAVE   0x0200  /* Bit 9 in Control Flags */
+
+/* --- 2.14 Modbus Slave Memory Mapping Table (0x1500 - 0x157F, SPLC-SPEC-SLAVE-001) --- */
+#define SPLC_ADDR_MODBUS_SLAVE_MAP        0x1500  /* 128 regs (256 B): 32 Entries * 4 regs (FC03/FC16, RW) */
+#define SPLC_LEN_MODBUS_SLAVE_MAP_TOTAL   128
+#define SPLC_SLAVE_MAP_MAX_ENTRIES        32
+#define SPLC_SLAVE_MAP_REGS_PER_ENTRY     4       /* 4 regs = 8 bytes per entry */
+#define SPLC_SLAVE_MAP_BYTES_PER_ENTRY    8
+
+/* Modbus Slave Entry Flags (Offset +2) */
+#define SPLC_SLAVE_FLAG_WRITABLE          0x0001  /* Bit 0: 0 = ReadOnly, 1 = ReadWrite */
+#define SPLC_SLAVE_FLAG_DATATYPE_MASK     0x000E  /* Bit 1..3: DataType (1=BOOL, 2=INT32, 3=REAL, 4=UINT16, 5=INT16) */
+#define SPLC_SLAVE_FLAG_DATATYPE_SHIFT    1
+#define SPLC_SLAVE_FLAG_PORT_MASK         0x00F0  /* Bit 4..7: Port Mask (Bit 0=Port 1..Bit 3=Port 4) */
+#define SPLC_SLAVE_FLAG_PORT_SHIFT        4
+#define SPLC_SLAVE_FLAG_ACTIVE            0x0100  /* Bit 8: 1 = Active Entry, 0 = Empty */
 
 /* Wi-Fi Command codes at 0x1340 */
 #define SPLC_WIFI_CMD_IDLE                0x0000
@@ -1031,11 +1051,11 @@ typedef struct SPLC_PACKED {
 } SPLC_WifiApInfo_t;
 
 /**
- * @brief Multi-Port RS-485 Modbus Master Port Record (16 registers = 32 bytes at 0x1400 + port_idx * 16).
+ * @brief Multi-Port RS-485 Modbus Master & Slave Port Record (16 registers = 32 bytes at 0x1400 + port_idx * 16).
  * SPLC-SPEC-MBM-003: Physical RS-485 port configuration.
  */
 typedef struct SPLC_PACKED {
-    uint16_t control_flags;         /* +0: Bit 8 = ENABLED (0x0100), Bit 0..7 = PORT_NUMBER (1..4) */
+    uint16_t control_flags;         /* +0: Bit 8 = ENABLED (0x0100), Bit 9 = ROLE_SLAVE (0x0200), Bit 0..7 = PORT_NUMBER (1..4) */
     uint32_t baud_rate;             /* +1..+2: Baud Rate (uint32 Big-Endian) */
     uint16_t parity;                /* +3: 0 = None, 1 = Even, 2 = Odd */
     uint16_t framing;               /* +4: High Byte: DataBits (7, 8), Low Byte: StopBits (1, 2) */
@@ -1043,8 +1063,20 @@ typedef struct SPLC_PACKED {
     uint16_t inter_frame_delay_ms;  /* +6: Inter-frame delay in ms (10..500) */
     uint16_t retry_count;           /* +7: Retry count (0..5) */
     char     port_name[12];         /* +8..+13: 12 bytes ASCII packed string */
-    uint16_t reserved[2];           /* +14..+15: Reserved (always 0x0000) */
+    uint16_t port_role;             /* +14: 0 = Master, 1 = Slave */
+    uint16_t slave_id;              /* +15: Slave ID (1..247) */
 } SPLC_ModbusPortConfigRecord_t;
+
+/**
+ * @brief Modbus Slave Memory Mapping Record (4 registers = 8 bytes at 0x1500 + entry_idx * 4).
+ * SPLC-SPEC-SLAVE-001: Memory Protection Sandbox.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t modbus_address;        /* +0: Modbus Address queried by external SCADA/HMI (0..65535) */
+    uint16_t target_tag_index;      /* +1: Target PLC Internal Tag Index (0..127) */
+    uint16_t flags;                 /* +2: Bit 0: IS_WRITABLE, Bit 1..3: DATA_TYPE, Bit 4..7: PORT_MASK, Bit 8: ACTIVE */
+    uint16_t reserved;              /* +3: Reserved (always 0x0000) */
+} SPLC_ModbusSlaveMapEntry_t;
 
 #pragma pack(pop)
 
@@ -1072,6 +1104,7 @@ _Static_assert(sizeof(SPLC_WifiConfig_t)            == 128, "WifiConfig must be 
 _Static_assert(sizeof(SPLC_WifiScanControl_t)       == 32,  "WifiScanControl must be 32 bytes (16 regs)");
 _Static_assert(sizeof(SPLC_WifiApInfo_t)            == 44,  "WifiApInfo must be 44 bytes (22 regs)");
 _Static_assert(sizeof(SPLC_ModbusPortConfigRecord_t) == 32, "ModbusPortConfigRecord must be 32 bytes (16 regs)");
+_Static_assert(sizeof(SPLC_ModbusSlaveMapEntry_t)   == 8,  "SlaveMapEntry must be 8 bytes (4 regs)");
 #endif
 
 /* ========================================================================= */

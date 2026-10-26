@@ -215,4 +215,61 @@ public sealed class ModbusPortFilteringTests
         var portErr = result.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error && (d.Message.Contains("vô hiệu hóa") || d.Message.Contains("disabled")));
         Assert.Null(portErr);
     }
+
+    [Fact]
+    public void ModbusReadConfig_AutoSwitchesToFirstMasterPortAndExcludesSlavePorts()
+    {
+        // Port 1 (index 0) is configured as Slave! Node is pointing to Port 1 (index 0).
+        var node = new ModbusReadNodeViewModel { PortIndex = 0 };
+        var tagCatalog = new TagCatalogViewModel();
+
+        var ports = new List<ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Slave", SlaveId = 1 },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Master", BaudRate = 19200 },
+            new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, Role = "Master" },
+            new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, Role = "Master" },
+        };
+
+        var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog, ports);
+
+        // 1. AvailablePorts must ONLY contain enabled Master ports (Port 2, index 1)
+        Assert.Single(vm.AvailablePorts);
+        Assert.Equal((byte)1, vm.AvailablePorts[0].Value);
+        Assert.DoesNotContain("SLAVE", vm.AvailablePorts[0].DisplayName);
+
+        // 2. PortIndex must be automatically switched to the valid Master port (index 1)
+        Assert.Equal((byte)1, vm.PortIndex);
+
+        // 3. Applying updates node.PortIndex to 1, completely preventing Slave conflict
+        vm.Apply();
+        Assert.Equal((byte)1, node.PortIndex);
+    }
+
+    [Fact]
+    public void ModbusWriteConfig_AutoSwitchesToFirstMasterPortAndExcludesSlavePorts()
+    {
+        // Port 1 (index 0) is configured as Slave! Node is pointing to Port 1 (index 0).
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0 };
+        var tagCatalog = new TagCatalogViewModel();
+
+        var ports = new List<ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Slave", SlaveId = 1 },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Master", BaudRate = 19200 },
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, tagCatalog, ports);
+
+        // 1. AvailablePorts must ONLY contain enabled Master ports (Port 2, index 1)
+        Assert.Single(vm.AvailablePorts);
+        Assert.Equal((byte)1, vm.AvailablePorts[0].Value);
+
+        // 2. PortIndex must be automatically switched to index 1
+        Assert.Equal((byte)1, vm.PortIndex);
+
+        // 3. Applying updates node.PortIndex to 1
+        vm.Apply();
+        Assert.Equal((byte)1, node.PortIndex);
+    }
 }

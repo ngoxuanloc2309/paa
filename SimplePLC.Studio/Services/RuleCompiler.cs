@@ -665,6 +665,15 @@ public sealed class RuleCompiler : IRuleCompiler
                                     : $"Block '{mb.DisplayTitle}' references Port {mb.PortIndex + 1} ({targetPort.PortName}) which is disabled in device settings.",
                                 NodeId: mb.Id));
                         }
+                        else if (targetPort != null && string.Equals(targetPort.Role, "Slave", StringComparison.OrdinalIgnoreCase))
+                        {
+                            studioDiagnostics.Add(new(
+                                SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                                LocalizationService.Instance.IsVietnamese
+                                    ? $"Cổng RS-485 #{targetPort.PortIndex + 1} ({targetPort.PortName}) đang ở chế độ Modbus Slave, không thể sử dụng cho khối Modbus Master '{mb.DisplayTitle}'."
+                                    : $"RS-485 Port #{targetPort.PortIndex + 1} ({targetPort.PortName}) is configured as Modbus Slave and cannot be assigned to Modbus Master block '{mb.DisplayTitle}'.",
+                                NodeId: mb.Id));
+                        }
                     }
 
                     ushort? mbValidTag = null;
@@ -785,6 +794,15 @@ public sealed class RuleCompiler : IRuleCompiler
                                 LocalizationService.Instance.IsVietnamese
                                     ? $"Khối '{mbw.DisplayTitle}' sử dụng Cổng {mbw.PortIndex + 1} ({targetPort.PortName}) nhưng cổng này đang bị vô hiệu hóa trong cấu hình thiết bị."
                                     : $"Block '{mbw.DisplayTitle}' references Port {mbw.PortIndex + 1} ({targetPort.PortName}) which is disabled in device settings.",
+                                NodeId: mbw.Id));
+                        }
+                        else if (targetPort != null && string.Equals(targetPort.Role, "Slave", StringComparison.OrdinalIgnoreCase))
+                        {
+                            studioDiagnostics.Add(new(
+                                SimplePLC.Studio.Models.DiagnosticSeverity.Error,
+                                LocalizationService.Instance.IsVietnamese
+                                    ? $"Cổng RS-485 #{targetPort.PortIndex + 1} ({targetPort.PortName}) đang ở chế độ Modbus Slave, không thể sử dụng cho khối Modbus Master '{mbw.DisplayTitle}'."
+                                    : $"RS-485 Port #{targetPort.PortIndex + 1} ({targetPort.PortName}) is configured as Modbus Slave and cannot be assigned to Modbus Master block '{mbw.DisplayTitle}'.",
                                 NodeId: mbw.Id));
                         }
                     }

@@ -17,4 +17,5 @@ public sealed class FullDeviceConfigurationDto
     public IReadOnlyList<MqttSubscriptionConfigDto> MqttSubscriptions { get; init; } = Array.Empty<MqttSubscriptionConfigDto>();
     public MqttBrokerConfigDto? BrokerConfig { get; init; }
     public IReadOnlyList<ModbusPortConfigDto> ModbusPorts { get; init; } = Array.Empty<ModbusPortConfigDto>();
+    public IReadOnlyList<ModbusSlaveMapEntryDto> ModbusSlaveMaps { get; init; } = Array.Empty<ModbusSlaveMapEntryDto>();
 }

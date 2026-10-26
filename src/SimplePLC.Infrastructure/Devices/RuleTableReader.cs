@@ -319,6 +319,22 @@ public sealed class RuleTableReader : IRuleTableReader
         return ModbusPortConfigCodec.DecodeAllPorts(buffer);
     }
 
+    public async Task<IReadOnlyList<ModbusSlaveMapEntryDto>> ReadActiveModbusSlaveMapConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    {
+        ushort totalRegs = ModbusRegisterMap.ModbusSlaveMapTableTotalLength;
+        var chunks = ModbusChunkPlanner.PlanReadChunks(ModbusRegisterMap.ModbusSlaveMapBaseAddress, totalRegs);
+        var buffer = new ushort[totalRegs];
+        int offset = 0;
+        foreach (var (addr, count) in chunks)
+        {
+            var data = await _client.ReadHoldingRegistersAsync(slaveId, addr, count, cancellationToken).ConfigureAwait(false);
+            Array.Copy(data, 0, buffer, offset, count);
+            offset += count;
+        }
+
+        return ModbusSlaveMapCodec.DecodeEntries(buffer);
+    }
+
     public async Task<FullDeviceConfigurationDto> ReadFullDeviceConfigurationAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
     {
         var rules = await ReadActiveRulesAsync(slaveId, cancellationToken).ConfigureAwait(false);
@@ -331,6 +347,7 @@ public sealed class RuleTableReader : IRuleTableReader
         var mqttSubs = await ReadActiveMqttSubscribeConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var brokerConfig = await ReadActiveMqttBrokerConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var modbusPorts = await ReadActiveModbusPortsAsync(slaveId, cancellationToken).ConfigureAwait(false);
+        var slaveMaps = await ReadActiveModbusSlaveMapConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
 
         return new FullDeviceConfigurationDto
         {
@@ -343,7 +360,8 @@ public sealed class RuleTableReader : IRuleTableReader
             MqttTelemetries = mqttTelemetries,
             MqttSubscriptions = mqttSubs,
             BrokerConfig = brokerConfig,
-            ModbusPorts = modbusPorts
+            ModbusPorts = modbusPorts,
+            ModbusSlaveMaps = slaveMaps
         };
     }
 }

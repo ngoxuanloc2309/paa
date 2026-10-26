@@ -262,26 +262,36 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
         if (_modbusPorts != null && _modbusPorts.Count > 0)
         {
-            var enabledPorts = _modbusPorts.Where(p => p.Enabled).ToList();
-            if (enabledPorts.Count > 0)
+            var selectablePorts = _modbusPorts.Where(p => p.Enabled && !string.Equals(p.Role, "Slave", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (selectablePorts.Count > 0)
             {
-                foreach (var p in enabledPorts)
+                foreach (var p in selectablePorts)
                 {
                     targetList.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
                 }
 
-                if (!enabledPorts.Any(p => p.PortIndex == curPort))
+                var currentPortConfig = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
+                bool isCurrentPortSlave = currentPortConfig != null && string.Equals(currentPortConfig.Role, "Slave", StringComparison.OrdinalIgnoreCase);
+
+                if (isCurrentPortSlave)
                 {
-                    var disabledPort = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
-                    if (disabledPort != null)
+                    // Option 1: Tuyệt đối không đưa cổng Slave vào danh sách chọn của Master.
+                    // Tự động chuyển cổng hiện tại sang cổng Master hợp lệ đầu tiên.
+                    curPort = selectablePorts[0].PortIndex;
+                    PortIndex = curPort;
+                }
+                else if (!selectablePorts.Any(p => p.PortIndex == curPort))
+                {
+                    // Nếu là cổng Master nhưng bị Disabled, giữ lại kèm cảnh báo [ĐÃ TẮT] để người dùng nhận biết
+                    if (currentPortConfig != null)
                     {
-                        targetList.Add(new OptionItem<byte>(disabledPort.PortIndex, disabledPort.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
+                        targetList.Add(new OptionItem<byte>(currentPortConfig.PortIndex, currentPortConfig.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
                     }
                 }
             }
             else
             {
-                string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485]" : "[No RS-485 Ports Enabled]");
+                string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485 Modbus Master]" : "[No Modbus Master Ports Enabled]");
                 targetList.Add(new OptionItem<byte>(curPort, noPortsMsg));
             }
         }

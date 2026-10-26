@@ -310,10 +310,7 @@ public partial class MainViewModel : ObservableObject
                         var mainWindow = System.Windows.Application.Current?.MainWindow;
                         if (mainWindow != null && mainWindow.IsVisible)
                         {
-                            var dialog = new Views.UpdateDialogView(info, UpdateService)
-                            {
-                                Owner = mainWindow
-                            };
+                            var dialog = new Views.UpdateDialogView(info, UpdateService);
                             dialog.ShowDialog();
                         }
                     });
@@ -1211,10 +1208,7 @@ public partial class MainViewModel : ObservableObject
             };
         }
 
-        var dialog = new Views.DeviceInfoDialogView(vm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.DeviceInfoDialogView(vm);
         dialog.ShowDialog();
     }
 
@@ -1222,10 +1216,7 @@ public partial class MainViewModel : ObservableObject
     private void OpenMqttBrokerConfig()
     {
         var vm = new MqttBrokerConfigViewModel(CurrentProjectMetadata);
-        var dialog = new Views.MqttBrokerConfigDialogView(vm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.MqttBrokerConfigDialogView(vm);
         if (dialog.ShowDialog() == true)
         {
             IsProjectDirty = true;
@@ -1235,11 +1226,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenModbusPortConfig()
     {
-        var vm = new ModbusPortConfigViewModel(CurrentProjectMetadata);
-        var dialog = new Views.ModbusPortConfigDialogView(vm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var vm = new ModbusPortConfigViewModel(CurrentProjectMetadata, TagCatalogVM);
+        var dialog = new Views.ModbusPortConfigDialogView(vm);
         if (dialog.ShowDialog() == true)
         {
             IsProjectDirty = true;
@@ -1250,10 +1238,7 @@ public partial class MainViewModel : ObservableObject
     private void OpenWifiConfig()
     {
         var vm = new WifiConfigViewModel(CurrentProjectMetadata);
-        var dialog = new Views.WifiConfigDialogView(vm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.WifiConfigDialogView(vm);
         if (dialog.ShowDialog() == true)
         {
             IsProjectDirty = true;
@@ -1499,10 +1484,7 @@ public partial class MainViewModel : ObservableObject
         }
         else if (System.Windows.Application.Current?.MainWindow != null)
         {
-            var dialog = new Views.NewProjectDialogView(wizardVm)
-            {
-                Owner = System.Windows.Application.Current.MainWindow
-            };
+            var dialog = new Views.NewProjectDialogView(wizardVm);
             shouldApply = dialog.ShowDialog() == true;
         }
         else
@@ -2323,10 +2305,7 @@ public partial class MainViewModel : ObservableObject
                 IsUpdateAvailable = true;
                 UpdateAvailableText = $"⚡ v{info.LatestVersion}";
 
-                var dialog = new Views.UpdateDialogView(info, UpdateService)
-                {
-                    Owner = System.Windows.Application.Current?.MainWindow
-                };
+                var dialog = new Views.UpdateDialogView(info, UpdateService);
                 dialog.ShowDialog();
             }
             else if (!string.IsNullOrEmpty(info.ErrorMessage))
@@ -2620,7 +2599,7 @@ public partial class MainViewModel : ObservableObject
                 var dialog = new Views.RtcSyncDialogView(vm);
                 if (System.Windows.Application.Current?.MainWindow is { } owner && owner.IsVisible)
                 {
-                    dialog.Owner = owner;
+                    // dialog.Owner is omitted to enable independent minimize
                 }
                 result = dialog.ShowDialog();
             }

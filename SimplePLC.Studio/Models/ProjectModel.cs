@@ -57,11 +57,14 @@ public class ProjectMetadata
     // Modbus Multi-Port RS-485 Configuration Settings (SPLC-SPEC-MBM-003)
     public List<ModbusPortConfigModel> ModbusPorts { get; set; } = new()
     {
-        new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-        new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, BaudRate = 19200, DataBits = 8, Parity = "Even", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-        new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
-        new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 }
+        new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Master", SlaveId = 1, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Master", SlaveId = 2, BaudRate = 19200, DataBits = 8, Parity = "Even", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, Role = "Master", SlaveId = 3, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 },
+        new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, Role = "Master", SlaveId = 4, BaudRate = 9600, DataBits = 8, Parity = "None", StopBits = 1, ResponseTimeoutMs = 200, InterFrameDelayMs = 20, RetryCount = 1 }
     };
+
+    // Modbus Slave Mapping Configuration Settings (SPLC-SPEC-SLAVE-001)
+    public List<ModbusSlaveMapEntryModel> ModbusSlaveMapEntries { get; set; } = new();
 }
 
 public class ProjectTagData
@@ -290,6 +293,8 @@ public class ModbusPortConfigModel
     public byte PortIndex { get; set; } = 0;
     public string PortName { get; set; } = "RS-485 #1";
     public bool Enabled { get; set; } = true;
+    public string Role { get; set; } = "Master"; // "Master", "Slave"
+    public byte SlaveId { get; set; } = 1;
     public uint BaudRate { get; set; } = 9600;
     public byte DataBits { get; set; } = 8;
     public string Parity { get; set; } = "None"; // "None", "Even", "Odd"
@@ -305,6 +310,8 @@ public class ModbusPortConfigModel
             PortIndex = this.PortIndex,
             PortName = this.PortName,
             Enabled = this.Enabled,
+            Role = this.Role,
+            SlaveId = this.SlaveId,
             BaudRate = this.BaudRate,
             DataBits = this.DataBits,
             Parity = this.Parity,
@@ -318,8 +325,9 @@ public class ModbusPortConfigModel
     public string FormatDropdownLabel(bool isVietnamese, bool isForceDisabledWarning = false)
     {
         string prefix = isVietnamese ? "Cổng" : "Port";
+        string roleTag = Role == "Slave" ? (isVietnamese ? " [SLAVE]" : " [SLAVE]") : "";
         string disabledTag = isForceDisabledWarning ? (isVietnamese ? " [ĐÃ TẮT]" : " [DISABLED]") : "";
-        return $"{prefix} {PortIndex + 1}: {PortName}{disabledTag}";
+        return $"{prefix} {PortIndex + 1}: {PortName}{roleTag}{disabledTag}";
     }
 
     public string FormatFullSummary(bool isVietnamese, bool isForceDisabledWarning = false)
@@ -327,6 +335,33 @@ public class ModbusPortConfigModel
         string prefix = isVietnamese ? "Cổng" : "Port";
         char parityChar = string.IsNullOrEmpty(Parity) ? 'N' : Parity[0];
         string disabledTag = isForceDisabledWarning ? (isVietnamese ? " [ĐÃ TẮT]" : " [DISABLED]") : "";
+        if (Role == "Slave")
+        {
+            return $"{prefix} {PortIndex + 1}: {PortName} · {BaudRate} bps · {DataBits}-{char.ToUpperInvariant(parityChar)}-{StopBits} · SLAVE (ID: {SlaveId}){disabledTag}";
+        }
         return $"{prefix} {PortIndex + 1}: {PortName} · {BaudRate} bps · {DataBits}-{char.ToUpperInvariant(parityChar)}-{StopBits} · Timeout {ResponseTimeoutMs}ms · Retries {RetryCount}{disabledTag}";
+    }
+}
+
+public class ModbusSlaveMapEntryModel
+{
+    public ushort ModbusAddress { get; set; } = 0;
+    public ushort TargetTagIndex { get; set; } = 0;
+    public string AccessRight { get; set; } = "ReadOnly"; // "ReadOnly", "ReadWrite"
+    public byte DataType { get; set; } = 2; // 1=BOOL, 2=INT32, 3=REAL, 4=UINT16, 5=INT16
+    public byte PortMask { get; set; } = 0x0F;
+    public string Description { get; set; } = string.Empty;
+
+    public ModbusSlaveMapEntryModel Clone()
+    {
+        return new ModbusSlaveMapEntryModel
+        {
+            ModbusAddress = this.ModbusAddress,
+            TargetTagIndex = this.TargetTagIndex,
+            AccessRight = this.AccessRight,
+            DataType = this.DataType,
+            PortMask = this.PortMask,
+            Description = this.Description
+        };
     }
 }

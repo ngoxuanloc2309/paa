@@ -385,7 +385,7 @@ public static class ModbusRegisterMap
     }
 
     // ==========================================
-    // 2.10 PHÂN VÙNG CẤU HÌNH CỔNG RS-485 MODBUS MASTER (0x1400 - 0x143F)
+    // 2.10 PHÂN VÙNG CẤU HÌNH CỔNG RS-485 MODBUS MASTER / SLAVE (0x1400 - 0x143F)
     // SPLC-SPEC-MBM-003: 4 Ports x 16 Registers = 64 Registers (128 Bytes)
     // ==========================================
     public const ushort ModbusPortConfigBaseAddress = 0x1400;
@@ -395,12 +395,35 @@ public static class ModbusRegisterMap
     public const ushort ModbusPortConfigTableTotalLength = ModbusPortConfigMaxPorts * ModbusPortConfigRegistersPerPort; // 64 registers
     public const int ModbusPortNameMaxChars = 12;
 
+    // Bitmasks cho CONTROL_AND_PORT (Offset +0)
+    public const ushort ModbusPortControlBitEnabled = 0x0100;     // Bit 8: 1=Bật, 0=Tắt
+    public const ushort ModbusPortControlBitRoleSlave = 0x0200;   // Bit 9: 0=Master, 1=Slave
+    public const ushort ModbusPortControlPortNumberMask = 0x00FF; // Bit 0..7: 1-based port index (1..4)
+
     public static ushort GetModbusPortConfigAddress(int portIndex)
     {
         if (portIndex < 0 || portIndex >= ModbusPortConfigMaxPorts)
             throw new ArgumentOutOfRangeException(nameof(portIndex), $"Port index must be between 0 and {ModbusPortConfigMaxPorts - 1}.");
 
         return (ushort)(ModbusPortConfigBaseAddress + (portIndex * ModbusPortConfigRegistersPerPort));
+    }
+
+    // ==========================================
+    // 2.11 PHÂN VÙNG BẢNG ÁNH XẠ DỮ LIỆU MODBUS SLAVE (0x1500 - 0x157F)
+    // SPLC-SPEC-SLAVE-001: 32 Entries x 4 Registers = 128 Registers (256 Bytes)
+    // ==========================================
+    public const ushort ModbusSlaveMapBaseAddress = 0x1500;
+    public const int ModbusSlaveMapRegistersPerEntry = 4;
+    public const int ModbusSlaveMapBytesPerEntry = 8;
+    public const int ModbusSlaveMapMaxEntries = 32;
+    public const ushort ModbusSlaveMapTableTotalLength = ModbusSlaveMapMaxEntries * ModbusSlaveMapRegistersPerEntry; // 128 registers (256 bytes)
+
+    public static ushort GetModbusSlaveMapEntryAddress(int entryIndex)
+    {
+        if (entryIndex < 0 || entryIndex >= ModbusSlaveMapMaxEntries)
+            throw new ArgumentOutOfRangeException(nameof(entryIndex), $"Slave map entry index must be between 0 and {ModbusSlaveMapMaxEntries - 1}.");
+
+        return (ushort)(ModbusSlaveMapBaseAddress + (entryIndex * ModbusSlaveMapRegistersPerEntry));
     }
 
     // ==========================================

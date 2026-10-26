@@ -3,7 +3,7 @@ namespace SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
 /// <summary>
-/// DTO mang thông số cấu hình vật lý của một cổng nối tiếp RS-485 Modbus Master.
+/// DTO mang thông số cấu hình vật lý của một cổng nối tiếp RS-485 Modbus Master hoặc Slave.
 /// Quy hoạch tại phân vùng MCU 0x1400..0x143F (4 cổng x 16 thanh ghi = 64 thanh ghi).
 /// </summary>
 public sealed class ModbusPortConfigDto
@@ -22,6 +22,16 @@ public sealed class ModbusPortConfigDto
     /// Cho phép cổng hoạt động. Nếu tắt, MCU sẽ không cấp phát driver UART cho cổng này.
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Vai trò của cổng: Master (chủ động quét ngoại vi) hoặc Slave (lắng nghe SCADA/HMI).
+    /// </summary>
+    public ModbusPortRole Role { get; set; } = ModbusPortRole.Master;
+
+    /// <summary>
+    /// Địa chỉ trạm Modbus (Slave ID / Unit ID, 1..247) khi cổng hoạt động ở chế độ Slave.
+    /// </summary>
+    public byte SlaveId { get; set; } = 1;
 
     /// <summary>
     /// Tốc độ truyền baud rate (ví dụ: 9600, 19200, 38400, 57600, 115200).
@@ -44,7 +54,7 @@ public sealed class ModbusPortConfigDto
     public byte StopBits { get; set; } = 1;
 
     /// <summary>
-    /// Thời gian chờ phản hồi tối đa từ Slave (ms). Mặc định 200ms.
+    /// Thời gian chờ phản hồi tối đa từ Slave (ms) khi ở chế độ Master. Mặc định 200ms.
     /// </summary>
     public ushort ResponseTimeoutMs { get; set; } = 200;
 
@@ -54,7 +64,7 @@ public sealed class ModbusPortConfigDto
     public ushort InterFrameDelayMs { get; set; } = 20;
 
     /// <summary>
-    /// Số lần thử lại tối đa khi giao dịch bị timeout trước khi báo lỗi (0..5). Mặc định 1.
+    /// Số lần thử lại tối đa khi giao dịch bị timeout trước khi báo lỗi (0..5) khi ở chế độ Master. Mặc định 1.
     /// </summary>
     public ushort RetryCount { get; set; } = 1;
 
@@ -68,6 +78,8 @@ public sealed class ModbusPortConfigDto
             PortIndex = this.PortIndex,
             PortName = this.PortName,
             Enabled = this.Enabled,
+            Role = this.Role,
+            SlaveId = this.SlaveId,
             BaudRate = this.BaudRate,
             DataBits = this.DataBits,
             Parity = this.Parity,

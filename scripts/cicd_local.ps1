@@ -155,11 +155,12 @@ $releaseContent = @"
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
 ## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Đồng bộ bảng kiểu dữ liệu Tag Registry (0x0080..0x00BF, 128 tags)**: Tự động nạp bảng kiểu dữ liệu (BOOL=1, INT32=2, REAL=3) từ Tag Catalog và các chân kiểu Real của MB_READ trước khi COMMIT; khắc phục triệt để lỗi in số thực dạng số nguyên thô (ví dụ 1130823396 thay vì 229.5).
-- **Tự động sinh template chuẩn trong chế độ Visual Fields / JSON**: Tự động chuyển đổi danh sách field thành template Custom chuẩn với các placeholder `{val1}`..`{val8}`, đảm bảo broker nhận đầy đủ tên thuộc tính đúng như Payload Preview mà MCU không cần lưu chuỗi tên.
-- **Bắt lỗi Commit trung thực & Xác thực ActiveRuleVersion (0xA001)**: Triệt tiêu false positive khi nạp cấu hình; bắt ngay trạng thái lỗi ERROR (4) và mã lỗi chi tiết từ MCU, chỉ xác nhận thành công khi phiên bản rule thực sự tăng lên.
-- **Công thái học cửa sổ & giao diện FBD Nodify**: Bảo toàn cấu hình Modbus khi đổi cổng, chuẩn hóa NoResize và nút đóng X trên toàn bộ 5 hộp thoại, nhãn chân pin tinh gọn trên canvas.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,489 bài kiểm thử tự động trên toàn giải pháp.
+- **Đa cổng RS-485 Modbus Master & Slave (0x1400..0x143F)**: Cấu hình vai trò Master/Slave độc lập cho từng cổng vật lý. Tự động lọc sạch dropdown của các khối Master (MB_READ/MB_WRITE), tự động chuyển cổng an toàn sang Master hợp lệ đầu tiên khi cổng cũ chuyển sang Slave.
+- **Bảng ánh xạ bộ nhớ Modbus Slave Sandbox (0x1500..0x157F, 32 entries)**: Cơ chế Sandbox 3 cấp độ; khóa cứng `🔒 ReadOnly` an toàn cho DI/AI (bảo vệ nút dừng khẩn E-Stop và cảm biến), tùy biến quyền ReadOnly/ReadWrite linh hoạt cho VREG/VFLAG/DO.
+- **Xuất bảng Modbus Slave Map không giật lag (Zero-Lag Async Export)**: Xuất file CSV (UTF-8 BOM tương thích Excel tiếng Việt) và Markdown; triệt tiêu 100% hiện tượng đơ/lag UI kèm nút mở thư mục trực tiếp.
+- **Safety Gate Trình Biên Dịch**: Tự động chặn biên dịch F7 nếu phát hiện khối lệnh MB_READ hoặc MB_WRITE trỏ vào cổng Slave, ngăn ngừa triệt để lỗi phần cứng và race condition.
+- **Công thái học giao diện & Chuẩn hóa Đa ngữ**: Kích thước dialog 1020x680 hiện đại, độc lập Minimize/Maximize, song ngữ Anh-Việt 100% toàn diện trên mọi nhãn, badge, tooltip.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 31 bài kiểm thử tự động qua cổng vật lý COM7-COM9 và 1,515+ unit tests toàn giải pháp.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

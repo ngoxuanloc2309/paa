@@ -476,10 +476,7 @@ public partial class DirectWriteNodeViewModel : GraphNodeViewModel
     {
         int availableDos = DirectWriteConfigDialogViewModel.ResolveHardwareDigitalOutputCount();
         var vm = new DirectWriteConfigDialogViewModel(this, availableDos);
-        var dlg = new Views.DirectWriteConfigDialogView(vm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dlg = new Views.DirectWriteConfigDialogView(vm);
         dlg.ShowDialog();
     }
 }

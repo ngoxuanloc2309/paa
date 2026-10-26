@@ -65,10 +65,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         var dialogVm = new MqttConfigDialogViewModel(targetNode, TagCatalog);
         dialogVm.OnOpenDeviceBrokerSettings = () => OpenDeviceMqttBrokerConfig?.Invoke();
-        var dialog = new Views.MqttConfigDialogView(dialogVm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.MqttConfigDialogView(dialogVm);
         dialog.ShowDialog();
         NotifyGraphModified();
     }
@@ -81,10 +78,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         var dialogVm = new MqttSubConfigDialogViewModel(targetNode, TagCatalog);
         dialogVm.OnOpenDeviceBrokerSettings = () => OpenDeviceMqttBrokerConfig?.Invoke();
-        var dialog = new Views.MqttSubConfigDialogView(dialogVm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.MqttSubConfigDialogView(dialogVm);
         dialog.ShowDialog();
         NotifyGraphModified();
     }
@@ -103,10 +97,7 @@ public partial class LogicEditorViewModel : ObservableObject
             var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
             dialogVm.RefreshAvailablePorts(refreshedPorts);
         };
-        var dialog = new Views.ModbusReadConfigDialogView(dialogVm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.ModbusReadConfigDialogView(dialogVm);
         dialog.ShowDialog();
         NotifyGraphModified();
     }
@@ -125,10 +116,7 @@ public partial class LogicEditorViewModel : ObservableObject
             var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
             dialogVm.RefreshAvailablePorts(refreshedPorts);
         };
-        var dialog = new Views.ModbusWriteConfigDialogView(dialogVm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.ModbusWriteConfigDialogView(dialogVm);
         dialog.ShowDialog();
         NotifyGraphModified();
     }
@@ -144,10 +132,7 @@ public partial class LogicEditorViewModel : ObservableObject
             ?? 8;
 
         var dialogVm = new DirectWriteConfigDialogViewModel(targetNode, availableDos);
-        var dialog = new Views.DirectWriteConfigDialogView(dialogVm)
-        {
-            Owner = System.Windows.Application.Current?.MainWindow
-        };
+        var dialog = new Views.DirectWriteConfigDialogView(dialogVm);
         dialog.ShowDialog();
         NotifyGraphModified();
     }

@@ -23,8 +23,17 @@ public sealed class RuleCompiler : IRuleCompiler
     public const string ErrConflictingWriters = WriteConflictValidator.ErrConflictingWriters;
     public const string ErrUnsupportedWriterCombination = WriteConflictValidator.ErrUnsupportedWriterCombination;
     public const string ErrIndeterminateOrdering = "SPLC-COMP-DEP-004";
+    public const string ErrModbusPortSlaveConflict = "SPLC-COMP-MB-SLAVE";
 
-    public CompileResult Compile(LogicGraph graph, ProductDefinition product, string? programId = null)
+    public CompileResult Compile(LogicGraph graph, ProductDefinition product, string? programId = null) =>
+        Compile(graph, product, programId, null, null);
+
+    public CompileResult Compile(
+        LogicGraph graph,
+        ProductDefinition product,
+        string? programId,
+        IReadOnlyList<ModbusPortConfigDto>? modbusPorts,
+        IReadOnlyList<ModbusSlaveMapEntryDto>? slaveMapConfigs)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(product);
@@ -49,6 +58,43 @@ public sealed class RuleCompiler : IRuleCompiler
         var modbusReadNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusRead).ToList();
         var modbusWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusWrite).ToList();
         var directWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.DirectWrite).ToList();
+
+        // Safety Gate: Modbus Master nodes cannot target a port configured as Modbus Slave
+        if (modbusPorts != null)
+        {
+            foreach (var mbNode in modbusReadNodes)
+            {
+                byte portIdx = mbNode.ModbusReadData?.PortIndex ?? 0;
+                var port = modbusPorts.FirstOrDefault(p => p.PortIndex == portIdx);
+                if (port != null && port.Role == SimplePLC.Protocol.Enums.ModbusPortRole.Slave)
+                {
+                    diagnostics.Add(new CompileDiagnostic(
+                        ErrModbusPortSlaveConflict,
+                        DiagnosticSeverity.Error,
+                        $"RS-485 Port #{portIdx + 1} is configured as Modbus Slave and cannot be assigned to Modbus Master block '{GetNodeLabel(mbNode, "MB_READ")}'.",
+                        NodeId: mbNode.Id));
+                }
+            }
+
+            foreach (var mbNode in modbusWriteNodes)
+            {
+                byte portIdx = mbNode.ModbusWriteData?.PortIndex ?? 0;
+                var port = modbusPorts.FirstOrDefault(p => p.PortIndex == portIdx);
+                if (port != null && port.Role == SimplePLC.Protocol.Enums.ModbusPortRole.Slave)
+                {
+                    diagnostics.Add(new CompileDiagnostic(
+                        ErrModbusPortSlaveConflict,
+                        DiagnosticSeverity.Error,
+                        $"RS-485 Port #{portIdx + 1} is configured as Modbus Slave and cannot be assigned to Modbus Master block '{GetNodeLabel(mbNode, "MB_WRITE")}'.",
+                        NodeId: mbNode.Id));
+                }
+            }
+
+            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                return CompileResult.Failure(diagnostics);
+            }
+        }
 
         // Extract MQTT Telemetry Configs
         var compiledMqttConfigs = new List<MqttTelemetryConfigDto>();
@@ -344,7 +390,8 @@ public sealed class RuleCompiler : IRuleCompiler
                 compiledMqttSubConfigs,
                 compiledModbusConfigs,
                 compiledModbusWriteConfigs,
-                compiledDirectWriteConfigs);
+                compiledDirectWriteConfigs,
+                slaveMapConfigs);
 
             return CompileResult.Success(telemetryOnlyProgram, diagnostics);
         }
@@ -1328,7 +1375,8 @@ public sealed class RuleCompiler : IRuleCompiler
             compiledMqttSubConfigs,
             compiledModbusConfigs,
             compiledModbusWriteConfigs,
-            compiledDirectWriteConfigs);
+            compiledDirectWriteConfigs,
+            slaveMapConfigs);
 
         return CompileResult.Success(program, diagnostics);
     }
