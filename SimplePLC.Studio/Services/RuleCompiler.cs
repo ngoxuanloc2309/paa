@@ -127,6 +127,15 @@ public sealed class RuleCompiler : IRuleCompiler
                             NodeId: node.Id));
                     }
                 }
+                else if (node is DtuGatewayNodeViewModel && !targetProduct.IsDtuCapable && !targetProduct.SupportsTransparentStream && !targetProduct.SupportsNetwork)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ DTU Gateway."
+                            : "Target device '{0}' hardware profile does not support DTU Gateway.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
             }
         }
 
@@ -897,6 +906,35 @@ public sealed class RuleCompiler : IRuleCompiler
                         defaultColorRgb: dw.DefaultColorRgb,
                         executionOrder: actionOrder++,
                         label: dw.DisplayTitle));
+                    break;
+
+                case DtuGatewayNodeViewModel dtuNode:
+                    ushort? dtuEnTag = null;
+                    ushort? dtuTrigTag = null;
+
+                    var dtuEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == dtuNode &&
+                        (c.Target == dtuNode.EnConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
+                    if (dtuEnConn?.Source?.Node is InputNodeViewModel dtuEnIn && dtuEnIn.Tag != null)
+                    {
+                        dtuEnTag = ResolveTagIndex(dtuEnIn.Tag, targetProduct);
+                    }
+
+                    var dtuTrigConn = connectionList.FirstOrDefault(c => c.Target?.Node == dtuNode &&
+                        (c.Target == dtuNode.TrigConnector || string.Equals(c.Target.Title, "TRIG", StringComparison.OrdinalIgnoreCase)));
+                    if (dtuTrigConn?.Source?.Node is InputNodeViewModel dtuTrigIn && dtuTrigIn.Tag != null)
+                    {
+                        dtuTrigTag = ResolveTagIndex(dtuTrigIn.Tag, targetProduct);
+                    }
+
+                    graph.Nodes.Add(LogicNode.CreateDtuGateway(
+                        id: dtuNode.Id,
+                        enTag: dtuEnTag,
+                        trigTag: dtuTrigTag,
+                        portIndex: dtuNode.PortIndex,
+                        uplinkMode: dtuNode.UplinkMode,
+                        serialMode: dtuNode.SerialMode,
+                        executionOrder: actionOrder++,
+                        label: dtuNode.Title));
                     break;
 
                 default:

@@ -1691,6 +1691,55 @@
         </nodify:Node>
     </DataTemplate>
 
+    <!-- 14. DTU Gateway Node Template (Industrial Serial-to-Internet Gateway) -->
+    <DataTemplate DataType="{x:Type vm:DtuGatewayNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="220"
+                     HeaderBrush="{StaticResource NodeMqttBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="📡" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="#E0F2FE" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="GATEWAY" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#0369A1" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                      IsConnected="{Binding IsConnected}"
+                                      Header="{Binding Title}"
+                                      ToolTip="{Binding TooltipText}"
+                                      Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding TooltipText}"
+                                       Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,4">
+                <!-- Summary Text & Badges -->
+                <TextBlock Text="{Binding SummaryText}" FontWeight="Bold" FontSize="10.5" FontFamily="Segoe UI" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,3" TextWrapping="Wrap" />
+                <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Center" Margin="0,0,0,4">
+                    <TextBlock Text="{Binding BadgeText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
+                </Border>
+                <Button Content="{Binding [InspectorConfigureBtn], Source={x:Static services:LocalizationService.Instance}, FallbackValue='⚙ Cấu hình DTU...'}"
+                        Command="{Binding ConfigureCommand}"
+                        Padding="8,2" FontSize="10" Style="{StaticResource BtnSecondary}" HorizontalAlignment="Center" Cursor="Hand" />
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
     <!-- Connection Line Template: Straight or Orthogonal PLC Ladder Wire from Pin to Pin -->
     <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
         <Grid Background="Transparent">

@@ -70,7 +70,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         byte slaveId = 1,
         CancellationToken ct = default) =>
-        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, null, null, slaveId, ct);
+        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, null, null, null, null, slaveId, ct);
 
     public async Task<DeployRulesResult> ExecuteAsync(
         RuleTable ruleTable,
@@ -85,6 +85,8 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         IReadOnlyList<ModbusSlaveMapEntryDto>? slaveMapConfigs = null,
         IReadOnlyList<byte>? tagDataTypes = null,
+        DtuConfigDto? dtuConfig = null,
+        MqttWillConfigDto? mqttWillConfig = null,
         byte slaveId = 1,
         CancellationToken ct = default,
         Action<string>? progressLogger = null)
@@ -125,6 +127,8 @@ public sealed class DeployRulesUseCase
                 modbusPortConfigs,
                 slaveMapConfigs,
                 tagDataTypes,
+                dtuConfig,
+                mqttWillConfig,
                 ct,
                 progressLogger).ConfigureAwait(false);
         }

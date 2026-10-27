@@ -42,6 +42,34 @@ public static class GraphGrammarV1
             return false;
         }
 
+        if (sourceKind == LogicNodeKind.DtuGateway)
+        {
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.MqttPublish)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-DTU-OUT";
+            errorReason = "DTU Gateway output connectors (Done/Busy/Err) can only connect to Action, Timer, Counter, Modbus Write, Direct Write, or MQTT Publish.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.DtuGateway)
+        {
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-DTU-IN";
+            errorReason = "DTU Gateway node can only receive an upstream connection from Input, Trigger, Guard, Comparator, Timer, Counter, MQTT Subscribe, Modbus Read, Modbus Write, or Direct Write.";
+            return false;
+        }
+
         if (targetKind == LogicNodeKind.MqttPublish)
         {
             if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Scale or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
@@ -58,7 +86,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.MqttSubscribe)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -66,7 +94,7 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MQTTSUB-OUT";
-            errorReason = "MQTT Subscribe output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, MQTT Publish, Modbus Write, or Direct Write.";
+            errorReason = "MQTT Subscribe output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, MQTT Publish, Modbus Write, Direct Write, or DTU Gateway.";
             return false;
         }
 
@@ -86,7 +114,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.ModbusRead)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -94,7 +122,7 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MBM-OUT";
-            errorReason = "Modbus Read output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Publish, Modbus Write, or Direct Write.";
+            errorReason = "Modbus Read output connectors (Valid/Err/Data) can only connect to Action, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Publish, Modbus Write, Direct Write, or DTU Gateway.";
             return false;
         }
 
@@ -114,7 +142,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.ModbusWrite)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -122,13 +150,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MBW-OUT";
-            errorReason = "Modbus Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, or MQTT Publish.";
+            errorReason = "Modbus Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, MQTT Publish, or DTU Gateway.";
             return false;
         }
 
         if (targetKind == LogicNodeKind.ModbusWrite)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -136,13 +164,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-MBW-IN";
-            errorReason = "Modbus Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, or Modbus Read.";
+            errorReason = "Modbus Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, Modbus Read, or DTU Gateway.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.DirectWrite)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -150,13 +178,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-DIRW-OUT";
-            errorReason = "Direct Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, or MQTT Publish.";
+            errorReason = "Direct Write output connectors (Done/Busy/Error/ErrCode) can only connect to Action, Trigger, Guard, Timer, Counter, MQTT Publish, or DTU Gateway.";
             return false;
         }
 
         if (targetKind == LogicNodeKind.DirectWrite)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -164,13 +192,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-DIRW-IN";
-            errorReason = "Direct Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, or Modbus Read.";
+            errorReason = "Direct Write input connectors can only receive upstream connection from Input, Trigger, Guard, Timer, Counter, Scale, Comparator, MQTT Subscribe, Modbus Read, or DTU Gateway.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Timer)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -178,13 +206,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-TIMER-OUT";
-            errorReason = "Timer output Q can only connect to an Action or MQTT Publish node.";
+            errorReason = "Timer output Q can only connect to an Action, MQTT Publish, or DTU Gateway node.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Counter)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -192,13 +220,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-COUNTER-OUT";
-            errorReason = "Counter output Q can only connect to an Action or MQTT Publish node.";
+            errorReason = "Counter output Q can only connect to an Action, MQTT Publish, or DTU Gateway node.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Scale)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -206,13 +234,13 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-SCALE-OUT";
-            errorReason = "Scale output can connect to an Action, Trigger, Comparator, or MQTT Publish node.";
+            errorReason = "Scale output can connect to an Action, Trigger, Comparator, MQTT Publish, or DTU Gateway node.";
             return false;
         }
 
         if (sourceKind == LogicNodeKind.Comparator)
         {
-            if (targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Guard || targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish)
+            if (targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Guard || targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;

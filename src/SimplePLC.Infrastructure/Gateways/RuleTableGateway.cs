@@ -52,6 +52,12 @@ public sealed class RuleTableGateway : IRuleTableGateway
     public Task<MqttBrokerConfigDto?> ReadActiveMqttBrokerConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
         _reader.ReadActiveMqttBrokerConfigAsync(slaveId, cancellationToken);
 
+    public Task<MqttWillConfigDto?> ReadActiveMqttWillConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveMqttWillConfigAsync(slaveId, cancellationToken);
+
+    public Task<DtuConfigDto?> ReadActiveDtuConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
+        _reader.ReadActiveDtuConfigAsync(slaveId, cancellationToken);
+
     public Task<IReadOnlyList<ModbusPortConfigDto>> ReadActiveModbusPortsAsync(byte slaveId = 1, CancellationToken cancellationToken = default) =>
         _reader.ReadActiveModbusPortsAsync(slaveId, cancellationToken);
 
@@ -86,6 +92,8 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<ModbusPortConfigDto>? modbusPortConfigs = null,
         IReadOnlyList<ModbusSlaveMapEntryDto>? slaveMapConfigs = null,
         IReadOnlyList<byte>? tagDataTypes = null,
+        DtuConfigDto? dtuConfig = null,
+        MqttWillConfigDto? mqttWillConfig = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null) =>
         _writer.DeployRulesAsync(
@@ -102,6 +110,8 @@ public sealed class RuleTableGateway : IRuleTableGateway
             modbusPortConfigs,
             slaveMapConfigs,
             tagDataTypes,
+            dtuConfig,
+            mqttWillConfig,
             cancellationToken,
             progressLogger);
 }

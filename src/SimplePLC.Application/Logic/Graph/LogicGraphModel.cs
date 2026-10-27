@@ -16,7 +16,8 @@ public enum LogicNodeKind
     MqttSubscribe = 9,
     ModbusRead = 10,
     ModbusWrite = 11,
-    DirectWrite = 12
+    DirectWrite = 12,
+    DtuGateway = 13
 }
 
 public sealed class ScaleNodeData
@@ -190,6 +191,19 @@ public sealed class DirectWriteNodeData
     public uint DefaultColorRgb { get; set; } = 0x00FF00;
 }
 
+public sealed class DtuGatewayNodeData
+{
+    public ushort? EnTagIndex { get; set; }
+    public ushort? TrigTagIndex { get; set; }
+    public ushort? DoneTagIndex { get; set; }
+    public ushort? BusyTagIndex { get; set; }
+    public ushort? ErrorTagIndex { get; set; }
+    public ushort? ErrCodeTagIndex { get; set; }
+    public byte PortIndex { get; set; } = 0;
+    public string UplinkMode { get; set; } = "Mqtt";
+    public string SerialMode { get; set; } = "Transference";
+}
+
 public sealed class LogicNode
 {
     public string Id { get; set; } = string.Empty;
@@ -210,6 +224,7 @@ public sealed class LogicNode
     public ModbusReadNodeData? ModbusReadData { get; set; }
     public ModbusWriteNodeData? ModbusWriteData { get; set; }
     public DirectWriteNodeData? DirectWriteData { get; set; }
+    public DtuGatewayNodeData? DtuGatewayData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };
@@ -581,6 +596,39 @@ public sealed class LogicNode
                 ChannelTagIndex = channelTag,
                 ParamTagIndex = paramTag,
                 DefaultColorRgb = defaultColorRgb
+            }
+        };
+
+    public static LogicNode CreateDtuGateway(
+        string id,
+        ushort? enTag = null,
+        ushort? trigTag = null,
+        ushort? doneTag = null,
+        ushort? busyTag = null,
+        ushort? errorTag = null,
+        ushort? errCodeTag = null,
+        byte portIndex = 0,
+        string uplinkMode = "Mqtt",
+        string serialMode = "Transference",
+        int executionOrder = 0,
+        string label = "") =>
+        new()
+        {
+            Id = id,
+            Kind = LogicNodeKind.DtuGateway,
+            ExecutionOrder = executionOrder,
+            Label = label,
+            DtuGatewayData = new DtuGatewayNodeData
+            {
+                EnTagIndex = enTag,
+                TrigTagIndex = trigTag,
+                DoneTagIndex = doneTag,
+                BusyTagIndex = busyTag,
+                ErrorTagIndex = errorTag,
+                ErrCodeTagIndex = errCodeTag,
+                PortIndex = portIndex,
+                UplinkMode = uplinkMode,
+                SerialMode = serialMode
             }
         };
 }

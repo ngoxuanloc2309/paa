@@ -552,6 +552,10 @@ public partial class LogicEditorView : UserControl
                 {
                     vm.OpenDirectWriteConfigCommand.Execute(dwNode);
                 }
+                else if (node is DtuGatewayNodeViewModel dtuNode)
+                {
+                    vm.OpenDtuGatewayConfigCommand.Execute(dtuNode);
+                }
 
                 fe.Focus();
                 e.Handled = true;

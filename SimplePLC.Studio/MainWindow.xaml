@@ -65,6 +65,7 @@
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
         <KeyBinding Key="W" Modifiers="Ctrl+Shift" Command="{Binding OpenWifiConfigCommand}" />
         <KeyBinding Key="B" Modifiers="Ctrl+Shift" Command="{Binding OpenModbusPortConfigCommand}" />
+        <KeyBinding Key="D" Modifiers="Ctrl+Shift" Command="{Binding OpenDtuGatewayCommand}" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
     </Window.InputBindings>
     
@@ -79,6 +80,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:LogicEditorViewModel}">
             <views:LogicEditorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DtuGatewayStudioViewModel}">
+            <views:DtuGatewayStudioView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:TagCatalogViewModel}">
             <views:TagCatalogView />
@@ -220,6 +224,7 @@
                 <MenuItem Header="{Binding Loc[MenuMqttBrokerConfig]}" Command="{Binding OpenMqttBrokerConfigCommand}" InputGestureText="Ctrl+Shift+M" Icon="📡" />
                 <MenuItem Header="{Binding Loc[MenuWifiConfig]}" Command="{Binding OpenWifiConfigCommand}" InputGestureText="Ctrl+Shift+W" Icon="📶" />
                 <MenuItem Header="{Binding Loc[MenuModbusPortConfig]}" Command="{Binding OpenModbusPortConfigCommand}" InputGestureText="Ctrl+Shift+B" Icon="🔄" />
+                <MenuItem Header="{Binding Loc[MenuConfigureDtu]}" Command="{Binding OpenDtuGatewayCommand}" InputGestureText="Ctrl+Shift+D" Icon="📡" />
                 <Separator />
                 <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}" Icon="⏰" />
                 <Separator />
@@ -252,9 +257,22 @@
             <DockPanel LastChildFill="False">
                 <Border Background="#DFE3E8" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="2" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Content="{Binding Loc[TabLogicGraph]}" Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=0}"
-                                     Command="{Binding SelectTabCommand}" CommandParameter="0" />
+                                     Command="{Binding SelectTabCommand}" CommandParameter="0">
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding Loc[TabLogicGraph]}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDtuProject}" Value="True">
+                                                <Setter Property="Text" Value="{Binding Loc[TabDtuGateway]}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </RadioButton>
                         <RadioButton Content="{Binding Loc[TabTagCatalog]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=1}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="1" />

@@ -80,6 +80,22 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
     [ObservableProperty]
     private bool? _isTestSuccess;
 
+    // Last Will & Testament (LWT) Properties (SPLC-SPEC-MQTT-004)
+    [ObservableProperty]
+    private bool _willEnabled;
+
+    [ObservableProperty]
+    private string _willTopic = string.Empty;
+
+    [ObservableProperty]
+    private string _willPayload = "{\"status\":\"offline\"}";
+
+    [ObservableProperty]
+    private byte _willQos = 1;
+
+    [ObservableProperty]
+    private bool _willRetain = true;
+
     public event Action? RequestClose;
 
     public MqttBrokerConfigViewModel(ProjectMetadata metadata)
@@ -99,6 +115,12 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _caCertPath = metadata.MqttTlsCaCertPath ?? string.Empty;
         _caCertPem = metadata.MqttTlsCaCertPem ?? string.Empty;
         _allowSelfSigned = metadata.MqttTlsAllowSelfSigned;
+
+        _willEnabled = metadata.MqttWillEnabled;
+        _willTopic = metadata.MqttWillTopic ?? string.Empty;
+        _willPayload = string.IsNullOrEmpty(metadata.MqttWillPayload) ? "{\"status\":\"offline\"}" : metadata.MqttWillPayload;
+        _willQos = metadata.MqttWillQos;
+        _willRetain = metadata.MqttWillRetain;
 
         // Tự động phân tích chứng chỉ nếu đã có sẵn trong metadata
         if (!string.IsNullOrWhiteSpace(_caCertPem))
@@ -334,6 +356,12 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _metadata.MqttTlsCaCertPath = CaCertPath ?? string.Empty;
         _metadata.MqttTlsCaCertPem = CaCertPem ?? string.Empty;
         _metadata.MqttTlsAllowSelfSigned = AllowSelfSigned;
+
+        _metadata.MqttWillEnabled = WillEnabled;
+        _metadata.MqttWillTopic = WillTopic?.Trim() ?? string.Empty;
+        _metadata.MqttWillPayload = WillPayload ?? string.Empty;
+        _metadata.MqttWillQos = WillQos;
+        _metadata.MqttWillRetain = WillRetain;
 
         _metadata.LastModified = DateTime.UtcNow;
 

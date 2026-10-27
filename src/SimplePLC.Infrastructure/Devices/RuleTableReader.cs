@@ -335,6 +335,72 @@ public sealed class RuleTableReader : IRuleTableReader
         return ModbusSlaveMapCodec.DecodeEntries(buffer);
     }
 
+    public async Task<MqttWillConfigDto?> ReadActiveMqttWillConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var data = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.MqttWillConfigBaseAddress,
+                ModbusRegisterMap.MqttWillConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+
+            if (data == null || data.Length < ModbusRegisterMap.MqttWillConfigRegisters)
+                return null;
+
+            return MqttWillConfigCodec.Decode(data);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<DtuConfigDto?> ReadActiveDtuConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var routingData = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.DtuRoutingConfigBaseAddress,
+                ModbusRegisterMap.DtuRoutingConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+
+            if (routingData == null || routingData.Length < ModbusRegisterMap.DtuRoutingConfigRegisters)
+                return null;
+
+            var dtuConfig = new DtuConfigDto();
+            DtuConfigCodec.DecodeRouting(routingData, dtuConfig);
+
+            var httpData = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.DtuHttpConfigBaseAddress,
+                ModbusRegisterMap.DtuHttpConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+            if (httpData != null && httpData.Length >= ModbusRegisterMap.DtuHttpConfigRegisters)
+            {
+                dtuConfig.HttpConfig = DtuConfigCodec.DecodeHttp(httpData);
+            }
+
+            var tcpData = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.DtuTcpConfigBaseAddress,
+                ModbusRegisterMap.DtuTcpConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+            if (tcpData != null && tcpData.Length >= ModbusRegisterMap.DtuTcpConfigRegisters)
+            {
+                dtuConfig.TcpConfig = DtuConfigCodec.DecodeTcp(tcpData);
+            }
+
+            dtuConfig.MqttWillConfig = await ReadActiveMqttWillConfigAsync(slaveId, cancellationToken).ConfigureAwait(false) ?? new();
+            return dtuConfig;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<FullDeviceConfigurationDto> ReadFullDeviceConfigurationAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
     {
         var rules = await ReadActiveRulesAsync(slaveId, cancellationToken).ConfigureAwait(false);
@@ -346,6 +412,8 @@ public sealed class RuleTableReader : IRuleTableReader
         var mqttTelemetries = await ReadActiveMqttTelemetryConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var mqttSubs = await ReadActiveMqttSubscribeConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var brokerConfig = await ReadActiveMqttBrokerConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
+        var willConfig = await ReadActiveMqttWillConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
+        var dtuConfig = await ReadActiveDtuConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var modbusPorts = await ReadActiveModbusPortsAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var slaveMaps = await ReadActiveModbusSlaveMapConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
 
@@ -360,6 +428,8 @@ public sealed class RuleTableReader : IRuleTableReader
             MqttTelemetries = mqttTelemetries,
             MqttSubscriptions = mqttSubs,
             BrokerConfig = brokerConfig,
+            MqttWillConfig = willConfig,
+            DtuConfig = dtuConfig,
             ModbusPorts = modbusPorts,
             ModbusSlaveMaps = slaveMaps
         };

@@ -757,6 +757,30 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+
+                                <!-- DTU Gateway Block -->
+                                <Border Tag="DtuGateway" Style="{StaticResource ToolboxCardStyle}"
+                                        IsEnabled="{Binding IsDtuGatewaySupported}"
+                                        PreviewMouseMove="ToolboxItem_MouseMove"
+                                        ToolTip="{Binding DtuGatewayDisabledTooltip}"
+                                        Margin="0,4,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#0284C7" CornerRadius="1,0,0,1" />
+                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock Text="📡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                                <TextBlock Text="{Binding [ToolboxDtuGatewayTitle], Source={x:Static services:LocalizationService.Instance}, FallbackValue='DTU Gateway'}" 
+                                                           FontWeight="SemiBold" Foreground="#1E293B" FontSize="11" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding [ToolboxDtuGatewayDesc], Source={x:Static services:LocalizationService.Instance}, FallbackValue='Cầu nối dữ liệu RS-485 lên Internet (MQTT, HTTP, TCP)'}" 
+                                                       FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Expander>
 
@@ -2813,6 +2837,46 @@
                                         Padding="12,7" HorizontalAlignment="Stretch" />
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+
+                    <!-- DTU GATEWAY NODE PROPERTIES FORM -->
+                    <StackPanel Visibility="{Binding SelectedDtuGatewayNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
+                        <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,10">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock Text="📡" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding [ToolboxDtuGatewayTitle], Source={x:Static services:LocalizationService.Instance}, FallbackValue='DTU GATEWAY'}" FontWeight="Bold" FontSize="11.5" Foreground="#0F172A" />
+                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.SummaryText}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <TextBlock Text="{Binding [InspectorNodeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="#64748B" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding SelectedDtuGatewayNode.CustomLabel, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
+
+                        <!-- Settings Summary Card -->
+                        <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="Cổng nối tiếp:" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.PortDisplayName}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="Chế độ 485:" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.SerialMode}" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="Kênh Uplink:" FontSize="11" Foreground="#64748B" />
+                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.UplinkMode}" FontWeight="Bold" Foreground="#0284C7" HorizontalAlignment="Right" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Button to open DTU Hub Dialog -->
+                        <Button Content="{Binding [InspectorConfigureBtn], Source={x:Static services:LocalizationService.Instance}, FallbackValue='⚙ Cấu hình DTU Gateway...'}"
+                                Command="{Binding OpenDtuGatewayConfigCommand}"
+                                CommandParameter="{Binding SelectedDtuGatewayNode}"
+                                Padding="12,6" FontWeight="SemiBold" Style="{StaticResource BtnPrimary}" HorizontalAlignment="Stretch" Cursor="Hand" />
                     </StackPanel>
 
                     <!-- INPUT NODE PROPERTIES FORM -->

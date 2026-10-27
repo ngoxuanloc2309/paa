@@ -429,6 +429,36 @@ public static class ModbusRegisterMap
     // ==========================================
     // 3. PHÂN VÙNG RULE TRANSFER & COMMIT (0x9000 - 0xA001)
     // ==========================================
+        // ==========================================
+    // 2.12 PHÂN VÙNG MQTT LAST WILL & TESTAMENT (LWT) (0x0E60 - 0x0E7F)
+    // SPLC-SPEC-MQTT-004: 32 Registers = 64 Bytes
+    // ==========================================
+    public const ushort MqttWillConfigBaseAddress = 0x0E60;
+    public const int MqttWillConfigRegisters = 32;
+    public const int MqttWillConfigBytes = 64;
+    public const ushort MqttWillControlBitEnabled = 0x0001;
+    public const ushort MqttWillControlBitRetain = 0x0002;
+    public const ushort MqttWillControlQosMask = 0x000C;
+    public const int MqttWillControlQosShift = 2;
+
+    // ==========================================
+    // 2.13 PHÂN VÙNG DTU GATEWAY & PROTOCOL FORWARDING (0x1600 - 0x16BF)
+    // SPLC-SPEC-DTU-001: 192 Registers = 384 Bytes
+    // ==========================================
+    public const ushort DtuHttpConfigBaseAddress = 0x1600;
+    public const int DtuHttpConfigRegisters = 64; // 128 Bytes
+    public const int DtuHttpUrlMaxChars = 64;
+    public const int DtuHttpHeadersMaxChars = 56;
+
+    public const ushort DtuTcpConfigBaseAddress = 0x1640;
+    public const int DtuTcpConfigRegisters = 64; // 128 Bytes
+    public const int DtuTcpHostMaxChars = 64;
+    public const int DtuTcpHeartbeatMaxChars = 48;
+
+    public const ushort DtuRoutingConfigBaseAddress = 0x1680;
+    public const int DtuRoutingConfigRegisters = 64; // 128 Bytes
+    public const ushort DtuRoutingControlBitEnabled = 0x0001;
+
     public const ushort ConfigStatusAddress = 0x9000;
     public const ushort ConfigStatusLength = 1;
 

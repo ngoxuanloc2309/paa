@@ -87,6 +87,21 @@ public sealed class ProductDefinition
     public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
 
     /// <summary>
+    /// Năng lực phân hệ REST API HTTP Client (0x1600..0x163F).
+    /// </summary>
+    public bool SupportsHttpClient => (HardwareCapabilities & SPLC_HardwareCapabilities.HTTP_CLIENT) != 0;
+
+    /// <summary>
+    /// Năng lực truyền trong suốt Serial-to-Network (Transparent Stream).
+    /// </summary>
+    public bool SupportsTransparentStream => (HardwareCapabilities & SPLC_HardwareCapabilities.TRANSPARENT_STREAM) != 0;
+
+    /// <summary>
+    /// Thiết bị có thể hoạt động ở vai trò DTU Gateway (hoặc là thiết bị thuần DTU, hoặc thiết bị có RS-485 và truyền thông mạng).
+    /// </summary>
+    public bool IsDtuCapable => DeviceClass == (ushort)SPLC_DeviceClass.DTU || (PhysicalRs485PortCount > 0 && SupportsNetwork);
+
+    /// <summary>
     /// Số lượng cổng RS-485 vật lý hiện hữu trên bo mạch MCU (đọc động từ 0x0A0A hoặc suy diễn từ HardwareCapabilities).
     /// </summary>
     public ushort PhysicalRs485PortCount { get; }
@@ -197,6 +212,46 @@ public sealed class ProductDefinition
     /// từ metadata thiết bị (0x0000 + 0x0020) thông qua <see cref="DeviceProfileBuilder"/>.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Fallback helper tạo danh mục cấu hình chuẩn SynaptiX DTU Gateway (RS485 to Network: MQTT, HTTP, TCP).
+    /// </summary>
+    public static ProductDefinition CreateDtuGateway(
+        ushort wireProfile = 2,
+        SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,
+        ushort physicalRs485PortCount = 2)
+    {
+        var profile = new ProductResourceProfile(
+            DigitalInputs: 0,
+            DigitalOutputs: 0,
+            AnalogInputs: 0,
+            VirtualFlags: 32,
+            VirtualRegisters: 64,
+            RetentiveRegisters: 32,
+            Counters: 4);
+
+        var tags = DeviceProfileBuilder.GenerateTags(profile);
+        var effectiveCaps = hardwareCapabilities != SPLC_HardwareCapabilities.NONE
+            ? hardwareCapabilities
+            : (SPLC_HardwareCapabilities.ETHERNET |
+               SPLC_HardwareCapabilities.WIFI |
+               SPLC_HardwareCapabilities.MQTT_PUB |
+               SPLC_HardwareCapabilities.MQTT_SUB |
+               SPLC_HardwareCapabilities.MODBUS_MASTER |
+               SPLC_HardwareCapabilities.HTTP_CLIENT |
+               SPLC_HardwareCapabilities.TRANSPARENT_STREAM);
+
+        return new ProductDefinition(
+            "SynaptiX DTU Gateway (RS-485)",
+            deviceClass: (ushort)SPLC_DeviceClass.DTU,
+            productVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            maxRules: 50,
+            resources: profile,
+            tags: tags,
+            wireProfile: wireProfile,
+            hardwareCapabilities: effectiveCaps,
+            physicalRs485PortCount: physicalRs485PortCount);
+    }
+
     public static ProductDefinition CreateRemoteIo8Di8Do4Ai(
         ushort wireProfile = 2,
         SPLC_HardwareCapabilities hardwareCapabilities = SPLC_HardwareCapabilities.NONE,

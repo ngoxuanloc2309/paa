@@ -140,6 +140,13 @@ public partial class LogicEditorViewModel : ObservableObject
     public bool IsMqttPublishSupported => (TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsMqttSubscribeSupported => (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsModbusMasterSupported => TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false;
+    public bool IsDtuGatewaySupported => (TagCatalog?.CurrentProduct.SupportsTransparentStream ?? false) || (TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false) || (TagCatalog?.CurrentProduct.SupportsNetwork ?? false) || (TagCatalog?.CurrentProduct.IsDtuCapable ?? false);
+
+    public string DtuGatewayDisabledTooltip => IsDtuGatewaySupported
+        ? LocalizationService.Tr("ToolboxDtuGatewayDesc", "Bộ chuyển đổi dữ liệu RS-485 lên Internet (MQTT, HTTP REST, TCP)")
+        : (LocalizationService.Instance.IsVietnamese
+            ? "Yêu cầu thiết bị hỗ trợ cổng RS-485 hoặc cổng mạng."
+            : "Requires hardware RS-485 port or network connectivity.");
 
     public string MqttPublishDisabledTooltip => IsMqttPublishSupported
         ? LocalizationService.Tr("ToolboxMqttDesc")
@@ -178,6 +185,8 @@ public partial class LogicEditorViewModel : ObservableObject
             OnPropertyChanged(nameof(MqttSubscribeDisabledTooltip));
             OnPropertyChanged(nameof(ModbusReadDisabledTooltip));
             OnPropertyChanged(nameof(ModbusWriteDisabledTooltip));
+            OnPropertyChanged(nameof(IsDtuGatewaySupported));
+            OnPropertyChanged(nameof(DtuGatewayDisabledTooltip));
         }
     }
 
@@ -200,6 +209,7 @@ public partial class LogicEditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedModbusReadNode))]
     [NotifyPropertyChangedFor(nameof(SelectedModbusWriteNode))]
     [NotifyPropertyChangedFor(nameof(SelectedDirectWriteNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedDtuGatewayNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
@@ -217,6 +227,52 @@ public partial class LogicEditorViewModel : ObservableObject
     public ModbusReadNodeViewModel? SelectedModbusReadNode => SelectedNode as ModbusReadNodeViewModel;
     public ModbusWriteNodeViewModel? SelectedModbusWriteNode => SelectedNode as ModbusWriteNodeViewModel;
     public DirectWriteNodeViewModel? SelectedDirectWriteNode => SelectedNode as DirectWriteNodeViewModel;
+    public DtuGatewayNodeViewModel? SelectedDtuGatewayNode => SelectedNode as DtuGatewayNodeViewModel;
+
+    [RelayCommand]
+    public void OpenDtuGatewayConfig(DtuGatewayNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedDtuGatewayNode;
+        var metadata = GetProjectMetadata?.Invoke() ?? new Models.ProjectMetadata();
+        var dtuVm = new DtuGatewayStudioViewModel(metadata);
+        if (targetNode != null)
+        {
+            dtuVm.SelectedPortIndex = targetNode.PortIndex;
+            dtuVm.SerialMode = targetNode.SerialMode;
+            dtuVm.UplinkMode = targetNode.UplinkMode;
+            if (!string.IsNullOrWhiteSpace(targetNode.CustomJsonTemplate))
+            {
+                dtuVm.JsonTemplate = targetNode.CustomJsonTemplate;
+            }
+            if (targetNode.HttpFields.Count > 0)
+            {
+                dtuVm.HttpFields.Clear();
+                foreach (var f in targetNode.HttpFields)
+                {
+                    dtuVm.HttpFields.Add(new DtuHttpFieldModel { Key = f.Key, ValueSource = f.ValueSource, CustomValue = f.CustomValue });
+                }
+            }
+        }
+
+        var dialog = new Views.DtuGatewayConfigDialogView(dtuVm);
+        dialog.Owner = System.Windows.Application.Current?.MainWindow;
+        if (dialog.ShowDialog() == true)
+        {
+            if (targetNode != null)
+            {
+                targetNode.PortIndex = (byte)dtuVm.SelectedPortIndex;
+                targetNode.SerialMode = dtuVm.SerialMode;
+                targetNode.UplinkMode = dtuVm.UplinkMode;
+                targetNode.CustomJsonTemplate = dtuVm.JsonTemplate;
+                targetNode.HttpFields.Clear();
+                foreach (var f in dtuVm.HttpFields)
+                {
+                    targetNode.HttpFields.Add(new DtuHttpFieldModel { Key = f.Key, ValueSource = f.ValueSource, CustomValue = f.CustomValue });
+                }
+            }
+            NotifyGraphModified();
+        }
+    }
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -2334,6 +2390,7 @@ public partial class LogicEditorViewModel : ObservableObject
         CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
         ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
         ComparatorNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Comparator,
+        DtuGatewayNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.DtuGateway,
         _ => null
     };
 
@@ -2648,6 +2705,7 @@ public partial class LogicEditorViewModel : ObservableObject
             "MB_READ" or "ModbusRead" or "Modbus" or "MbRead" or "MB_RD" => new ModbusReadNodeViewModel(),
             "MB_WRITE" or "ModbusWrite" or "MbWrite" or "MB_WR" => new ModbusWriteNodeViewModel(),
             "PULSE_OUT" or "PulseOut" or "PULSE" or "DIRECT_WRITE" or "DirectWrite" or "DirWrite" or "DIR_WR" => new DirectWriteNodeViewModel(),
+            "DTU" or "DtuGateway" or "DTU_GATEWAY" or "Dtu" => new DtuGatewayNodeViewModel { ConfigureHandler = n => OpenDtuGatewayConfig(n) },
             "Comparator" or "CMP" => new ComparatorNodeViewModel(
                 tag,
                 CompareOp.GT,
@@ -3536,6 +3594,15 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.DirectWriteTimeoutMs = dw.TimeoutMs;
             pNode.DirectWriteDefaultColorRgb = dw.DefaultColorRgb;
         }
+        else if (node is DtuGatewayNodeViewModel dtuNode)
+        {
+            pNode.Type = "DtuGateway";
+            pNode.DtuPortIndex = dtuNode.PortIndex;
+            pNode.DtuSerialMode = dtuNode.SerialMode;
+            pNode.DtuUplinkMode = dtuNode.UplinkMode;
+            pNode.DtuCustomJsonTemplate = dtuNode.CustomJsonTemplate;
+            pNode.DtuHttpFields = dtuNode.HttpFields.ToList();
+        }
 
         return pNode;
     }
@@ -3843,6 +3910,28 @@ public partial class LogicEditorViewModel : ObservableObject
 
             dw.SynchronizeConnectors();
             node = dw;
+        }
+        else if (string.Equals(type, "DTU", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DtuGateway", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "DTU_GATEWAY", StringComparison.OrdinalIgnoreCase))
+        {
+            var dtuNode = new DtuGatewayNodeViewModel
+            {
+                PortIndex = pNode.DtuPortIndex,
+                SerialMode = string.IsNullOrEmpty(pNode.DtuSerialMode) ? "Transference" : pNode.DtuSerialMode,
+                UplinkMode = string.IsNullOrEmpty(pNode.DtuUplinkMode) ? "Mqtt" : pNode.DtuUplinkMode,
+                CustomJsonTemplate = pNode.DtuCustomJsonTemplate ?? string.Empty
+            };
+            if (pNode.DtuHttpFields != null)
+            {
+                dtuNode.HttpFields.Clear();
+                foreach (var f in pNode.DtuHttpFields)
+                {
+                    dtuNode.HttpFields.Add(new DtuHttpFieldModel { Key = f.Key, ValueSource = f.ValueSource, CustomValue = f.CustomValue });
+                }
+            }
+            dtuNode.ConfigureHandler = n => OpenDtuGatewayConfig(n);
+            node = dtuNode;
         }
 
         if (node != null)

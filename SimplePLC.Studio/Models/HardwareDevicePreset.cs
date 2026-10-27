@@ -176,6 +176,33 @@ public sealed class HardwareDevicePreset
             Counters = 8,
             MaxRules = 100,
             HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.SD_DATALOG
+        },
+
+        // 7. DTU - Industrial RS-485 Gateway & Data Transfer Unit (TCP / MQTT / HTTP)
+        new()
+        {
+            Id = "DTU_RS485_NET",
+            DisplayName = "SynaptiX DTU (Industrial 485 Gateway)",
+            DescriptionKey = "PresetDtuDesc",
+            DeviceClass = SPLC_DeviceClass.DTU,
+            DeviceVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            McuTarget = "SynaptiX SYNX-DTU-485",
+            DigitalInputs = 0,
+            DigitalOutputs = 0,
+            AnalogInputs = 0,
+            VirtualFlags = 32,
+            VirtualRegisters = 64,
+            RetentiveRegisters = 32,
+            Counters = 4,
+            MaxRules = 50,
+            HardwareCapabilities = SPLC_HardwareCapabilities.ETHERNET |
+                                   SPLC_HardwareCapabilities.WIFI |
+                                   SPLC_HardwareCapabilities.MQTT_PUB |
+                                   SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.MODBUS_MASTER |
+                                   SPLC_HardwareCapabilities.MODBUS_TCP |
+                                   SPLC_HardwareCapabilities.HTTP_CLIENT |
+                                   SPLC_HardwareCapabilities.TRANSPARENT_STREAM
         }
     };
 }

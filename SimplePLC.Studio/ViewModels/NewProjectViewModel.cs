@@ -196,8 +196,11 @@ public partial class NewProjectViewModel : ObservableObject
     public int PreviewTotalTags => PreviewDigitalInputs + PreviewDigitalOutputs + PreviewAnalogInputs +
                                    PreviewVirtualFlags + PreviewVirtualRegs + PreviewRetainRegs + PreviewCounters;
 
+    public bool IsDtuPresetSelected => !IsCustomMode && SelectedPreset?.DeviceClass == SPLC_DeviceClass.DTU;
+
     public void UpdatePreviewProperties()
     {
+        OnPropertyChanged(nameof(IsDtuPresetSelected));
         OnPropertyChanged(nameof(PreviewDeviceName));
         OnPropertyChanged(nameof(PreviewMcuTarget));
         OnPropertyChanged(nameof(PreviewDigitalInputs));

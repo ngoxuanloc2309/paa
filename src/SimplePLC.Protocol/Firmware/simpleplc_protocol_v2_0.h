@@ -203,6 +203,16 @@ extern "C" {
 #define SPLC_BROKER_CTRL_VERSION_MASK     0x0018
 #define SPLC_BROKER_CTRL_VERSION_SHIFT    3
 
+/* --- 2.7.1 MQTT Last Will & Testament (LWT) (0x0E60 - 0x0E7F, SPLC-SPEC-MQTT-004) --- */
+#define SPLC_ADDR_MQTT_WILL               0x0E60  /* 32 regs (64 B): SPLC_MqttWillConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_MQTT_WILL                32
+#define SPLC_MQTT_WILL_TOPIC_MAX_CHARS    32
+#define SPLC_MQTT_WILL_PAYLOAD_MAX_CHARS  30
+#define SPLC_MQTT_WILL_CTRL_ENABLED_BIT   0x0001
+#define SPLC_MQTT_WILL_CTRL_RETAIN_BIT    0x0002
+#define SPLC_MQTT_WILL_CTRL_QOS_MASK      0x000C
+#define SPLC_MQTT_WILL_CTRL_QOS_SHIFT     2
+
 /* --- 2.8 MQTT TLS Certificate Staging Buffer (0x0F00 - 0x0F43, SPLC-SPEC-MQTT-003) --- */
 #define SPLC_ADDR_MQTT_TLS_STAGING        0x0F00  /* 64 regs (128 B): SPLC_CertChunk_t (FC16, WO) */
 #define SPLC_LEN_MQTT_TLS_STAGING_CHUNK   64
@@ -290,6 +300,33 @@ extern "C" {
 #define SPLC_SLAVE_FLAG_PORT_MASK         0x00F0  /* Bit 4..7: Port Mask (Bit 0=Port 1..Bit 3=Port 4) */
 #define SPLC_SLAVE_FLAG_PORT_SHIFT        4
 #define SPLC_SLAVE_FLAG_ACTIVE            0x0100  /* Bit 8: 1 = Active Entry, 0 = Empty */
+
+/* --- 2.15 DTU Gateway & Protocol Forwarding Space (0x1600 - 0x16BF, SPLC-SPEC-DTU-001) --- */
+#define SPLC_ADDR_DTU_HTTP                0x1600  /* 64 regs (128 B): SPLC_DtuHttpConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_DTU_HTTP                 64
+#define SPLC_DTU_HTTP_URL_MAX_CHARS       64
+#define SPLC_DTU_HTTP_HDR_MAX_CHARS       56
+#define SPLC_DTU_HTTP_CTRL_ENABLED_BIT    0x0001
+#define SPLC_DTU_HTTP_CTRL_METHOD_MASK    0x0006
+#define SPLC_DTU_HTTP_CTRL_METHOD_SHIFT   1
+
+#define SPLC_ADDR_DTU_TCP                 0x1640  /* 64 regs (128 B): SPLC_DtuTcpConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_DTU_TCP                  64
+#define SPLC_DTU_TCP_HOST_MAX_CHARS       64
+#define SPLC_DTU_TCP_HEARTBEAT_MAX_CHARS  48
+#define SPLC_DTU_TCP_CTRL_ENABLED_BIT     0x0001
+#define SPLC_DTU_TCP_CTRL_MODE_MASK       0x0002
+#define SPLC_DTU_TCP_CTRL_MODE_SHIFT      1
+
+#define SPLC_ADDR_DTU_ROUTING             0x1680  /* 64 regs (128 B): SPLC_DtuRoutingConfig_t (FC03/FC16, RW) */
+#define SPLC_LEN_DTU_ROUTING              64
+#define SPLC_DTU_RT_CTRL_ENABLED_BIT      0x0001
+#define SPLC_DTU_RT_CTRL_SERIAL_MASK      0x000E
+#define SPLC_DTU_RT_CTRL_SERIAL_SHIFT     1
+#define SPLC_DTU_RT_CTRL_UPLINK_MASK      0x00F0
+#define SPLC_DTU_RT_CTRL_UPLINK_SHIFT     4
+#define SPLC_DTU_RT_CTRL_PORT_MASK        0xFF00
+#define SPLC_DTU_RT_CTRL_PORT_SHIFT       8
 
 /* Wi-Fi Command codes at 0x1340 */
 #define SPLC_WIFI_CMD_IDLE                0x0000
@@ -474,7 +511,9 @@ typedef enum {
     SPLC_CAP_MODBUS_MASTER = 0x0100, /* Bit 8: Hỗ trợ phân hệ RS-485 Modbus RTU Master Poller (0x1000) */
     SPLC_CAP_WIFI          = 0x0200, /* Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF) */
     SPLC_CAP_MODBUS_TCP    = 0x0400, /* Bit 10: Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502) */
-    SPLC_CAP_FLOAT32       = 0x0800  /* Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math */
+    SPLC_CAP_FLOAT32       = 0x0800, /* Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math */
+    SPLC_CAP_HTTP_CLIENT   = 0x1000, /* Bit 12: Hỗ trợ phân hệ REST API HTTP Client (0x1600..0x163F) */
+    SPLC_CAP_TRANSPARENT_STREAM = 0x2000 /* Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -482,8 +521,38 @@ typedef enum {
     SPLC_DEV_CLASS_REMOTE_IO      = 1,
     SPLC_DEV_CLASS_DATALOGGER     = 2,
     SPLC_DEV_CLASS_GATEWAY        = 3,
-    SPLC_DEV_CLASS_CONTROLLER     = 4
+    SPLC_DEV_CLASS_CONTROLLER     = 4,
+    SPLC_DEV_CLASS_DTU            = 5
 } SPLC_DeviceClass_t;
+
+typedef enum {
+    SPLC_DTU_VARIANT_UNKNOWN      = 0,
+    SPLC_DTU_VARIANT_RS485_NET    = 1
+} SPLC_DtuVariant_t;
+
+typedef enum {
+    SPLC_DTU_SERIAL_TRANSFERENCE  = 0,
+    SPLC_DTU_SERIAL_MODBUS_MASTER = 1,
+    SPLC_DTU_SERIAL_MODBUS_SLAVE  = 2
+} SPLC_DtuSerialMode_t;
+
+typedef enum {
+    SPLC_DTU_UPLINK_NONE          = 0,
+    SPLC_DTU_UPLINK_MQTT          = 1,
+    SPLC_DTU_UPLINK_HTTP          = 2,
+    SPLC_DTU_UPLINK_TCP_CLIENT    = 3,
+    SPLC_DTU_UPLINK_TCP_SERVER    = 4
+} SPLC_DtuUplinkMode_t;
+
+typedef enum {
+    SPLC_DTU_HTTP_METHOD_POST     = 1,
+    SPLC_DTU_HTTP_METHOD_PUT      = 2
+} SPLC_DtuHttpMethod_t;
+
+typedef enum {
+    SPLC_DTU_TCP_SOCKET_CLIENT    = 0,
+    SPLC_DTU_TCP_SOCKET_SERVER    = 1
+} SPLC_DtuTcpSocketMode_t;
 
 typedef enum {
     SPLC_RIO_VARIANT_UNKNOWN      = 0,
@@ -1078,6 +1147,55 @@ typedef struct SPLC_PACKED {
     uint16_t reserved;              /* +3: Reserved (always 0x0000) */
 } SPLC_ModbusSlaveMapEntry_t;
 
+/**
+ * @brief MQTT Last Will & Testament (LWT) Record (32 registers = 64 bytes at 0x0E60).
+ * SPLC-SPEC-MQTT-004.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t will_control;                        /* +0: Bit 0=Enabled, Bit 1=Retain, Bit 2..3=QoS */
+    char     will_topic[32];                      /* +1..16: Topic (32 bytes ASCII) */
+    char     will_payload[30];                    /* +17..31: Payload (30 bytes ASCII) */
+} SPLC_MqttWillConfig_t;
+
+/**
+ * @brief DTU HTTP REST Client Config Record (64 registers = 128 bytes at 0x1600).
+ * SPLC-SPEC-DTU-001.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t http_control;                        /* +0: Bit 0=Enabled, Bit 1..2=Method (1=POST, 2=PUT) */
+    uint16_t timeout_sec;                         /* +1: Request Timeout in seconds */
+    uint16_t periodic_interval_sec;               /* +2: Periodic Interval in seconds */
+    uint16_t reserved_0;                          /* +3: Reserved */
+    char     url[64];                             /* +4..35: REST API URL (64 bytes ASCII) */
+    char     custom_headers[56];                  /* +36..63: Headers (56 bytes ASCII) */
+} SPLC_DtuHttpConfig_t;
+
+/**
+ * @brief DTU TCP Socket Client/Server Config Record (64 registers = 128 bytes at 0x1640).
+ * SPLC-SPEC-DTU-001.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t tcp_control;                         /* +0: Bit 0=Enabled, Bit 1=Mode (0=Client, 1=Server) */
+    uint16_t remote_port;                         /* +1: Remote Port */
+    uint16_t local_port;                          /* +2: Local Port */
+    uint16_t reconnect_delay_sec;                 /* +3: Reconnect delay in seconds */
+    uint16_t heartbeat_interval_sec;              /* +4: Heartbeat interval in seconds */
+    uint16_t reserved[3];                         /* +5..7: Reserved (6 bytes) */
+    char     remote_host[64];                     /* +8..39: Host/IP (64 bytes ASCII) */
+    char     heartbeat_payload[48];               /* +40..63: Heartbeat string (48 bytes ASCII) */
+} SPLC_DtuTcpConfig_t;
+
+/**
+ * @brief DTU Routing & Serial Mode Config Record (64 registers = 128 bytes at 0x1680).
+ * SPLC-SPEC-DTU-001.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t routing_control;                     /* +0: Bit 0=Enabled, Bit 1..3=SerialMode, Bit 4..7=UplinkMode, Bit 8..15=PortIndex */
+    uint16_t frame_timeout_delay_ms;              /* +1: Frame delimiter timeout (ms) */
+    uint16_t max_packet_size;                     /* +2: Max packet buffer size (bytes) */
+    uint16_t reserved[61];                        /* +3..63: Reserved (122 bytes) */
+} SPLC_DtuRoutingConfig_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
@@ -1105,6 +1223,10 @@ _Static_assert(sizeof(SPLC_WifiScanControl_t)       == 32,  "WifiScanControl mus
 _Static_assert(sizeof(SPLC_WifiApInfo_t)            == 44,  "WifiApInfo must be 44 bytes (22 regs)");
 _Static_assert(sizeof(SPLC_ModbusPortConfigRecord_t) == 32, "ModbusPortConfigRecord must be 32 bytes (16 regs)");
 _Static_assert(sizeof(SPLC_ModbusSlaveMapEntry_t)   == 8,  "SlaveMapEntry must be 8 bytes (4 regs)");
+_Static_assert(sizeof(SPLC_MqttWillConfig_t)        == 64,  "MqttWillConfig must be 64 bytes (32 regs)");
+_Static_assert(sizeof(SPLC_DtuHttpConfig_t)         == 128, "DtuHttpConfig must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_DtuTcpConfig_t)          == 128, "DtuTcpConfig must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_DtuRoutingConfig_t)      == 128, "DtuRoutingConfig must be 128 bytes (64 regs)");
 #endif
 
 /* ========================================================================= */

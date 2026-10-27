@@ -9,7 +9,8 @@ public enum SPLC_DeviceClass : ushort
     REMOTE_IO = 1,
     DATALOGGER = 2,
     GATEWAY = 3,
-    CONTROLLER = 4
+    CONTROLLER = 4,
+    DTU = 5
 }
 
 /// <summary>
@@ -38,6 +39,15 @@ public enum SPLC_GatewayVariant : ushort
 {
     UNKNOWN = 0,
     VARIANT_RS485_ETH = 1
+}
+
+/// <summary>
+/// DTU variant: chỉ dùng khi device_class = DTU.
+/// </summary>
+public enum SPLC_DtuVariant : ushort
+{
+    UNKNOWN = 0,
+    VARIANT_DTU_RS485_NET = 1
 }
 
 /// <summary>
@@ -83,7 +93,9 @@ public enum SPLC_HardwareCapabilities : uint
     MODBUS_MASTER = 0x0100, // Bit 8: Hỗ trợ phân hệ Modbus RTU Master Poller (0x1000)
     WIFI          = 0x0200, // Bit 9: Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (0x1300..0x13FF)
     MODBUS_TCP    = 0x0400, // Bit 10: Hỗ trợ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502)
-    FLOAT32       = 0x0800  // Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 / REAL
+    FLOAT32       = 0x0800, // Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 / REAL
+    HTTP_CLIENT   = 0x1000, // Bit 12: Hỗ trợ phân hệ xuất bản dữ liệu REST API HTTP/HTTPS Client (0x1600)
+    TRANSPARENT_STREAM = 0x2000 // Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network Passthrough
 }
 
 /// <summary>

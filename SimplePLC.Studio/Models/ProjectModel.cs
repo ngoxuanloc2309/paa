@@ -65,6 +65,60 @@ public class ProjectMetadata
 
     // Modbus Slave Mapping Configuration Settings (SPLC-SPEC-SLAVE-001)
     public List<ModbusSlaveMapEntryModel> ModbusSlaveMapEntries { get; set; } = new();
+
+    // MQTT Last Will & Testament (LWT) (SPLC-SPEC-MQTT-004)
+    public bool MqttWillEnabled { get; set; } = false;
+    public string MqttWillTopic { get; set; } = string.Empty;
+    public string MqttWillPayload { get; set; } = "{\"status\":\"offline\"}";
+    public byte MqttWillQos { get; set; } = 1;
+    public bool MqttWillRetain { get; set; } = true;
+
+    // DTU Gateway Configuration (SPLC-SPEC-DTU-001)
+    public DtuConfigModel DtuConfig { get; set; } = new();
+}
+
+public class DtuConfigModel
+{
+    public bool Enabled { get; set; } = false;
+    public byte PortIndex { get; set; } = 0;
+    public string SerialMode { get; set; } = "Transference"; // Transference, ModbusMaster, ModbusSlave
+    public string UplinkMode { get; set; } = "Mqtt"; // Mqtt, Http, TcpClient, TcpServer
+    public ushort FrameTimeoutDelayMs { get; set; } = 20;
+    public ushort MaxPacketSize { get; set; } = 512;
+
+    public DtuHttpModel HttpSettings { get; set; } = new();
+    public DtuTcpModel TcpSettings { get; set; } = new();
+    public string CustomJsonTemplate { get; set; } = "{\n  \"device\": \"{{DEVICE_ID}}\",\n  \"timestamp\": \"{{TIMESTAMP}}\",\n  \"data\": \"{{SERIAL_PAYLOAD}}\"\n}";
+}
+
+public class DtuHttpModel
+{
+    public bool Enabled { get; set; } = false;
+    public string Method { get; set; } = "POST"; // POST, PUT
+    public ushort TimeoutSec { get; set; } = 10;
+    public ushort PeriodicIntervalSec { get; set; } = 5;
+    public string Url { get; set; } = "https://api.factory-cloud.io/v1/telemetry";
+    public string Headers { get; set; } = "Content-Type: application/json";
+    public List<DtuHttpFieldModel> Fields { get; set; } = new();
+}
+
+public class DtuHttpFieldModel
+{
+    public string Key { get; set; } = "field1";
+    public string ValueSource { get; set; } = "Payload"; // Payload, DeviceId, Timestamp, Custom
+    public string CustomValue { get; set; } = string.Empty;
+}
+
+public class DtuTcpModel
+{
+    public bool Enabled { get; set; } = false;
+    public string SocketMode { get; set; } = "Client"; // Client, Server
+    public string RemoteHost { get; set; } = "192.168.1.100";
+    public ushort RemotePort { get; set; } = 8888;
+    public ushort LocalPort { get; set; } = 8888;
+    public ushort ReconnectDelaySec { get; set; } = 5;
+    public ushort HeartbeatIntervalSec { get; set; } = 30;
+    public string HeartbeatPayload { get; set; } = "PING";
 }
 
 public class ProjectTagData
@@ -206,6 +260,13 @@ public class ProjectNodeData
     public float DirectWriteDeadband { get; set; } = 0.5f;
     public uint DirectWriteTimeoutMs { get; set; } = 300;
     public uint DirectWriteDefaultColorRgb { get; set; } = 0x00FF00;
+
+    // DTU Gateway node properties
+    public byte DtuPortIndex { get; set; } = 0;
+    public string DtuSerialMode { get; set; } = "Transference"; // Transference, ModbusMaster, ModbusSlave
+    public string DtuUplinkMode { get; set; } = "Mqtt"; // Mqtt, Http, TcpClient, TcpServer
+    public string DtuCustomJsonTemplate { get; set; } = string.Empty;
+    public List<DtuHttpFieldModel> DtuHttpFields { get; set; } = new();
 }
 
 public class MqttPayloadFieldData

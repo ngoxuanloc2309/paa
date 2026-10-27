@@ -27,6 +27,9 @@ public partial class MainViewModel : ObservableObject
     public SimulatorViewModel SimulatorVM { get; }
     public LiveWatchViewModel LiveWatchVM { get; }
     public AiChatViewModel AiChatVM { get; }
+    public DtuGatewayStudioViewModel DtuGatewayStudioVM { get; private set; }
+
+    public bool IsDtuProject => CurrentProjectMetadata?.DeviceClass == (ushort)SimplePLC.Protocol.Enums.SPLC_DeviceClass.DTU;
 
     public ObservableCollection<string> AvailablePorts { get; } = new();
     public ObservableCollection<PortOption> PortOptions { get; } = new();
@@ -264,6 +267,7 @@ public partial class MainViewModel : ObservableObject
             () => TagCatalogVM?.AllTags,
             () => RuleTableVM?.Rules,
             () => LogicEditorVM);
+        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
         AiChatVM.OnApplyRulesRequested = (specs, msg) => ApplyAiRulesToTable(specs, msg);
         AiChatVM.OnNavigateToTab = (tabIndex) => SelectTab(tabIndex);
 
@@ -1223,6 +1227,28 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnCurrentProjectMetadataChanged(ProjectMetadata value)
+    {
+        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(value);
+        OnPropertyChanged(nameof(IsDtuProject));
+        if (SelectedTabIndex == 0)
+        {
+            CurrentView = IsDtuProject ? DtuGatewayStudioVM : LogicEditorVM;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenDtuGateway()
+    {
+        var vm = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
+        var dialog = new Views.DtuGatewayConfigDialogView(vm)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+        IsProjectDirty = true;
+    }
+
     [RelayCommand]
     private void OpenModbusPortConfig()
     {
@@ -1324,7 +1350,7 @@ public partial class MainViewModel : ObservableObject
         SelectedTabIndex = index;
         CurrentView = index switch
         {
-            0 => LogicEditorVM,
+            0 => IsDtuProject ? DtuGatewayStudioVM : LogicEditorVM,
             1 => TagCatalogVM,
             2 => RuleTableVM,
             3 => BlueprintsVM,

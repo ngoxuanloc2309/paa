@@ -1,6 +1,7 @@
-﻿<Application x:Class="SimplePLC.Studio.App"
+<Application x:Class="SimplePLC.Studio.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -9,6 +10,11 @@
                 <ResourceDictionary Source="Styles/Controls.xaml" />
                 <ResourceDictionary Source="Styles/NodeTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
+            <converters:ComparisonConverter x:Key="CompareConverter" />
+            <converters:ComparisonToVisibilityConverter x:Key="CompareToVisConverter" />
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
             <Style TargetType="Window">
                 <Setter Property="Background" Value="{StaticResource BgWindowBrush}" />
