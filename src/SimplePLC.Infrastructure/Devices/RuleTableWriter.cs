@@ -526,22 +526,8 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
-        // 4.4.1 Nạp Bảng Ánh Xạ Modbus Slave (0x1500) nếu có cấu hình (SPLC-SPEC-SLAVE-001)
-        if (slaveMapConfigs != null && slaveMapConfigs.Count > 0)
-        {
-            var mapRegs = new ushort[ModbusRegisterMap.ModbusSlaveMapTableTotalLength];
-            ModbusSlaveMapCodec.EncodeEntries(slaveMapConfigs, mapRegs);
-
-            progressLogger?.Invoke($"[Modbus Slave Map] Writing {mapRegs.Length} registers to 0x{ModbusRegisterMap.ModbusSlaveMapBaseAddress:X04} (Sandbox Mapping Table)...");
-            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
-                ModbusRegisterMap.ModbusSlaveMapBaseAddress,
-                mapRegs.AsMemory());
-
-            foreach (var (chunkAddress, chunkMemory) in chunks)
-            {
-                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
-            }
-        }
+        // 4.4.1 Bảng Ánh Xạ Modbus Slave (0x1500 cũ) đã bị hủy bỏ theo kiến trúc Fixed Memory Map v2.12.0 (Zero Legacy)
+        // Firmware sử dụng bản đồ cố định được nạp sẵn từ nhà máy (O(1) direct dispatch), không còn nạp bảng 0x1500.
 
         // 4.5 Nạp cấu hình MQTT Will Message (0x0E60) nếu có
         var effectiveWill = mqttWillConfig ?? dtuConfig?.MqttWillConfig;

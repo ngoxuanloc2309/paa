@@ -468,6 +468,12 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * Firmware lưu mảng `uint8_t g_tag_data_types[128];` trong RAM.
    * Host Studio ghi mảng này qua FC16 lúc nạp cấu hình (Deploy). Mỗi thanh ghi Modbus chứa 2 tags (High Byte = Tag $2k$, Low Byte = Tag $2k+1$).
    * Các giá trị hợp lệ: `SPLC_DATA_TYPE_BOOL = 1`, `SPLC_DATA_TYPE_INT32 = 2`, `SPLC_DATA_TYPE_REAL = 3`.
+   * **Quy chuẩn Tag Analog Input (`AI0..AI3`):**
+     * Tag `AI0..AI3` trong bảng `0x0080` mặc định có kiểu `SPLC_DATA_TYPE_INT32 = 2`.
+     * Firmware lưu trực tiếp mã số nguyên ADC thô (`int32_t`) đọc từ bộ chuyển đổi ADC phần cứng (ví dụ `0..4095` với ADC 12-bit hoặc giá trị mV `0..10000`) vào `g_tag_store[ai_idx].as_int32`.
+     * Firmware **KHÔNG tự ý nhân chia hay quy đổi hệ số scale ngầm** (trừ khi có lệnh trong FBD).
+     * Mọi phép quy đổi sang đơn vị kỹ thuật (`REAL` Float32 như °C, Bar, m³/h) được thực hiện bằng Logic FBD (khối `SCALE` / phép toán số thực) hoặc hiển thị trên App Studio.
+     * *(Lưu ý ngoại lệ cho SCADA)*: Tại cổng Modbus Slave Cố định (`SPLC-SPEC-SLAVE-001` dải `0x0010..0x0017`), các kênh AI được ánh xạ kiểu `FLOAT32` (High Word First) để SCADA đọc trực tiếp giá trị chuẩn hóa (0.0V .. 10.0V hoặc 0.0 .. 100.0%).
    * **Nguyên tắc MB_READ**:
      * Khi chân đọc có `data_type == 6` (REAL): MCU giải mã 2 registers IEEE-754 float, nhân `multiplier` (float), ghi thẳng vào `g_tag_store[target_tag].as_real`.
      * Khi chân đọc là số nguyên (INT16, INT32...) nhưng `multiplier` lẻ (ví dụ 0.1):
@@ -518,6 +524,28 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 * **Hai Chốt An Toàn Chặn Lỗi (Safety Gates):**
   1. **Compiler Gate:** Trình biên dịch `RuleCompiler` chặn và báo lỗi `DiagnosticSeverity.Error` nếu phát hiện khối `MB_READ`/`MB_WRITE` gán `PortIndex >= physicalRs485PortCount`.
   2. **Deploy Gate:** `RuleTableWriter` chặn nạp và trả về `SPLC_ErrorCode.UNSUPPORTED (0x0002)` nếu dự án kích hoạt cổng vượt quá phần cứng thực tế.
+
+### 13.4.2. Quy Chuẩn Cấu Hình Cổng RS-485 (`0x1400..0x143F`) & Chế Độ Slave (100% Zero Legacy)
+1. **Nguồn chân lý duy nhất cho vai trò cổng (`PORT_ROLE`):**
+   - Thanh ghi `Offset +14` (`PORT_ROLE`: 0 = Master, 1 = Slave) là **nguồn chân lý tối cao duy nhất**.
+   - Thanh ghi `Offset +15` (`SLAVE_ID`: 1..247) xác định địa chỉ trạm ngoại vi Modbus Slave.
+   - Khái niệm Bit 9 tại `Offset +0` bị bãi bỏ; firmware và Studio thống nhất căn cứ hoàn toàn vào `Offset +14`.
+2. **Loại bỏ hoàn toàn Bảng ánh xạ trung gian 0x1500 (Zero Legacy):**
+   - Toàn bộ bảng 0x1500 bị loại bỏ khỏi firmware và quá trình nạp của Studio.
+   - Firmware triển khai Bản đồ Địa chỉ Cố định (Fixed Memory Map v2.12.0) truy xuất trực tiếp $O(1)$ vào RAM theo quy chuẩn `SPLC-SPEC-SLAVE-001`.
+3. **Các tham số vô hiệu của Slave (`+5`, `+6`, `+7`):**
+   - `+5` (`RESPONSE_TIMEOUT_MS`), `+6` (`INTER_FRAME_DELAY_MS`), `+7` (`RETRY_COUNT`) chỉ dành riêng cho Master.
+   - Khi cổng ở vai trò **Slave**: Firmware **bỏ qua hoàn toàn (Don't care)**; Studio UI tự động ẩn hoàn toàn các ô này.
+4. **Chặn xung đột Master/Slave tại khâu Biên dịch (Compile-time Safety Gate):**
+   - Phía App: Trình biên dịch `RuleCompiler` chặn đứng với mã lỗi biên dịch đỏ (`DiagnosticSeverity.Error`, `CompileResult.IsValid = false`) nếu phát hiện bất kỳ khối `MB_READ`/`MB_WRITE` nào trỏ vào cổng Slave, ngăn không cho phép nạp xuống thiết bị.
+   - Phía Firmware (Phòng thủ đa tầng): Nếu nhận lệnh COMMIT `0xA5A5` từ công cụ thứ ba chứa xung đột cổng Slave, firmware từ chối COMMIT, hủy bản nháp, đặt `CONFIG_STATUS (0x9000) = 4 (ERROR)` và `CONFIG_ERROR_CODE (0x9001) = 7 (SLAVE_PORT_CONFLICT)`.
+5. **Quy tắc ranh giới bộ nhớ Slave (Boundary Protection):**
+   - Trong phạm vi 16 điểm chuẩn (`DI0..DI15`): Các chân không có phần cứng vật lý trả về `0` (False).
+   - Truy vấn ngoài phạm vi bản đồ cố định ($>10016$, $>40256$): Firmware trả về **Modbus Exception 0x02 (Illegal Data Address)**.
+   - Ghi vào vùng Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`): Firmware trả về **Modbus Exception 0x03 (Illegal Data Value)**.
+   - Ghi FC06 vào VREG 32-bit: Cập nhật nửa thanh ghi tương ứng, giữ nguyên nửa còn lại (khuyến nghị SCADA dùng FC16 để ghi trọn vẹn 32-bit nguyên tử).
+6. **Cách ly tuyệt đối Cổng App Link & Cổng Slave:**
+   - Kênh App Link (USB-CDC hoặc UART0 chuyên dụng) độc lập hoàn toàn với các cổng RS-485 hiện trường (`0x1400`). Tuyệt đối không gán vai trò Slave đè lên cổng App Link để chống mất quyền điều khiển.
 
 * **Quy chuẩn Fail-Safe khi Deploy từ Host (SynaptiX IDE / SimplePLC Studio):**
   1. **Bắt buộc đọc kiểm tra năng lực trước khi ghi cấu hình nâng cao:**

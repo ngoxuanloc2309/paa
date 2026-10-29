@@ -10,6 +10,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="DtuGatewayStudioViewModel"/> covering state initialization,
+/// tab navigation, uplink modes, JSON macro formatting, and diagnostic terminal actions.
+/// </summary>
 public sealed class DtuGatewayStudioViewModelTests
 {
     [Fact]
@@ -126,7 +130,9 @@ public sealed class DtuGatewayStudioViewModelTests
             MqttWillTopic = "plant/alert",
             MqttWillPayload = "DEVICE_OFFLINE",
             MqttWillQos = 2,
-            MqttWillRetain = true
+            MqttWillRetain = true,
+            MqttSubscribeTopic = "factory/dtu/cmd",
+            ResponseTimeoutMs = 350
         };
 
         vm.SaveToMetadata();
@@ -149,6 +155,7 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Equal("DEVICE_OFFLINE", metadata.MqttWillPayload);
         Assert.Equal(2, metadata.MqttWillQos);
         Assert.True(metadata.MqttWillRetain);
+        Assert.Equal("factory/dtu/cmd", metadata.MqttSubTopic);
     }
 
     [Fact]
@@ -221,5 +228,110 @@ public sealed class DtuGatewayStudioViewModelTests
         {
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void SelectedTabIndex_WhenSwitchedAcrossAllFourTabs_MaintainsValidRange()
+    {
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        Assert.Equal(0, vm.SelectedTabIndex);
+
+        vm.SelectedTabIndex = 1;
+        Assert.Equal(1, vm.SelectedTabIndex);
+
+        vm.SelectedTabIndex = 2;
+        Assert.Equal(2, vm.SelectedTabIndex);
+
+        vm.SelectedTabIndex = 3;
+        Assert.Equal(3, vm.SelectedTabIndex);
+    }
+
+    [Fact]
+    public void UplinkMode_WhenSwitchedBetweenSupportedModes_UpdatesStateCorrectly()
+    {
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        vm.UplinkMode = "Mqtt";
+        Assert.Equal("Mqtt", vm.UplinkMode);
+
+        vm.UplinkMode = "Http";
+        Assert.Equal("Http", vm.UplinkMode);
+
+        vm.UplinkMode = "TcpClient";
+        Assert.Equal("TcpClient", vm.UplinkMode);
+
+        vm.UplinkMode = "TcpServer";
+        Assert.Equal("TcpServer", vm.UplinkMode);
+    }
+
+    [Fact]
+    public void HttpFields_WhenAddedAndRemoved_UpdatesCollectionAccurately()
+    {
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        int initialCount = vm.HttpFields.Count;
+        Assert.True(initialCount > 0);
+
+        vm.AddHttpFieldCommand.Execute(null);
+        Assert.Equal(initialCount + 1, vm.HttpFields.Count);
+
+        var lastField = vm.HttpFields.Last();
+        vm.RemoveHttpFieldCommand.Execute(lastField);
+        Assert.Equal(initialCount, vm.HttpFields.Count);
+        Assert.DoesNotContain(lastField, vm.HttpFields);
+    }
+
+    [Fact]
+    public void ClearTerminalCommand_WhenExecuted_ResetsLogToDefault()
+    {
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata)
+        {
+            TerminalLog = "Dirty log output from transmission"
+        };
+
+        vm.ClearTerminalCommand.Execute(null);
+
+        Assert.Contains("SYNAPTIX DTU GATEWAY DIAGNOSTIC TERMINAL", vm.TerminalLog);
+        Assert.DoesNotContain("Dirty log output", vm.TerminalLog);
+    }
+
+    [Fact]
+    public void UpdateJsonPreview_WhenTemplateHasSparseOrSpecialCharacters_HandlesSafelyWithoutException()
+    {
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata)
+        {
+            JsonTemplate = "{\"message\": \"Hello World\", \"status\": 200}"
+        };
+
+        vm.UpdateJsonPreview();
+
+        Assert.True(vm.IsJsonSyntaxValid);
+        Assert.Contains("\"message\": \"Hello World\"", vm.JsonPreview);
+        Assert.Contains("\"status\": 200", vm.JsonPreview);
+    }
+
+    [Fact]
+    public void LocalizationService_WhenDtuKeysQueried_ReturnsValidStringsInBothLanguages()
+    {
+        var loc = LocalizationService.Instance;
+
+        loc.CurrentLanguage = "vi";
+        Assert.NotEmpty(loc["DtuMqttBrokerCardTitle"]);
+        Assert.NotEmpty(loc["DtuResponseTimeoutLabel"]);
+        Assert.NotEmpty(loc["DtuMqttSubTopicLabel"]);
+        Assert.NotEmpty(loc["DtuTechNotesTitle"]);
+
+        loc.CurrentLanguage = "en";
+        Assert.NotEmpty(loc["DtuMqttBrokerCardTitle"]);
+        Assert.NotEmpty(loc["DtuResponseTimeoutLabel"]);
+        Assert.NotEmpty(loc["DtuMqttSubTopicLabel"]);
+        Assert.NotEmpty(loc["DtuTechNotesTitle"]);
+        Assert.NotEqual("Ghi chú kỹ thuật cổng RS-485:", loc["DtuTechNotesTitle"]);
     }
 }

@@ -42,7 +42,7 @@ extern "C" {
 #pragma pack(push, 1)
 
 /**
- * @brief Gói tin yêu cầu bắt tay từ SynaptiX IDE (88 Bytes)
+ * @brief Gói tin yêu cầu bắt tay từ SynaptiX IDE (Đúng chuẩn 92 Bytes = 2+1+1+64+16+8)
  */
 typedef struct {
     uint16_t magic_sof;          /**< 0x4853 ('S', 'H') */
@@ -54,7 +54,7 @@ typedef struct {
 } SPLC_HandshakeReq_t;
 
 /**
- * @brief Gói tin phản hồi bắt tay từ STM32H5 MCU (96 Bytes)
+ * @brief Gói tin phản hồi bắt tay từ STM32H5 MCU (Đúng chuẩn 96 Bytes = 2+1+1+64+16+12)
  */
 typedef struct {
     uint16_t magic_sof;          /**< 0x5353 ('S', 'S') */
@@ -84,6 +84,17 @@ typedef struct {
 } SPLC_SecureFrame_t;
 
 #pragma pack(pop)
+
+/* --- Static Assertions for Wire Contract Integrity (C11 / C++11) --- */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(SPLC_HandshakeReq_t) == 92, "SPLC_HandshakeReq_t must be exactly 92 bytes");
+_Static_assert(sizeof(SPLC_HandshakeResp_t) == 96, "SPLC_HandshakeResp_t must be exactly 96 bytes");
+_Static_assert(sizeof(SPLC_SecureHeader_t) == 16, "SPLC_SecureHeader_t must be exactly 16 bytes");
+#elif defined(__cplusplus) && __cplusplus >= 201103L
+static_assert(sizeof(SPLC_HandshakeReq_t) == 92, "SPLC_HandshakeReq_t must be exactly 92 bytes");
+static_assert(sizeof(SPLC_HandshakeResp_t) == 96, "SPLC_HandshakeResp_t must be exactly 96 bytes");
+static_assert(sizeof(SPLC_SecureHeader_t) == 16, "SPLC_SecureHeader_t must be exactly 16 bytes");
+#endif
 
 #ifdef __cplusplus
 }

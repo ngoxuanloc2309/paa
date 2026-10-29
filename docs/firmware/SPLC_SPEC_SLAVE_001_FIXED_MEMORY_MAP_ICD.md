@@ -9,13 +9,18 @@
 
 ---
 
-### 1. Tổng Quan Kiến Trúc (Architecture Overview)
+### 1. Tổng Quan Kiến Trúc (Architecture Overview - 100% Zero Legacy)
 
-Khi một cổng RS-485 vật lý được cấu hình sang chế độ **Modbus RTU Slave (Server)** (`PORT_ROLE = 1`), firmware vi điều khiển vận hành một luồng lắng nghe độc lập (Non-blocking UART Interrupt / DMA Listener), tiếp nhận các bản tin truy vấn từ hệ thống SCADA/HMI thượng tầng và phản hồi với hiệu năng cực cao:
+Khi một cổng RS-485 vật lý được cấu hình sang chế độ **Modbus RTU Slave (Server)** (`PORT_ROLE = 1` tại offset `+14`), firmware vi điều khiển vận hành một luồng lắng nghe độc lập (Non-blocking UART Interrupt / DMA Listener), tiếp nhận các bản tin truy vấn từ hệ thống SCADA/HMI thượng tầng và phản hồi với hiệu năng cực cao:
 
-1. **Truy xuất trực tiếp $O(1)$ vào RAM:**
-   - Không sử dụng bảng ánh xạ trung gian (`0x1500` cũ được giải phóng hoàn toàn).
+1. **Truy xuất trực tiếp $O(1)$ vào RAM (Zero Legacy - Bỏ hẳn bảng 0x1500):**
+   - **Tuyệt đối không duy trì bảng ánh xạ trung gian 0x1500:** Toàn bộ bảng 0x1500 bị loại bỏ hoàn toàn khỏi bộ nhớ MCU và quá trình Deploy của Studio. Không còn khái niệm nạp ánh xạ động.
    - Địa chỉ Modbus wire được giải mã trực tiếp thành con trỏ bộ nhớ RAM (`g_tag_store`) hoặc thanh ghi hệ thống (`g_system_diag`) chỉ trong vài chu kỳ lệnh CPU.
+2. **Loại bỏ tham số vô hiệu của Slave (+5, +6, +7):**
+   - Cổng Slave hoạt động theo cơ chế bị động (Passive Listener), phản hồi ngay sau khoảng lặng bus $t_{3.5}$.
+   - Các trường `RESPONSE_TIMEOUT_MS` (+5), `INTER_FRAME_DELAY_MS` (+6), `RETRY_COUNT` (+7) hoàn toàn vô nghĩa đối với Slave. Firmware MCU bỏ qua (Don't care), và giao diện SynaptiX Studio tự động ẩn hoàn toàn các ô nhập liệu này khi cổng ở vai trò Slave.
+3. **Chặn xung đột Master/Slave ngay từ khâu Biên dịch (Compile-time Error):**
+   - Nếu dự án có bất kỳ khối `MB_READ` hoặc `MB_WRITE` nào trỏ vào một cổng đang cấu hình vai trò `Slave`, trình biên dịch SynaptiX Compiler lập tức báo lỗi đỏ (**Compile Error - HasErrors = true**), ngăn chặn hoàn toàn việc nạp xuống thiết bị. Không bao giờ phát sinh tình huống âm thầm vô hiệu khối Master.
 2. **Hỗ trợ truy cập kép (Dual-Access Architecture):**
    - **Cấp Bit (Bit-Level Access):** Hỗ trợ FC 01, FC 05, FC 15 cho Coils (`00001..00016` cho DO, `00101..00132` cho VFLAG) và FC 02 cho Discrete Inputs (`10001..10016` cho DI).
    - **Cấp Word (Word-Level Access):** Hỗ trợ FC 03, FC 06, FC 16 cho Holding Registers (`40001..40256`).
@@ -156,20 +161,25 @@ uint16_t SPLC_ModbusSlave_ReadHoldingRegister(uint16_t wire_addr, uint8_t *exc_c
 {
     *exc_code = 0;
 
-    // 0x0000: DI_WORD
+    /* Truy xuất dựa trên cấu trúc Dynamic Tag Layout (Mục 4 MCU Conformance Spec) */
+    // 0x0000: DI_WORD (Chân không có phần cứng vật lý trả về 0)
     if (wire_addr == SPLC_MB_SLAVE_ADDR_DI_WORD) {
         uint16_t di_word = 0;
         for (int i = 0; i < 16; i++) {
-            if (g_tag_store[i] != 0) di_word |= (1 << i);
+            if (i < g_layout.di_count && g_tag_store[g_layout.di_base + i] != 0) {
+                di_word |= (1 << i);
+            }
         }
         return di_word;
     }
 
-    // 0x0001: DO_WORD
+    // 0x0001: DO_WORD (Chân không có phần cứng vật lý trả về 0)
     if (wire_addr == SPLC_MB_SLAVE_ADDR_DO_WORD) {
         uint16_t do_word = 0;
         for (int i = 0; i < 16; i++) {
-            if (g_tag_store[8 + i] != 0) do_word |= (1 << i);
+            if (i < g_layout.do_count && g_tag_store[g_layout.do_base + i] != 0) {
+                do_word |= (1 << i);
+            }
         }
         return do_word;
     }
@@ -178,33 +188,39 @@ uint16_t SPLC_ModbusSlave_ReadHoldingRegister(uint16_t wire_addr, uint8_t *exc_c
     if (wire_addr == 0x0002) {
         uint32_t vflags = 0;
         for (int i = 0; i < 32; i++) {
-            if (g_tag_store[20 + i] != 0) vflags |= (1UL << i);
+            if (i < g_layout.vflag_count && g_tag_store[g_layout.vflag_base + i] != 0) {
+                vflags |= (1UL << i);
+            }
         }
         return (uint16_t)(vflags >> 16); // High Word
     }
     if (wire_addr == 0x0003) {
         uint32_t vflags = 0;
         for (int i = 0; i < 32; i++) {
-            if (g_tag_store[20 + i] != 0) vflags |= (1UL << i);
+            if (i < g_layout.vflag_count && g_tag_store[g_layout.vflag_base + i] != 0) {
+                vflags |= (1UL << i);
+            }
         }
         return (uint16_t)(vflags & 0xFFFF); // Low Word
     }
 
-    // 0x0010..0x0017: AI0..AI3 Float32 IEEE-754 (High Word First)
+    // 0x0010..0x0017: AI0..AI3 Float32 IEEE-754 (High Word First, kênh vượt phần cứng trả về 0)
     if (wire_addr >= SPLC_MB_SLAVE_ADDR_AI_BASE && wire_addr < SPLC_MB_SLAVE_ADDR_AI_BASE + SPLC_MB_SLAVE_REGS_AI_TOTAL) {
         int offset = wire_addr - SPLC_MB_SLAVE_ADDR_AI_BASE;
         int ch = offset / 2;
         int reg = offset % 2;
-        uint32_t raw_float = g_tag_store[16 + ch];
+        if (ch >= g_layout.ai_count) return 0;
+        uint32_t raw_float = g_tag_store[g_layout.ai_base + ch];
         return (reg == 0) ? (uint16_t)(raw_float >> 16) : (uint16_t)(raw_float & 0xFFFF);
     }
 
-    // 0x0020..0x005F: VREG0..VREG31
+    // 0x0020..0x005F: VREG0..VREG31 (Biến vượt tài nguyên trả về 0)
     if (wire_addr >= SPLC_MB_SLAVE_ADDR_VREG_BASE && wire_addr < SPLC_MB_SLAVE_ADDR_VREG_BASE + SPLC_MB_SLAVE_REGS_VREG_TOTAL) {
         int offset = wire_addr - SPLC_MB_SLAVE_ADDR_VREG_BASE;
         int idx = offset / 2;
         int reg = offset % 2;
-        uint32_t val = g_tag_store[52 + idx];
+        if (idx >= g_layout.vreg_count) return 0;
+        uint32_t val = g_tag_store[g_layout.vreg_base + idx];
         return (reg == 0) ? (uint16_t)(val >> 16) : (uint16_t)(val & 0xFFFF);
     }
 
@@ -231,23 +247,30 @@ bool SPLC_ModbusSlave_WriteHoldingRegister(uint16_t wire_addr, uint16_t value, u
         return false;
     }
 
-    // Ghi DO_WORD (0x0001)
+    // Ghi DO_WORD (0x0001) - Chỉ ghi vào các kênh phần cứng thực tế có
     if (wire_addr == SPLC_MB_SLAVE_ADDR_DO_WORD) {
         for (int i = 0; i < 16; i++) {
-            g_tag_store[8 + i] = (value & (1 << i)) ? 1 : 0;
+            if (i < g_layout.do_count) {
+                g_tag_store[g_layout.do_base + i] = (value & (1 << i)) ? 1 : 0;
+            }
         }
         return true;
     }
 
-    // Ghi VREG0..VREG31 (0x0020..0x005F)
+    // Ghi VREG0..VREG31 (0x0020..0x005F) - FC 06 cập nhật nửa thanh ghi 16-bit tương ứng
+    // Khuyến nghị SCADA dùng FC 16 (2 thanh ghi) để cập nhật nguyên tử 32-bit
     if (wire_addr >= SPLC_MB_SLAVE_ADDR_VREG_BASE && wire_addr < SPLC_MB_SLAVE_ADDR_VREG_BASE + SPLC_MB_SLAVE_REGS_VREG_TOTAL) {
         int offset = wire_addr - SPLC_MB_SLAVE_ADDR_VREG_BASE;
         int idx = offset / 2;
         int reg = offset % 2;
+        if (idx >= g_layout.vreg_count) {
+            *exc_code = SPLC_MB_EXC_ILLEGAL_DATA_ADDRESS;
+            return false;
+        }
         if (reg == 0) {
-            g_tag_store[52 + idx] = ((uint32_t)value << 16) | (g_tag_store[52 + idx] & 0x0000FFFF);
+            g_tag_store[g_layout.vreg_base + idx] = ((uint32_t)value << 16) | (g_tag_store[g_layout.vreg_base + idx] & 0x0000FFFF);
         } else {
-            g_tag_store[52 + idx] = (g_tag_store[52 + idx] & 0xFFFF0000) | (uint32_t)value;
+            g_tag_store[g_layout.vreg_base + idx] = (g_tag_store[g_layout.vreg_base + idx] & 0xFFFF0000) | (uint32_t)value;
         }
         return true;
     }

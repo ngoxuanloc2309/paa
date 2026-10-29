@@ -4,6 +4,9 @@ using SimplePLC.Studio.Models;
 
 namespace SimplePLC.Studio.Models;
 
+/// <summary>
+/// Chứa thông tin cấu hình dự án, phần cứng mục tiêu và các thiết lập truyền thông (MQTT, Wi-Fi, Modbus, DTU).
+/// </summary>
 public class ProjectMetadata
 {
     public string ProjectName { get; set; } = "Untitled";
@@ -37,6 +40,7 @@ public class ProjectMetadata
     public bool MqttTlsEnabled { get; set; } = false;
     public bool MqttCleanSession { get; set; } = true;
     public ushort MqttKeepAliveSec { get; set; } = 60;
+    public string MqttSubTopic { get; set; } = "factory/dtu/command";
 
     // MQTT TLS Certificate Settings (SPLC-SPEC-MQTT-003)
     public string MqttTlsCaCertPath { get; set; } = string.Empty;
@@ -77,6 +81,9 @@ public class ProjectMetadata
     public DtuConfigModel DtuConfig { get; set; } = new();
 }
 
+/// <summary>
+/// Cấu hình trạm truyền thông DTU Gateway (Serial Mode, Uplink Mode, JSON Template).
+/// </summary>
 public class DtuConfigModel
 {
     public bool Enabled { get; set; } = false;
@@ -91,6 +98,9 @@ public class DtuConfigModel
     public string CustomJsonTemplate { get; set; } = "{\n  \"device\": \"{{DEVICE_ID}}\",\n  \"timestamp\": \"{{TIMESTAMP}}\",\n  \"data\": \"{{SERIAL_PAYLOAD}}\"\n}";
 }
 
+/// <summary>
+/// Cấu hình kênh HTTP REST Client của DTU Gateway.
+/// </summary>
 public class DtuHttpModel
 {
     public bool Enabled { get; set; } = false;
@@ -102,6 +112,9 @@ public class DtuHttpModel
     public List<DtuHttpFieldModel> Fields { get; set; } = new();
 }
 
+/// <summary>
+/// Đại diện cho một trường dữ liệu (Key-Value) trong HTTP Payload của DTU.
+/// </summary>
 public class DtuHttpFieldModel
 {
     public string Key { get; set; } = "field1";
@@ -109,6 +122,9 @@ public class DtuHttpFieldModel
     public string CustomValue { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Cấu hình kênh truyền TCP Socket Client / Server của DTU Gateway.
+/// </summary>
 public class DtuTcpModel
 {
     public bool Enabled { get; set; } = false;
@@ -121,6 +137,9 @@ public class DtuTcpModel
     public string HeartbeatPayload { get; set; } = "PING";
 }
 
+/// <summary>
+/// Đại diện cho một biến/tag I/O hoặc nội bộ trong dự án SynaptiX.
+/// </summary>
 public class ProjectTagData
 {
     public int Index { get; set; }
@@ -135,6 +154,9 @@ public class ProjectTagData
     public TagDataType DataType { get; set; } = TagDataType.Int32;
 }
 
+/// <summary>
+/// Đại diện cho một khối chức năng (Node) trên sơ đồ FBD / Rule Canvas.
+/// </summary>
 public class ProjectNodeData
 {
     public string Id { get; set; } = string.Empty;
@@ -269,6 +291,9 @@ public class ProjectNodeData
     public List<DtuHttpFieldModel> DtuHttpFields { get; set; } = new();
 }
 
+/// <summary>
+/// Đại diện cho trường ánh xạ trong khối MQTT Publisher Node.
+/// </summary>
 public class MqttPayloadFieldData
 {
     public string Key { get; set; } = string.Empty;
@@ -276,6 +301,9 @@ public class MqttPayloadFieldData
     public string Unit { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Đại diện cho chân ngõ ra ánh xạ từ bản tin JSON nhận được của MQTT Subscriber Node.
+/// </summary>
 public class MqttSubPinData
 {
     public string Id { get; set; } = string.Empty;
@@ -289,6 +317,9 @@ public class MqttSubPinData
     public double DefaultValue { get; set; } = 0.0;
 }
 
+/// <summary>
+/// Đại diện cho cấu hình ánh xạ điểm dữ liệu Modbus trong các Node Modbus Read / Write.
+/// </summary>
 public class ModbusPinData
 {
     public string Id { get; set; } = string.Empty;
@@ -301,6 +332,9 @@ public class ModbusPinData
     public ushort? TargetTagIndex { get; set; }
 }
 
+/// <summary>
+/// Đại diện cho dây nối logic giữa các khối chức năng trên sơ đồ FBD.
+/// </summary>
 public class ProjectConnectionData
 {
     public string SourceNodeId { get; set; } = string.Empty;
@@ -311,6 +345,9 @@ public class ProjectConnectionData
     public string TargetConnectorTitle { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Đại diện cho luật điều khiển logic (Trigger - Guard - Action) trong dự án.
+/// </summary>
 public class ProjectRuleData
 {
     public string Id { get; set; } = string.Empty;
@@ -337,6 +374,9 @@ public class ProjectRuleData
     public List<ProjectConnectionData>? SourceConnections { get; set; }
 }
 
+/// <summary>
+/// Mô hình gốc lưu trữ toàn bộ dữ liệu của một dự án SynaptiX (.splc).
+/// </summary>
 public class ProjectModel
 {
     public ProjectMetadata Metadata { get; set; } = new();
@@ -349,6 +389,9 @@ public class ProjectModel
     public List<int> WatchlistTagIndices { get; set; } = new();
 }
 
+/// <summary>
+/// Cấu hình chi tiết cho một cổng truyền thông nối tiếp RS-485 (Master / Slave).
+/// </summary>
 public class ModbusPortConfigModel
 {
     public byte PortIndex { get; set; } = 0;
@@ -404,6 +447,9 @@ public class ModbusPortConfigModel
     }
 }
 
+/// <summary>
+/// Đại diện cho một mục ánh xạ trong bảng nhớ Modbus RTU Slave.
+/// </summary>
 public class ModbusSlaveMapEntryModel
 {
     public ushort ModbusAddress { get; set; } = 0;

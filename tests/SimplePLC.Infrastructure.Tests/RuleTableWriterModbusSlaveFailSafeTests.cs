@@ -94,9 +94,9 @@ public class RuleTableWriterModbusSlaveFailSafeTests
         Assert.True(result.IsSuccess, $"Deploy failed: {result.ErrorCode} - {result.ErrorMessage}");
         Assert.Equal(SPLC_ErrorCode.NONE, result.ErrorCode);
 
-        // Kiểm tra log xác thực ghi 0x1400 và 0x1500
+        // Kiểm tra log xác thực ghi 0x1400 và đảm bảo ZERO-LEGACY: Không nạp bảng 0x1500
         Assert.Contains(logs, l => l.Contains("[RS-485 Ports] Writing 64 registers to 0x1400"));
-        Assert.Contains(logs, l => l.Contains("[Modbus Slave Map] Writing 128 registers to 0x1500 (Sandbox Mapping Table)"));
+        Assert.DoesNotContain(logs, l => l.Contains("0x1500"));
 
         // Kiểm tra dữ liệu được ghi vào simulator memory tại 0x1400
         ushort port1Control = client.Simulator.Memory.InternalRead(ModbusRegisterMap.ModbusPortConfigBaseAddress);
@@ -110,13 +110,6 @@ public class RuleTableWriterModbusSlaveFailSafeTests
 
         ushort port2SlaveId = client.Simulator.Memory.InternalRead((ushort)(ModbusRegisterMap.ModbusPortConfigBaseAddress + 16 + 15));
         Assert.Equal((ushort)5, port2SlaveId);
-
-        // Kiểm tra dữ liệu ghi vào simulator memory tại 0x1500
-        ushort entry0Addr = client.Simulator.Memory.InternalRead(ModbusRegisterMap.ModbusSlaveMapBaseAddress);
-        Assert.Equal((ushort)0, entry0Addr);
-
-        ushort entry0Tag = client.Simulator.Memory.InternalRead((ushort)(ModbusRegisterMap.ModbusSlaveMapBaseAddress + 1));
-        Assert.Equal((ushort)0, entry0Tag);
     }
 
     [Fact]

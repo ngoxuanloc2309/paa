@@ -118,9 +118,10 @@ public static class ModbusPortConfigCodec
         }
 
         ModbusPortRole role = ModbusPortRole.Master;
-        if (source.Length > 14 && source[14] == (ushort)ModbusPortRole.Slave)
+        if (source.Length > 14)
         {
-            role = ModbusPortRole.Slave;
+            // +14 la nguon chan ly duy nhat (Authoritative): 0 = Master, 1 = Slave
+            role = (source[14] == (ushort)ModbusPortRole.Slave) ? ModbusPortRole.Slave : ModbusPortRole.Master;
         }
         else if ((control & ModbusRegisterMap.ModbusPortControlBitRoleSlave) != 0)
         {

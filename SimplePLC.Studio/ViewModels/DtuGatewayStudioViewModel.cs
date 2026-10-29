@@ -12,6 +12,9 @@ using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// ViewModel quản lý toàn bộ cấu hình, trạng thái vận hành và chẩn đoán của DTU Gateway Studio.
+/// </summary>
 public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 {
     private readonly ProjectMetadata _metadata;
@@ -78,6 +81,9 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     [ObservableProperty]
     private string _mqttPublishTopic = "factory/dtu/data";
+
+    [ObservableProperty]
+    private string _mqttSubscribeTopic = "factory/dtu/command";
 
     [ObservableProperty]
     private int _mqttQos = 1;
@@ -221,6 +227,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         MqttPassword = _metadata.MqttPassword;
         MqttUseTls = _metadata.MqttTlsEnabled;
         MqttKeepAlive = _metadata.MqttKeepAliveSec > 0 ? _metadata.MqttKeepAliveSec : (ushort)60;
+        MqttSubscribeTopic = string.IsNullOrEmpty(_metadata.MqttSubTopic) ? MqttSubscribeTopic : _metadata.MqttSubTopic;
         MqttWillEnabled = _metadata.MqttWillEnabled;
         MqttWillTopic = string.IsNullOrEmpty(_metadata.MqttWillTopic) ? MqttWillTopic : _metadata.MqttWillTopic;
         MqttWillPayload = string.IsNullOrEmpty(_metadata.MqttWillPayload) ? MqttWillPayload : _metadata.MqttWillPayload;
@@ -297,6 +304,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         _metadata.MqttPassword = MqttPassword;
         _metadata.MqttTlsEnabled = MqttUseTls;
         _metadata.MqttKeepAliveSec = MqttKeepAlive;
+        _metadata.MqttSubTopic = MqttSubscribeTopic;
         _metadata.MqttWillEnabled = MqttWillEnabled;
         _metadata.MqttWillTopic = MqttWillTopic;
         _metadata.MqttWillPayload = MqttWillPayload;

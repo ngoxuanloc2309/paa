@@ -190,4 +190,28 @@ public sealed class ModbusPortConfigCodecTests
         Assert.Throws<ArgumentOutOfRangeException>(() => ModbusRegisterMap.GetModbusPortConfigAddress(4));
         Assert.Throws<ArgumentOutOfRangeException>(() => ModbusRegisterMap.GetModbusPortConfigAddress(-1));
     }
+
+    [Fact]
+    public void DecodePort_WhenBit9Is1_ButOffset14Is0_DecodesAsMaster_BecauseOffset14IsAuthoritative()
+    {
+        var buffer = new ushort[ModbusRegisterMap.ModbusPortConfigRegistersPerPort];
+        buffer[0] = 0x0301; // bit 8=Enabled, bit 9=RoleSlave (legacy), port 1
+        buffer[14] = 0; // Authoritative: Master
+
+        var decoded = ModbusPortConfigCodec.DecodePort(buffer);
+        Assert.Equal(ModbusPortRole.Master, decoded.Role);
+    }
+
+    [Fact]
+    public void DecodePort_WhenBit9Is0_ButOffset14Is1_DecodesAsSlave_BecauseOffset14IsAuthoritative()
+    {
+        var buffer = new ushort[ModbusRegisterMap.ModbusPortConfigRegistersPerPort];
+        buffer[0] = 0x0101; // bit 8=Enabled, bit 9=0, port 1
+        buffer[14] = 1; // Authoritative: Slave
+        buffer[15] = 9; // Slave ID 9
+
+        var decoded = ModbusPortConfigCodec.DecodePort(buffer);
+        Assert.Equal(ModbusPortRole.Slave, decoded.Role);
+        Assert.Equal((byte)9, decoded.SlaveId);
+    }
 }

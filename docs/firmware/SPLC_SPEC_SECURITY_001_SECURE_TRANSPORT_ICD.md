@@ -74,7 +74,7 @@ SynaptiX IDE (Client)                                          STM32H5 Controlle
         │      • magic_sof: 0x5353 ('S', 'S')                               │
         │      • mcu_ephemeral_pubkey: 64 bytes                             │
         │      • mcu_random_salt: 16 bytes                                  │
-        │      • device_proof: 16 bytes (HMAC(UID, RootSecret))             │
+        │      • device_proof: 12 bytes (HMAC(UID, RootSecret))             │
         │                                                                   │
   [APP XỬ LÝ & XÁC MINH]                                                    │
   1. Xác minh device_proof có khớp chữ ký xưởng.                            │
@@ -91,7 +91,7 @@ SynaptiX IDE (Client)                                          STM32H5 Controlle
 ## 4. Định Dạng Khung Bắt Tay (Handshake Frame Formats)
 
 ### 4.1. Gói Tin 1: Yêu Cầu Bắt Tay từ App (`SPLC_HandshakeReq_t`)
-Kích thước cố định: **88 bytes**.
+Kích thước cố định: **92 bytes**.
 
 | Byte Offset | Tên Trường | Kiểu Dữ Liệu | Giá Trị / Ý Nghĩa |
 | :---: | :--- | :---: | :--- |
@@ -144,26 +144,46 @@ Value:       │  'S' 'X' │   0x00..0xFF │  SessionID+Count  │   ChaCha20 
 * Với mỗi gói tin gửi đi, `packet_counter` bắt buộc phải tăng thêm 1 đơn vị.
 * **Quy tắc tuyệt đối:** Không bao giờ tái sử dụng cùng một bộ (Key, Nonce) cho hai gói tin khác nhau. Nếu `packet_counter` đạt giá trị cực đại ($2^{64}-1$), kết nối bắt buộc phải tự động đóng và tái bắt tay (Re-keying).
 
+### 5.3. Định Dạng Nội Dung Gốc (Plaintext Inside Ciphertext) & Phạm Vi Cổng
+1. **Plaintext là gì?**
+   - Nội dung gốc (Plaintext) trước khi mã hóa ChaCha20-Poly1305 chính là **khung Modbus RTU hoàn chỉnh nguyên bản** (`[SlaveID (1B)][FunctionCode (1B)][Data (N Bytes)][CRC16 (2B)]`).
+   - *Ý nghĩa kiến trúc:* Tầng Secure Transport đóng vai trò như một lớp vỏ bọc an ninh (Secure Tunneling Wrapper). Khi MCU giải mã và xác thực Poly1305 thành công, nó thu được khung Modbus RTU gốc và chuyển thẳng cho Modbus Engine hiện hành xử lý, **không cần sửa đổi bất kỳ logic nội bộ nào của bộ parser Modbus**.
+2. **Cổng giao tiếp áp dụng:**
+   - Kênh **App Link kết nối với SynaptiX Studio** (chủ yếu là Native USB-CDC hoặc cổng UART chính kết nối máy tính).
+
 ---
 
 ## 6. Cơ Chế Chống Hàng Giả & Khóa Hệ Sinh Thái (Anti-Clone Mechanism)
 
-### 6.1. Quy Trình Cấp Phép Xuất Xưởng (Factory Provisioning)
-1. Trong quá trình nạp nạp mạch tại xưởng sản xuất SynaptiX:
-   - Tool nạp đọc mã số định danh phần cứng **96-bit Unique ID (UID)** từ thanh ghi hệ thống của STM32H5 (tại địa chỉ `0x08FFF800` / `UID_BASE`).
-   - Dùng khóa bí mật chủ **SynaptiX Master Key** băm với UID qua thuật toán HMAC-SHA256 để tạo ra **Device Factory Token**.
-   - Ghi Device Factory Token vào vùng Flash bảo mật (OBKeys / Flash Secure Area).
-   - Kích hoạt **Read-Out Protection Level 2 (RDP2)** để khóa vĩnh viễn cổng JTAG/SWD, ngăn chặn việc dump firmware và trích xuất token.
-2. Khi kết nối với SynaptiX IDE:
-   - MCU chứng minh tính chính hãng bằng cách gửi `device_proof`.
-   - App SynaptiX IDE xác minh tính hợp lệ của Token. Mọi bo mạch tự thiết kế ngoài luồng sẽ không thể vượt qua bước kiểm tra này.
+### 6.1. Phân Cấp Khóa & Cơ Chế Xác Thực (Key Architecture)
+1. **Khóa Vendor Token (`vendor_token` - 8 bytes):**
+   - Được Studio sinh ra bằng: $\text{HMAC-SHA256}(\text{app\_salt},\, \text{SYNAPTIX\_VENDOR\_SECRET})[0..7]$.
+   - Khóa `SYNAPTIX_VENDOR_SECRET` được lưu trữ an toàn trong ứng dụng Studio (được bảo vệ qua Windows DPAPI / obfuscation).
+2. **Khóa Thiết Bị (`device_proof` - 12 bytes):**
+   - Được MCU sinh ra bằng: $\text{HMAC-SHA256}(\text{mcu\_salt},\, \text{FACTORY\_DEVICE\_TOKEN})[0..11]$.
+   - `FACTORY_DEVICE_TOKEN` là bí mật độc bản của từng chip, được tính bằng $\text{HMAC-SHA256}(\text{UID\_96BIT},\, \text{MASTER\_PRODUCTION\_KEY})$ và nạp vào vùng Flash bảo mật (OBKeys / Secure Area) lúc xuất xưởng.
+
+### 6.2. Quy Trình Cấp Phép Xuất Xưởng & Lộ Trình Khóa JTAG (RDP2)
+> [!IMPORTANT]
+> **Quy tắc bất khả đảo ngược (Non-reversible Operation):** Kích hoạt RDP Level 2 trên STM32 sẽ khóa vĩnh viễn cổng SWD/JTAG, hoàn toàn không thể gỡ bỏ hay nạp lại firmware. Do đó, quy trình triển khai phân tách nghiêm ngặt thành 2 giai đoạn:
+> 1. **Giai đoạn R&D, Dev & Pilot:** Tuyệt đối **KHÔNG kích hoạt RDP2**. Giữ RDP Level 0 hoặc Level 1 (Level 1 cho phép Mass Erase để mở lại khi cần debug).
+> 2. **Giai đoạn Dây chuyền Sản xuất Hàng loạt (Mass Production Jig):**
+>    - Bước 1: Jig tự động nạp Bootloader và Firmware an toàn qua SWD.
+>    - Bước 2: Đọc mã 96-bit UID (`0x08FFF800` / `UID_BASE`), sinh `FACTORY_DEVICE_TOKEN` và ghi vào vùng nhớ bảo mật (OBKeys).
+>    - Bước 3: Chạy toàn bộ bài kiểm tra xuất xưởng (FAT - Factory Acceptance Test).
+>    - Bước 4: **Chỉ khi bài kiểm tra PASS 100%**, Jig mới gửi lệnh nâng Option Bytes lên **RDP2** ngay trước khâu đóng gói vỏ hộp thương mại.
 
 ---
 
 ## 7. Xử Lý Sự Cố, An Toàn Thất Bại & Phòng Vệ (Fail-Safe Defense Rules)
 
-1. **Chế độ Câm (Silent Drop Policy):**
-   - Nếu MCU nhận dữ liệu sai Header, sai kích thước hoặc sai Token bắt tay: MCU **tuyệt đối không phản hồi** mã lỗi hay bất kỳ byte nào. Kẻ gian dùng kỹ thuật fuzzing hoặc scan cổng COM sẽ không thu được bất kỳ manh mối phản hồi nào.
+1. **Chế độ Tương Thích Nhận Diện Kép (Dual-Mode / Auto-Detect Compatibility):**
+   - Sau khi khởi động, cổng App Link vận hành ở chế độ **Auto-Detect**:
+     - Nếu 2 byte đầu tiên nhận được là `0x4853 ('SH')`: Chuyển sang luồng xử lý **Secure Handshake Protocol**.
+     - Nếu byte đầu tiên là `SlaveID (1..247)` theo chuẩn Modbus thông thường: Chuyển sang luồng **Standard Modbus RTU Parser** (phục vụ các công cụ kiểm thử Modbus hiện có và Studio chưa kích hoạt mã hóa).
+   - Quy tắc **Im Lặng Khi Sai (Silent Drop)** chỉ kích hoạt:
+     - Hoặc là: **Sau khi đã hoàn tất pha Handshake thành công** (trong phạm vi phiên làm việc mã hóa đang active).
+     - Hoặc là: Khi thiết bị đã được bật cờ bảo mật nghiêm ngặt (`STRICT_SECURITY_ENFORCED = 1`) từ nhà máy.
 2. **Khóa phạt trễ (Penalty Lockout):**
    - Nếu nhận 3 yêu cầu Handshake sai liên tiếp trong vòng 10 giây: MCU tự động vô hiệu hóa cổng UART trong 5 giây để triệt tiêu các cuộc tấn công vét cạn (Brute-force).
 3. **Tự hủy khóa trong RAM (Key Zeroization):**
@@ -201,16 +221,21 @@ extern "C" {
 #pragma pack(push, 1)
 
 /**
- * @brief Gói tin yêu cầu bắt tay từ SynaptiX IDE (88 Bytes)
+ * @brief Gói tin yêu cầu bắt tay từ SynaptiX IDE (Đúng chuẩn 92 Bytes = 2+1+1+64+16+8)
  */
 typedef struct {
-    uint16_t magic_sof;          /* 0x5348 ('S', 'H') */
+    uint16_t magic_sof;          /* 0x4853 ('S', 'H') */
     uint8_t  protocol_version;   /* 0x01 */
     uint8_t  reserved;           /* 0x00 */
     uint8_t  app_pubkey_xy[64];  /* NIST P-256 Public Key (X: 32B, Y: 32B) */
     uint8_t  app_salt[16];       /* Random Salt từ App */
     uint8_t  vendor_token[8];    /* HMAC xác thực App chính hãng */
 } SPLC_HandshakeReq_t;
+
+/* --- Static Assertions for Wire Contract Integrity (C11) --- */
+_Static_assert(sizeof(SPLC_HandshakeReq_t) == 92, "SPLC_HandshakeReq_t must be 92 bytes");
+_Static_assert(sizeof(SPLC_HandshakeResp_t) == 96, "SPLC_HandshakeResp_t must be 96 bytes");
+_Static_assert(sizeof(SPLC_SecureHeader_t) == 16, "SPLC_SecureHeader_t must be 16 bytes");
 
 /**
  * @brief Gói tin phản hồi bắt tay từ STM32H5 MCU (96 Bytes)

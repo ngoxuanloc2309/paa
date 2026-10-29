@@ -272,4 +272,68 @@ public sealed class ModbusPortFilteringTests
         vm.Apply();
         Assert.Equal((byte)1, node.PortIndex);
     }
+
+    [Fact]
+    public void RuleCompiler_FlagsMbReadOnSlavePortAsDiagnosticError()
+    {
+        var compiler = new RuleCompiler();
+        var tagCatalog = new TagCatalogViewModel();
+
+        var mbReadNode = new ModbusReadNodeViewModel
+        {
+            PortIndex = 1, // Port 2
+            SlaveId = 1,
+            StartAddress = 0,
+            RegCount = 1
+        };
+
+        var ports = new List<ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Master" },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Slave", SlaveId = 5 },
+            new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = false, Role = "Master" },
+            new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, Role = "Master" }
+        };
+
+        var nodes = new List<GraphNodeViewModel> { mbReadNode };
+        var connections = new List<ConnectionViewModel>();
+
+        var result = compiler.Compile(nodes, connections, tagCatalog, modbusPorts: ports);
+
+        Assert.False(result.IsValid);
+        var err = result.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error && d.NodeId == mbReadNode.Id);
+        Assert.NotNull(err);
+        Assert.True(err.Message.Contains("Modbus Slave") || err.Message.Contains("Slave"));
+    }
+
+    [Fact]
+    public void RuleCompiler_FlagsMbWriteOnSlavePortAsDiagnosticError()
+    {
+        var compiler = new RuleCompiler();
+        var tagCatalog = new TagCatalogViewModel();
+
+        var mbWriteNode = new ModbusWriteNodeViewModel
+        {
+            PortIndex = 0, // Port 1
+            SlaveId = 2,
+            StartAddress = 10,
+            PointCount = 1
+        };
+
+        var ports = new List<ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Slave", SlaveId = 2 },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Master" },
+        };
+
+        var nodes = new List<GraphNodeViewModel> { mbWriteNode };
+        var connections = new List<ConnectionViewModel>();
+
+        var result = compiler.Compile(nodes, connections, tagCatalog, modbusPorts: ports);
+
+        Assert.False(result.IsValid);
+        var err = result.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error && d.NodeId == mbWriteNode.Id);
+        Assert.NotNull(err);
+        Assert.True(err.Message.Contains("Modbus Slave") || err.Message.Contains("Slave"));
+    }
 }

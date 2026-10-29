@@ -52,6 +52,9 @@ Theo tiêu chuẩn khế ước truyền thông **Wire Protocol V2.0 (SPLC-SPEC-
 | `0x1640 - 0x167F` | 64 | 128 Bytes | **DTU TCP Socket Config** | Mode Client/Server, IP/Host, Ports, Heartbeat |
 | `0x1680 - 0x16BF` | 64 | 128 Bytes | **DTU Routing & Serial Mode** | Port Index, Serial Mode, Uplink Mode, Delimiter |
 
+> [!NOTE]
+> **Đặc tả bộ nhớ Firmware:** Toàn bộ dải thanh ghi `0x1600..0x16BF` chứa các trường cấu hình nhị phân có cấu trúc (`DtuHttpConfig`, `DtuTcpConfig`, `DtuRouting`). Dải này **hoàn toàn không có thanh ghi lưu trữ chuỗi JSON Template**. Mọi cấu hình Template JSON động đều do App Studio quản lý trong file dự án (`.splc`), firmware không cần phải nạp hay giải mã template chuỗi tự do.
+
 ---
 
 ## 3. Hướng Dẫn Cấu Hình Chi Tiết Trên Synaptix IDE
@@ -62,11 +65,13 @@ Theo tiêu chuẩn khế ước truyền thông **Wire Protocol V2.0 (SPLC-SPEC-
 - *Lưu ý (Chế độ Hybrid):* Đối với các dự án Controller hoặc Remote I/O đã có sẵn, kỹ sư có thể mở cấu hình DTU bất kỳ lúc nào bằng tổ hợp phím **`Ctrl+Shift+D`** hoặc vào menu **Thiết bị -> Cấu hình DTU Gateway...**.
 
 ### Bước 2: Cấu hình Cổng RS-485 (Tab 1)
-1. **Cổng RS-485 áp dụng:** Chọn từ Cổng 1 đến Cổng 4.
-2. **Chức năng cổng (Serial Mode):**
-   - *Truyền trong suốt (Transference):* Dữ liệu nhận được sẽ lập tức đẩy lên kênh Internet theo chu kỳ hoặc ngắt khung.
-   - *Modbus RTU Master:* Định cấu hình Master Poller để kéo dữ liệu từ các thiết bị slave.
-   - *Modbus RTU Slave:* Thiết lập Slave ID để biến DTU thành trạm phản hồi cho SCADA.
+1. **Cổng RS-485 áp dụng:** Chọn từ Cổng 1 đến Cổng 4 (tương ứng `PortIndex = 0..3`).
+2. **Chức năng cổng (Serial Mode) & Thứ bậc hiệu lực với `0x1400`:**
+   - `0x1400` quản lý thông số vật lý của cổng (Baudrate, DataBits, Parity, StopBits).
+   - Khi `0x1680` kích hoạt chế độ DTU:
+     - *Truyền trong suốt (Transference / Mode 0):* Cổng được bàn giao độc quyền cho module DTU Stream Engine. Toàn bộ luồng UART DMA byte thô chuyển thẳng lên kênh Uplink. Tại `0x1400`, các parser Modbus Master / Slave trên cổng này sẽ được tạm ngưng để tránh xung đột.
+     - *Modbus RTU Master (Mode 1):* Cổng hoạt động theo vai trò Master Poller tiêu chuẩn.
+     - *Modbus RTU Slave (Mode 2):* Cổng hoạt động theo vai trò Slave Server với Slave ID đã chọn.
 3. **Thông số đường truyền:** Thiết lập Baud rate (9600, 19200, 38400, 57600, 115200 bps), Data bits (8/7), Parity (None/Even/Odd), Stop bits (1/2).
 4. **Delimiter Timeout (ms):** Thời gian chờ không có byte mới trên đường dây RS-485 để kết luận kết thúc một frame (mặc định 20ms).
 5. **Kích thước gói tin tối đa:** Mặc định 512 bytes (tối đa 2048 bytes).
@@ -89,8 +94,8 @@ Kỹ sư lựa chọn một trong các chế độ Uplink:
   - *TCP Server:* Nhập Cổng lắng nghe cục bộ (`Local Port`). Các client SCADA kết nối vào IP của DTU để thu thập dữ liệu.
   - *Heartbeat Keep-Alive:* Định kỳ gửi chuỗi ký tự giữ phiên (VD: `PING`) để tránh router ngắt phiên NAT.
 
-### Bước 4: Tùy biến Bản tin JSON (Tab 3)
-Cú pháp mẫu tiêu chuẩn:
+### Bước 4: Tùy biến Bản tin JSON (Tab 3) — Cơ chế Phía Studio & Firmware
+Cú pháp mẫu tiêu chuẩn trên giao diện Studio:
 ```json
 {
   "device_id": "{{DEVICE_ID}}",
@@ -101,7 +106,18 @@ Cú pháp mẫu tiêu chuẩn:
   "hex_stream": "{{HEX_STREAM}}"
 }
 ```
-Khung Live Preview bên phải sẽ tự động hiển thị kết quả bản tin JSON tương ứng với dữ liệu test và hiển thị trạng thái cú pháp `✓ JSON Hợp lệ`.
+* **Cơ chế Phía Studio:** Tab này là công cụ thiết kế, xem trước trực quan (Live Preview) và lưu vào metadata dự án (`_metadata.DtuConfig.CustomJsonTemplate`).
+* **Cơ chế Phía Firmware (Tùy theo kênh Uplink):**
+  - **Uplink HTTP REST (`0x1600`):** Firmware không cần parser macro. Firmware đóng gói JSON chuẩn dựa trên các trường cấu hình ở `HttpFields` hoặc đẩy trực tiếp raw body theo `Content-Type`.
+  - **Uplink MQTT(s):** Nếu người dùng yêu cầu template tùy biến, template đó được nạp xuống vi điều khiển qua phân hệ **MQTT Telemetry Blocks (`0x0C00..0x0D7F`)** theo đặc tả `SPLC-SPEC-MQTT-001`, trong đó mỗi khối có 64 thanh ghi (128 bytes) dành riêng cho `PAYLOAD_TEMPLATE`.
+  - **Uplink TCP Socket / Truyền trong suốt:** Firmware chuyển tiếp byte thô trực tiếp (Raw Stream), hoàn toàn không bọc thêm JSON.
+
+### Bước 4.1: Lộ Trình Tính Năng Firmware & Hardware Capabilities
+- Năng lực phần mềm DTU được khai báo độc lập với hạ tầng truyền dẫn vật lý (Ethernet / Wi-Fi / LTE).
+- **Lộ trình hỗ trợ firmware:**
+  - *Giai đoạn 1 (MVP - Bắt buộc):* Chế độ **Truyền trong suốt (Transference) qua TCP Client** và **MQTT Telemetry**.
+  - *Giai đoạn 2:* Hỗ trợ **HTTP REST POST Client** (`HTTP_CLIENT = 0x1000`).
+  - *Giai đoạn 3:* Hỗ trợ **TCP Server**.
 
 ### Bước 5: Kiểm tra với Live Diagnostic Terminal (Tab 4)
 1. Nhập chuỗi byte thử nghiệm vào ô **Gói tin RS-485 truyền thử** (VD: `TEMP:29.8,HUM:55.4` hoặc hex chuỗi Modbus `01 03 04 01 23 45 67 8A BC`).
