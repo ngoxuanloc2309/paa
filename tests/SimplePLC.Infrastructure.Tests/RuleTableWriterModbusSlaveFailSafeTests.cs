@@ -254,4 +254,23 @@ public class RuleTableWriterModbusSlaveFailSafeTests
         Assert.Contains("0x0A08", result.ErrorMessage);
         Assert.Contains("Modbus deployment aborted for safety", result.ErrorMessage);
     }
+
+    [Fact]
+    public async Task ReadActiveModbusSlaveMapConfigsAsync_ReturnsEmpty_WithoutAccessing0x1500()
+    {
+        var client = new FakeModbusClient();
+        await client.ConnectAsync("COM1");
+
+        // Cấy lỗi: Ném exception nếu có bất kỳ frame đọc nào chạm vào vùng 0x1500
+        client.Simulator.Control.Faults.TimeoutOnAddress = ModbusRegisterMap.ModbusSlaveMapBaseAddress;
+
+        var reader = new RuleTableReader(client);
+
+        // Act
+        var slaveMaps = await reader.ReadActiveModbusSlaveMapConfigsAsync(1);
+
+        // Assert - Zero Legacy: không truy cập 0x1500, trả về mảng rỗng tức thì
+        Assert.NotNull(slaveMaps);
+        Assert.Empty(slaveMaps);
+    }
 }

@@ -319,20 +319,12 @@ public sealed class RuleTableReader : IRuleTableReader
         return ModbusPortConfigCodec.DecodeAllPorts(buffer);
     }
 
-    public async Task<IReadOnlyList<ModbusSlaveMapEntryDto>> ReadActiveModbusSlaveMapConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<ModbusSlaveMapEntryDto>> ReadActiveModbusSlaveMapConfigsAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
     {
-        ushort totalRegs = ModbusRegisterMap.ModbusSlaveMapTableTotalLength;
-        var chunks = ModbusChunkPlanner.PlanReadChunks(ModbusRegisterMap.ModbusSlaveMapBaseAddress, totalRegs);
-        var buffer = new ushort[totalRegs];
-        int offset = 0;
-        foreach (var (addr, count) in chunks)
-        {
-            var data = await _client.ReadHoldingRegistersAsync(slaveId, addr, count, cancellationToken).ConfigureAwait(false);
-            Array.Copy(data, 0, buffer, offset, count);
-            offset += count;
-        }
-
-        return ModbusSlaveMapCodec.DecodeEntries(buffer);
+        // 4.4.1 Bảng Ánh Xạ Modbus Slave (0x1500 cũ) đã bị hủy bỏ theo kiến trúc Fixed Memory Map v2.12.0 (Zero Legacy).
+        // Firmware sử dụng bản đồ cố định tiêu chuẩn (O(1) direct dispatch), không còn bảng 0x1500 trên thiết bị.
+        // Studio không gửi lệnh đọc xuống 0x1500 để tránh phát sinh Modbus Exception 0x02 từ firmware.
+        return Task.FromResult<IReadOnlyList<ModbusSlaveMapEntryDto>>(Array.Empty<ModbusSlaveMapEntryDto>());
     }
 
     public async Task<MqttWillConfigDto?> ReadActiveMqttWillConfigAsync(byte slaveId = 1, CancellationToken cancellationToken = default)

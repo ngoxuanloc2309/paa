@@ -529,9 +529,12 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 1. **Nguồn chân lý duy nhất cho vai trò cổng (`PORT_ROLE`):**
    - Thanh ghi `Offset +14` (`PORT_ROLE`: 0 = Master, 1 = Slave) là **nguồn chân lý tối cao duy nhất**.
    - Thanh ghi `Offset +15` (`SLAVE_ID`: 1..247) xác định địa chỉ trạm ngoại vi Modbus Slave.
-   - Khái niệm Bit 9 tại `Offset +0` bị bãi bỏ; firmware và Studio thống nhất căn cứ hoàn toàn vào `Offset +14`.
+   - Khái niệm Bit 9 tại `Offset +0` đã hoàn toàn bị bãi bỏ. Firmware bỏ qua hoàn toàn Bit 9; kể cả khi Bit 9 khác `Offset +14`, `Offset +14` luôn thắng.
+   - Giá trị ngoài $\{0, 1\}$ tại `Offset +14` (ví dụ 2): Firmware mặc định an toàn coi là **Master (0 = Master, Safe Default State)**, và từ chối lệnh COMMIT với mã lỗi `CONFIG_ERROR_CODE = 2 (INVALID_PARAMETER)`.
 2. **Loại bỏ hoàn toàn Bảng ánh xạ trung gian 0x1500 (Zero Legacy):**
-   - Toàn bộ bảng 0x1500 bị loại bỏ khỏi firmware và quá trình nạp của Studio.
+   - Toàn bộ bảng 0x1500 bị loại bỏ khỏi firmware và toàn bộ quá trình nạp (Deploy) cũng như đọc cấu hình (Upload F6) của Studio.
+   - Firmware không cấp phát vùng 0x1500 (đọc ghi sẽ nhận Exception 0x02 nếu có tool ngoài truy vấn).
+   - Studio xác nhận **không gửi bất kỳ lệnh đọc Modbus nào tới 0x1500** trong quy trình Upload cấu hình thiết bị.
    - Firmware triển khai Bản đồ Địa chỉ Cố định (Fixed Memory Map v2.12.0) truy xuất trực tiếp $O(1)$ vào RAM theo quy chuẩn `SPLC-SPEC-SLAVE-001`.
 3. **Các tham số vô hiệu của Slave (`+5`, `+6`, `+7`):**
    - `+5` (`RESPONSE_TIMEOUT_MS`), `+6` (`INTER_FRAME_DELAY_MS`), `+7` (`RETRY_COUNT`) chỉ dành riêng cho Master.
@@ -539,10 +542,25 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 4. **Chặn xung đột Master/Slave tại khâu Biên dịch (Compile-time Safety Gate):**
    - Phía App: Trình biên dịch `RuleCompiler` chặn đứng với mã lỗi biên dịch đỏ (`DiagnosticSeverity.Error`, `CompileResult.IsValid = false`) nếu phát hiện bất kỳ khối `MB_READ`/`MB_WRITE` nào trỏ vào cổng Slave, ngăn không cho phép nạp xuống thiết bị.
    - Phía Firmware (Phòng thủ đa tầng): Nếu nhận lệnh COMMIT `0xA5A5` từ công cụ thứ ba chứa xung đột cổng Slave, firmware từ chối COMMIT, hủy bản nháp, đặt `CONFIG_STATUS (0x9000) = 4 (ERROR)` và `CONFIG_ERROR_CODE (0x9001) = 7 (SLAVE_PORT_CONFLICT)`.
-5. **Quy tắc ranh giới bộ nhớ Slave (Boundary Protection):**
-   - Trong phạm vi 16 điểm chuẩn (`DI0..DI15`): Các chân không có phần cứng vật lý trả về `0` (False).
-   - Truy vấn ngoài phạm vi bản đồ cố định ($>10016$, $>40256$): Firmware trả về **Modbus Exception 0x02 (Illegal Data Address)**.
-   - Ghi vào vùng Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`): Firmware trả về **Modbus Exception 0x03 (Illegal Data Value)**.
+5. **Quy tắc ranh giới bộ nhớ, ngoại lệ và tài nguyên phần cứng (Boundary, Exceptions & Resources):**
+   - **Thứ tự ưu tiên Exception (Exception Precedence):**
+     1. `0x01 (Illegal Function)`: Mã hàm không được hỗ trợ.
+     2. `0x02 (Illegal Data Address)`: **Được ưu tiên cao hơn quyền ghi.** Nếu một request chéo ranh giới giữa hai phân vùng khác nhau (kể cả khi chạm vào phân vùng Read-Only, ví dụ: FC16 ghi 2 thanh ghi từ `0x0000` = `DI_WORD` + `DO_WORD`), firmware BẮT BUỘC trả về **Exception Code 0x02**.
+     3. `0x03 (Illegal Data Value / Access Denied)`: Khi toàn bộ dải địa chỉ hợp lệ và nằm trọn vẹn trong 1 phân vùng duy nhất, nếu nhận lệnh ghi (FC05/06/15/16) vào vùng Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`), trả về **Exception Code 0x03**.
+   - **Ghi vào biến trong bản đồ nhưng vượt tài nguyên phần cứng:**
+     - Với `VREG`, `VREG_R`, `COUNTER`: Ghi vào index $\ge$ tài nguyên thực tế (`g_layout.vreg_count` / `vreg_r_count` / `counter_count`, ví dụ board có 16 VREG nhưng ghi `VREG20` tại `0x0048`): BẮT BUỘC trả về **Exception Code 0x02**.
+     - Chiều đọc: Trả về `0x0000` để SCADA đọc polling theo khối thanh ghi lớn liên tục (Bulk read blocks) mà không bị ngắt kết nối.
+     - Với Discrete/Coil (`DI_WORD`, `DO_WORD`): Các chân vượt tài nguyên đọc về 0, ghi vào bit unpopulated thì firmware bỏ qua.
+   - **Định dạng và Thang đo `AI0..AI3` (Float32 IEEE-754):**
+     - Tag AI khai báo kiểu `REAL` (Float32): Trả về nguyên bản 32-bit float trong `g_tag_store`.
+     - Tag AI khai báo kiểu `INT32` (chứa ADC thô `0..4095` hoặc mV `0..10000`): Firmware tự động chuyển đổi sang Điện áp chuẩn hóa $0.0..10.0\text{ V}$ dạng Float32 IEEE-754 (High Word First). Công thức: $\text{Voltage} = (\text{raw} / 4095.0f) \times 10.0f$ hoặc $(\text{raw} / 1000.0f)$. Việc hiển thị $0..100\%$ do SCADA scale hoặc do logic FBD dùng khối `SCALE` gán vào một `VREG` (Float32).
+   - **Vùng Chẩn Đoán Hệ Thống `SYS_DIAG` (`0x00F0..0x00FF`):**
+     - `0x00F0..0x00F1`: `uptime_s` (UINT32, High Word First, giây).
+     - `0x00F2`: `scan_time_ms` (UINT16, ms). **Bão hòa tại 65535 ms**, không quấn vòng (no wrap-around).
+     - `0x00F3`: `status_flags` (UINT16, bitmask: Bit 0 = `ENGINE_RUNNING`, Bit 1 = `FORCE_ACTIVE`, Bit 2 = `BATTERY_LOW`, Bit 3 = `RTC_SYNCED`, Bit 4 = `FLASH_DIRTY`, Bit 5 = `RS485_BUS_FAULT`, Bits 6..15 = `0`).
+     - `0x00F4`: `RESERVED` (UINT16, đọc về `0x0000`, ghi trả về Exception 0x03).
+     - `0x00F5..0x00FA`: RTC Thời Gian Thực (**Giờ địa phương / Local Time**, 6 thanh ghi): Năm (4 số đầy đủ, ví dụ: `2026`), Tháng (`1..12`), Ngày (`1..31`), Giờ (`0..23`), Phút (`0..59`), Giây (`0..59`).
+     - `0x00FB..0x00FF`: `RESERVED` (đọc về `0x0000`).
    - Ghi FC06 vào VREG 32-bit: Cập nhật nửa thanh ghi tương ứng, giữ nguyên nửa còn lại (khuyến nghị SCADA dùng FC16 để ghi trọn vẹn 32-bit nguyên tử).
 6. **Cách ly tuyệt đối Cổng App Link & Cổng Slave:**
    - Kênh App Link (USB-CDC hoặc UART0 chuyên dụng) độc lập hoàn toàn với các cổng RS-485 hiện trường (`0x1400`). Tuyệt đối không gán vai trò Slave đè lên cổng App Link để chống mất quyền điều khiển.
@@ -678,6 +696,21 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
 
 ---
 
+### 13.9.2. Quy Chuẩn Phân Hệ DTU Gateway & Stream Engine (`0x1600..0x16BF`, SPLC-SPEC-DTU-001)
+
+Khi thiết bị khai báo cờ năng lực `SPLC_CAP_TRANSPARENT_STREAM` (`0x0400`) hoặc `SPLC_CAP_HTTP_CLIENT` (`0x1000`) tại thanh ghi `0x0A08`, phân hệ DTU Gateway được kích hoạt để đảm nhiệm vai trò cầu nối dữ liệu nối tiếp RS-485 lên mạng Internet / Cloud:
+* **Dải thanh ghi quản lý:**
+  - `0x1600 - 0x163F`: `splc_dtu_http_config_t` (64 regs = 128 bytes) — Cấu hình HTTP REST Client (URL, Method, Headers, Timeout, `trigger_mode`: 0=OnDataReceived, 1=Periodic).
+  - `0x1640 - 0x167F`: `splc_dtu_tcp_config_t` (64 regs = 128 bytes) — Cấu hình TCP Socket Client / Server (RemoteHost, RemotePort, LocalPort, ReconnectDelay, Heartbeat, `registration_type`: 0=None, 1=OnConnect, 2=PrependToEveryPacket, `registration_payload`).
+  - `0x1680 - 0x16BF`: `splc_dtu_routing_config_t` (64 regs = 128 bytes) — Cấu hình Cổng, Serial Mode, Uplink Mode, Ngắt khung $t_{3.5}$, và 3 chế độ định dạng dữ liệu (`payload_mode`: 0=Standard IEC, 1=Custom Template, 2=Raw Passthrough, `payload_flags` bitmask).
+* **Quy chuẩn thực thi trong Firmware MCU:**
+  - Ngắt khung UART bằng cơ chế DMA kết hợp ngắt IDLE Line để phát hiện khoảng lặng $t_{3.5}$ với độ chính xác cao mà không tốn chu kỳ quét 10ms của Rule Engine.
+  - Khi `payload_mode == 2` (Raw Passthrough): Chuyển tiếp trực tiếp luồng byte nhị phân thô không bọc JSON lên MQTT/TCP/HTTP.
+  - Khi `payload_mode == 0` (Standard IEC): Tự động sinh chuỗi JSON chuẩn chứa các trường `device_id`, `timestamp`, `port`, `seq`, `payload`.
+  - Xem tài liệu đặc tả chi tiết tại [`SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`](SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md).
+
+---
+
 ### 13.10. Quy Trình Nạp Cấu Hình Đa Phân Hệ Từ SynaptiX IDE Xuống MCU (Multi-Subsystem Staged Deployment Sequence)
 
 Quy trình nạp luật và cấu hình hoàn chỉnh từ SynaptiX IDE xuống MCU được thiết kế bảo vệ 6 bước nghiêm ngặt:
@@ -777,6 +810,7 @@ Trước khi nghiệm thu hoặc xuất xưởng firmware tích hợp cùng Simp
 - [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD), bật cờ `0x0200` tại `0x0A08`, quét sóng và kết nối qua worker task nền non-blocking.
 - [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng RS-485 Master & Slave tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay, PortRole, SlaveId).
 - [ ] **CHKL-23: Modbus Slave Fixed Memory Map Conformance (SPLC-SPEC-SLAVE-001)**: Khi cổng RS-485 được cấu hình vai trò Slave (`PORT_ROLE = 1`), firmware MCU kích hoạt Bản đồ địa chỉ bộ nhớ cố định truy xuất RAM $O(1)$ (SPLC-SPEC-SLAVE-001). Hỗ trợ FC 01, 02, 03, 05, 06, 15, 16; chặn ghi vào ô Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`, `DI0..DI15`) với Modbus Exception 0x03; chặn truy cập ngoài bản đồ hoặc đọc/ghi chéo 2 phân vùng chức năng với Modbus Exception 0x02; drop frame im lặng khi sai CRC-16 hoặc không đúng Slave ID. Chi tiết xem `SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md`.
+- [ ] **CHKL-24: DTU Gateway Subsystem & Stream Engine Conformance (0x1600..0x16BF & SPLC-SPEC-DTU-001)**: Khi thiết bị hỗ trợ DTU Gateway, firmware MCU phải hỗ trợ đọc/ghi dải 192 thanh ghi `0x1600..0x16BF` (`splc_dtu_http_config_t`, `splc_dtu_tcp_config_t`, `splc_dtu_routing_config_t`). Xử lý ngắt khung UART DMA IDLE line $t_{3.5}$ chính xác $\pm 2\text{ms}$; hỗ trợ đủ 3 chế độ định dạng dữ liệu (Standard IEC, Custom, Raw Passthrough); hỗ trợ gói tin định danh kết nối TCP Socket (Registration Packet `None`, `OnConnect`, `Prepend`). Chi tiết xem `SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`.
 
 
 

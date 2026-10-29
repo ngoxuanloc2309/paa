@@ -69,11 +69,11 @@ flowchart TD
 | `0x0000` | **40001** | `DI_WORD` | UINT16 | RO | 1 reg | Gom 16 ngõ vào số `DI0..DI15` dạng bitmask (Bit 0 = DI0, Bit 15 = DI15). |
 | `0x0001` | **40002** | `DO_WORD` | UINT16 | RW | 1 reg | Gom 16 ngõ ra Relay `DO0..DO15` dạng bitmask. |
 | `0x0002..0x0003` | **40003 .. 40004** | `VFLAG_DWORD` | UINT32 | RW | 2 regs | Gom 32 cờ logic `VFLAG0..VFLAG31` (Bitmask 32-bit, High Word trước). |
-| `0x0010..0x0017` | **40017 .. 40024** | `AI0 .. AI3` | FLOAT32 | RO | 8 regs | 4 ngõ vào tương tự Float32 IEEE-754 (**High Word First**):<br>• `AI0`: 40017-40018 (`0x0010`)<br>• `AI1`: 40019-40020 (`0x0012`)<br>• `AI2`: 40021-40022 (`0x0014`)<br>• `AI3`: 40023-40024 (`0x0016`) |
+| `0x0010..0x0017` | **40017 .. 40024** | `AI0 .. AI3` | FLOAT32 | RO | 8 regs | 4 ngõ vào tương tự Float32 IEEE-754 (**High Word First**):<br>• `AI0`: 40017-40018 (`0x0010`)<br>• `AI1`: 40019-40020 (`0x0012`)<br>• `AI2`: 40021-40022 (`0x0014`)<br>• `AI3`: 40023-40024 (`0x0016`)<br>*Quy chuẩn quy đổi*: Tag AI kiểu REAL trả nguyên bit float; Tag AI kiểu INT32 (raw ADC 0..4095 hoặc mV 0..10000) được firmware quy đổi sang điện áp chuẩn $0.0..10.0\text{ V}$. Kênh vượt phần cứng đọc về 0.0f. |
 | `0x0020..0x005F` | **40033 .. 40096** | `VREG0 .. VREG31` | INT32 / FLOAT32 | RW | 64 regs | 32 biến tính toán nội vi (2 thanh ghi/biến, High Word First).<br>Công thức: $\text{Wire} = 0\text{x}0020 + (\text{Index} \times 2)$. |
 | `0x0060..0x009F` | **40097 .. 40160** | `VREG_R0 .. VREG_R31` | INT32 / FLOAT32 | RW | 64 regs | 32 biến lưu giữ Retentive Flash không mất khi mất điện.<br>Công thức: $\text{Wire} = 0\text{x}0060 + (\text{Index} \times 2)$. |
 | `0x00A0..0x00AF` | **40161 .. 40176** | `COUNTER0 .. COUNTER7` | INT32 | RW | 16 regs | 8 bộ đếm sự kiện / xung tốc độ cao (2 thanh ghi/bộ).<br>Công thức: $\text{Wire} = 0\text{x}00A0 + (\text{Index} \times 2)$. |
-| `0x00F0..0x00FF` | **40241 .. 40256** | `SYS_DIAG` | UINT16 | RO | 16 regs | Vùng chẩn đoán hệ thống:<br>• `0x00F0..0x00F1`: `uptime_s` (UINT32, giây)<br>• `0x00F2`: `scan_time_ms` (UINT16, ms)<br>• `0x00F3`: `status_flags` (UINT16, mã trạng thái)<br>• `0x00F5..0x00FA`: RTC (Năm, Tháng, Ngày, Giờ, Phút, Giây) |
+| `0x00F0..0x00FF` | **40241 .. 40256** | `SYS_DIAG` | UINT16 | RO | 16 regs | Vùng chẩn đoán hệ thống (Read-Only):<br>• `0x00F0..0x00F1`: `uptime_s` (UINT32, High Word First, giây)<br>• `0x00F2`: `scan_time_ms` (UINT16, ms, bão hòa tại 65535, không quấn vòng)<br>• `0x00F3`: `status_flags` (UINT16, bitmask: Bit 0=RUNNING, Bit 1=FORCE_ACTIVE, Bit 2=BATTERY_LOW, Bit 3=RTC_SYNCED, Bit 4=FLASH_DIRTY, Bit 5=RS485_FAULT)<br>• `0x00F4`: `RESERVED` (UINT16, đọc về `0x0000`, ghi trả về Exception 0x03)<br>• `0x00F5..0x00FA`: RTC Local Time (Năm 4 số e.g. 2026, Tháng 1..12, Ngày 1..31, Giờ 0..23, Phút 0..59, Giây 0..59)<br>• `0x00FB..0x00FF`: Reserved (đọc về `0x0000`) |
 
 #### 2.2. Vùng Truy Xuất Cấp Bit (Discrete Inputs & Coils) - Wire 0-based
 | Offset Wire (Hex) | Địa chỉ Modbus (1-based) | Phân Loại | Tag Thiết Bị | Mã Hàm Hỗ Trợ | Quyền | Diễn Giải Kỹ Thuật |
@@ -210,16 +210,24 @@ uint16_t SPLC_ModbusSlave_ReadHoldingRegister(uint16_t wire_addr, uint8_t *exc_c
         int ch = offset / 2;
         int reg = offset % 2;
         if (ch >= g_layout.ai_count) return 0;
-        uint32_t raw_float = g_tag_store[g_layout.ai_base + ch];
+        float fval = 0.0f;
+        if (g_tag_data_types[g_layout.ai_base + ch] == 3 /* SPLC_DATA_TYPE_REAL */) {
+            fval = *(float*)&g_tag_store[g_layout.ai_base + ch];
+        } else {
+            // Mặc định INT32 (mã ADC thô 0..4095 hoặc mV 0..10000): Chuẩn hóa sang Điện áp 0.0..10.0V
+            int32_t raw = (int32_t)g_tag_store[g_layout.ai_base + ch];
+            fval = ((float)raw / 4095.0f) * 10.0f; // Hoặc raw / 1000.0f nếu driver trả về mV
+        }
+        uint32_t raw_float = *(uint32_t*)&fval;
         return (reg == 0) ? (uint16_t)(raw_float >> 16) : (uint16_t)(raw_float & 0xFFFF);
     }
 
-    // 0x0020..0x005F: VREG0..VREG31 (Biến vượt tài nguyên trả về 0)
+    // 0x0020..0x005F: VREG0..VREG31 (Biến vượt tài nguyên phần cứng trả về 0 khi đọc)
     if (wire_addr >= SPLC_MB_SLAVE_ADDR_VREG_BASE && wire_addr < SPLC_MB_SLAVE_ADDR_VREG_BASE + SPLC_MB_SLAVE_REGS_VREG_TOTAL) {
         int offset = wire_addr - SPLC_MB_SLAVE_ADDR_VREG_BASE;
         int idx = offset / 2;
         int reg = offset % 2;
-        if (idx >= g_layout.vreg_count) return 0;
+        if (idx >= g_layout.vreg_count) return 0; // Trả về 0 để SCADA bulk-read không bị ngắt
         uint32_t val = g_tag_store[g_layout.vreg_base + idx];
         return (reg == 0) ? (uint16_t)(val >> 16) : (uint16_t)(val & 0xFFFF);
     }
@@ -227,8 +235,14 @@ uint16_t SPLC_ModbusSlave_ReadHoldingRegister(uint16_t wire_addr, uint8_t *exc_c
     // 0x00F0..0x00FF: SYS_DIAG
     if (wire_addr == 0x00F0) return (uint16_t)(g_uptime_s >> 16);
     if (wire_addr == 0x00F1) return (uint16_t)(g_uptime_s & 0xFFFF);
-    if (wire_addr == 0x00F2) return g_scan_time_ms;
-    if (wire_addr == 0x00F3) return g_sys_status;
+    if (wire_addr == 0x00F2) return (g_scan_time_ms > 65535) ? 65535 : (uint16_t)g_scan_time_ms; // Bão hòa, không quấn vòng
+    if (wire_addr == 0x00F3) return g_sys_status; // Bitmask status_flags
+    if (wire_addr == 0x00F4) return 0;            // Reserved (đọc về 0x0000)
+    if (wire_addr >= 0x00F5 && wire_addr <= 0x00FA) {
+        // RTC Local Time: Năm (4 số e.g. 2026), Tháng (1..12), Ngày (1..31), Giờ (0..23), Phút (0..59), Giây (0..59)
+        return g_rtc_words[wire_addr - 0x00F5];
+    }
+    if (wire_addr >= 0x00FB && wire_addr <= 0x00FF) return 0; // Reserved
 
     // Ngoài bản đồ -> Modbus Exception 0x02
     *exc_code = SPLC_MB_EXC_ILLEGAL_DATA_ADDRESS;
@@ -300,5 +314,7 @@ bool SPLC_ModbusSlave_WriteHoldingRegister(uint16_t wire_addr, uint16_t value, u
 - [ ] **CHKL-SLAVE-01 (Station ID Filter):** Firmware chỉ phản hồi khi khung RTU có `SlaveId == ConfiguredSlaveId` (hoặc Broadcast `0x00` đối với lệnh ghi). Khung sai ID phải bị bỏ qua trong im lặng (Silent drop).
 - [ ] **CHKL-SLAVE-02 (CRC-16 Validation):** Khung bị sai mã CRC-16 phải bị drop ngay lập tức, không phản hồi Exception để tránh nhiễu bus.
 - [ ] **CHKL-SLAVE-03 (Direct RAM O(1)):** Đọc/ghi các địa chỉ trong bản đồ hoàn tất trong $< 100\,\mu\text{s}$, không tạo độ trễ cho chu kỳ quét 10ms của bộ điều khiển.
-- [ ] **CHKL-SLAVE-04 (Boundary Protection 0x02):** Request đọc/ghi vượt ranh giới (ví dụ: request 2 thanh ghi từ `0x0001` sang `0x0002`) phản hồi đúng **Exception Code 0x02**.
-- [ ] **CHKL-SLAVE-05 (Read-Only Protection 0x03):** Lệnh FC05/06/15/16 vào các phân vùng chỉ đọc (`DI_WORD`, `AI`, `SYS_DIAG`, `DI0..DI15`) phản hồi đúng **Exception Code 0x03**.
+- [ ] **CHKL-SLAVE-04 (Boundary & Resource Protection 0x02 - Highest Priority):**
+  - **Thứ tự ưu tiên ngoại lệ:** Thẩm định địa chỉ ranh giới (`0x02`) được ưu tiên cao hơn quyền ghi (`0x03`). Khi một request trải dài qua 2 phân vùng khác nhau (kể cả khi chạm vào phân vùng Read-Only, ví dụ: FC16 ghi 2 thanh ghi từ `0x0000` = `DI_WORD` + `DO_WORD`), firmware BẮT BUỘC trả về **Exception Code 0x02 (Illegal Data Address)**.
+  - Ghi vào biến trong bản đồ nhưng vượt tài nguyên phần cứng (ví dụ board chỉ có 16 VREG nhưng ghi `VREG20` tại `0x0048`): BẮT BUỘC trả về **Exception Code 0x02**. Chiều đọc trả về `0x0000` (để SCADA bulk read block liên tục không bị ngắt quãng).
+- [ ] **CHKL-SLAVE-05 (Read-Only Protection 0x03):** Khi toàn bộ dải địa chỉ hợp lệ và nằm trọn vẹn trong 1 phân vùng duy nhất, nếu nhận lệnh ghi FC05/06/15/16 vào các phân vùng chỉ đọc (`DI_WORD`, `AI`, `SYS_DIAG`, `DI0..DI15`), firmware phản hồi đúng **Exception Code 0x03 (Illegal Data Value / Access Denied)**.
