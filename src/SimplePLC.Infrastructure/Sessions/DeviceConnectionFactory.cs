@@ -143,12 +143,12 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
         {
             if (transport != null)
             {
-                try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                try { await transport.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
+                try { await transport.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             }
             else if (client != null)
             {
-                try { await client.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await client.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             }
             if (cancellationToken.IsCancellationRequested)
             {
@@ -160,12 +160,12 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
         {
             if (transport != null)
             {
-                try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                try { await transport.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
+                try { await transport.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             }
             else if (client != null)
             {
-                try { await client.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await client.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             }
             return DeviceConnectionResult.Failed(ex.Message);
         }

@@ -64,6 +64,8 @@ Tập tài liệu đặc tả giao diện kỹ thuật (Interface Control Docume
 * [`SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md`](firmware/SPLC_SPEC_MODBUS_MASTER_002_WRITE_ICD.md): **[MODBUS MASTER WRITE ICD]** Phát lệnh chấp hành RS-485 Modbus RTU Master (`MB_WRITE`, `0x1100..0x11FF`).
 * [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](firmware/SPLC_SPEC_DIRECT_WRITE_003_ICD.md): **[PULSE OUT ICD]** Khối phát xung phần cứng & điều khiển chấp hành chân ngõ ra số vật lý DO0..DO7 (`PULSE_OUT`, badge `PULSE`, tương thích `DIRECT_WRITE`, `0x1200..0x12FF`).
 * [`SPLC_SPEC_WIFI_004_ICD.md`](firmware/SPLC_SPEC_WIFI_004_ICD.md): **[WI-FI ST67 SUBSYSTEM ICD]** Đặc tả giao diện truyền thông nhị phân Wi-Fi module ST67W611M1 (`0x1300..0x13FF`, Cấu hình mạng, Bắt tay quét sóng không đồng bộ FreeRTOS và Bảng 8 AP lân cận).
+* [`SPLC_SPEC_SECURITY_001_SECURE_TRANSPORT_ICD.md`](firmware/SPLC_SPEC_SECURITY_001_SECURE_TRANSPORT_ICD.md): **[SECURE TRANSPORT & ECOSYSTEM AUTH ICD]** Tiêu chuẩn truyền thông an ninh khép kín, mã hóa ChaCha20-Poly1305, bắt tay ECDH P-256 / HKDF-SHA256, chống clone phần cứng qua 96-bit UID và chế độ đường hầm tối (Dark Tunnel).
+
 
 ---
 

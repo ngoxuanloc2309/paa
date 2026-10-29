@@ -57,7 +57,7 @@ Theo tiêu chuẩn khế ước truyền thông **Wire Protocol V2.0 (SPLC-SPEC-
 ## 3. Hướng Dẫn Cấu Hình Chi Tiết Trên Synaptix IDE
 
 ### Bước 1: Khởi tạo hoặc Mở dự án DTU
-- Trong menu **Tệp (File) -> Tạo dự án mới...**: Chọn Preset **`SynaptiX DTU (Industrial 485 Gateway)`**.
+- Trong menu **Tệp (File) -> Tạo dự án mới...**: Chọn Preset **`SynaptiX DTU`**.
 - Khi mở dự án DTU, Synaptix IDE tự động hiển thị không gian làm việc chuyên biệt **DTU Gateway Studio**.
 - *Lưu ý (Chế độ Hybrid):* Đối với các dự án Controller hoặc Remote I/O đã có sẵn, kỹ sư có thể mở cấu hình DTU bất kỳ lúc nào bằng tổ hợp phím **`Ctrl+Shift+D`** hoặc vào menu **Thiết bị -> Cấu hình DTU Gateway...**.
 

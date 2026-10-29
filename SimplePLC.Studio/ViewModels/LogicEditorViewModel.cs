@@ -174,6 +174,20 @@ public partial class LogicEditorViewModel : ObservableObject
             ? "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
             : "Requires hardware Modbus Master Poller capability.");
 
+    // Issue #17: Category-level dynamic visibility based on hardware connectivity
+    public bool IsModbusCategoryVisible => 
+        (TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false) || 
+        (TagCatalog?.CurrentProduct.SupportsModbusSlave ?? false) || 
+        (TagCatalog?.CurrentProduct.PhysicalRs485PortCount ?? 0) > 0;
+
+    public bool IsMqttCategoryVisible => 
+        (TagCatalog?.CurrentProduct.SupportsNetwork ?? false) && 
+        ((TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) || (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false));
+
+    public bool IsDtuGatewayCategoryVisible => 
+        (TagCatalog?.CurrentProduct.IsDtuCapable ?? false) || 
+        (TagCatalog?.CurrentProduct.SupportsTransparentStream ?? false);
+
     private void OnTagCatalogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(TagCatalogViewModel.CurrentProduct))
@@ -187,6 +201,9 @@ public partial class LogicEditorViewModel : ObservableObject
             OnPropertyChanged(nameof(ModbusWriteDisabledTooltip));
             OnPropertyChanged(nameof(IsDtuGatewaySupported));
             OnPropertyChanged(nameof(DtuGatewayDisabledTooltip));
+            OnPropertyChanged(nameof(IsModbusCategoryVisible));
+            OnPropertyChanged(nameof(IsMqttCategoryVisible));
+            OnPropertyChanged(nameof(IsDtuGatewayCategoryVisible));
         }
     }
 
@@ -375,7 +392,7 @@ public partial class LogicEditorViewModel : ObservableObject
     private void OnTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // Runtime simulation or monitoring value changes MUST NOT invalidate the graph schema
-        if (e.PropertyName == nameof(TagModel.Value))
+        if (e.PropertyName == nameof(TagModel.Value) || e.PropertyName == nameof(TagModel.FormattedValue))
         {
             return;
         }
@@ -662,16 +679,16 @@ public partial class LogicEditorViewModel : ObservableObject
 
     public string CompileStateBackground => CompileState switch
     {
-        CompileState.Valid => "#E6F4EA",     // Green soft light
-        CompileState.Stale => "#FEF3C7",     // Amber soft light
+        CompileState.Valid => "#F1F5F9",     // Green soft light
+        CompileState.Stale => "#FFFBEB",     // Amber soft light
         _ => "#FEE2E2"                       // Red soft light
     };
 
     public string CompileStateBorder => CompileState switch
     {
-        CompileState.Valid => "#A7F3D0",
-        CompileState.Stale => "#FDE68A",
-        _ => "#FECACA"
+        CompileState.Valid => "#CBD5E1",
+        CompileState.Stale => "#CBD5E1",
+        _ => "#CBD5E1"
     };
 
     [ObservableProperty]
@@ -714,12 +731,12 @@ public partial class LogicEditorViewModel : ObservableObject
     public bool IsEditingExistingRule => !string.IsNullOrEmpty(EditingRuleId);
 
     public string EditorModeTitle => IsEditingExistingRule
-        ? string.Format(LocalizationService.Instance.IsVietnamese ? "✏️ Đang sửa: {0}" : "✏️ Editing: {0}", EditingRuleId)
-        : (LocalizationService.Instance.IsVietnamese ? "✨ Tạo Rule Mới" : "✨ New Rule");
+        ? string.Format(LocalizationService.Instance.IsVietnamese ? "Đang sửa: {0}" : "Editing: {0}", EditingRuleId)
+        : (LocalizationService.Instance.IsVietnamese ? "Tạo Rule Mới" : "New Rule");
 
     public string EditorModeBadge => IsEditingExistingRule
-        ? $"✏️ {EditingRuleId}"
-        : (LocalizationService.Instance.IsVietnamese ? "✨ Mới" : "✨ New");
+        ? $"{EditingRuleId}"
+        : (LocalizationService.Instance.IsVietnamese ? "Mới" : "New");
 
     partial void OnEditingRuleIdChanged(string? value)
     {
@@ -757,7 +774,10 @@ public partial class LogicEditorViewModel : ObservableObject
     private long _simScanNumber;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SimElapsedDisplay))]
     private long _simElapsedMs;
+
+    public string SimElapsedDisplay => $"{SimElapsedMs / 1000.0:F2}s";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSimGateWarning))]
@@ -2109,6 +2129,20 @@ public partial class LogicEditorViewModel : ObservableObject
                     ApplySnapshotDiff(_stateStore.CurrentSnapshot);
                 }
             }
+
+            if (sender is GraphNodeViewModel graphNode &&
+                e.PropertyName is nameof(InputNodeViewModel.Tag)
+                               or nameof(ScaleNodeViewModel.InputTag)
+                               or nameof(ScaleNodeViewModel.OutputTag)
+                               or nameof(ComparatorNodeViewModel.InputTag)
+                               or nameof(TriggerNodeViewModel.InputTag)
+                               or nameof(TimerNodeViewModel.OutputTag)
+                               or nameof(CounterNodeViewModel.OutputTag)
+                               or nameof(GuardNodeViewModel.GuardTag))
+            {
+                PropagateNodeTagChange(graphNode);
+            }
+
             NotifyGraphModified();
         }
     }
@@ -2136,6 +2170,10 @@ public partial class LogicEditorViewModel : ObservableObject
     private static readonly HashSet<string> SemanticNodeProperties = new()
     {
         nameof(InputNodeViewModel.Tag),
+        nameof(ScaleNodeViewModel.InputTag),
+        nameof(ScaleNodeViewModel.OutputTag),
+        nameof(ComparatorNodeViewModel.InputTag),
+        nameof(TriggerNodeViewModel.InputTag),
         nameof(TriggerNodeViewModel.TriggerType),
         nameof(TriggerNodeViewModel.ForMs),
         nameof(TriggerNodeViewModel.CompareOp),
@@ -2281,98 +2319,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         var conn = new ConnectionViewModel(source, target);
         Connections.Add(conn);
-
-        // Đồng bộ Tag cho TimerNodeViewModel / CounterNodeViewModel / ScaleNodeViewModel
-        if (target.Node is TimerNodeViewModel timerNode && source.Node is InputNodeViewModel inputNode)
-        {
-            timerNode.InputTag = inputNode.Tag;
-        }
-        else if (target.Node is CounterNodeViewModel counterNode && source.Node is InputNodeViewModel inNode)
-        {
-            if (string.Equals(target.Title, "R", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(target.Title, "Reset", StringComparison.OrdinalIgnoreCase))
-            {
-                counterNode.ResetTag = inNode.Tag;
-            }
-            else
-            {
-                counterNode.InputTag = inNode.Tag;
-            }
-        }
-        else if (target.Node is ScaleNodeViewModel scaleNode && source.Node is InputNodeViewModel inScale)
-        {
-            scaleNode.InputTag = inScale.Tag;
-        }
-        else if (target.Node is MqttPublishNodeViewModel mqttNode)
-        {
-            TagModel? incomingTag = source.Node switch
-            {
-                InputNodeViewModel inMqtt => inMqtt.Tag,
-                ScaleNodeViewModel scaleMqtt => scaleMqtt.OutputTag ?? scaleMqtt.InputTag,
-                _ => null
-            };
-
-            if (incomingTag != null)
-            {
-                if (target == mqttNode.TriggerConnector || string.Equals(target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(target.Title, "EN", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Trig pin connected: do not overwrite DataTag
-                }
-                else if (target == mqttNode.DefaultValConnector || string.Equals(target.Title, "Val", StringComparison.OrdinalIgnoreCase))
-                {
-                    mqttNode.DataTag = incomingTag;
-                }
-                else if (mqttNode.IsCustomTemplateVisible)
-                {
-                    mqttNode.SetCustomConnectorTag(target.Title, incomingTag);
-                }
-                else
-                {
-                    var matchedField = mqttNode.Fields.FirstOrDefault(f => f.Connector == target || string.Equals(f.Key, target.Title, StringComparison.OrdinalIgnoreCase));
-                    if (matchedField != null)
-                    {
-                        matchedField.Tag = incomingTag;
-                    }
-                }
-            }
-        }
-        else if (source.Node is CounterNodeViewModel counterNodeFrom && target.Node is ActionNodeViewModel actNode)
-        {
-            counterNodeFrom.OutputTag = actNode.TargetTag;
-        }
-        else if (source.Node is TimerNodeViewModel timerNodeFrom && target.Node is ActionNodeViewModel tmActNode)
-        {
-            timerNodeFrom.OutputTag = tmActNode.TargetTag;
-        }
-        else if (source.Node is ScaleNodeViewModel scaleNodeFrom && target.Node is ActionNodeViewModel sclActNode)
-        {
-            scaleNodeFrom.OutputTag = sclActNode.TargetTag;
-        }
-        else if (source.Node is ModbusReadNodeViewModel mbReadNode && target.Node is ActionNodeViewModel mbActNode)
-        {
-            var pin = mbReadNode.Pins.FirstOrDefault(p =>
-                p.Connector == source ||
-                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
-            if (pin != null && mbActNode.TargetTag != null)
-            {
-                pin.TargetTag = mbActNode.TargetTag;
-            }
-        }
-        else if (source.Node is ModbusReadNodeViewModel mbReadToMqtt && target.Node is MqttPublishNodeViewModel mqttTarget)
-        {
-            var pin = mbReadToMqtt.Pins.FirstOrDefault(p =>
-                p.Connector == source ||
-                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
-            var targetField = mqttTarget.Fields.FirstOrDefault(fld =>
-                fld.Connector == target ||
-                string.Equals(fld.Key, target.Title, StringComparison.OrdinalIgnoreCase));
-            if (pin != null && targetField?.Tag != null)
-            {
-                pin.TargetTag = targetField.Tag;
-            }
-        }
+        SyncWireBinding(source, target);
     }
 
     internal static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
@@ -2476,73 +2423,6 @@ public partial class LogicEditorViewModel : ObservableObject
 
         Connect(source, target);
 
-        // Đồng bộ Tag cho TimerNodeViewModel / CounterNodeViewModel / ScaleNodeViewModel khi được nối từ InputNodeViewModel hoặc sang ActionNodeViewModel
-        if (target.Node is TimerNodeViewModel timerNode && source.Node is InputNodeViewModel inputNode)
-        {
-            timerNode.InputTag = inputNode.Tag;
-        }
-        else if (target.Node is CounterNodeViewModel counterNode && source.Node is InputNodeViewModel inNode)
-        {
-            if (string.Equals(target.Title, "R", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(target.Title, "Reset", StringComparison.OrdinalIgnoreCase))
-            {
-                counterNode.ResetTag = inNode.Tag;
-            }
-            else
-            {
-                counterNode.InputTag = inNode.Tag;
-            }
-        }
-        else if (target.Node is ScaleNodeViewModel scaleNode && source.Node is InputNodeViewModel inScale)
-        {
-            scaleNode.InputTag = inScale.Tag;
-        }
-        else if (target.Node is ComparatorNodeViewModel cmpNode && source.Node is InputNodeViewModel inCmp)
-        {
-            cmpNode.InputTag = inCmp.Tag;
-        }
-        else if (target.Node is ComparatorNodeViewModel cmpFromScl && source.Node is ScaleNodeViewModel sclNode)
-        {
-            cmpFromScl.InputTag = sclNode.OutputTag ?? sclNode.InputTag;
-        }
-        else if (source.Node is CounterNodeViewModel counterNodeFrom && target.Node is ActionNodeViewModel actNode)
-        {
-            counterNodeFrom.OutputTag = actNode.TargetTag;
-        }
-        else if (source.Node is TimerNodeViewModel timerNodeFrom && target.Node is ActionNodeViewModel tmActNode)
-        {
-            timerNodeFrom.OutputTag = tmActNode.TargetTag;
-        }
-        else if (source.Node is ScaleNodeViewModel scaleNodeFrom && target.Node is ActionNodeViewModel sclActNode)
-        {
-            scaleNodeFrom.OutputTag = sclActNode.TargetTag;
-        }
-        else if (source.Node is ModbusReadNodeViewModel mbReadNode && target.Node is ActionNodeViewModel mbActNode)
-        {
-            var pin = mbReadNode.Pins.FirstOrDefault(p =>
-                p.Connector == source ||
-                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
-            if (pin != null && mbActNode.TargetTag != null)
-            {
-                pin.TargetTag = mbActNode.TargetTag;
-            }
-        }
-        else if (source.Node is ModbusReadNodeViewModel mbReadToMqtt && target.Node is MqttPublishNodeViewModel mqttTarget)
-        {
-            var pin = mbReadToMqtt.Pins.FirstOrDefault(p =>
-                p.Connector == source ||
-                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
-            var targetField = mqttTarget.Fields.FirstOrDefault(fld =>
-                fld.Connector == target ||
-                string.Equals(fld.Key, target.Title, StringComparison.OrdinalIgnoreCase));
-            if (pin != null && targetField?.Tag != null)
-            {
-                pin.TargetTag = targetField.Tag;
-            }
-        }
-
         // Tự động căn thẳng hàng ngang hai khối theo chân cắm nếu độ cao ban đầu tương đối gần nhau (chênh lệch Pin <= 50px)
         if (source.Node != null && target.Node != null)
         {
@@ -2574,6 +2454,177 @@ public partial class LogicEditorViewModel : ObservableObject
         }
     }
 
+    public void PropagateNodeTagChange(GraphNodeViewModel sourceNode)
+    {
+        if (sourceNode == null) return;
+
+        var queue = new Queue<GraphNodeViewModel>();
+        var visited = new HashSet<GraphNodeViewModel>();
+        queue.Enqueue(sourceNode);
+        visited.Add(sourceNode);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            var outgoingConns = Connections
+                .Where(c => c.Source?.Node == current && !c.IsGhost)
+                .ToList();
+
+            foreach (var conn in outgoingConns)
+            {
+                if (conn.Source != null && conn.Target?.Node != null)
+                {
+                    SyncWireBinding(conn.Source, conn.Target);
+                    if (visited.Add(conn.Target.Node))
+                    {
+                        queue.Enqueue(conn.Target.Node);
+                    }
+                }
+            }
+        }
+    }
+
+    public void SyncWireBinding(ConnectorViewModel source, ConnectorViewModel target)
+    {
+        if (source?.Node == null || target?.Node == null) return;
+
+        // 1. Resolve source tag
+        TagModel? sourceTag = source.Node switch
+        {
+            InputNodeViewModel inVm => inVm.Tag,
+            ScaleNodeViewModel sclVm => sclVm.OutputTag ?? sclVm.InputTag,
+            ComparatorNodeViewModel cmpVm => cmpVm.InputTag,
+            CounterNodeViewModel cntVm => cntVm.OutputTag,
+            TimerNodeViewModel tmVm => tmVm.OutputTag,
+            GuardNodeViewModel grdVm => grdVm.GuardTag,
+            ModbusReadNodeViewModel mbRead => mbRead.Pins.FirstOrDefault(p => p.Connector == source || string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) || string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase))?.TargetTag,
+            MqttSubscribeNodeViewModel mqttSub => mqttSub.Pins.FirstOrDefault(p => p.Connector == source || string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) || string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase))?.TargetTag,
+            _ => null
+        };
+
+        // 2. Target: TriggerNodeViewModel (Issue #13: Cắm dây vào In tự gán InputTag)
+        if (target.Node is TriggerNodeViewModel trigNode)
+        {
+            trigNode.InputTag = sourceTag;
+        }
+        // 3. Target: ComparatorNodeViewModel (Issue #13: Cắm dây từ Input/Scale tự gán InputTag)
+        else if (target.Node is ComparatorNodeViewModel cmpNode)
+        {
+            cmpNode.InputTag = sourceTag;
+        }
+        // 4. Target: ScaleNodeViewModel (Issue #13: Cắm dây từ Input tự gán InputTag)
+        else if (target.Node is ScaleNodeViewModel scaleNode)
+        {
+            scaleNode.InputTag = sourceTag;
+        }
+        // 5. Target: TimerNodeViewModel
+        else if (target.Node is TimerNodeViewModel timerNode)
+        {
+            timerNode.InputTag = sourceTag;
+        }
+        // 6. Target: CounterNodeViewModel
+        else if (target.Node is CounterNodeViewModel counterNode)
+        {
+            bool isReset = string.Equals(target.Title, "R", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(target.Title, "Reset", StringComparison.OrdinalIgnoreCase);
+            if (isReset) counterNode.ResetTag = sourceTag;
+            else counterNode.InputTag = sourceTag;
+        }
+        // 7. Target: GuardNodeViewModel
+        else if (target.Node is GuardNodeViewModel guardNode)
+        {
+            if (source.Node is InputNodeViewModel inGrd)
+            {
+                guardNode.GuardTag = inGrd.Tag;
+            }
+            else if (sourceTag != null && source.Node is not TriggerNodeViewModel)
+            {
+                guardNode.GuardTag = sourceTag;
+            }
+        }
+        // 8. Target: ModbusWriteNodeViewModel (Issue #13: Cắm dây vào pin nào tự động liên kết TargetTag cho pin đó)
+        else if (target.Node is ModbusWriteNodeViewModel mbWriteNode)
+        {
+            var pin = mbWriteNode.Pins.FirstOrDefault(p =>
+                p.Connector == target ||
+                string.Equals(p.Id, target.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, target.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null)
+            {
+                pin.TargetTag = sourceTag;
+            }
+        }
+        // 9. Target: MqttPublishNodeViewModel
+        else if (target.Node is MqttPublishNodeViewModel mqttNode)
+        {
+            if (target == mqttNode.TriggerConnector || string.Equals(target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(target.Title, "EN", StringComparison.OrdinalIgnoreCase))
+            {
+                // Trig pin: do not overwrite DataTag
+            }
+            else if (target == mqttNode.DefaultValConnector || string.Equals(target.Title, "Val", StringComparison.OrdinalIgnoreCase))
+            {
+                mqttNode.DataTag = sourceTag;
+            }
+            else if (mqttNode.IsCustomTemplateVisible)
+            {
+                if (sourceTag != null)
+                {
+                    mqttNode.SetCustomConnectorTag(target.Title, sourceTag);
+                }
+            }
+            else
+            {
+                var matchedField = mqttNode.Fields.FirstOrDefault(f => f.Connector == target || string.Equals(f.Key, target.Title, StringComparison.OrdinalIgnoreCase));
+                if (matchedField != null)
+                {
+                    matchedField.Tag = sourceTag;
+                }
+            }
+        }
+
+        // 10. Source: Output to ActionNodeViewModel (Counter, Timer, Scale, ModbusRead)
+        if (target.Node is ActionNodeViewModel actNode && actNode.TargetTag != null)
+        {
+            if (source.Node is CounterNodeViewModel counterNodeFrom)
+            {
+                counterNodeFrom.OutputTag = actNode.TargetTag;
+            }
+            else if (source.Node is TimerNodeViewModel timerNodeFrom)
+            {
+                timerNodeFrom.OutputTag = actNode.TargetTag;
+            }
+            else if (source.Node is ScaleNodeViewModel scaleNodeFrom)
+            {
+                scaleNodeFrom.OutputTag = actNode.TargetTag;
+            }
+            else if (source.Node is ModbusReadNodeViewModel mbReadNode)
+            {
+                var pin = mbReadNode.Pins.FirstOrDefault(p =>
+                    p.Connector == source ||
+                    string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+                if (pin != null)
+                {
+                    pin.TargetTag = actNode.TargetTag;
+                }
+            }
+        }
+        else if (source.Node is ModbusReadNodeViewModel mbReadToMqtt && target.Node is MqttPublishNodeViewModel mqttTarget)
+        {
+            var pin = mbReadToMqtt.Pins.FirstOrDefault(p =>
+                p.Connector == source ||
+                string.Equals(p.Id, source.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, source.Title, StringComparison.OrdinalIgnoreCase));
+            var targetField = mqttTarget.Fields.FirstOrDefault(fld =>
+                fld.Connector == target ||
+                string.Equals(fld.Key, target.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null && targetField?.Tag != null)
+            {
+                pin.TargetTag = targetField.Tag;
+            }
+        }
+    }
+
     [RelayCommand]
     public void RemoveConnection(object? param)
     {
@@ -2584,7 +2635,11 @@ public partial class LogicEditorViewModel : ObservableObject
             conn.Source.IsConnected = Connections.Any(c => c.Source == conn.Source || c.Target == conn.Source);
             conn.Target.IsConnected = Connections.Any(c => c.Source == conn.Target || c.Target == conn.Target);
 
-            if (conn.Target?.Node is CounterNodeViewModel cntTarget)
+            if (conn.Target?.Node is TriggerNodeViewModel trigTarget)
+            {
+                trigTarget.InputTag = null;
+            }
+            else if (conn.Target?.Node is CounterNodeViewModel cntTarget)
             {
                 if (string.Equals(conn.Target.Title, "R", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(conn.Target.Title, "Reset", StringComparison.OrdinalIgnoreCase))
@@ -2608,6 +2663,35 @@ public partial class LogicEditorViewModel : ObservableObject
             {
                 cmpTarget.InputTag = null;
             }
+            else if (conn.Target?.Node is ModbusWriteNodeViewModel mbWriteTarget)
+            {
+                if (mbWriteTarget.WriteMode == ModbusWriteMode.DirectRegisters)
+                {
+                    var pin = mbWriteTarget.Pins.FirstOrDefault(p =>
+                        p.Connector == conn.Target ||
+                        string.Equals(p.Id, conn.Target.Id, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.Label, conn.Target.Title, StringComparison.OrdinalIgnoreCase));
+                    if (pin != null)
+                    {
+                        pin.TargetTag = null;
+                    }
+                }
+            }
+            else if (conn.Target?.Node is MqttPublishNodeViewModel mqttTarget)
+            {
+                if (conn.Target == mqttTarget.DefaultValConnector || string.Equals(conn.Target.Title, "Val", StringComparison.OrdinalIgnoreCase))
+                {
+                    mqttTarget.DataTag = null;
+                }
+                else
+                {
+                    var matchedField = mqttTarget.Fields.FirstOrDefault(f => f.Connector == conn.Target || string.Equals(f.Key, conn.Target.Title, StringComparison.OrdinalIgnoreCase));
+                    if (matchedField != null)
+                    {
+                        matchedField.Tag = null;
+                    }
+                }
+            }
 
             if (conn.Source?.Node is CounterNodeViewModel cntSource)
             {
@@ -2620,6 +2704,17 @@ public partial class LogicEditorViewModel : ObservableObject
             else if (conn.Source?.Node is ScaleNodeViewModel sclSource)
             {
                 sclSource.OutputTag = null;
+            }
+            else if (conn.Source?.Node is ModbusReadNodeViewModel mbReadSource)
+            {
+                var pin = mbReadSource.Pins.FirstOrDefault(p =>
+                    p.Connector == conn.Source ||
+                    string.Equals(p.Id, conn.Source.Id, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.Label, conn.Source.Title, StringComparison.OrdinalIgnoreCase));
+                if (pin != null)
+                {
+                    pin.TargetTag = null;
+                }
             }
         }
     }
@@ -4993,8 +5088,8 @@ public partial class LogicEditorViewModel : ObservableObject
                 SaveStatusMessage = result.Rules.Count > 0
                     ? string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count)
                     : (LocalizationService.Instance.IsVietnamese 
-                        ? $"✓ {totalDeployable} khối chức năng (FBs/MQTT) sẵn sàng nạp" 
-                        : $"✓ {totalDeployable} function/MQTT blocks ready");
+                        ? $"{totalDeployable} khối chức năng (FBs/MQTT) sẵn sàng nạp" 
+                        : $"{totalDeployable} function/MQTT blocks ready");
                 return;
             }
 
@@ -5066,8 +5161,8 @@ public partial class LogicEditorViewModel : ObservableObject
             ValidRuleCount = 0;
             IsSaved = false;
             SaveStatusMessage = LocalizationService.Instance.IsVietnamese
-                ? $"⚠ {errCount} lỗi biên dịch"
-                : $"⚠ {errCount} compile errors";
+                ? $"{errCount} lỗi biên dịch"
+                : $"{errCount} compile errors";
 
             return;
         }
@@ -5535,9 +5630,10 @@ public partial class LogicEditorViewModel : ObservableObject
                 trigRes = LocalizationService.Tr("SimScanTrigFalse");
                 if (hasComparison)
                 {
+                    string notWord = LocalizationService.Tr("SimScanNot");
                     trigReason = isBetween
                         ? string.Format(LocalizationService.Tr("SimScanOutRange"), trigTagName, currVal, compSymbol)
-                        : $"{trigTagName}: {currVal} not {compSymbol} {rule.Trigger.ThresholdLo}";
+                        : $"{trigTagName}: {currVal} {notWord} {compSymbol} {rule.Trigger.ThresholdLo}";
                 }
                 else
                 {
@@ -5604,7 +5700,7 @@ public partial class LogicEditorViewModel : ObservableObject
             else if (eval.Status == RuleEvaluationStatus.WaitingDwell)
             {
                 actionStatus = LocalizationService.Tr("SimScanActionWaiting");
-                outputDelta = $"⏳ {eval.DwellElapsedMs}/{eval.DwellRequiredMs} ms";
+                outputDelta = $"{eval.DwellElapsedMs}/{eval.DwellRequiredMs} ms";
             }
             else
             {
@@ -5614,7 +5710,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
             string dwellText = eval.DwellRequiredMs > 0
                 ? (eval.Status == RuleEvaluationStatus.WaitingDwell
-                    ? $"⏳ {eval.DwellElapsedMs}/{eval.DwellRequiredMs} ms"
+                    ? $"{eval.DwellElapsedMs}/{eval.DwellRequiredMs} ms"
                     : LocalizationService.Tr("SimScanActionComplete"))
                 : "—";
 
@@ -6117,7 +6213,7 @@ public partial class LogicEditorViewModel : ObservableObject
         }
         else if (isWaitingDwell)
         {
-            trigNode.SimDiagText = string.Format("⏳ {0}ms", dwellRemaining);
+            trigNode.SimDiagText = string.Format("WAIT {0}ms", dwellRemaining);
         }
         else
         {

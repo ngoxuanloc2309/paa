@@ -146,7 +146,8 @@ public sealed class McuReferenceSimulator
                        SPLC_HardwareCapabilities.MODBUS_MASTER |
                        SPLC_HardwareCapabilities.MODBUS_TCP |
                        SPLC_HardwareCapabilities.FLOAT32 |
-                       SPLC_HardwareCapabilities.SD_DATALOG;
+                       SPLC_HardwareCapabilities.SD_DATALOG |
+                       SPLC_HardwareCapabilities.MODBUS_SLAVE;
             Span<ushort> capsRegs = stackalloc ushort[2];
             RegisterCodec.EncodeHardwareCapabilities(caps, capsRegs);
             _memory.InternalWrite(ModbusRegisterMap.HardwareCapabilitiesAddress, capsRegs[0]);
@@ -1382,17 +1383,8 @@ public sealed class McuReferenceSimulator
         }
     }
 
-    public Task<ushort[]> ExecuteSlaveReadHoldingRegistersAsync(
-        byte portIndex,
-        byte slaveId,
-        ushort modbusAddress,
-        ushort count,
-        CancellationToken ct = default)
+    private void ValidateSlavePort(byte portIndex, byte slaveId)
     {
-        ct.ThrowIfCancellationRequested();
-        EnsureOnline();
-
-        // 1. Kiểm tra cấu hình cổng RS-485
         var portBuffer = _memory.ReadRegisters(
             ModbusRegisterMap.ModbusPortConfigBaseAddress,
             ModbusRegisterMap.ModbusPortConfigTableTotalLength);
@@ -1408,48 +1400,299 @@ public sealed class McuReferenceSimulator
         {
             throw new InvalidOperationException($"Slave ID mismatch on Port {portIndex + 1}. Expected: {targetPort.SlaveId}, Received: {slaveId}.");
         }
+    }
 
-        // 2. Tra cứu trong bảng ánh xạ Modbus Slave tại 0x1500
-        var mapBuffer = _memory.ReadRegisters(
-            ModbusRegisterMap.ModbusSlaveMapBaseAddress,
-            ModbusRegisterMap.ModbusSlaveMapTableTotalLength);
-        var entries = ModbusSlaveMapCodec.DecodeEntries(mapBuffer);
-
-        var entry = entries.FirstOrDefault(e => e.ModbusAddress == modbusAddress);
-        if (entry == null)
+    private ushort ReadFixedHoldingRegister(ushort addr, SimplePLC.Protocol.Models.TagLayoutMap layout)
+    {
+        // 0x0000: DI_WORD (Packed DI0..DI15)
+        if (addr == ModbusSlaveFixedMap.DiWordAddress)
         {
-            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not mapped in Slave Data Table.");
+            ushort diWord = 0;
+            for (int b = 0; b < Math.Min(16, (int)layout.DiCount); b++)
+            {
+                if (ReadTagValue((ushort)(layout.DiBase + b)) != 0)
+                {
+                    diWord |= (ushort)(1 << b);
+                }
+            }
+            return diWord;
         }
 
-        byte portBit = (byte)(1 << portIndex);
-        if ((entry.PortMask & portBit) == 0)
+        // 0x0001: DO_WORD (Packed DO0..DO15)
+        if (addr == ModbusSlaveFixedMap.DoWordAddress)
         {
-            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not exposed on Port {portIndex + 1}.");
+            ushort doWord = 0;
+            for (int b = 0; b < Math.Min(16, (int)layout.DoCount); b++)
+            {
+                if (ReadTagValue((ushort)(layout.DoBase + b)) != 0)
+                {
+                    doWord |= (ushort)(1 << b);
+                }
+            }
+            return doWord;
         }
 
-        // 3. Đọc dữ liệu từ Tag nội bộ (0x0900 + tagIndex * 2)
-        ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + entry.TargetTagIndex * 2);
-        var tagValues = _memory.ReadRegisters(tagRegAddr, 2);
+        // 0x0002..0x0003: VFLAG_DWORD (Packed VFLAG0..VFLAG31)
+        if (addr >= ModbusSlaveFixedMap.VflagDWordAddress && addr < ModbusSlaveFixedMap.VflagDWordAddress + 2)
+        {
+            uint vflagDWord = 0;
+            for (int b = 0; b < Math.Min(32, (int)layout.VflagCount); b++)
+            {
+                if (ReadTagValue((ushort)(layout.VflagBase + b)) != 0)
+                {
+                    vflagDWord |= (1u << b);
+                }
+            }
 
-        if (count == 1)
-        {
-            return Task.FromResult(new ushort[] { tagValues[0] });
+            if (addr == ModbusSlaveFixedMap.VflagDWordAddress)
+            {
+                return (ushort)(vflagDWord >> 16);
+            }
+            return (ushort)(vflagDWord & 0xFFFF);
         }
-        else if (count == 2)
+
+        // 0x0010..0x0017: AI0..AI3 (Float32, 2 regs/ch)
+        if (addr >= ModbusSlaveFixedMap.AiBaseAddress && addr < ModbusSlaveFixedMap.AiBaseAddress + ModbusSlaveFixedMap.AiTotalRegisters)
         {
-            return Task.FromResult(tagValues);
+            int offset = addr - ModbusSlaveFixedMap.AiBaseAddress;
+            int chIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (chIndex < layout.AiCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.AiBase + chIndex) * 2 + regIndex);
+                return _memory.ReadRegisters(tagRegAddr, 1)[0];
+            }
+            return 0;
         }
-        else
+
+        // 0x0020..0x005F: VREG0..VREG31 (32-bit, 2 regs/var)
+        if (addr >= ModbusSlaveFixedMap.VregBaseAddress && addr < ModbusSlaveFixedMap.VregBaseAddress + ModbusSlaveFixedMap.VregTotalRegisters)
         {
-            var res = new ushort[count];
-            Array.Copy(tagValues, res, Math.Min(2, (int)count));
-            return Task.FromResult(res);
+            int offset = addr - ModbusSlaveFixedMap.VregBaseAddress;
+            int varIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (varIndex < layout.VregCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.VregBase + varIndex) * 2 + regIndex);
+                return _memory.ReadRegisters(tagRegAddr, 1)[0];
+            }
+            return 0;
+        }
+
+        // 0x0060..0x009F: VREG_R0..VREG_R31 (Retentive 32-bit, 2 regs/var)
+        if (addr >= ModbusSlaveFixedMap.VregRetainBaseAddress && addr < ModbusSlaveFixedMap.VregRetainBaseAddress + ModbusSlaveFixedMap.VregRetainTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.VregRetainBaseAddress;
+            int varIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (varIndex < layout.VregRetainCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.VregRetainBase + varIndex) * 2 + regIndex);
+                return _memory.ReadRegisters(tagRegAddr, 1)[0];
+            }
+            return 0;
+        }
+
+        // 0x00A0..0x00AF: COUNTER0..COUNTER7 (Int32 PV, 2 regs/unit)
+        if (addr >= ModbusSlaveFixedMap.CounterBaseAddress && addr < ModbusSlaveFixedMap.CounterBaseAddress + ModbusSlaveFixedMap.CounterTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.CounterBaseAddress;
+            int unitIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (unitIndex < layout.CounterCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.CounterBase + unitIndex) * 2 + regIndex);
+                return _memory.ReadRegisters(tagRegAddr, 1)[0];
+            }
+            return 0;
+        }
+
+        // 0x00F0..0x00FF: SYS_DIAG (Uptime, Scan ms, Diag state, RTC)
+        if (addr >= ModbusSlaveFixedMap.SystemDiagBaseAddress && addr < ModbusSlaveFixedMap.SystemDiagBaseAddress + ModbusSlaveFixedMap.SystemDiagTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.SystemDiagBaseAddress;
+            UpdateHealthRegisters();
+            UpdateRtcRegisters();
+            if (offset == 0) return _memory.InternalRead(0x0800); // Uptime High Word
+            if (offset == 1) return _memory.InternalRead(0x0801); // Uptime Low Word
+            if (offset == 2) return _memory.InternalRead(0x0807); // Scan Time ms
+            if (offset == 3) return _memory.InternalRead(ModbusRegisterMap.DiagStateAddress);
+            if (offset >= 4 && offset < 4 + ModbusRegisterMap.RtcClockLength)
+            {
+                return _memory.InternalRead((ushort)(ModbusRegisterMap.RtcClockAddress + (offset - 4)));
+            }
+            return 0;
+        }
+
+        throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address 0x{addr:X04} is not valid in Slave Fixed Register Map.");
+    }
+
+    private static int GetHoldingRegisterPartition(ushort addr)
+    {
+        if (addr == ModbusSlaveFixedMap.DiWordAddress) return 1;
+        if (addr == ModbusSlaveFixedMap.DoWordAddress) return 2;
+        if (addr >= ModbusSlaveFixedMap.VflagDWordAddress && addr < ModbusSlaveFixedMap.VflagDWordAddress + 2) return 3;
+        if (addr >= ModbusSlaveFixedMap.AiBaseAddress && addr < ModbusSlaveFixedMap.AiBaseAddress + ModbusSlaveFixedMap.AiTotalRegisters) return 4;
+        if (addr >= ModbusSlaveFixedMap.VregBaseAddress && addr < ModbusSlaveFixedMap.VregBaseAddress + ModbusSlaveFixedMap.VregTotalRegisters) return 5;
+        if (addr >= ModbusSlaveFixedMap.VregRetainBaseAddress && addr < ModbusSlaveFixedMap.VregRetainBaseAddress + ModbusSlaveFixedMap.VregRetainTotalRegisters) return 6;
+        if (addr >= ModbusSlaveFixedMap.CounterBaseAddress && addr < ModbusSlaveFixedMap.CounterBaseAddress + ModbusSlaveFixedMap.CounterTotalRegisters) return 7;
+        if (addr >= ModbusSlaveFixedMap.SystemDiagBaseAddress && addr < ModbusSlaveFixedMap.SystemDiagBaseAddress + ModbusSlaveFixedMap.SystemDiagTotalRegisters) return 8;
+        return -1;
+    }
+
+    private static void ValidateHoldingRegisterWritable(ushort addr)
+    {
+        if (addr == ModbusSlaveFixedMap.DiWordAddress)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Address 0x{addr:X04} (DI_WORD) is Read-Only.");
+        }
+
+        if (addr >= ModbusSlaveFixedMap.AiBaseAddress && addr < ModbusSlaveFixedMap.AiBaseAddress + ModbusSlaveFixedMap.AiTotalRegisters)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Address 0x{addr:X04} (AI) is Read-Only.");
+        }
+
+        if (addr >= ModbusSlaveFixedMap.SystemDiagBaseAddress && addr < ModbusSlaveFixedMap.SystemDiagBaseAddress + ModbusSlaveFixedMap.SystemDiagTotalRegisters)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Address 0x{addr:X04} (SYS_DIAG) is Read-Only.");
+        }
+
+        bool isWritable =
+            addr == ModbusSlaveFixedMap.DoWordAddress ||
+            (addr >= ModbusSlaveFixedMap.VflagDWordAddress && addr < ModbusSlaveFixedMap.VflagDWordAddress + 2) ||
+            (addr >= ModbusSlaveFixedMap.VregBaseAddress && addr < ModbusSlaveFixedMap.VregBaseAddress + ModbusSlaveFixedMap.VregTotalRegisters) ||
+            (addr >= ModbusSlaveFixedMap.VregRetainBaseAddress && addr < ModbusSlaveFixedMap.VregRetainBaseAddress + ModbusSlaveFixedMap.VregRetainTotalRegisters) ||
+            (addr >= ModbusSlaveFixedMap.CounterBaseAddress && addr < ModbusSlaveFixedMap.CounterBaseAddress + ModbusSlaveFixedMap.CounterTotalRegisters);
+
+        if (!isWritable)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address 0x{addr:X04} is not valid in Slave Fixed Register Map.");
+        }
+    }
+
+    private void WriteFixedHoldingRegister(ushort addr, ushort val, SimplePLC.Protocol.Models.TagLayoutMap layout)
+    {
+        if (addr == ModbusSlaveFixedMap.DoWordAddress)
+        {
+            for (int b = 0; b < Math.Min(16, (int)layout.DoCount); b++)
+            {
+                bool bitOn = (val & (1 << b)) != 0;
+                WriteTagValue((ushort)(layout.DoBase + b), bitOn ? 1 : 0);
+            }
+            return;
+        }
+
+        if (addr == ModbusSlaveFixedMap.VflagDWordAddress)
+        {
+            // Bits 16..31
+            for (int b = 0; b < Math.Min(16, Math.Max(0, layout.VflagCount - 16)); b++)
+            {
+                bool bitOn = (val & (1 << b)) != 0;
+                WriteTagValue((ushort)(layout.VflagBase + 16 + b), bitOn ? 1 : 0);
+            }
+            return;
+        }
+
+        if (addr == (ushort)(ModbusSlaveFixedMap.VflagDWordAddress + 1))
+        {
+            // Bits 0..15
+            for (int b = 0; b < Math.Min(16, (int)layout.VflagCount); b++)
+            {
+                bool bitOn = (val & (1 << b)) != 0;
+                WriteTagValue((ushort)(layout.VflagBase + b), bitOn ? 1 : 0);
+            }
+            return;
+        }
+
+        if (addr >= ModbusSlaveFixedMap.VregBaseAddress && addr < ModbusSlaveFixedMap.VregBaseAddress + ModbusSlaveFixedMap.VregTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.VregBaseAddress;
+            int varIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (varIndex < layout.VregCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.VregBase + varIndex) * 2 + regIndex);
+                _memory.InternalWrite(tagRegAddr, val);
+            }
+            return;
+        }
+
+        if (addr >= ModbusSlaveFixedMap.VregRetainBaseAddress && addr < ModbusSlaveFixedMap.VregRetainBaseAddress + ModbusSlaveFixedMap.VregRetainTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.VregRetainBaseAddress;
+            int varIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (varIndex < layout.VregRetainCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.VregRetainBase + varIndex) * 2 + regIndex);
+                _memory.InternalWrite(tagRegAddr, val);
+            }
+            return;
+        }
+
+        if (addr >= ModbusSlaveFixedMap.CounterBaseAddress && addr < ModbusSlaveFixedMap.CounterBaseAddress + ModbusSlaveFixedMap.CounterTotalRegisters)
+        {
+            int offset = addr - ModbusSlaveFixedMap.CounterBaseAddress;
+            int unitIndex = offset / 2;
+            int regIndex = offset % 2;
+            if (unitIndex < layout.CounterCount)
+            {
+                ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + (layout.CounterBase + unitIndex) * 2 + regIndex);
+                _memory.InternalWrite(tagRegAddr, val);
+            }
+            return;
         }
     }
 
     /// <summary>
-    /// Giả lập Modbus Master bên ngoài (SCADA/HMI) gửi yêu cầu FC06/FC16 ghi thanh ghi qua cổng RS-485 Slave.
-    /// Áp dụng cơ chế Sandbox 3 cấp độ: Cấm ghi ngõ vào vật lý/cảm biến (Exception 0x03), cấm ghi ngoài bảng ánh xạ (Exception 0x02).
+    /// Giả lập Modbus Master đọc các thanh ghi giữ (FC 03) từ cổng RS-485 Slave theo bản đồ địa chỉ cố định.
+    /// </summary>
+    public Task<ushort[]> ExecuteSlaveReadHoldingRegistersAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort modbusAddress,
+        ushort count,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+        ValidateSlavePort(portIndex, slaveId);
+
+        if (count == 0 || count > 125)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Count {count} must be between 1 and 125.");
+        }
+
+        ushort endAddress = (ushort)(modbusAddress + count - 1);
+        int startPart = GetHoldingRegisterPartition(modbusAddress);
+        int endPart = GetHoldingRegisterPartition(endAddress);
+        if (startPart == -1 || endPart == -1 || startPart != endPart)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Request range 0x{modbusAddress:X04}..0x{endAddress:X04} is invalid or spans across partition boundaries.");
+        }
+
+        var layout = GetTagLayout();
+
+        // Kiểm tra tính hợp lệ của toàn bộ dải trước khi đọc
+        for (ushort i = 0; i < count; i++)
+        {
+            ushort addr = (ushort)(modbusAddress + i);
+            _ = ReadFixedHoldingRegister(addr, layout);
+        }
+
+        var result = new ushort[count];
+        for (ushort i = 0; i < count; i++)
+        {
+            ushort addr = (ushort)(modbusAddress + i);
+            result[i] = ReadFixedHoldingRegister(addr, layout);
+        }
+
+        return Task.FromResult(result);
+    }
+
+    /// <summary>
+    /// Giả lập Modbus Master gửi yêu cầu FC06/FC16 ghi thanh ghi giữ qua cổng RS-485 Slave.
+    /// Áp dụng cơ chế Sandbox: Cấm ghi ngõ vào vật lý/cảm biến (Exception 0x03), cấm ghi ngoài bản đồ cố định (Exception 0x02).
     /// </summary>
     public Task ExecuteSlaveWriteHoldingRegistersAsync(
         byte portIndex,
@@ -1460,55 +1703,186 @@ public sealed class McuReferenceSimulator
     {
         ct.ThrowIfCancellationRequested();
         EnsureOnline();
+        ValidateSlavePort(portIndex, slaveId);
 
-        // 1. Kiểm tra cấu hình cổng RS-485
-        var portBuffer = _memory.ReadRegisters(
-            ModbusRegisterMap.ModbusPortConfigBaseAddress,
-            ModbusRegisterMap.ModbusPortConfigTableTotalLength);
-        var ports = ModbusPortConfigCodec.DecodeAllPorts(portBuffer);
-
-        var targetPort = ports.FirstOrDefault(p => p.PortIndex == portIndex);
-        if (targetPort == null || !targetPort.Enabled || targetPort.Role != ModbusPortRole.Slave)
+        if (values == null || values.Length == 0 || values.Length > 123)
         {
-            throw new InvalidOperationException($"Port {portIndex + 1} is not configured or not running in Modbus Slave mode.");
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Values count must be between 1 and 123.");
         }
 
-        if (targetPort.SlaveId != slaveId)
+        ushort endAddress = (ushort)(modbusAddress + values.Length - 1);
+        int startPart = GetHoldingRegisterPartition(modbusAddress);
+        int endPart = GetHoldingRegisterPartition(endAddress);
+        if (startPart == -1 || endPart == -1 || startPart != endPart)
         {
-            throw new InvalidOperationException($"Slave ID mismatch on Port {portIndex + 1}. Expected: {targetPort.SlaveId}, Received: {slaveId}.");
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Request range 0x{modbusAddress:X04}..0x{endAddress:X04} is invalid or spans across partition boundaries.");
         }
 
-        // 2. Tra cứu trong bảng ánh xạ Modbus Slave tại 0x1500
-        var mapBuffer = _memory.ReadRegisters(
-            ModbusRegisterMap.ModbusSlaveMapBaseAddress,
-            ModbusRegisterMap.ModbusSlaveMapTableTotalLength);
-        var entries = ModbusSlaveMapCodec.DecodeEntries(mapBuffer);
+        var layout = GetTagLayout();
 
-        var entry = entries.FirstOrDefault(e => e.ModbusAddress == modbusAddress);
-        if (entry == null)
+        // 1. Kiểm tra tính hợp lệ và quyền ghi cho toàn bộ khối thanh ghi (Atomic check)
+        for (int i = 0; i < values.Length; i++)
         {
-            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not mapped in Slave Data Table.");
+            ushort addr = (ushort)(modbusAddress + i);
+            ValidateHoldingRegisterWritable(addr);
         }
 
-        byte portBit = (byte)(1 << portIndex);
-        if ((entry.PortMask & portBit) == 0)
+        // 2. Thực hiện ghi giá trị
+        for (int i = 0; i < values.Length; i++)
         {
-            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Modbus address {modbusAddress} is not exposed on Port {portIndex + 1}.");
-        }
-
-        // 3. Kiểm tra quyền truy cập (Sandbox Access Control)
-        if (entry.AccessRight == ModbusSlaveAccessRight.ReadOnly)
-        {
-            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Address {modbusAddress} mapped to Tag #{entry.TargetTagIndex} is locked as Read-Only sandbox.");
-        }
-
-        // 4. Ghi nguyên tử vào vùng Runtime Tag Values
-        ushort tagRegAddr = (ushort)(ModbusRegisterMap.RuntimeTagValuesBaseAddress + entry.TargetTagIndex * 2);
-        for (int i = 0; i < values.Length && i < 2; i++)
-        {
-            _memory.InternalWrite((ushort)(tagRegAddr + i), values[i]);
+            ushort addr = (ushort)(modbusAddress + i);
+            WriteFixedHoldingRegister(addr, values[i], layout);
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Giả lập Modbus Master đọc trạng thái các chân ngõ vào số DI0..DI15 (FC 02) theo địa chỉ bit cố định.
+    /// </summary>
+    public Task<bool[]> ExecuteSlaveReadDiscreteInputsAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort inputAddress,
+        ushort count,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+        ValidateSlavePort(portIndex, slaveId);
+
+        if (count == 0 || count > 2000)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Count {count} must be between 1 and 2000.");
+        }
+
+        if (inputAddress < ModbusSlaveFixedMap.DiscreteInputsDiBaseAddress ||
+            (inputAddress + count) > (ModbusSlaveFixedMap.DiscreteInputsDiBaseAddress + ModbusSlaveFixedMap.DiscreteInputsDiCount))
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Input address range {inputAddress}..{inputAddress + count - 1} is out of bounds.");
+        }
+
+        var layout = GetTagLayout();
+        var result = new bool[count];
+        for (int i = 0; i < count; i++)
+        {
+            int diIdx = (inputAddress - ModbusSlaveFixedMap.DiscreteInputsDiBaseAddress) + i;
+            if (diIdx < layout.DiCount)
+            {
+                result[i] = ReadTagValue((ushort)(layout.DiBase + diIdx)) != 0;
+            }
+        }
+
+        return Task.FromResult(result);
+    }
+
+    /// <summary>
+    /// Giả lập Modbus Master đọc trạng thái Coils (FC 01) DO0..DO15 hoặc VFLAG0..VFLAG31 theo địa chỉ bit cố định.
+    /// </summary>
+    public Task<bool[]> ExecuteSlaveReadCoilsAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort coilAddress,
+        ushort count,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+        ValidateSlavePort(portIndex, slaveId);
+
+        if (count == 0 || count > 2000)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Count {count} must be between 1 and 2000.");
+        }
+
+        var layout = GetTagLayout();
+        var result = new bool[count];
+
+        // Vùng DO: 0x0000 .. 0x000F
+        if (coilAddress >= ModbusSlaveFixedMap.CoilsDoBaseAddress &&
+            (coilAddress + count) <= (ModbusSlaveFixedMap.CoilsDoBaseAddress + ModbusSlaveFixedMap.CoilsDoCount))
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int doIdx = (coilAddress - ModbusSlaveFixedMap.CoilsDoBaseAddress) + i;
+                if (doIdx < layout.DoCount)
+                {
+                    result[i] = ReadTagValue((ushort)(layout.DoBase + doIdx)) != 0;
+                }
+            }
+            return Task.FromResult(result);
+        }
+
+        // Vùng VFLAG: 0x0064 .. 0x0083 (100 .. 131)
+        if (coilAddress >= ModbusSlaveFixedMap.CoilsVflagBaseAddress &&
+            (coilAddress + count) <= (ModbusSlaveFixedMap.CoilsVflagBaseAddress + ModbusSlaveFixedMap.CoilsVflagCount))
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int vfIdx = (coilAddress - ModbusSlaveFixedMap.CoilsVflagBaseAddress) + i;
+                if (vfIdx < layout.VflagCount)
+                {
+                    result[i] = ReadTagValue((ushort)(layout.VflagBase + vfIdx)) != 0;
+                }
+            }
+            return Task.FromResult(result);
+        }
+
+        throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Coil address range {coilAddress}..{coilAddress + count - 1} is out of bounds.");
+    }
+
+    /// <summary>
+    /// Giả lập Modbus Master ghi trạng thái Coils (FC 05/15) DO0..DO15 hoặc VFLAG0..VFLAG31 theo địa chỉ bit cố định.
+    /// </summary>
+    public Task ExecuteSlaveWriteCoilsAsync(
+        byte portIndex,
+        byte slaveId,
+        ushort coilAddress,
+        bool[] values,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureOnline();
+        ValidateSlavePort(portIndex, slaveId);
+
+        if (values == null || values.Length == 0 || values.Length > 1968)
+        {
+            throw new InvalidOperationException($"Modbus Exception 0x03 (ILLEGAL_DATA_VALUE): Values count must be between 1 and 1968.");
+        }
+
+        var layout = GetTagLayout();
+        int count = values.Length;
+
+        // Vùng DO: 0x0000 .. 0x000F
+        if (coilAddress >= ModbusSlaveFixedMap.CoilsDoBaseAddress &&
+            (coilAddress + count) <= (ModbusSlaveFixedMap.CoilsDoBaseAddress + ModbusSlaveFixedMap.CoilsDoCount))
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int doIdx = (coilAddress - ModbusSlaveFixedMap.CoilsDoBaseAddress) + i;
+                if (doIdx < layout.DoCount)
+                {
+                    WriteTagValue((ushort)(layout.DoBase + doIdx), values[i] ? 1 : 0);
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        // Vùng VFLAG: 0x0064 .. 0x0083
+        if (coilAddress >= ModbusSlaveFixedMap.CoilsVflagBaseAddress &&
+            (coilAddress + count) <= (ModbusSlaveFixedMap.CoilsVflagBaseAddress + ModbusSlaveFixedMap.CoilsVflagCount))
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int vfIdx = (coilAddress - ModbusSlaveFixedMap.CoilsVflagBaseAddress) + i;
+                if (vfIdx < layout.VflagCount)
+                {
+                    WriteTagValue((ushort)(layout.VflagBase + vfIdx), values[i] ? 1 : 0);
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        throw new InvalidOperationException($"Modbus Exception 0x02 (ILLEGAL_DATA_ADDRESS): Coil address range {coilAddress}..{coilAddress + count - 1} is out of bounds.");
     }
 }

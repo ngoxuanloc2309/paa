@@ -31,21 +31,69 @@ public partial class TagModel : ObservableObject
     private string _group = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedValue))]
     private int _value;
+
+    partial void OnValueChanged(int value)
+    {
+        if (IsDigital || DataType == TagDataType.Boolean)
+        {
+            if (value != 0 && value != 1)
+            {
+                Value = value != 0 ? 1 : 0;
+                return;
+            }
+        }
+        OnPropertyChanged(nameof(FormattedValue));
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(FormattedValue))]
     private TagDataType _dataType = TagDataType.Int32;
+
+    partial void OnDataTypeChanged(TagDataType value)
+    {
+        if (value == TagDataType.Boolean)
+        {
+            if (Value != 0 && Value != 1)
+            {
+                Value = Value != 0 ? 1 : 0;
+            }
+        }
+        OnPropertyChanged(nameof(FormattedValue));
+        OnPropertyChanged(nameof(DataTypeText));
+    }
 
     partial void OnKindChanged(TagKind value)
     {
         if (IsDigital)
         {
             DataType = TagDataType.Boolean;
+            if (Value != 0 && Value != 1)
+            {
+                Value = Value != 0 ? 1 : 0;
+            }
         }
         else if (DataType == TagDataType.Boolean)
         {
             DataType = TagDataType.Int32;
+        }
+    }
+
+    public string FormattedValue
+    {
+        get
+        {
+            if (IsDigital || DataType == TagDataType.Boolean)
+            {
+                return Value != 0 ? "1" : "0";
+            }
+            if (DataType == TagDataType.Float32)
+            {
+                return Services.SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(Value));
+            }
+            return Value.ToString();
         }
     }
 
@@ -58,7 +106,7 @@ public partial class TagModel : ObservableObject
 
     public string DataTypeText => DataType switch
     {
-        TagDataType.Boolean => "BOOL (Bit)",
+        TagDataType.Boolean => "BOOL",
         TagDataType.Float32 => "REAL",
         _ => "INT32"
     };

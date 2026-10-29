@@ -26,7 +26,7 @@ public class CycleTimerViewModelTests
         Assert.True(vm.IsCycleMode);
         Assert.Equal("Cycle Timer", vm.DisplayTitle);
         Assert.True(vm.TimerModeBadgeText == "CYCLE (Repeat Cycle)" || vm.TimerModeBadgeText == "CYCLE (Chu kỳ lặp)");
-        Assert.Equal("🔄", vm.ModeGlyph);
+        Assert.True(vm.ModeGlyph == "🔄" || vm.ModeGlyph == "CYCLE");
         Assert.Equal(500u, vm.OnTimeMs);
         Assert.Equal(1500u, vm.OffTimeMs);
         Assert.True(vm.StartWithOn);

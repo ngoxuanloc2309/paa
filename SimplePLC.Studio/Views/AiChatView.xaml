@@ -9,7 +9,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="700" d:DesignWidth="380"
              FontFamily="Segoe UI, Segoe UI Emoji, Segoe UI Symbol"
-             Background="{StaticResource IndustrialSurfaceInsetBrush}">
+             Background="{DynamicResource IndustrialSurfaceInsetBrush}">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -34,7 +34,7 @@
         </Grid.RowDefinitions>
 
         <!-- 0. CHATBOX HEADER (Industrial Surface Inset & Crisp Border) -->
-        <Border Grid.Row="0" Background="{StaticResource IndustrialSurfaceInsetBrush}" Padding="12,8" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource IndustrialSurfaceInsetBrush}" Padding="12,8" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1">
             <DockPanel LastChildFill="True">
                 <!-- Action buttons right -->
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
@@ -49,7 +49,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource SelectionHighlightBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -67,7 +67,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource SelectionHighlightBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -81,11 +81,11 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
-                                    <TextBlock Text="✕" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                    <TextBlock Text="✕" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource DangerLightBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource DangerLightBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -97,37 +97,37 @@
                 <StackPanel Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="💬" FontSize="12.5" Margin="0,0,6,0" VerticalAlignment="Center" />
-                        <TextBlock Text="SynaptiX AI Chatbox" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="SynaptiX AI Chatbox" FontWeight="Bold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <!-- Compact Context Status Pills -->
                     <WrapPanel Orientation="Horizontal" Margin="20,4,0,0">
                         <!-- Model Badge -->
-                        <Border Background="{StaticResource SelectionHighlightBrush}" BorderBrush="{StaticResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2">
-                            <TextBlock Text="{Binding SelectedModel}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" />
+                        <Border Background="{DynamicResource SelectionHighlightBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2">
+                            <TextBlock Text="{Binding SelectedModel}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" />
                         </Border>
 
                         <!-- Canvas Node Count Pill -->
-                        <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2" ToolTip="Số lượng khối và đường nối trên Canvas">
-                            <TextBlock Text="{Binding ActiveContextNodeCountText}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2" ToolTip="Số lượng khối và đường nối trên Canvas">
+                            <TextBlock Text="{Binding ActiveContextNodeCountText}" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" />
                         </Border>
 
                         <!-- Selected Node Pill (Dynamic) -->
-                        <Border Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2"
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2"
                                 Visibility="{Binding HasActiveContextSelection, Converter={StaticResource BoolToVis}}" ToolTip="Khối đang được chọn trên Canvas">
-                            <TextBlock Text="{Binding ActiveContextSelectionText}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource NodeTagBrush}" />
+                            <TextBlock Text="{Binding ActiveContextSelectionText}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource NodeTagBrush}" />
                         </Border>
 
                         <!-- Compile State Pill -->
                         <Border BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2" ToolTip="Trạng thái kiểm tra cú pháp sơ đồ">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource BorderLightBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding ActiveContextCompileIsError}" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource DangerLightBrush}" />
-                                            <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+                                            <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -135,10 +135,10 @@
                             <TextBlock Text="{Binding ActiveContextCompileStatusText}" FontSize="9">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding ActiveContextCompileIsError}" Value="True">
-                                                <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                                 <Setter Property="FontWeight" Value="SemiBold" />
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -148,8 +148,8 @@
                         </Border>
 
                         <!-- Tag Count Pill -->
-                        <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2" ToolTip="Số lượng Tag phần cứng trong dự án">
-                            <TextBlock Text="{Binding ActiveContextTagCountText}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                        <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="0,0,4,2" ToolTip="Số lượng Tag phần cứng trong dự án">
+                            <TextBlock Text="{Binding ActiveContextTagCountText}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" />
                         </Border>
                     </WrapPanel>
                 </StackPanel>
@@ -157,15 +157,15 @@
         </Border>
 
         <!-- 1. SETTINGS DRAWER (Pure White) -->
-        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="14,12"
+        <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="14,12"
                 Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="Cấu hình Google Gemini AI" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                <TextBlock Text="Cấu hình Google Gemini AI" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" />
 
-                <TextBlock Text="Gemini API Key:" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <TextBlock Text="Gemini API Key:" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="11.5" Padding="6,4" Height="28" Margin="0,0,0,6"
-                         BorderBrush="{StaticResource BorderLightBrush}" Background="#F8FAFC">
+                         BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Background="{DynamicResource BgWindowBrush}">
                     <TextBox.InputBindings>
                         <KeyBinding Key="Return" Command="{Binding SaveSettingsCommand}" />
                     </TextBox.InputBindings>
@@ -174,19 +174,19 @@
                 <Button Command="{Binding OpenGoogleAiStudioCommand}"
                         Background="Transparent" BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,10" Cursor="Hand">
                     <TextBlock Text="👉 Nhấp vào đây để lấy API Key miễn phí từ Google AI Studio"
-                               FontSize="10.5" Foreground="{StaticResource PrimaryBrush}" TextDecorations="Underline" />
+                               FontSize="10.5" Foreground="{DynamicResource PrimaryBrush}" TextDecorations="Underline" />
                 </Button>
 
-                <TextBlock Text="Mô hình (Model):" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <TextBlock Text="Mô hình (Model):" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                 <ComboBox ItemsSource="{Binding AvailableModels}"
                           SelectedItem="{Binding SelectedModel}"
                           Height="28" FontSize="11.5" Margin="0,0,0,4" />
-                <TextBlock Text="* Flash: Miễn phí 100% (cực nhanh). Pro: Cho tài khoản có Billing." FontSize="10" Foreground="#64748B" Margin="0,0,0,10" />
+                <TextBlock Text="* Flash: Miễn phí 100% (cực nhanh). Pro: Cho tài khoản có Billing." FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Command="{Binding ToggleSettingsCommand}"
                             Content="Hủy" Width="60" Height="26" Margin="0,0,6,0"
-                            Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" FontSize="11" Cursor="Hand">
+                            Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" FontSize="11" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="2">
@@ -197,7 +197,7 @@
                     </Button>
                     <Button Command="{Binding SaveSettingsCommand}"
                             Content="Lưu cấu hình" Width="90" Height="26"
-                            Background="{StaticResource PrimaryBrush}" Foreground="#FFFFFF" BorderThickness="0" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
+                            Background="{DynamicResource PrimaryBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}" CornerRadius="2">
@@ -208,24 +208,24 @@
                     </Button>
                 </StackPanel>
 
-                <TextBlock Text="{Binding SettingsStatusMessage}" FontSize="11" Foreground="{StaticResource SuccessBrush}"
+                <TextBlock Text="{Binding SettingsStatusMessage}" FontSize="11" Foreground="{DynamicResource SuccessBrush}"
                            Margin="0,6,0,0" HorizontalAlignment="Right"
                            Visibility="{Binding SettingsStatusMessage, Converter={StaticResource NullToVis}}" />
             </StackPanel>
         </Border>
 
         <!-- 2. ONBOARDING BANNER (If not configured) -->
-        <Border Grid.Row="2" Background="#FFFBEB" BorderBrush="#C05621" BorderThickness="0,0,0,1" Padding="12,10"
+        <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource WarningDarkBrush}" BorderThickness="0,0,0,1" Padding="12,10"
                 Visibility="{Binding IsConfigured, Converter={StaticResource InverseBoolToVis}}">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                     <TextBlock Text="🔑" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Chưa kết nối Gemini API Key" FontWeight="Bold" FontSize="11.5" Foreground="#92400E" VerticalAlignment="Center" />
+                    <TextBlock Text="Chưa kết nối Gemini API Key" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource WarningDarkBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Text="Google cấp miễn phí 1.500 lượt hỏi/ngày. Hãy dán Key để bắt đầu sử dụng."
-                           FontSize="11" Foreground="#78350F" TextWrapping="Wrap" Margin="0,0,0,8" />
+                           FontSize="11" Foreground="{DynamicResource WarningDarkBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <Button Command="{Binding ToggleSettingsCommand}"
-                        Background="{StaticResource WarningBrush}" Foreground="#FFFFFF" BorderThickness="0" Padding="10,4"
+                        Background="{DynamicResource WarningBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0" Padding="10,4"
                         HorizontalAlignment="Left" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -240,46 +240,46 @@
         </Border>
 
         <!-- 3. CHAT MESSAGES SCROLLVIEWER (Industrial Neutral Surface) -->
-        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="3" Background="{StaticResource SelectionHoverBrush}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,8">
+        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="3" Background="{DynamicResource SelectionHoverBrush}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,8">
             <ItemsControl ItemsSource="{Binding Messages}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ChatMessageModel}">
                         <Grid Margin="0,3,0,7">
                             <!-- USER MESSAGE (Crisp White Card with Slate Border) -->
-                            <Border Background="#FFFFFF" BorderBrush="{StaticResource IndustrialBorderDefaultBrush}" BorderThickness="1"
+                            <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                     CornerRadius="2" Padding="10,8"
                                     HorizontalAlignment="Right" MaxWidth="700" Margin="30,0,0,0"
                                     Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="{Binding Content}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding FormattedTime}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding Content}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding FormattedTime}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" Margin="0,4,0,0" />
                                 </StackPanel>
                             </Border>
 
                             <!-- ASSISTANT MESSAGE CARD (Pure White Industrial Card - Stretches with Panel Width) -->
-                            <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                     CornerRadius="2" Padding="12,10"
                                     HorizontalAlignment="Stretch"
                                     Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Orientation="Vertical">
                                     <!-- Assistant Header -->
                                     <DockPanel LastChildFill="False" Margin="0,0,0,6">
-                                        <Border DockPanel.Dock="Left" Background="{StaticResource SelectionHoverBrush}" BorderBrush="{StaticResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="5,1">
+                                        <Border DockPanel.Dock="Left" Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="5,1">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="⚡" FontSize="10" Margin="0,0,3,0" Foreground="{StaticResource PrimaryBrush}" />
-                                                <TextBlock Text="SynaptiX AI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" />
+                                                <TextBlock Text="⚡" FontSize="10" Margin="0,0,3,0" Foreground="{DynamicResource PrimaryBrush}" />
+                                                <TextBlock Text="SynaptiX AI" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" />
                                             </StackPanel>
                                         </Border>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding FormattedTime}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding FormattedTime}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                                     </DockPanel>
 
                                     <!-- Content Text (Rendered Markdown with Headings, Badges, Code Blocks) -->
-                                    <controls:MarkdownTextBlock Markdown="{Binding DisplayContent}" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="17" />
+                                    <controls:MarkdownTextBlock Markdown="{Binding DisplayContent}" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="17" />
 
                                     <!-- Loading Indicator -->
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="Đang xử lý..." FontSize="10.5" FontStyle="Italic" Foreground="{StaticResource PrimaryBrush}" />
+                                        <TextBlock Text="Đang xử lý..." FontSize="10.5" FontStyle="Italic" Foreground="{DynamicResource PrimaryBrush}" />
                                     </StackPanel>
 
                                     <!-- INLINE PROPOSAL & STATUS CARD -->
@@ -321,12 +321,12 @@
                                                     </Style>
                                                 </StackPanel.Style>
 
-                                                <TextBlock Text="{Binding ProposalSummaryText}" FontSize="11" Foreground="#475569"
+                                                <TextBlock Text="{Binding ProposalSummaryText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                                            VerticalAlignment="Center" Margin="0,0,10,0" />
 
                                                 <Button Command="{Binding DataContext.AcceptProposalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"
-                                                        Background="#107C41" Foreground="#FFFFFF" BorderThickness="0"
+                                                        Background="{DynamicResource SuccessBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0"
                                                         Padding="8,3" Margin="0,0,5,0" Cursor="Hand"
                                                         ToolTip="Áp dụng lên Canvas và sinh Rule">
                                                     <Button.Template>
@@ -341,7 +341,7 @@
 
                                                 <Button Command="{Binding DataContext.RejectProposalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"
-                                                        Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                        Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                         Padding="7,3" Cursor="Hand"
                                                         ToolTip="Hủy bỏ bản vẽ nháp">
                                                     <Button.Template>
@@ -351,12 +351,12 @@
                                                             </Border>
                                                         </ControlTemplate>
                                                     </Button.Template>
-                                                    <TextBlock Text="✕ Hủy" FontSize="10.5" Foreground="#64748B" />
+                                                    <TextBlock Text="✕ Hủy" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
                                                 </Button>
                                             </StackPanel>
 
                                             <!-- Trạng thái đã áp dụng -->
-                                            <TextBlock Text="{Binding AppliedStatusText}" FontSize="10.5" Foreground="#107C41">
+                                            <TextBlock Text="{Binding AppliedStatusText}" FontSize="10.5" Foreground="{DynamicResource SuccessBrush}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -370,7 +370,7 @@
                                             </TextBlock>
 
                                             <!-- Trạng thái đã hủy -->
-                                            <TextBlock Text="✕ Đã hủy" FontSize="10.5" Foreground="#94A3B8" FontStyle="Italic">
+                                            <TextBlock Text="✕ Đã hủy" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -386,7 +386,7 @@
                                     </Border>
 
                                     <!-- Action Strip (Apply Rules & Copy) -->
-                                    <Border BorderBrush="#F1F5F9" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,5,0,0"
+                                    <Border BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,5,0,0"
                                             Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVis}}">
                                         <DockPanel LastChildFill="False">
 
@@ -395,7 +395,7 @@
                                             <Button DockPanel.Dock="Right"
                                                     Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding DisplayContent}"
-                                                    Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                    Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                     Padding="6,2" Cursor="Hand"
                                                     ToolTip="Sao chép nội dung gợi ý vào Clipboard">
                                                 <Button.Template>
@@ -407,7 +407,7 @@
                                                 </Button.Template>
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="📋 " FontSize="10" />
-                                                    <TextBlock Text="Copy gợi ý" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                    <TextBlock Text="Copy gợi ý" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 </StackPanel>
                                             </Button>
                                         </DockPanel>
@@ -421,7 +421,7 @@
         </ScrollViewer>
 
         <!-- 4. QUICK PROMPTS CHIPS (Contextual Suggestions Strip) -->
-        <Border Grid.Row="4" Background="{StaticResource IndustrialSurfaceInsetBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="6,5">
+        <Border Grid.Row="4" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,1,0,0" Padding="6,5">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding SuggestionChips}">
                     <ItemsControl.ItemsPanel>
@@ -433,7 +433,7 @@
                         <DataTemplate>
                             <Button Command="{Binding Command}" CommandParameter="{Binding Prompt}"
                                     ToolTip="{Binding Tooltip}"
-                                    Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                     Padding="7,3" Margin="0,0,4,0" Cursor="Hand">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
@@ -443,12 +443,12 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ChipBdr" Property="Background" Value="{StaticResource SelectionHighlightBrush}" />
+                                                <Setter TargetName="ChipBdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Button.Template>
-                                <TextBlock Text="{Binding DisplayText}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding DisplayText}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -457,7 +457,7 @@
         </Border>
 
         <!-- 5. INPUT BAR (Pure White with Soft Gray Input Box) -->
-        <Border Grid.Row="5" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="8,7">
+        <Border Grid.Row="5" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,1,0,0" Padding="8,7">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -472,7 +472,7 @@
                              AcceptsReturn="True" MaxHeight="90" MinHeight="32"
                              TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              FontSize="12" Padding="6,5" VerticalContentAlignment="Top"
-                             BorderBrush="{StaticResource BorderLightBrush}" Background="{StaticResource IndustrialSurfaceInsetBrush}">
+                             BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Background="{DynamicResource IndustrialSurfaceInsetBrush}">
                         <TextBox.Resources>
                             <Style TargetType="{x:Type Border}">
                                 <Setter Property="CornerRadius" Value="2" />
@@ -482,7 +482,7 @@
 
                     <!-- Watermark / Placeholder Text -->
                     <TextBlock Text="Hỏi đáp kỹ thuật hoặc mô tả mạch cần tạo... (Enter để gửi, Shift+Enter xuống dòng)"
-                               FontSize="11.5" Foreground="{StaticResource TextMutedBrush}"
+                               FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"
                                Margin="8,6,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -501,7 +501,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Bottom">
                     <!-- Cancel button when busy -->
                     <Button Command="{Binding CancelCurrentRequestCommand}"
-                            Background="{StaticResource DangerBrush}" Foreground="#FFFFFF" BorderThickness="0"
+                            Background="{DynamicResource DangerBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0"
                             Width="34" Height="32" Cursor="Hand" ToolTip="Hủy yêu cầu"
                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
                         <Button.Template>
@@ -520,20 +520,20 @@
                             Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="Bdr" Background="{StaticResource PrimaryBrush}" CornerRadius="2">
-                                    <TextBlock x:Name="Txt" Text="➤" FontSize="13" Foreground="#FFFFFF"
+                                <Border x:Name="Bdr" Background="{DynamicResource PrimaryBrush}" CornerRadius="2">
+                                    <TextBlock x:Name="Txt" Text="➤" FontSize="13" Foreground="{DynamicResource BgPanelBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource PrimaryHoverBrush}" />
                                     </Trigger>
                                     <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource PrimaryActiveBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource PrimaryActiveBrush}" />
                                     </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="Bdr" Property="Background" Value="{StaticResource SelectionHighlightBrush}" />
-                                        <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                        <Setter TargetName="Bdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                        <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

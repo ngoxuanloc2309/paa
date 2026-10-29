@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SimplePLC.Application.Enums;
 using SimplePLC.Application.Models;
@@ -20,7 +21,55 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(FormulaExpression))]
     [NotifyPropertyChangedFor(nameof(BoundTagIndex))]
+    [NotifyPropertyChangedFor(nameof(InputConnectionBadge))]
+    [NotifyPropertyChangedFor(nameof(HasWireConnection))]
     private TagModel? _inputTag;
+
+    public string InputConnectionBadge => InputTag != null
+        ? $"🔗 Connected: {InputTag.Name}"
+        : string.Empty;
+
+    public bool HasWireConnection => InputTag != null;
+
+    partial void OnInputTagChanged(TagModel? oldValue, TagModel? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.PropertyChanged -= OnTagPropertyChanged;
+        }
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnTagPropertyChanged;
+        }
+        OnPropertyChanged(nameof(FormulaExpression));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(InputConnectionBadge));
+        OnPropertyChanged(nameof(HasWireConnection));
+        if (newValue?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+        {
+            ThresholdLoText = SmartInputParser.FormatReal(ThresholdLo);
+            ThresholdHiText = SmartInputParser.FormatReal(ThresholdHi);
+        }
+    }
+
+    private void OnTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias))
+        {
+            OnPropertyChanged(nameof(FormulaExpression));
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(InputConnectionBadge));
+        }
+    }
+
+    public override void Dispose()
+    {
+        if (InputTag != null)
+        {
+            InputTag.PropertyChanged -= OnTagPropertyChanged;
+        }
+        base.Dispose();
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -112,8 +161,13 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
             string tagName = (InputTag != null && InputTag.Kind != TagKind.None && !string.IsNullOrWhiteSpace(InputTag.Name))
                 ? InputTag.Name
                 : "IN";
-            string loStr = ThresholdLo.ToString("0.##");
-            string hiStr = ThresholdHi.ToString("0.##");
+            bool isFloat = InputTag != null && InputTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32;
+            string loStr = isFloat 
+                ? SmartInputParser.FormatReal(ThresholdLo) 
+                : (InputTag?.IsDigital == true ? ((int)ThresholdLo != 0 ? "1" : "0") : ThresholdLo.ToString("0.##"));
+            string hiStr = isFloat 
+                ? SmartInputParser.FormatReal(ThresholdHi) 
+                : ThresholdHi.ToString("0.##");
             return CompareOp switch
             {
                 CompareOp.EQ => $"{tagName} == {loStr}",

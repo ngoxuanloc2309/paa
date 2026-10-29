@@ -1,10 +1,16 @@
 namespace SimplePLC.Application.Services;
 
+using System.Threading.Channels;
 using SimplePLC.Application.Abstractions;
 using SimplePLC.Application.Mapping;
 using SimplePLC.Application.Models;
 using SimplePLC.Domain.Models;
 
+/// <summary>
+/// Dịch vụ giám sát trạng thái thời gian thực của thiết bị PLC.
+/// Điều phối vòng lặp đọc Runtime Tags, Function Blocks và Device Health định kỳ qua Modbus,
+/// cung cấp kênh truyền Reactive Stream đệm Backpressure (Channel<T>) cho UI.
+/// </summary>
 public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
 {
     private IRuntimeTagReader _tagReader;
@@ -18,6 +24,24 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
     private Task? _pollTask;
     private readonly object _syncLock = new();
     private bool _isDisposed;
+
+    private RuntimeTagValue[]? _tagBuffer;
+    private ProductDefinition? _bufferedProduct;
+
+    private readonly Channel<IReadOnlyList<RuntimeTagValue>> _tagChannel =
+        Channel.CreateBounded<IReadOnlyList<RuntimeTagValue>>(
+            new BoundedChannelOptions(1)
+            {
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleWriter = true,
+                SingleReader = false
+            });
+
+    /// <summary>
+    /// Kênh phát Telemetry đẩy (Push-based Reactive Stream) với chế độ đệm Backpressure (DropOldest).
+    /// Đảm bảo luồng đọc phần cứng Modbus không bao giờ bị nghẽn bởi tốc độ render của giao diện người dùng.
+    /// </summary>
+    public ChannelReader<IReadOnlyList<RuntimeTagValue>> TagStream => _tagChannel.Reader;
 
     public event Action<IReadOnlyList<RuntimeTagValue>>? TagsUpdated;
     public event Action<DeviceHealthInfo>? HealthUpdated;
@@ -255,44 +279,60 @@ public sealed class RuntimeMonitorService : IAsyncDisposable, IDisposable
                     if (IsTagPollingEnabled)
                     {
                         var rawValues = await _tagReader.ReadRuntimeTagValuesAsync(slaveId, tagCount, ct).ConfigureAwait(false);
-                        var timestamp = DateTime.UtcNow;
+                        var timestamp = DateTime.UtcNow; // ARCH_ALLOW_TIME: Telemetry packet arrival timestamp
 
-                        List<RuntimeTagValue> tagValues;
                         if (product.Tags.Count > 0)
                         {
-                            tagValues = new List<RuntimeTagValue>(product.Tags.Count);
-                            foreach (var def in product.Tags)
+                            if (_tagBuffer == null || _bufferedProduct != product || _tagBuffer.Length != product.Tags.Count)
                             {
-                                int val = (def.TagIndex < rawValues.Length) ? rawValues[def.TagIndex] : 0;
-                                tagValues.Add(new RuntimeTagValue
+                                _tagBuffer = new RuntimeTagValue[product.Tags.Count];
+                                for (int i = 0; i < product.Tags.Count; i++)
                                 {
-                                    TagIndex = def.TagIndex,
-                                    TagName = def.Name,
-                                    Value = val,
-                                    Quality = 0,
-                                    Timestamp = timestamp
-                                });
+                                    _tagBuffer[i] = new RuntimeTagValue
+                                    {
+                                        TagIndex = product.Tags[i].TagIndex,
+                                        TagName = product.Tags[i].Name,
+                                        Quality = 0
+                                    };
+                                }
+                                _bufferedProduct = product;
+                            }
+
+                            for (int i = 0; i < product.Tags.Count; i++)
+                            {
+                                var def = product.Tags[i];
+                                int val = (def.TagIndex < rawValues.Length) ? rawValues[def.TagIndex] : 0;
+                                _tagBuffer[i].Value = val;
+                                _tagBuffer[i].Timestamp = timestamp;
                             }
                         }
                         else
                         {
-                            tagValues = new List<RuntimeTagValue>(rawValues.Length);
+                            if (_tagBuffer == null || _tagBuffer.Length != rawValues.Length)
+                            {
+                                _tagBuffer = new RuntimeTagValue[rawValues.Length];
+                                for (ushort i = 0; i < rawValues.Length; i++)
+                                {
+                                    _tagBuffer[i] = new RuntimeTagValue
+                                    {
+                                        TagIndex = i,
+                                        TagName = $"TAG_{i}",
+                                        Quality = 0
+                                    };
+                                }
+                                _bufferedProduct = null;
+                            }
+
                             for (ushort i = 0; i < rawValues.Length; i++)
                             {
-                                ushort tagIdx = i;
-                                tagValues.Add(new RuntimeTagValue
-                                {
-                                    TagIndex = tagIdx,
-                                    TagName = $"TAG_{tagIdx}",
-                                    Value = rawValues[i],
-                                    Quality = 0,
-                                    Timestamp = timestamp
-                                });
+                                _tagBuffer[i].Value = rawValues[i];
+                                _tagBuffer[i].Timestamp = timestamp;
                             }
                         }
 
-                        TagsUpdated?.Invoke(tagValues);
-                        _stateStore?.UpdateTags(tagValues, product);
+                        _tagChannel.Writer.TryWrite(_tagBuffer);
+                        TagsUpdated?.Invoke(_tagBuffer);
+                        _stateStore?.UpdateTags(_tagBuffer, product);
 
                         // 1b. Đọc Function Block subsystem nếu thiết bị hỗ trợ Wire Profile V2
                         if (product.SupportsDedicatedFunctionBlocks && _fbGateway != null)

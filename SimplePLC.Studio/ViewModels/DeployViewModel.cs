@@ -12,8 +12,14 @@ using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// Trạng thái của từng bước trong quy trình biên dịch và nạp cấu hình xuống thiết bị.
+/// </summary>
 public enum StepStatus { Pending, InProgress, Success, Failed }
 
+/// <summary>
+/// Mục hiển thị từng bước nạp cấu hình trong danh sách Deploy.
+/// </summary>
 public partial class DeployStepItem : ObservableObject
 {
     [ObservableProperty] private int _index;
@@ -649,28 +655,15 @@ public partial class DeployViewModel : ObservableObject
                 }).ToList();
             }
 
-            // Build Modbus Slave Mapping Table if available (0x1500)
+            // Modbus Slave hoạt động theo bản đồ cố định tiêu chuẩn (không cần truyền bảng map 0x1500)
             IReadOnlyList<ModbusSlaveMapEntryDto>? modbusSlaveMapConfigs = null;
-            if (meta?.ModbusSlaveMapEntries != null && meta.ModbusSlaveMapEntries.Count > 0)
-            {
-                modbusSlaveMapConfigs = meta.ModbusSlaveMapEntries.Select(e => new ModbusSlaveMapEntryDto
-                {
-                    ModbusAddress = e.ModbusAddress,
-                    TargetTagIndex = e.TargetTagIndex,
-                    AccessRight = Enum.TryParse<ModbusSlaveAccessRight>(e.AccessRight, true, out var ar) ? ar : ModbusSlaveAccessRight.ReadOnly,
-                    DataType = e.DataType,
-                    PortMask = e.PortMask,
-                    Description = e.Description ?? string.Empty
-                }).ToList();
-            }
 
             if (modbusPortConfigs != null && modbusPortConfigs.Any(p => p.Role == ModbusPortRole.Slave))
             {
                 var slavePorts = modbusPortConfigs.Where(p => p.Role == ModbusPortRole.Slave).ToList();
-                int mapCount = modbusSlaveMapConfigs?.Count ?? 0;
                 AppendLog(LocalizationService.Instance.IsVietnamese
-                    ? $"[Modbus Slave] Phát hiện {slavePorts.Count} cổng Slave (Kênh 0x1500: {mapCount} entries ánh xạ vùng nhớ an toàn)."
-                    : $"[Modbus Slave] Detected {slavePorts.Count} Slave port(s) (Partition 0x1500: {mapCount} sandbox memory map entries).");
+                    ? $"[Modbus Slave] Phát hiện {slavePorts.Count} cổng Slave (Hoạt động theo bản đồ địa chỉ cố định chuẩn thiết bị)."
+                    : $"[Modbus Slave] Detected {slavePorts.Count} Slave port(s) (Operating in factory fixed memory addressing mode).");
             }
 
             var modbusWriteConfigs = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;

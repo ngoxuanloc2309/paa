@@ -28,7 +28,7 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
 
         FontFamily="Segoe UI"
 
@@ -62,7 +62,7 @@
 
 
 
-    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
 
         <Grid Margin="16">
 
@@ -98,7 +98,7 @@
 
 
 
-                <Border Grid.Column="0" Width="40" Height="40" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Margin="0,0,12,0"
+                <Border Grid.Column="0" Width="40" Height="40" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,12,0"
 
                         ToolTip="{Binding [MqttHeaderTooltip], Source={x:Static services:LocalizationService.Instance}}">
 
@@ -130,11 +130,11 @@
 
                             <TextBlock Text="{Binding [MqttConfigDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                       FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                             <TextBlock Text="{Binding [MqttConfigDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
+                                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
 
                         </StackPanel>
 
@@ -168,7 +168,7 @@
 
                 <!-- LEFT PANE: COMMUNICATION & PAYLOAD CONFIGURATION -->
 
-                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="14">
+                <Border Grid.Column="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14">
 
                     <Grid>
 
@@ -206,7 +206,7 @@
 
                         <TextBlock Grid.Row="0" Text="THÔNG SỐ GIAO TIẾP &amp; KÍCH HOẠT (MQTT COMMUNICATION)" 
 
-                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
+                                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" Margin="0,0,0,8" />
 
 
 
@@ -246,7 +246,7 @@
 
                                 <TextBlock Grid.Column="0" Text="{Binding [InspectorMqttTopic], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
 
                                 <TextBox Grid.Column="1" Text="{Binding Node.Topic, UpdateSourceTrigger=PropertyChanged}" 
 
@@ -268,13 +268,13 @@
 
                             <Border Grid.Row="1" Visibility="{Binding Node.HasTopicError, Converter={StaticResource BoolToVis}}"
 
-                                    Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,2,0,8">
+                                    Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="2" Padding="6,4" Margin="0,2,0,8">
 
                                 <StackPanel Orientation="Horizontal">
 
-                                    <Border Width="3" Background="#DC2626" CornerRadius="1" Margin="0,0,6,0" />
+                                    <Border Width="3" Background="{DynamicResource DangerBrush}" CornerRadius="1" Margin="0,0,6,0" />
 
-                                    <TextBlock Text="{Binding Node.TopicValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Node.TopicValidationError}" Foreground="{DynamicResource DangerBrush}" FontSize="10.5" TextWrapping="Wrap" />
 
                                 </StackPanel>
 
@@ -320,7 +320,7 @@
 
                                     <TextBlock Text="{Binding [InspectorMqttPublishMode], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
 
                                     <ComboBox SelectedValue="{Binding Node.PublishMode, Mode=TwoWay}" SelectedValuePath="Tag" 
 
@@ -350,7 +350,7 @@
 
                                         <TextBlock Text="{Binding [InspectorIntervalMs], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
 
                                         <TextBox Text="{Binding Node.IntervalMs, UpdateSourceTrigger=PropertyChanged}" 
 
@@ -366,7 +366,7 @@
 
                                         <TextBlock Text="{Binding [InspectorMqttDeadband], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                                   FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
 
                                         <TextBox Text="{Binding Node.DeadbandText, UpdateSourceTrigger=PropertyChanged}" 
 
@@ -380,11 +380,11 @@
 
                                     <StackPanel Visibility="{Binding Node.IsEventMode, Converter={StaticResource BoolToVis}}">
 
-                                        <TextBlock Text="Kích hoạt" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" Margin="0,0,0,3" />
+                                        <TextBlock Text="Kích hoạt" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" />
 
-                                        <Border Height="28" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2">
+                                        <Border Height="28" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="2">
 
-                                            <TextBlock Text="Chân Trig (FBD)" FontSize="10.5" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <TextBlock Text="Chân Trig (FBD)" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
                                         </Border>
 
@@ -402,7 +402,7 @@
 
                                                ToolTip="{Binding [InspectorMqttQosTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,3" />
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
 
                                     <Grid Height="28">
 
@@ -426,11 +426,11 @@
 
                                                 <Style TargetType="Button">
 
-                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
 
-                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                                     <Setter Property="BorderThickness" Value="1" />
 
@@ -440,11 +440,11 @@
 
                                                         <DataTrigger Binding="{Binding Node.IsQos0}" Value="True">
 
-                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
 
-                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
-                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
                                                             <Setter Property="FontWeight" Value="Bold" />
 
@@ -468,11 +468,11 @@
 
                                                 <Style TargetType="Button">
 
-                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
 
-                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                                     <Setter Property="BorderThickness" Value="1" />
 
@@ -482,11 +482,11 @@
 
                                                         <DataTrigger Binding="{Binding Node.IsQos1}" Value="True">
 
-                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
 
-                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
-                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
                                                             <Setter Property="FontWeight" Value="Bold" />
 
@@ -510,11 +510,11 @@
 
                                                 <Style TargetType="Button">
 
-                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                                    <Setter Property="Foreground" Value="#475569" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
 
-                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                                     <Setter Property="BorderThickness" Value="1" />
 
@@ -524,11 +524,11 @@
 
                                                         <DataTrigger Binding="{Binding Node.IsQos2}" Value="True">
 
-                                                            <Setter Property="Background" Value="#E0F2FE" />
+                                                            <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
 
-                                                            <Setter Property="Foreground" Value="#006487" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
-                                                            <Setter Property="BorderBrush" Value="#006487" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
                                                             <Setter Property="FontWeight" Value="Bold" />
 
@@ -558,7 +558,7 @@
 
                                               Content="Retain" 
 
-                                              FontWeight="SemiBold" FontSize="11" Foreground="#334155" />
+                                              FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                                 </StackPanel>
 
@@ -572,7 +572,7 @@
 
                         <TextBlock Grid.Row="3" Text="{Binding [MqttConfigFieldSection], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11" Margin="0,0,0,8" />
+                                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" Margin="0,0,0,8" />
 
 
 
@@ -590,7 +590,7 @@
 
                             <TextBlock Grid.Column="0" Text="{Binding [InspectorMqttFormatLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
 
                             <ComboBox Grid.Column="1" SelectedValue="{Binding Node.PayloadMode, Mode=TwoWay}" SelectedValuePath="Tag" 
 
@@ -630,13 +630,13 @@
 
                             <TextBlock Grid.Row="0" Text="{Binding [InspectorMqttFieldBuilderDesc], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                       FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
 
 
 
                             <!-- Fields Table Container -->
 
-                            <Border Grid.Row="1" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Background="#FFFFFF">
+                            <Border Grid.Row="1" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource BgPanelBrush}">
 
                                 <Grid>
 
@@ -652,7 +652,7 @@
 
                                     <!-- Column Header -->
 
-                                    <Grid Grid.Row="0" Background="#F1F5F9" Height="26" Margin="4,0,4,0">
+                                    <Grid Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" Height="26" Margin="4,0,4,0">
 
                                         <Grid.ColumnDefinitions>
 
@@ -676,19 +676,19 @@
 
                                                    ToolTip="{Binding [InspectorMqttColKeyTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                   FontSize="10" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="6,0" />
+                                                   FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0" />
 
                                         <TextBlock Grid.Column="2" Text="{Binding [InspectorMqttColTag], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                    ToolTip="{Binding [InspectorMqttColTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                   FontSize="10" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" Margin="4,0" />
+                                                   FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
 
                                         <TextBlock Grid.Column="4" Text="{Binding [ColTagDataType], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                    ToolTip="{Binding [InspectorMqttColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                   FontSize="10" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                   FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
 
                                     </Grid>
 
@@ -730,7 +730,7 @@
 
                                                                  ToolTip="{Binding [MqttFieldKeyTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                                 Height="25" Padding="6,2" FontSize="11" FontFamily="Consolas" VerticalContentAlignment="Center" Background="#FFFFFF" BorderBrush="#E2E8F0" />
+                                                                 Height="25" Padding="6,2" FontSize="11" FontFamily="Consolas" VerticalContentAlignment="Center" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" />
 
                                                         <!-- Source Tag Selection -->
 
@@ -744,15 +744,15 @@
 
                                                                   ToolTip="{Binding [MqttFieldTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" BorderBrush="#E2E8F0" />
+                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" />
 
                                                         <!-- Auto Data Type Badge (IEC 61131-3: BOOL / DINT / REAL) -->
 
-                                                        <Border Grid.Column="4" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Height="25" Padding="4,2" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                        <Border Grid.Column="4" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="2" Height="25" Padding="4,2" VerticalAlignment="Center" HorizontalAlignment="Stretch"
 
                                                                 ToolTip="{Binding [MqttFieldDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}">
 
-                                                            <TextBlock Text="{Binding DataTypeText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                            <TextBlock Text="{Binding DataTypeText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
 
                                                         </Border>
 
@@ -824,13 +824,13 @@
 
                                 <TextBlock DockPanel.Dock="Left" Text="{Binding [MqttConfigCustomTemplateDesc], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
 
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding Node.CustomTemplateCounterText}" 
 
                                            ToolTip="{Binding [MqttCustomTemplateCounterTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
-                                           FontSize="10" FontFamily="Consolas" Foreground="#64748B" HorizontalAlignment="Right" />
+                                           FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
 
                             </DockPanel>
 
@@ -846,15 +846,15 @@
 
                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" 
 
-                                     FontFamily="Consolas" FontSize="11" Foreground="#0F172A" Background="#F8FAFC" 
+                                     FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Background="{DynamicResource BgWindowBrush}" 
 
-                                     BorderBrush="#CBD5E1" BorderThickness="1" Padding="8" />
+                                     BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" Padding="8" />
 
 
 
                             <!-- Variable Hint Card (100% Localized) -->
 
-                            <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,8,0,0"
+                            <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,8,0,0"
 
                                     ToolTip="{Binding [MqttCustomTemplateHintTooltip], Source={x:Static services:LocalizationService.Instance}}">
 
@@ -862,15 +862,15 @@
 
                                     <TextBlock Text="{Binding [MqttConfigCustomHintTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,2" />
+                                               FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
 
                                     <TextBlock Text="{Binding [MqttConfigCustomHintVars], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="9.5" FontFamily="Consolas" Foreground="#475569" Margin="0,0,0,2" />
+                                               FontSize="9.5" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
 
                                     <TextBlock Text="{Binding [MqttConfigCustomHintTags], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="9.5" Foreground="#64748B" TextWrapping="Wrap" />
+                                               FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
 
                                 </StackPanel>
 
@@ -880,15 +880,15 @@
 
                             <!-- Validation Error Banner -->
 
-                            <Border Grid.Row="3" Background="#FEF2F2" BorderBrush="#F87171" BorderThickness="1" CornerRadius="2" Padding="8,5" Margin="0,6,0,0"
+                            <Border Grid.Row="3" Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="2" Padding="8,5" Margin="0,6,0,0"
 
                                     Visibility="{Binding Node.HasCustomTemplateError, Converter={StaticResource BoolToVis}}">
 
                                 <StackPanel Orientation="Horizontal">
 
-                                    <Border Width="3" Background="#DC2626" CornerRadius="1" Margin="0,0,6,0" />
+                                    <Border Width="3" Background="{DynamicResource DangerBrush}" CornerRadius="1" Margin="0,0,6,0" />
 
-                                    <TextBlock Text="{Binding Node.CustomTemplateValidationError}" Foreground="#DC2626" FontSize="10.5" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Node.CustomTemplateValidationError}" Foreground="{DynamicResource DangerBrush}" FontSize="10.5" TextWrapping="Wrap" VerticalAlignment="Center"/>
 
                                 </StackPanel>
 
@@ -904,7 +904,7 @@
 
                 <!-- RIGHT PANE: LIVE PAYLOAD PREVIEW ONLY -->
 
-                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="14">
+                <Border Grid.Column="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14">
 
                     <Grid>
 
@@ -930,21 +930,21 @@
 
                         <TextBlock Grid.Row="0" Text="{Binding [MqttConfigPayloadSection], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontWeight="Bold" Foreground="#1E293B" FontSize="11.5" Margin="0,0,0,8" />
+                                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11.5" Margin="0,0,0,8" />
 
 
 
                         <!-- Live Payload Preview Box (Expanded with No Empty Waste) -->
 
-                        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Margin="0,0,0,8"
+                        <Border Grid.Row="1" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,0,8"
 
                                 ToolTip="{Binding [MqttPreviewPayloadTooltip], Source={x:Static services:LocalizationService.Instance}}">
 
                             <TextBox Text="{Binding Node.PreviewPayloadText, Mode=OneWay}" 
 
-                                     IsReadOnly="True" Background="#F8FAFC" BorderThickness="0" 
+                                     IsReadOnly="True" Background="{DynamicResource BgWindowBrush}" BorderThickness="0" 
 
-                                     FontFamily="Consolas" FontSize="11" Foreground="#0F172A" 
+                                     FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" 
 
                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" 
 
@@ -956,23 +956,23 @@
 
                         <!-- Ready Status Banner (ISA-101 / TIA Portal Diagnostic Box - Option 1 Compliance) -->
 
-                        <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="8,6"
+                        <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,6"
 
                                 ToolTip="{Binding [MqttReadyStatusTooltip], Source={x:Static services:LocalizationService.Instance}}">
 
                             <DockPanel LastChildFill="True">
 
-                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,8,0" DockPanel.Dock="Left" />
+                                <Border Width="3" Background="{DynamicResource SuccessBrush}" CornerRadius="1" Margin="0,0,8,0" DockPanel.Dock="Left" />
 
                                 <StackPanel>
 
                                     <TextBlock Text="{Binding [MqttConfigReadyTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontWeight="SemiBold" FontSize="10.5" Foreground="#0F172A" Margin="0,0,0,2" />
+                                               FontWeight="SemiBold" FontSize="10.5" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,2" />
 
                                     <TextBlock Text="{Binding [MqttConfigReadyDesc], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="#475569" TextWrapping="Wrap" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
 
                                 </StackPanel>
 
@@ -990,7 +990,7 @@
 
             <!-- 2. Footer Action -->
 
-            <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,10,0,0">
+            <Border Grid.Row="2" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="0,10,0,0">
 
                 <DockPanel LastChildFill="False">
 
@@ -1000,13 +1000,13 @@
 
                         <TextBlock Text="{Binding [MqttConfigTargetTopic], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontSize="11" Foreground="#64748B" Margin="0,0,6,0" />
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" />
 
-                        <TextBlock Text="{Binding Node.Topic}" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#334155" Margin="0,0,10,0" />
+                        <TextBlock Text="{Binding Node.Topic}" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" />
 
-                        <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2">
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2">
 
-                            <TextBlock Text="{Binding Node.PublishModeSummaryText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="#475569" />
+                            <TextBlock Text="{Binding Node.PublishModeSummaryText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                         </Border>
 

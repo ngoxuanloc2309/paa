@@ -21,6 +21,9 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Equal((ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET, preset.DeviceVariant);
         Assert.True((preset.HardwareCapabilities & SPLC_HardwareCapabilities.HTTP_CLIENT) != 0);
         Assert.True((preset.HardwareCapabilities & SPLC_HardwareCapabilities.TRANSPARENT_STREAM) != 0);
+        var product = preset.BuildProductDefinition();
+        Assert.NotNull(product);
+        Assert.Equal(32, product.Resources.VirtualRegisters);
     }
 
     [Fact]

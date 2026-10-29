@@ -40,7 +40,7 @@
         <Setter Property="Height" Value="11"/>
         <Setter Property="Stretch" Value="Uniform"/>
         <Setter Property="Fill" Value="Transparent"/>
-        <Setter Property="Stroke" Value="#475569"/>
+        <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}"/>
         <Setter Property="StrokeThickness" Value="1.5"/>
         <Setter Property="StrokeLineJoin" Value="Round"/>
         <Setter Property="StrokeStartLineCap" Value="Round"/>
@@ -62,7 +62,7 @@
     <ControlTemplate x:Key="IndustrialPortPinTemplate" TargetType="{x:Type Control}">
         <Grid Width="10" Height="10" Background="Transparent" VerticalAlignment="Center">
             <Ellipse x:Name="PinBg"
-                     Fill="#FFFFFF"
+                     Fill="{DynamicResource BgPanelBrush}"
                      Stroke="{TemplateBinding BorderBrush}"
                      StrokeThickness="2" />
         </Grid>
@@ -72,8 +72,8 @@
                 <Setter TargetName="PinBg" Property="Fill" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
             </DataTrigger>
             <DataTrigger Binding="{Binding HasError}" Value="True">
-                <Setter TargetName="PinBg" Property="Stroke" Value="#DC2626" />
-                <Setter TargetName="PinBg" Property="Fill" Value="#FEE2E2" />
+                <Setter TargetName="PinBg" Property="Stroke" Value="{DynamicResource DangerBrush}" />
+                <Setter TargetName="PinBg" Property="Fill" Value="{DynamicResource DangerLightBrush}" />
                 <Setter TargetName="PinBg" Property="StrokeThickness" Value="2.5" />
             </DataTrigger>
             <Trigger Property="IsMouseOver" Value="True">
@@ -85,8 +85,8 @@
     <!-- Global NodeInput & NodeOutput Styles: 100% transparent backgrounds, zero dark color blocks -->
     <Style TargetType="{x:Type nodify:NodeInput}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="#006487" />
-        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         <Setter Property="FontSize" Value="{StaticResource IndustrialFontSizePin}" />
         <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Height" Value="16" />
@@ -97,8 +97,8 @@
 
     <Style TargetType="{x:Type nodify:NodeOutput}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="#107C41" />
-        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         <Setter Property="FontSize" Value="{StaticResource IndustrialFontSizePin}" />
         <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Height" Value="16" />
@@ -110,9 +110,9 @@
 
     <!-- Master Industrial Node Style: Modern, Sleek, Crisp Card with Side Edge Connectors -->
     <Style x:Key="IndustrialNodeStyle" TargetType="{x:Type nodify:Node}">
-        <Setter Property="Background" Value="#FFFFFF" />
+        <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="#D1D5DB" />
+        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
         <Setter Property="Width" Value="180" />
         <Setter Property="Height" Value="86" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -125,7 +125,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type nodify:Node}">
                     <Border x:Name="NodeBorder"
-                            Background="#FFFFFF"
+                            Background="{DynamicResource BgPanelBrush}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="2"
@@ -149,36 +149,36 @@
 
                             <!-- 1. Header with subtle technical gray background and high contrast typography -->
                             <Border Grid.Row="1"
-                                    Background="#F3F4F6"
-                                    BorderBrush="#E5E7EB"
+                                    Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
                                     BorderThickness="0,0,0,1"
                                     Padding="8,0">
                                 <DockPanel LastChildFill="True">
                                     <!-- In-Place Industrial Network # Badge (Leftmost) -->
                                     <Border DockPanel.Dock="Left" VerticalAlignment="Center"
-                                            Background="#E2E8F0" BorderBrush="#94A3B8" BorderThickness="1"
+                                            Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderMediumBrush}" BorderThickness="1"
                                             CornerRadius="2" Padding="4,1" Margin="0,0,6,0"
                                             Visibility="{Binding HasNetworkNumber, Converter={StaticResource BoolToVis}}"
                                             ToolTip="{Binding NetworkBadgeText}">
                                         <TextBlock Text="{Binding NetworkBadgeText}" FontSize="9" FontWeight="Bold"
-                                                   FontFamily="Consolas" Foreground="#0F172A"
+                                                   FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
 
                                     <!-- In-Place Industrial Diagnostic Glyph Badges (Rightmost) -->
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                         <Border x:Name="DiagErrorBadge"
-                                                Background="#DC2626" BorderBrush="#991B1B" BorderThickness="1"
+                                                Background="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
                                                 CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
                                                 Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource BgPanelBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
                                         </Border>
                                         <Border x:Name="DiagWarningBadge"
-                                                Background="#D97706" BorderBrush="#92400E" BorderThickness="1"
+                                                Background="{DynamicResource WarningBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                                                 CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
                                                 Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource BgPanelBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
                                         </Border>
                                     </StackPanel>
@@ -222,54 +222,54 @@
                     <ControlTemplate.Triggers>
                         <!-- Priority 1 (lowest): Selection — informational only -->
                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#006487" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                         </DataTrigger>
                         <!-- Priority 2: Ghost state — editing placeholder -->
                         <DataTrigger Binding="{Binding IsGhost}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#475569" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource TextMutedBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="NodeBorder" Property="Opacity" Value="0.65" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#475569" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource TextMutedBrush}" />
                             <Setter TargetName="PART_Input" Property="IsHitTestVisible" Value="False" />
                             <Setter TargetName="PART_Output" Property="IsHitTestVisible" Value="False" />
                         </DataTrigger>
                         <!-- Priority 3a: Timer Timing in progress (Industrial Indigo) -->
                         <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#4C1D95" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#F5F3FF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#4C1D95" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource PrimaryBrush}" />
                         </DataTrigger>
                         <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green border & accent stripe, crisp neutral body) -->
                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource SuccessBrush}" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource SuccessBrush}" />
                         </DataTrigger>
                         <!-- Priority 4: Simulation Blocked — runtime fault state (IEC red) -->
                         <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#B91C1C" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FEE2E2" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#B91C1C" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource DangerBrush}" />
                         </DataTrigger>
                         <!-- Priority 5: Warning — static compile warning; must override sim states -->
                         <DataTrigger Binding="{Binding HasWarning}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#D97706" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Visible" />
                         </DataTrigger>
                         <!-- Priority 6 (highest): Error — critical fault; must override everything -->
                         <DataTrigger Binding="{Binding HasError}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#DC2626" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="DiagErrorBadge" Property="Visibility" Value="Visible" />
                             <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Collapsed" />
@@ -282,9 +282,9 @@
 
     <!-- Master Industrial Dynamic Node Style: Auto-expanding height for variable dynamic pins (e.g. MQTT Subscribe) -->
     <Style x:Key="IndustrialDynamicNodeStyle" TargetType="{x:Type nodify:Node}">
-        <Setter Property="Background" Value="#FFFFFF" />
+        <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="#D1D5DB" />
+        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
         <Setter Property="Width" Value="185" />
         <Setter Property="MinHeight" Value="86" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -297,7 +297,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type nodify:Node}">
                     <Border x:Name="NodeBorder"
-                            Background="#FFFFFF"
+                            Background="{DynamicResource BgPanelBrush}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="2"
@@ -321,34 +321,34 @@
 
                             <!-- 1. Header with subtle technical gray background and high contrast typography -->
                             <Border Grid.Row="1"
-                                    Background="#F3F4F6"
-                                    BorderBrush="#E5E7EB"
+                                    Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
                                     BorderThickness="0,0,0,1"
                                     Padding="8,0">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Left" VerticalAlignment="Center"
-                                            Background="#E2E8F0" BorderBrush="#94A3B8" BorderThickness="1"
+                                            Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderMediumBrush}" BorderThickness="1"
                                             CornerRadius="2" Padding="4,1" Margin="0,0,6,0"
                                             Visibility="{Binding HasNetworkNumber, Converter={StaticResource BoolToVis}}"
                                             ToolTip="{Binding NetworkBadgeText}">
                                         <TextBlock Text="{Binding NetworkBadgeText}" FontSize="9" FontWeight="Bold"
-                                                   FontFamily="Consolas" Foreground="#0F172A"
+                                                   FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
 
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                         <Border x:Name="DiagErrorBadge"
-                                                Background="#DC2626" BorderBrush="#991B1B" BorderThickness="1"
+                                                Background="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
                                                 CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
                                                 Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource BgPanelBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
                                         </Border>
                                         <Border x:Name="DiagWarningBadge"
-                                                Background="#D97706" BorderBrush="#92400E" BorderThickness="1"
+                                                Background="{DynamicResource WarningBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                                                 CornerRadius="7" Width="14" Height="14" Margin="2,0,0,0" Visibility="Collapsed"
                                                 Cursor="Help" ToolTip="{Binding ErrorMessage}">
-                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#FFFFFF"
+                                            <TextBlock Text="!" FontSize="9" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource BgPanelBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,-1,0,0" />
                                         </Border>
                                     </StackPanel>
@@ -392,54 +392,54 @@
                     <ControlTemplate.Triggers>
                         <!-- Priority 1 (lowest): Selection — informational only -->
                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#006487" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                         </DataTrigger>
                         <!-- Priority 2: Ghost state — editing placeholder -->
                         <DataTrigger Binding="{Binding IsGhost}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#475569" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource TextMutedBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="NodeBorder" Property="Opacity" Value="0.65" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#475569" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource TextMutedBrush}" />
                             <Setter TargetName="PART_Input" Property="IsHitTestVisible" Value="False" />
                             <Setter TargetName="PART_Output" Property="IsHitTestVisible" Value="False" />
                         </DataTrigger>
                         <!-- Priority 3a: Timer Timing in progress (Industrial Indigo) -->
                         <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#4C1D95" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#F5F3FF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#4C1D95" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource PrimaryBrush}" />
                         </DataTrigger>
                         <!-- Priority 3b: Simulation / Live Active — runtime OK state (IEC green border & accent stripe, crisp neutral body) -->
                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource SuccessBrush}" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FFFFFF" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#107C41" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource SuccessBrush}" />
                         </DataTrigger>
                         <!-- Priority 4: Simulation Blocked — runtime fault state (IEC red) -->
                         <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#B91C1C" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="NodeBorder" Property="Background" Value="#FEE2E2" />
-                            <Setter TargetName="AccentStripe" Property="Background" Value="#B91C1C" />
+                            <Setter TargetName="NodeBorder" Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                            <Setter TargetName="AccentStripe" Property="Background" Value="{DynamicResource DangerBrush}" />
                         </DataTrigger>
                         <!-- Priority 5: Warning — static compile warning; must override sim states -->
                         <DataTrigger Binding="{Binding HasWarning}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#D97706" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Visible" />
                         </DataTrigger>
                         <!-- Priority 6 (highest): Error — critical fault; must override everything -->
                         <DataTrigger Binding="{Binding HasError}" Value="True">
-                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#DC2626" />
+                            <Setter TargetName="NodeBorder" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                             <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
                             <Setter TargetName="DiagErrorBadge" Property="Visibility" Value="Visible" />
                             <Setter TargetName="DiagWarningBadge" Property="Visibility" Value="Collapsed" />
@@ -459,10 +459,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconInputSignal}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="100" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="100" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding TagKindText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#1E3A8A" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding TagKindText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -474,7 +474,7 @@
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding TagDescriptionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
+                <TextBlock Text="{Binding TagDescriptionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
                 <Button Command="{Binding DataContext.ToggleInputNodeCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                         CommandParameter="{Binding}"
                         ToolTip="{Binding [SimForceInputTip], Source={x:Static services:LocalizationService.Instance}}"
@@ -482,12 +482,12 @@
                     <Border BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Background" Value="#F3F4F6" />
-                                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                        <Setter Property="Background" Value="#F1F5F9" />
-                                        <Setter Property="BorderBrush" Value="#107C41" />
+                                        <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -496,10 +496,10 @@
                             <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="#64748B" />
+                                        <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                                <Setter Property="Fill" Value="#107C41" />
+                                                <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -509,10 +509,10 @@
                                        FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#1E293B" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                                <Setter Property="Foreground" Value="#107C41" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -535,10 +535,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconTriggerLightning}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="TRG" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="TRG" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -557,21 +557,21 @@
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding TriggerActionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding TriggerActionText}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSimWaitingDwell}" Value="True">
-                                    <Setter Property="Background" Value="#FEF3C7" />
-                                    <Setter Property="BorderBrush" Value="#C05621" />
+                                    <Setter Property="Background" Value="{DynamicResource WarningLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimTriggered}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -579,16 +579,16 @@
                     <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#1E293B" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                 <Setter Property="Text" Value="{Binding TriggerParamText}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSimWaitingDwell}" Value="True">
-                                        <Setter Property="Foreground" Value="#C05621" />
-                                        <Setter Property="Text" Value="{Binding SimDwellRemainingMs, StringFormat='⏳ {0}ms'}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                        <Setter Property="Text" Value="{Binding SimDwellRemainingMs, StringFormat='WAIT {0}ms'}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSimTriggered}" Value="True">
-                                        <Setter Property="Foreground" Value="#107C41" />
-                                        <Setter Property="Text" Value="✓ ĐẠT" />
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        <Setter Property="Text" Value="ĐẠT (TRIG)" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
@@ -596,7 +596,7 @@
                                             <Condition Binding="{Binding IsSimTriggered}" Value="False" />
                                             <Condition Binding="{Binding IsSimWaitingDwell}" Value="False" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Foreground" Value="#B91C1C" />
+                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         <Setter Property="Text" Value="{Binding SimDiagText}" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>
@@ -618,10 +618,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconGuardShield}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="GRD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#C05621" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="GRD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource WarningBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -640,21 +640,21 @@
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding ConditionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding ConditionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
-                                    <Setter Property="Background" Value="#FEE2E2" />
-                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimPassed}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -662,16 +662,16 @@
                     <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#1E293B" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                 <Setter Property="Text" Value="{Binding GuardAddressText}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSimBlocked}" Value="True">
-                                        <Setter Property="Foreground" Value="#B91C1C" />
-                                        <Setter Property="Text" Value="⛔ BỊ KHÓA" />
+                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        <Setter Property="Text" Value="BỊ KHÓA" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSimPassed}" Value="True">
-                                        <Setter Property="Foreground" Value="#107C41" />
-                                        <Setter Property="Text" Value="✓ CHO PHÉP" />
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        <Setter Property="Text" Value="CHO PHÉP" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -691,10 +691,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconActionCoil}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="ACT" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#107C41" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="ACT" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource SuccessBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -706,21 +706,21 @@
                 </DataTemplate>
             </nodify:Node.InputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding ActionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
+                <TextBlock Text="{Binding ActionExpression}" FontWeight="Bold" FontSize="12.5" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" MaxWidth="150" />
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSimFired}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -729,13 +729,13 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSimFired}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -744,14 +744,14 @@
                         <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                     <Setter Property="Text" Value="{Binding ActionStatusPillText}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSimFired}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -773,10 +773,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconTimerClock}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding TimerMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#4C1D95" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding TimerMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -800,10 +800,10 @@
                 <TextBlock Text="{Binding SimulationProgressText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                                    <Setter Property="Foreground" Value="#4C1D95" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -812,7 +812,7 @@
                 </TextBlock>
                 <!-- Mini Progress Bar (Industrial Indigo / Green on complete) -->
                 <Grid Width="110" Height="4" Margin="0,2,0,4">
-                    <Border Background="#CBD5E1" CornerRadius="2" />
+                    <Border Background="{DynamicResource IndustrialBorderDefaultBrush}" CornerRadius="2" />
                     <ProgressBar Value="{Binding ProgressPercent, Mode=OneWay}"
                                  Minimum="0" Maximum="100"
                                  Height="4"
@@ -820,10 +820,10 @@
                                  BorderThickness="0">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
-                                <Setter Property="Foreground" Value="#4C1D95" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                        <Setter Property="Foreground" Value="#107C41" />
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -833,17 +833,17 @@
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                                    <Setter Property="Background" Value="#EDE9FE" />
-                                    <Setter Property="BorderBrush" Value="#4C1D95" />
+                                    <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -852,13 +852,13 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                                            <Setter Property="Fill" Value="#4C1D95" />
+                                            <Setter Property="Fill" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -867,14 +867,14 @@
                         <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="110">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                     <Setter Property="Text" Value="{Binding TimerStatusPillText}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsTiming}" Value="True">
-                                            <Setter Property="Foreground" Value="#4C1D95" />
+                                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -896,10 +896,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconCounterHash}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding CounterMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F766E" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding CounterMode}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -923,10 +923,10 @@
                 <TextBlock Text="{Binding SimulationCountText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Foreground" Value="#059669" />
+                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -936,13 +936,13 @@
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -951,10 +951,10 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -963,11 +963,11 @@
                         <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="110">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                     <Setter Property="Text" Value="{Binding CounterStatusPillText}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -989,10 +989,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconScaleRamp}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="SCALE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="SCALE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1016,14 +1016,14 @@
                 <TextBlock Text="{Binding SimulationProgressText}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150" Margin="0,0,0,3" ToolTip="{Binding SummaryText}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#0F172A" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Foreground" Value="#0284C7" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                    <Setter Property="Foreground" Value="#0284C7" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -1032,7 +1032,7 @@
                 </TextBlock>
                 <!-- Analog Level Bar Gauge (0..100%) -->
                 <Grid Width="115" Height="4" Margin="0,2,0,4">
-                    <Border Background="#E5E7EB" CornerRadius="2" />
+                    <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}" CornerRadius="2" />
                     <ProgressBar Value="{Binding LiveProgressPercent, Mode=OneWay}"
                                  Minimum="0" Maximum="100"
                                  Height="4"
@@ -1040,13 +1040,13 @@
                                  BorderThickness="0">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
-                                <Setter Property="Foreground" Value="#0284C7" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                        <Setter Property="Foreground" Value="#0284C7" />
+                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                        <Setter Property="Foreground" Value="#0284C7" />
+                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1056,17 +1056,17 @@
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#D1D5DB" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#E0F2FE" />
-                                    <Setter Property="BorderBrush" Value="#0284C7" />
+                                    <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                    <Setter Property="Background" Value="#E0F2FE" />
-                                    <Setter Property="BorderBrush" Value="#0284C7" />
+                                    <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1075,13 +1075,13 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#64748B" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Fill" Value="#0284C7" />
+                                            <Setter Property="Fill" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Fill" Value="#0284C7" />
+                                            <Setter Property="Fill" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1090,14 +1090,14 @@
                         <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="130">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#1E293B" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                     <Setter Property="Text" Value="{Binding ScaleStatusPillText}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#0284C7" />
+                                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#0284C7" />
+                                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1120,10 +1120,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconComparatorOp}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="CMP" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="CMP" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1142,17 +1142,17 @@
                 </DataTemplate>
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding FormulaExpression}" FontWeight="Bold" FontSize="12" FontFamily="Consolas" Foreground="#0F172A" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding FormulaExpression}" FontWeight="Bold" FontSize="12" FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F3F4F6" />
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsConditionMet}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1160,11 +1160,11 @@
                     <TextBlock FontSize="10.5" FontWeight="Bold" FontFamily="Segoe UI" TextAlignment="Center">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#64748B" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                 <Setter Property="Text" Value="{Binding ConditionPassedText}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsConditionMet}" Value="True">
-                                        <Setter Property="Foreground" Value="#107C41" />
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1186,10 +1186,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconMqttBroadcast}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="PUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="PUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1213,28 +1213,28 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
                 <!-- Topic & Publish Mode Summary -->
-                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
-                <TextBlock Text="{Binding PublishModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
+                <TextBlock Text="{Binding PublishModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
 
                 <!-- Status Pill (Live / Simulation) -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F8FAFC" />
-                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding HasPublishError}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                    <Setter Property="Background" Value="#F0F4F8" />
-                                    <Setter Property="BorderBrush" Value="#006487" />
+                                    <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1243,16 +1243,16 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasPublishError}" Value="True">
-                                            <Setter Property="Fill" Value="#DC2626" />
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Fill" Value="#006487" />
+                                            <Setter Property="Fill" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1261,16 +1261,16 @@
                         <TextBlock Text="{Binding TelemetryStatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasPublishError}" Value="True">
-                                            <Setter Property="Foreground" Value="#DC2626" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSimActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#006487" />
+                                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1293,10 +1293,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconMqttBroadcast}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="SUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#006487" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="SUB" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1320,24 +1320,24 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
                 <!-- Topic & Queue Mode Summary -->
-                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
-                <TextBlock Text="{Binding QueueModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding PinsCountSummary}" />
+                <TextBlock Text="{Binding Topic}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Topic}" />
+                <TextBlock Text="{Binding QueueModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" ToolTip="{Binding PinsCountSummary}" />
 
                 <!-- Status Pill (Live / Simulation) -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F8FAFC" />
-                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1346,13 +1346,13 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Fill" Value="#DC2626" />
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1361,13 +1361,13 @@
                         <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#DC2626" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1390,10 +1390,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconModbusMaster}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="MB_RD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="MB_RD" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1417,24 +1417,24 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
                 <!-- Communication Summary: Slave ID & FC, Read Mode -->
-                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
-                <TextBlock Text="{Binding ReadModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding ReadModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
 
                 <!-- Status Pill -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F8FAFC" />
-                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1443,13 +1443,13 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Fill" Value="#DC2626" />
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1458,13 +1458,13 @@
                         <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="115">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#DC2626" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsValidActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1487,10 +1487,10 @@
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconModbusMaster}"/>
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="MB_WR" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="MB_WR" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1514,28 +1514,28 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
                 <!-- Communication Technical Specs: Target Info & Trigger Mode -->
-                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
-                <TextBlock Text="{Binding TriggerModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#1E293B" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding TriggerModeSummaryText}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" ToolTip="{Binding SummaryText}" />
 
                 <!-- Status Pill -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F8FAFC" />
-                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF3C7" />
-                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                    <Setter Property="Background" Value="{DynamicResource WarningLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1544,16 +1544,16 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Fill" Value="#DC2626" />
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                            <Setter Property="Fill" Value="#D97706" />
+                                            <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1562,16 +1562,16 @@
                         <TextBlock Text="{Binding StatusPillText}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#DC2626" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#D97706" />
+                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1593,11 +1593,11 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="⚡" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#0284C7" />
-                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource PrimaryBrush}" Margin="0,0,4,0" />
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="PULSE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0284C7" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="PULSE" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1621,29 +1621,29 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
                 <!-- Physical Target & Output Mode Summary -->
-                <TextBlock Text="{Binding TargetPinDisplay}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
-                <TextBlock Text="{Binding ModeSummaryDisplay}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#475569" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
-                <TextBlock Text="{Binding TriggerModeSummaryText}" FontWeight="SemiBold" FontSize="9.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0284C7" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding TargetPinDisplay}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding ModeSummaryDisplay}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" ToolTip="{Binding SummaryText}" />
+                <TextBlock Text="{Binding TriggerModeSummaryText}" FontWeight="SemiBold" FontSize="9.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
 
                 <!-- Status Pill -->
                 <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F8FAFC" />
-                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                             <Setter Property="BorderThickness" Value="1" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                    <Setter Property="Background" Value="#FEF3C7" />
-                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                    <Setter Property="Background" Value="{DynamicResource WarningLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                    <Setter Property="Background" Value="#F1F5F9" />
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1652,16 +1652,16 @@
                         <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#94A3B8" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Fill" Value="#DC2626" />
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                            <Setter Property="Fill" Value="#D97706" />
+                                            <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                            <Setter Property="Fill" Value="#107C41" />
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1670,16 +1670,16 @@
                         <TextBlock Text="{Binding StatusPillText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#64748B" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#DC2626" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#D97706" />
+                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
-                                            <Setter Property="Foreground" Value="#107C41" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1701,11 +1701,11 @@
             <nodify:Node.Header>
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="📡" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="#111827" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconIecCommunication}" Margin="0,0,4,0" />
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Right" Background="#E0F2FE" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
-                        <TextBlock Text="GATEWAY" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="#0369A1" />
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="GATEWAY" FontSize="9" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
                     </Border>
                 </DockPanel>
             </nodify:Node.Header>
@@ -1729,11 +1729,11 @@
             </nodify:Node.OutputConnectorTemplate>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,4">
                 <!-- Summary Text & Badges -->
-                <TextBlock Text="{Binding SummaryText}" FontWeight="Bold" FontSize="10.5" FontFamily="Segoe UI" TextAlignment="Center" HorizontalAlignment="Center" Foreground="#0F172A" Margin="0,0,0,3" TextWrapping="Wrap" />
-                <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Center" Margin="0,0,0,4">
-                    <TextBlock Text="{Binding BadgeText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#475569" />
+                <TextBlock Text="{Binding SummaryText}" FontWeight="Bold" FontSize="10.5" FontFamily="Segoe UI" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,3" TextWrapping="Wrap" />
+                <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Center" Margin="0,0,0,4">
+                    <TextBlock Text="{Binding BadgeText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
                 </Border>
-                <Button Content="{Binding [InspectorConfigureBtn], Source={x:Static services:LocalizationService.Instance}, FallbackValue='⚙ Cấu hình DTU...'}"
+                <Button Content="{Binding [InspectorConfigureBtn], Source={x:Static services:LocalizationService.Instance}, FallbackValue='Cấu hình DTU...'}"
                         Command="{Binding ConfigureCommand}"
                         Padding="8,2" FontSize="10" Style="{StaticResource BtnSecondary}" HorizontalAlignment="Center" Cursor="Hand" />
             </StackPanel>
@@ -1760,17 +1760,17 @@
                                                IsHitTestVisible="False">
                 <controls:IndustrialStepConnection.Style>
                     <Style TargetType="{x:Type controls:IndustrialStepConnection}">
-                        <Setter Property="Stroke" Value="#64748B" />
+                        <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
                         <Setter Property="StrokeThickness" Value="2" />
                         <Setter Property="ArrowEnds" Value="None" />
                         <Setter Property="ArrowSize" Value="6,6" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                <Setter Property="Stroke" Value="#006487" />
+                                <Setter Property="Stroke" Value="{DynamicResource PrimaryBrush}" />
                                 <Setter Property="StrokeThickness" Value="2.5" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                <Setter Property="Stroke" Value="#107C41" />
+                                <Setter Property="Stroke" Value="{DynamicResource SuccessBrush}" />
                                 <Setter Property="StrokeThickness" Value="2.5" />
                                 <Setter Property="ArrowEnds" Value="End" />
                             </DataTrigger>

@@ -27,11 +27,15 @@ public sealed class SimScanHistoryItem
 
     public bool HasInputChange { get; set; }
 
+    private static bool IsBlocked(string? status) =>
+        string.Equals(status, "BLOCKED", System.StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(status, "BỊ KHÓA", System.StringComparison.OrdinalIgnoreCase);
+
     public bool HasActivity =>
         HasInputChange ||
         TriggerPassed ||
         ActionFired ||
-        string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase);
+        IsBlocked(GuardStatus);
 
     public string ActivityBadgeText
     {
@@ -39,7 +43,7 @@ public sealed class SimScanHistoryItem
         {
             bool isVi = SimplePLC.Studio.Services.LocalizationService.Instance.IsVietnamese;
             if (ActionFired) return isVi ? "LỆNH XUẤT" : "ACTION";
-            if (string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase)) return isVi ? "BỊ KHÓA" : "BLOCKED";
+            if (IsBlocked(GuardStatus)) return isVi ? "BỊ KHÓA" : "BLOCKED";
             if (TriggerPassed) return isVi ? "KÍCH HOẠT" : "TRIGGERED";
             if (HasInputChange) return isVi ? "I/O ĐỔI" : "I/O CHANGED";
             return isVi ? "ỔN ĐỊNH" : "STEADY";
@@ -48,7 +52,7 @@ public sealed class SimScanHistoryItem
 
     public string ActivityBadgeColor =>
         ActionFired ? "#006487" :
-        string.Equals(GuardStatus, "BLOCKED", System.StringComparison.OrdinalIgnoreCase) ? "#B91C1C" :
+        IsBlocked(GuardStatus) ? "#B91C1C" :
         TriggerPassed ? "#006487" :
         HasInputChange ? "#107C41" : "#64748B";
 }

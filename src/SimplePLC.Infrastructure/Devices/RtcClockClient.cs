@@ -25,7 +25,7 @@ public sealed class RtcClockClient : IRtcClockClient
             ModbusRegisterMap.RtcClockAddress,
             ModbusRegisterMap.RtcClockLength,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return RegisterCodec.DecodeRtcClock(rawRegisters);
     }
@@ -42,7 +42,7 @@ public sealed class RtcClockClient : IRtcClockClient
             ModbusRegisterMap.RtcClockAddress,
             buffer,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
     }
 
     public async Task<RtcClockDto> SyncToNowAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
@@ -52,7 +52,7 @@ public sealed class RtcClockClient : IRtcClockClient
         bool isBatteryLow = false;
         try
         {
-            var current = await ReadRtcClockAsync(slaveId, cancellationToken);
+            var current = await ReadRtcClockAsync(slaveId, cancellationToken).ConfigureAwait(false);
             hasHwRtc = current.HasHardwareRtc;
             isBatteryLow = current.IsBatteryLow;
         }
@@ -71,14 +71,14 @@ public sealed class RtcClockClient : IRtcClockClient
             IsBatteryLow = isBatteryLow
         };
 
-        await WriteRtcClockAsync(nowDto, slaveId, cancellationToken);
+        await WriteRtcClockAsync(nowDto, slaveId, cancellationToken).ConfigureAwait(false);
         return nowDto;
     }
 
     public async Task<RtcClockDto> SyncSmartAsync(byte slaveId = 1, uint maxDriftSeconds = 2, CancellationToken cancellationToken = default)
     {
         // 1. Đọc trạng thái RTC hiện tại từ MCU (Read-Before-Write)
-        var current = await ReadRtcClockAsync(slaveId, cancellationToken);
+        var current = await ReadRtcClockAsync(slaveId, cancellationToken).ConfigureAwait(false);
 
         var now = DateTimeOffset.Now;
         long pcEpoch = now.ToUnixTimeSeconds();
@@ -110,7 +110,7 @@ public sealed class RtcClockClient : IRtcClockClient
             IsBatteryLow = current.IsBatteryLow
         };
 
-        await WriteRtcClockAsync(updatedDto, slaveId, cancellationToken);
+        await WriteRtcClockAsync(updatedDto, slaveId, cancellationToken).ConfigureAwait(false);
         return updatedDto;
     }
 
@@ -125,7 +125,7 @@ public sealed class RtcClockClient : IRtcClockClient
         bool isBatteryLow = false;
         try
         {
-            var current = await ReadRtcClockAsync(slaveId, cancellationToken);
+            var current = await ReadRtcClockAsync(slaveId, cancellationToken).ConfigureAwait(false);
             hasHwRtc = current.HasHardwareRtc;
             isBatteryLow = current.IsBatteryLow;
         }
@@ -164,7 +164,7 @@ public sealed class RtcClockClient : IRtcClockClient
             IsBatteryLow = isBatteryLow
         };
 
-        await WriteRtcClockAsync(targetDto, slaveId, cancellationToken);
+        await WriteRtcClockAsync(targetDto, slaveId, cancellationToken).ConfigureAwait(false);
         return targetDto;
     }
 }

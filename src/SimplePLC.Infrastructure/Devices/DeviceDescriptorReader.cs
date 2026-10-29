@@ -25,7 +25,7 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
             ModbusRegisterMap.DeviceDescriptorAddress,
             ModbusRegisterMap.DeviceDescriptorLength,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return RegisterCodec.DecodeDeviceDescriptor(rawRegisters);
     }
@@ -37,7 +37,7 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
             ModbusRegisterMap.DeviceResourceInfoAddress,
             ModbusRegisterMap.DeviceResourceInfoLength,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return RegisterCodec.DecodeDeviceResourceInfo(rawRegisters);
     }
@@ -51,7 +51,7 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
                 ModbusRegisterMap.HardwareCapabilitiesAddress,
                 ModbusRegisterMap.HardwareCapabilitiesLength,
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
 
             if (rawRegisters != null && rawRegisters.Length >= ModbusRegisterMap.HardwareCapabilitiesLength)
             {

@@ -61,7 +61,7 @@ public sealed class SystemCommandClient : ISystemCommandClient
                 ModbusRegisterMap.SystemCommandResultAddress,
                 ModbusRegisterMap.SystemCommandResultLength,
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
 
             var status = (SPLC_CommandStatus)resultRegs[0];
             var error = (SPLC_ErrorCode)resultRegs[1];
@@ -75,7 +75,7 @@ public sealed class SystemCommandClient : ISystemCommandClient
                 };
             }
 
-            await Task.Delay(25, cancellationToken);
+            await Task.Delay(25, cancellationToken).ConfigureAwait(false);
         }
 
         return new SystemCommandResultDto

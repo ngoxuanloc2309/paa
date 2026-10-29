@@ -13,6 +13,7 @@ namespace SimplePLC.Application.Logic.Runtime;
 public sealed class RuntimeEngine : IRuntimeEngine
 {
     private readonly ITagValueStore _store;
+    private readonly System.TimeProvider _systemTimeProvider;
     private readonly Dictionary<int, int> _previous = new();
     private readonly Dictionary<int, long> _dwellStarted = new();
     private readonly Dictionary<int, long> _lastInterval = new();
@@ -20,12 +21,21 @@ public sealed class RuntimeEngine : IRuntimeEngine
     private long _scanCount = 0;
 
     public long ScanCount => _scanCount;
-    public Func<DateTime>? TimeProvider { get; set; }
-    private DateTime CurrentTime => TimeProvider?.Invoke() ?? DateTime.Now;
 
-    public RuntimeEngine(ITagValueStore store)
+    /// <summary>
+    /// Delegate cung cấp thời gian tương thích ngược cho test suite; ưu tiên hơn clock hệ thống nếu được gán.
+    /// </summary>
+    public Func<DateTime>? TimeProvider { get; set; }
+
+    /// <summary>
+    /// Thời gian hiện tại phục vụ snapshot lịch sử mô phỏng; sử dụng TimeProvider tất định của .NET 8 (thay thế clock hệ thống cũ).
+    /// </summary>
+    private DateTime CurrentTime => TimeProvider?.Invoke() ?? _systemTimeProvider.GetUtcNow().LocalDateTime;
+
+    public RuntimeEngine(ITagValueStore store, System.TimeProvider? timeProvider = null)
     {
         _store = store;
+        _systemTimeProvider = timeProvider ?? System.TimeProvider.System;
         foreach (var index in store.AllTagIndices)
             _previous[index] = store.GetValue(index);
     }

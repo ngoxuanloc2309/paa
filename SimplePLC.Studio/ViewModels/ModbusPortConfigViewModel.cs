@@ -258,6 +258,21 @@ public partial class ModbusPortItemViewModel : ObservableObject
 }
 
 /// <summary>
+/// Các phân vùng bộ nhớ Modbus Slave để hiển thị theo dạng tab (Moxa style).
+/// </summary>
+public enum ModbusSlaveMemoryTab
+{
+    /// <summary>Tất cả các phân vùng (Holding Registers, Coils, Discrete Inputs).</summary>
+    All,
+    /// <summary>Chỉ phân vùng Holding Registers (4xxxx).</summary>
+    HoldingRegisters,
+    /// <summary>Chỉ phân vùng Coils (0xxxx).</summary>
+    Coils,
+    /// <summary>Chỉ phân vùng Discrete Inputs (1xxxx).</summary>
+    DiscreteInputs
+}
+
+/// <summary>
 /// ViewModel điều khiển hộp thoại cấu hình Đa cổng RS-485 Modbus Master & Slave (SPLC-SPEC-MBM-003 & SPLC-SPEC-SLAVE-001).
 /// Cho phép kỹ sư cấu hình độc lập các cổng UART/RS-485 thành Master hoặc Slave, quản lý bảng ánh xạ vùng nhớ Modbus Slave (0x1500)
 /// và bảo vệ vùng nhớ 3 cấp độ (Memory Protection Sandbox).
@@ -270,6 +285,93 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     public ObservableCollection<ModbusPortItemViewModel> Ports { get; } = new();
 
     public ObservableCollection<ModbusSlaveMapItemViewModel> SlaveMapEntries { get; } = new();
+
+    /// <summary>
+    /// Bản đồ địa chỉ Modbus Slave cố định của thiết bị SynaptiX Controller.
+    /// </summary>
+    public IReadOnlyList<ModbusSlaveFixedRegisterViewModel> FixedRegisterMap { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteredFixedRegisterMap))]
+    [NotifyPropertyChangedFor(nameof(IsTabAllSelected))]
+    [NotifyPropertyChangedFor(nameof(IsTabHoldingSelected))]
+    [NotifyPropertyChangedFor(nameof(IsTabCoilsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsTabDiscreteInputsSelected))]
+    private ModbusSlaveMemoryTab _selectedMemoryTab = ModbusSlaveMemoryTab.All;
+
+    /// <summary>Xác định tab Tất cả đang được chọn.</summary>
+    public bool IsTabAllSelected => SelectedMemoryTab == ModbusSlaveMemoryTab.All;
+
+    /// <summary>Xác định tab Holding Registers đang được chọn.</summary>
+    public bool IsTabHoldingSelected => SelectedMemoryTab == ModbusSlaveMemoryTab.HoldingRegisters;
+
+    /// <summary>Xác định tab Coils đang được chọn.</summary>
+    public bool IsTabCoilsSelected => SelectedMemoryTab == ModbusSlaveMemoryTab.Coils;
+
+    /// <summary>Xác định tab Discrete Inputs đang được chọn.</summary>
+    public bool IsTabDiscreteInputsSelected => SelectedMemoryTab == ModbusSlaveMemoryTab.DiscreteInputs;
+
+    /// <summary>
+    /// Danh sách thanh ghi Modbus Slave đã được lọc theo tab phân vùng đang chọn.
+    /// </summary>
+    public IReadOnlyList<ModbusSlaveFixedRegisterViewModel> FilteredFixedRegisterMap
+    {
+        get
+        {
+            if (FixedRegisterMap == null) return Array.Empty<ModbusSlaveFixedRegisterViewModel>();
+
+            return SelectedMemoryTab switch
+            {
+                ModbusSlaveMemoryTab.HoldingRegisters => FixedRegisterMap.Where(r => r.Category == "Holding Registers").ToList(),
+                ModbusSlaveMemoryTab.Coils => FixedRegisterMap.Where(r => r.Category == "Coils").ToList(),
+                ModbusSlaveMemoryTab.DiscreteInputs => FixedRegisterMap.Where(r => r.Category == "Discrete Inputs").ToList(),
+                _ => FixedRegisterMap
+            };
+        }
+    }
+
+    /// <summary>Tổng số lượng thanh ghi trên tất cả phân vùng.</summary>
+    public int CountAll => FixedRegisterMap?.Count ?? 0;
+
+    /// <summary>Số lượng thanh ghi Holding Registers (4xxxx).</summary>
+    public int CountHolding => FixedRegisterMap?.Count(r => r.Category == "Holding Registers") ?? 0;
+
+    /// <summary>Số lượng bit Coils (0xxxx).</summary>
+    public int CountCoils => FixedRegisterMap?.Count(r => r.Category == "Coils") ?? 0;
+
+    /// <summary>Số lượng bit Discrete Inputs (1xxxx).</summary>
+    public int CountDiscreteInputs => FixedRegisterMap?.Count(r => r.Category == "Discrete Inputs") ?? 0;
+
+    /// <summary>
+    /// Lệnh chuyển đổi tab phân vùng bộ nhớ Modbus Slave (Moxa-style).
+    /// </summary>
+    /// <param name="tabName">Tên tab: All, Holding, Coils, DiscreteInputs.</param>
+    [RelayCommand]
+    public void SelectMemoryTab(string? tabName)
+    {
+        if (string.IsNullOrWhiteSpace(tabName))
+        {
+            SelectedMemoryTab = ModbusSlaveMemoryTab.All;
+            return;
+        }
+
+        if (Enum.TryParse<ModbusSlaveMemoryTab>(tabName, true, out var tab))
+        {
+            SelectedMemoryTab = tab;
+        }
+        else if (string.Equals(tabName, "Holding", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedMemoryTab = ModbusSlaveMemoryTab.HoldingRegisters;
+        }
+        else if (string.Equals(tabName, "Discrete", StringComparison.OrdinalIgnoreCase) || string.Equals(tabName, "DI", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedMemoryTab = ModbusSlaveMemoryTab.DiscreteInputs;
+        }
+        else
+        {
+            SelectedMemoryTab = ModbusSlaveMemoryTab.All;
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedPort))]
@@ -405,6 +507,10 @@ public partial class ModbusPortConfigViewModel : ObservableObject
             }
         }
 
+        FixedRegisterMap = ModbusSlaveFixedMap.DefaultEntries
+            .Select(dto => new ModbusSlaveFixedRegisterViewModel(dto))
+            .ToList();
+
         HasPhysicalPorts = Ports.Count > 0;
         SelectedPort = Ports.FirstOrDefault();
         LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
@@ -432,6 +538,10 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         foreach (var entry in SlaveMapEntries)
         {
             entry.NotifyLanguageChanged();
+        }
+        foreach (var reg in FixedRegisterMap)
+        {
+            reg.NotifyLanguageChanged();
         }
     }
 
@@ -688,28 +798,35 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         SlaveMapEntries.Clear();
     }
 
+    /// <summary>
+    /// Xuất danh sách thanh ghi Modbus Slave theo phân vùng đang xem ra định dạng CSV.
+    /// </summary>
+    /// <returns>Chuỗi định dạng CSV của bản đồ thanh ghi.</returns>
     public string GenerateExportModbusMapCsv()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Modbus Address,PLC Tag,Data Type,Access Right,Port Mask,Description");
-        foreach (var entry in SlaveMapEntries.OrderBy(e => e.ModbusAddress))
+        sb.AppendLine("Category,Hex Address,Modbus Address (1-based),Device Tag,Data Type,Access Right,Modbus Function,Description");
+        foreach (var entry in FilteredFixedRegisterMap)
         {
-            sb.AppendLine($"{entry.ModbusAddress},{entry.TargetTagName},{entry.DataTypeName},{entry.AccessRight},0x{entry.PortMask:X2},\"{entry.Description}\"");
+            sb.AppendLine($"\"{entry.Category}\",{entry.AddressHex},{entry.ModbusAddress},{entry.DeviceTag},{entry.DataType},{entry.AccessRight},\"{entry.FunctionCode}\",\"{entry.Description}\"");
         }
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Xuất danh sách thanh ghi Modbus Slave theo phân vùng đang xem ra định dạng bảng Markdown.
+    /// </summary>
+    /// <returns>Chuỗi định dạng Markdown của bản đồ thanh ghi.</returns>
     public string GenerateExportModbusMapMarkdown()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Modbus RTU Slave Memory Address Map");
+        sb.AppendLine("# SynaptiX Controller - Modbus Slave Fixed Memory Map");
         sb.AppendLine();
-        sb.AppendLine("| Modbus Address | PLC Tag | Data Type | Access Right | Description |");
-        sb.AppendLine("|:--------------:|:-------:|:---------:|:------------:|:------------|");
-        foreach (var entry in SlaveMapEntries.OrderBy(e => e.ModbusAddress))
+        sb.AppendLine("| Category | Hex Address | Modbus Address | Device Tag | Data Type | Access | Function | Description |");
+        sb.AppendLine("|:---|:---:|:---:|:---|:---:|:---:|:---:|:---|");
+        foreach (var entry in FilteredFixedRegisterMap)
         {
-            string accessBadge = entry.IsReadOnly ? "🔒 Read-Only" : "✏️ Read/Write";
-            sb.AppendLine($"| `{entry.ModbusAddress}` | **{entry.TargetTagName}** | {entry.DataTypeName} | {accessBadge} | {entry.Description} |");
+            sb.AppendLine($"| {entry.Category} | `{entry.AddressHex}` | `{entry.ModbusAddress}` | **{entry.DeviceTag}** | `{entry.DataType}` | `{entry.AccessRight}` | `{entry.FunctionCode}` | {entry.Description} |");
         }
         return sb.ToString();
     }
@@ -777,18 +894,18 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     [RelayCommand]
     public async Task ExportModbusMapAsync()
     {
-        if (SlaveMapEntries.Count == 0)
+        if (FixedRegisterMap == null || FixedRegisterMap.Count == 0)
         {
             ExportNoticeMessage = LocalizationService.Instance.IsVietnamese
-                ? "Bảng chưa có dữ liệu để xuất file. Hãy bấm '⚡ Nạp mẫu' trước."
-                : "No mapping entries available to export. Click '⚡ Populate' first.";
+                ? "Bảng chưa có dữ liệu để xuất file."
+                : "No register entries available to export.";
             return;
         }
 
         try
         {
             string portSuffix = SelectedPort != null ? $"Port{SelectedPort.PortIndex + 1}" : "Port1";
-            string defaultName = $"SimplePLC_ModbusSlaveMap_{portSuffix}.csv";
+            string defaultName = $"SynaptiX_ModbusSlaveMap_{portSuffix}.csv";
             string filter = LocalizationService.Instance.IsVietnamese
                 ? "Bảng tính CSV (Excel / SCADA) (*.csv)|*.csv|Tài liệu Markdown (*.md)|*.md|Tất cả tệp (*.*)|*.*"
                 : "CSV Spreadsheet (Excel / SCADA) (*.csv)|*.csv|Markdown Document (*.md)|*.md|All Files (*.*)|*.*";

@@ -191,14 +191,9 @@ public partial class WatchTagItemModel : ObservableObject
     {
         get
         {
-            bool isVi = LocalizationService.Instance.IsVietnamese;
             string prefix = IsForced ? "[F] " : "";
-            string lastSuffix = Quality != TagQuality.Good ? (isVi ? " [Gần nhất]" : " [Last]") : "";
-            if (IsOn)
-            {
-                return prefix + (isVi ? "● BẬT (1)" : "● ON (1)") + lastSuffix;
-            }
-            return prefix + (isVi ? "○ TẮT (0)" : "○ OFF (0)") + lastSuffix;
+            string lastSuffix = Quality != TagQuality.Good ? (LocalizationService.Instance.IsVietnamese ? " [Gần nhất]" : " [Last]") : "";
+            return prefix + (IsOn ? "● 1" : "○ 0") + lastSuffix;
         }
     }
 
@@ -206,13 +201,12 @@ public partial class WatchTagItemModel : ObservableObject
     {
         get
         {
-            bool isVi = LocalizationService.Instance.IsVietnamese;
             string prefix = IsForced ? "[F] " : "";
-            string lastSuffix = Quality != TagQuality.Good ? (isVi ? " [Gần nhất]" : " [Last]") : "";
+            string lastSuffix = Quality != TagQuality.Good ? (LocalizationService.Instance.IsVietnamese ? " [Gần nhất]" : " [Last]") : "";
             string val = DataType switch
             {
-                TagDataType.Boolean => RawValue != 0 ? "ON" : "OFF",
-                TagDataType.Float32 => BitConverter.Int32BitsToSingle(RawValue).ToString("0.##"),
+                TagDataType.Boolean => RawValue != 0 ? "1" : "0",
+                TagDataType.Float32 => SimplePLC.Studio.Services.SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(RawValue)),
                 _ => RawValue.ToString("N0")
             };
             return prefix + val + lastSuffix;
@@ -223,16 +217,15 @@ public partial class WatchTagItemModel : ObservableObject
     {
         get
         {
-            bool isVi = LocalizationService.Instance.IsVietnamese;
             string prefix = IsForced ? "[F] " : "";
-            string lastSuffix = Quality != TagQuality.Good ? (isVi ? " [Gần nhất]" : " [Last]") : "";
+            string lastSuffix = Quality != TagQuality.Good ? (LocalizationService.Instance.IsVietnamese ? " [Gần nhất]" : " [Last]") : "";
             if (DataType == TagDataType.Boolean)
             {
-                return prefix + (RawValue != 0 ? (isVi ? "BẬT" : "ON") : (isVi ? "TẮT" : "OFF")) + lastSuffix;
+                return prefix + (RawValue != 0 ? "1" : "0") + lastSuffix;
             }
             if (DataType == TagDataType.Float32)
             {
-                return prefix + BitConverter.Int32BitsToSingle(RawValue).ToString("0.##") + lastSuffix;
+                return prefix + SimplePLC.Studio.Services.SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(RawValue)) + lastSuffix;
             }
             return prefix + RawValue.ToString("N0") + lastSuffix;
         }

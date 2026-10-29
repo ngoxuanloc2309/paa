@@ -8,6 +8,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../Styles/Colors.xaml" />
+                <ResourceDictionary Source="../Styles/Icons.xaml" />
                 <ResourceDictionary Source="../Styles/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
@@ -21,15 +22,15 @@
             <!-- Modern ProgressBar Style -->
         <Style x:Key="MemoryProgressBarStyle" TargetType="ProgressBar">
             <Setter Property="Height" Value="6" />
-            <Setter Property="Background" Value="#DFE3E8" />
-            <Setter Property="Foreground" Value="{StaticResource IndustrialPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Grid>
-                            <Border Background="{TemplateBinding Background}" CornerRadius="2" />
-                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2" HorizontalAlignment="Left" />
+                            <Border Background="{TemplateBinding Background}" CornerRadius="4" />
+                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="4" HorizontalAlignment="Left" />
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
@@ -38,10 +39,10 @@
 
         <!-- Segmented Filter Button Style -->
         <Style x:Key="FilterPillButton" TargetType="Button">
-            <Setter Property="Background" Value="#F3F4F6" />
-            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="11.5" />
             <Setter Property="Padding" Value="12,5" />
@@ -53,12 +54,12 @@
                         <Border x:Name="PillBorder" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="PillBorder" Property="Background" Value="#DFE3E8" />
+                                <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -69,13 +70,13 @@
         <!-- Modern Flat DataGrid Column Header Styles -->
         <Style x:Key="ModernColumnHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#475569" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="11.5" />
             <Setter Property="Padding" Value="10,8" />
-            <Setter Property="Background" Value="#ECEFF1" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
+            <Setter Property="MinHeight" Value="32" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Template">
@@ -105,7 +106,7 @@
             <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="Margin" Value="10,0" />
             <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         </Style>
 
         <Style x:Key="DgCellTextCodeLeft" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
@@ -126,13 +127,13 @@
 
         <Style x:Key="DgCellIdBadge" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="{StaticResource IndustrialPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
             <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
         </Style>
 
         <Style x:Key="DgCellStatusActive" TargetType="TextBlock" BasedOn="{StaticResource DgCellTextLeft}">
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#107C41" />
+            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
         </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -148,7 +149,7 @@
         </Grid.RowDefinitions>
 
         <!-- Row 0: Header -->
-        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+        <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -162,30 +163,30 @@
                 <!-- Top Left: Title & Rule Count Badge -->
                 <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding [RuleTableTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                               FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                               FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <!-- Top Right: Actions -->
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <Button Command="{Binding CreateNewRuleCommand}"
-                            Background="#107C41" Foreground="White" BorderBrush="#0B5A2F" BorderThickness="1"
+                            Background="{DynamicResource SuccessBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource SuccessDarkBrush}" BorderThickness="1"
                             FontWeight="SemiBold" FontSize="11.5" Padding="12,5" Cursor="Hand" Margin="0,0,8,0">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Text="➕ " FontSize="11" VerticalAlignment="Center" Foreground="White" />
+                                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlus}" Stroke="{DynamicResource BgPanelBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                                     <TextBlock Text="{Binding [RuleBtnCreateNew], Source={x:Static services:LocalizationService.Instance}}" 
-                                                               FontSize="11.5" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                                               FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BgPanelBrush}" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="BtnBorder" Property="Background" Value="#0B5A2F" />
-                                                    <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#084624" />
+                                                    <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource SuccessDarkBrush}" />
+                                                    <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource SuccessDarkBrush}" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -199,7 +200,7 @@
                             Style="{StaticResource TiaTactileBtnStyle}"
                             Padding="12,5">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Text="✏️ " FontSize="11" VerticalAlignment="Center" />
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                             <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" 
                                        FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
@@ -208,19 +209,19 @@
 
                 <!-- Bottom Left: Subtitle Description -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [RuleTableDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                           FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,16,0" VerticalAlignment="Center"
+                           FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,16,0" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" />
 
                 <!-- Bottom Right: Capacity Quota Bar -->
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,6,0,0">
                     <ProgressBar Style="{StaticResource MemoryProgressBarStyle}" Value="{Binding TotalRuleCount, Mode=OneWay}" Maximum="100" Width="130" Margin="0,0,8,0" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding MemoryStatusText}" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding MemoryStatusText}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Row 1: Sub-Tabs Navigation Bar -->
-        <Border Grid.Row="1" Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="4" Margin="0,0,0,10">
+        <Border Grid.Row="1" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal">
                 <RadioButton Content="{Binding SubTabLogicLabel}" Style="{StaticResource ToolStripTabBtn}"
                              IsChecked="{Binding SelectedSubTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=0}"
@@ -253,7 +254,7 @@
                 </Grid.RowDefinitions>
 
         <!-- SubTab 0 Row 0: Toolbar (Status Filters, Export CSV, Search Box) -->
-        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10" Margin="0,0,0,12">
+        <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
             <DockPanel>
                 <!-- Left: Status Filters -->
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
@@ -263,9 +264,9 @@
                             <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsFilterAll}" Value="True">
-                                        <Setter Property="Background" Value="#E0F2FE" />
-                                        <Setter Property="Foreground" Value="{StaticResource IndustrialPrimaryBrush}" />
-                                        <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                        <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -279,9 +280,9 @@
                             <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsFilterActive}" Value="True">
-                                        <Setter Property="Background" Value="#107C41" />
-                                        <Setter Property="Foreground" Value="White" />
-                                        <Setter Property="BorderBrush" Value="#0B5A2F" />
+                                        <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource BgPanelBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SuccessDarkBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -295,9 +296,9 @@
                             <Style TargetType="Button" BasedOn="{StaticResource FilterPillButton}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsFilterDisabled}" Value="True">
-                                        <Setter Property="Background" Value="#64748B" />
-                                        <Setter Property="Foreground" Value="White" />
-                                        <Setter Property="BorderBrush" Value="#475569" />
+                                        <Setter Property="Background" Value="{DynamicResource TextMutedBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource BgPanelBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -309,7 +310,7 @@
                     <Button Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasRules}"
                             Style="{StaticResource FilterPillButton}" Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="📤" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecModbus}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,5,0" />
                             <TextBlock Text="{Binding [RuleBtnExportCsv], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -319,7 +320,7 @@
                             Style="{StaticResource FilterPillButton}" Margin="6,0,0,0"
                             ToolTip="{Binding [RuleBtnUploadFromDeviceTip], Source={x:Static services:LocalizationService.Instance}}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="📥" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecInputPort}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,5,0" />
                             <TextBlock Text="{Binding [RuleBtnUploadFromDevice], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -329,14 +330,14 @@
                             Style="{StaticResource FilterPillButton}" Margin="6,0,0,0"
                             ToolTip="{Binding [RuleBtnDeduplicateTip], Source={x:Static services:LocalizationService.Instance}}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="🧹" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,5,0" />
                             <TextBlock Text="{Binding [RuleBtnDeduplicate], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
 
                 <!-- Right: Search Input Box -->
-                <Border DockPanel.Dock="Right" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8,4" Width="360" HorizontalAlignment="Right">
+                <Border DockPanel.Dock="Right" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Width="360" HorizontalAlignment="Right">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -344,11 +345,11 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="0" Text="🔍" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <Path Grid.Column="0" Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysSearch}" Stroke="{DynamicResource TextMutedBrush}" Width="11" Height="11" Margin="0,0,6,0" />
 
                         <!-- Placeholder Text -->
                         <TextBlock Grid.Column="1" Text="{Binding [RuleSearchPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
-                                   FontSize="11.5" Foreground="#94A3B8" VerticalAlignment="Center" IsHitTestVisible="False">
+                                   FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsHitTestVisible="False">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -366,11 +367,11 @@
 
                         <!-- Input TextBox -->
                         <TextBox Grid.Column="1" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="Transparent" BorderThickness="0" FontSize="11.5" Foreground="#0F172A" VerticalAlignment="Center" />
+                                 Background="Transparent" BorderThickness="0" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
                         <!-- Clear Button -->
                         <Button Grid.Column="2" Command="{Binding ClearSearchCommand}"
-                                Content="✕" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"
+                                Foreground="{DynamicResource TextMutedBrush}" ToolTip="Clear"
                                 Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="4,0" VerticalAlignment="Center">
                             <Button.Style>
                                 <Style TargetType="Button">
@@ -394,7 +395,7 @@
         <!-- SubTab 0 Row 1: Content (DataGrid when HasRules == true, Empty State when HasRules == false) -->
         <Grid Grid.Row="1">
             <!-- DataGrid Table -->
-            <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6"
+            <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="6"
                     Visibility="{Binding HasRules, Converter={StaticResource BoolToVis}}">
                 <DataGrid ItemsSource="{Binding FilteredRules}" AutoGenerateColumns="False"
                           IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
@@ -405,7 +406,7 @@
                           VirtualizingPanel.IsVirtualizing="True"
                           VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True"
-                          Background="White" BorderThickness="0" MinRowHeight="42"
+                          Background="{DynamicResource BgPanelBrush}" BorderThickness="0" MinRowHeight="42"
                           HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                           SelectedItem="{Binding SelectedRule}" SelectionMode="Single">
 
@@ -427,7 +428,7 @@
                                                 Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" Foreground="{StaticResource IndustrialPrimaryBrush}" FontFamily="Consolas"
+                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" Foreground="{DynamicResource IndustrialPrimaryBrush}" FontFamily="Consolas"
                                                VerticalAlignment="Center" HorizontalAlignment="Left" Margin="10,0" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -437,8 +438,8 @@
                         <DataGridTemplateColumn Header="{Binding [ColRuleTrigger], Source={x:Static services:LocalizationService.Instance}}" Width="160">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border Background="#F1F5F9" BorderBrush="#107C41" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding TriggerSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#107C41" FontFamily="Consolas" />
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TriggerSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" FontFamily="Consolas" />
                                     </Border>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -448,8 +449,8 @@
                         <DataGridTemplateColumn Header="{Binding [ColRuleGuard], Source={x:Static services:LocalizationService.Instance}}" Width="135">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border Background="#FFFBEB" BorderBrush="#C05621" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding GuardSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#C05621" FontFamily="Consolas" />
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding GuardSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource WarningDarkBrush}" FontFamily="Consolas" />
                                     </Border>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -459,8 +460,8 @@
                         <DataGridTemplateColumn Header="{Binding [ColRuleAction], Source={x:Static services:LocalizationService.Instance}}" Width="145">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border Background="#DFE3E8" BorderBrush="#334155" BorderThickness="1" CornerRadius="2" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding ActionSummary}" FontSize="11" FontWeight="SemiBold" Foreground="#334155" FontFamily="Consolas" />
+                                    <Border Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="7,3" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ActionSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" FontFamily="Consolas" />
                                     </Border>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -470,7 +471,7 @@
                         <DataGridTemplateColumn Header="{Binding [ColRuleMacro], Source={x:Static services:LocalizationService.Instance}}" Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border Background="{Binding MacroBadgeBackground}" BorderBrush="{Binding MacroBadgeBorderBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    <Border Background="{Binding MacroBadgeBackground}" BorderBrush="{Binding MacroBadgeBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="10,0,6,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                                             Visibility="{Binding MacroAttribution, Converter={StaticResource NullToVis}}">
                                         <TextBlock Text="{Binding MacroAttribution}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding MacroBadgeForeground}" FontFamily="Segoe UI" TextTrimming="CharacterEllipsis" ToolTip="{Binding MacroAttribution}" />
                                     </Border>
@@ -483,7 +484,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Narrative}" TextWrapping="Wrap" LineHeight="17"
-                                               FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11.5"
+                                               FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11.5"
                                                VerticalAlignment="Center" Padding="10,4" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -501,30 +502,30 @@
                                                 Style="{StaticResource TiaTactileBtnStyle}"
                                                 FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
                                                 ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
-                                            <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                         </Button>
 
                                         <!-- Delete Rule -->
                                         <Button Command="{Binding DataContext.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
-                                                Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                Background="{DynamicResource BgSubtleBrush}" Foreground="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                 FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                                                    <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" HorizontalAlignment="Center" />
                                                                 </Border>
                                                             </ControlTemplate>
                                                         </Setter.Value>
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#FEE2E2" />
-                                                            <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                            <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -539,17 +540,17 @@
             </Border>
 
             <!-- Empty State Card (Visible when HasRules == false) -->
-            <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="32"
+            <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="32"
                     Visibility="{Binding HasRules, Converter={StaticResource InverseBoolToVis}}"
                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
-                    <Border Background="#ECEFF1" Width="72" Height="72" CornerRadius="36" HorizontalAlignment="Center" Margin="0,0,0,16">
-                        <TextBlock Text="⚡" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Background="{DynamicResource BgSubtleBrush}" Width="72" Height="72" CornerRadius="36" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource TextMutedBrush}" Width="36" Height="36" HorizontalAlignment="Center" />
                     </Border>
                     <TextBlock Text="{Binding [RuleEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
-                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
+                               FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
                     <TextBlock Text="{Binding [RuleEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
-                               FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" LineHeight="19" Margin="0,0,0,24" />
+                               FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" LineHeight="19" Margin="0,0,0,24" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Content="{Binding [RuleEmptyBtnGraph], Source={x:Static services:LocalizationService.Instance}}"
                                 Command="{Binding EditInLogicGraphCommand}"
@@ -568,29 +569,29 @@
                       Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}" />
 
         <!-- SubTab 0 Row 3: Logic Flow Details Card (Automation Pipeline: Trigger -> Guard -> Action) -->
-        <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10"
+        <Border Grid.Row="3" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10"
                 Visibility="{Binding SelectedRule, Converter={StaticResource NullToVis}}">
             <StackPanel>
                 <!-- Card Header -->
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="📋 " FontSize="13" VerticalAlignment="Center" />
+                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysCopy}" Stroke="{DynamicResource TextSecondaryBrush}" Width="13" Height="13" Margin="0,0,6,0" />
                         <TextBlock Text="{Binding [RuleFlowInspectorTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                   FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                   FontWeight="Bold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                         
                         <!-- Rule ID Pill -->
-                        <Border Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedRule.Id}" FontWeight="Bold" FontSize="11.5" Foreground="#334155" FontFamily="Consolas" />
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedRule.Id}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" FontFamily="Consolas" />
                         </Border>
 
                         <!-- Rule Status Pill -->
-                        <Border CornerRadius="2" Padding="7,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                        <Border CornerRadius="4" Padding="7,2" Margin="6,0,0,0" VerticalAlignment="Center">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#F3F4F6" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding SelectedRule.Enabled}" Value="True">
-                                            <Setter Property="Background" Value="#F1F5F9" />
+                                            <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -598,10 +599,10 @@
                             <TextBlock Text="{Binding SelectedRule.StatusText}" FontWeight="SemiBold" FontSize="11">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#64748B" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding SelectedRule.Enabled}" Value="True">
-                                                <Setter Property="Foreground" Value="#107C41" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -614,7 +615,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                         <!-- Collapse / Expand Flow Details Toggle -->
                         <Button Command="{Binding ToggleFlowInspectorCommand}"
-                                Background="#F3F4F6" Foreground="#475569" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                Background="{DynamicResource BgSubtleBrush}" Foreground="{DynamicResource TextSecondaryBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                 FontWeight="SemiBold" FontSize="11" Padding="10,4" Cursor="Hand" Margin="0,0,8,0"
                                 ToolTip="{Binding [RuleFlowToggleTip], Source={x:Static services:LocalizationService.Instance}}">
                             <Button.Style>
@@ -622,7 +623,7 @@
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderBrush}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderBrush}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding FlowInspectorToggleIcon}" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center" />
                                                         <TextBlock Text="{Binding FlowInspectorToggleText}" VerticalAlignment="Center" />
@@ -633,7 +634,7 @@
                                     </Setter>
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#DFE3E8" />
+                                            <Setter Property="Background" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -645,7 +646,7 @@
                                 Style="{StaticResource TiaTactileBtnStyle}"
                                 Padding="10,4">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="✏️ " FontSize="10.5" VerticalAlignment="Center" />
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="10" Height="10" Margin="0,0,4,0" />
                                 <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
@@ -663,68 +664,68 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Step 1: Trigger -->
-                        <Border Grid.Column="0" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="0,0,6,0">
+                        <Border Grid.Column="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,6,0">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="⚡ " FontSize="11" Foreground="#107C41" />
-                                    <TextBlock Text="{Binding [RuleFlowStep1Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#107C41" />
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource SuccessBrush}" Width="11" Height="11" Margin="0,0,4,0" />
+                                    <TextBlock Text="{Binding [RuleFlowStep1Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding SelectedRule.TriggerTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
-                                <Border Background="#F1F5F9" BorderBrush="#107C41" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left" Margin="0,0,0,4">
-                                    <TextBlock Text="{Binding SelectedRule.TriggerEventText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#107C41" />
+                                <TextBlock Text="{Binding SelectedRule.TriggerTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" Margin="0,0,0,4">
+                                    <TextBlock Text="{Binding SelectedRule.TriggerEventText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" />
                                 </Border>
-                                <TextBlock Text="{Binding SelectedRule.TriggerDwellText}" FontSize="10.5" Foreground="#107C41" Margin="0,2,0,0"
+                                <TextBlock Text="{Binding SelectedRule.TriggerDwellText}" FontSize="10.5" Foreground="{DynamicResource SuccessBrush}" Margin="0,2,0,0"
                                            Visibility="{Binding SelectedRule.HasDwell, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
                         </Border>
 
                         <!-- Step 2: Guard -->
-                        <Border Grid.Column="1" CornerRadius="2" Padding="12" Margin="3,0,3,0">
+                        <Border Grid.Column="1" CornerRadius="4" Padding="12" Margin="3,0,3,0">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#F8F9FA" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding SelectedRule.HasGuard}" Value="True">
-                                            <Setter Property="Background" Value="#FFFBEB" />
-                                            <Setter Property="BorderBrush" Value="#C05621" />
+                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource WarningDarkBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="🛡️ " FontSize="11" Foreground="#C05621" />
-                                    <TextBlock Text="{Binding [RuleFlowStep2Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#C05621" />
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecGuardInterlock}" Stroke="{DynamicResource WarningDarkBrush}" Width="11" Height="11" Margin="0,0,4,0" />
+                                    <TextBlock Text="{Binding [RuleFlowStep2Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource WarningDarkBrush}" />
                                 </StackPanel>
                                 <Grid>
                                     <!-- When HasGuard == True -->
                                     <StackPanel Visibility="{Binding SelectedRule.HasGuard, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="{Binding SelectedRule.GuardTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
-                                        <Border Background="#FFFBEB" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left">
-                                            <TextBlock Text="{Binding SelectedRule.GuardConditionText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#C05621" />
+                                        <TextBlock Text="{Binding SelectedRule.GuardTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                        <Border Background="{DynamicResource BgSubtleBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding SelectedRule.GuardConditionText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource WarningDarkBrush}" />
                                         </Border>
                                     </StackPanel>
                                     <!-- When HasGuard == False -->
                                     <StackPanel Visibility="{Binding SelectedRule.HasGuard, Converter={StaticResource InverseBoolToVis}}">
-                                        <TextBlock Text="✓ Không có điều kiện phụ" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="0,2,0,2" />
-                                        <TextBlock Text="{Binding [RuleFlowNoGuard], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                        <TextBlock Text="Không có điều kiện phụ" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,2" />
+                                        <TextBlock Text="{Binding [RuleFlowNoGuard], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Step 3: Action -->
-                        <Border Grid.Column="2" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="6,0,0,0">
+                        <Border Grid.Column="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="6,0,0,0">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="⚙️ " FontSize="11" Foreground="#334155" />
-                                    <TextBlock Text="{Binding [RuleFlowStep3Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="#334155" />
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecActionCoil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
+                                    <TextBlock Text="{Binding [RuleFlowStep3Title], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding SelectedRule.ActionTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
-                                <Border Background="#ECEFF1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Left">
-                                    <TextBlock Text="{Binding SelectedRule.ActionDetailText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#334155" />
+                                <TextBlock Text="{Binding SelectedRule.ActionTag.DisplayName, FallbackValue='—'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis" />
+                                <Border Background="{DynamicResource BgSubtleBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding SelectedRule.ActionDetailText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -735,7 +736,7 @@
                         <!-- Left: Related Tags Pills -->
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding [RuleFlowRelatedTags], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
                             <ItemsControl ItemsSource="{Binding SelectedRule.RelatedTags}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -744,8 +745,8 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="10.5" FontWeight="Medium" Foreground="#475569" />
+                                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="10.5" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" />
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -757,22 +758,22 @@
                                 Style="{StaticResource FilterPillButton}" Margin="0" HorizontalAlignment="Right"
                                 ToolTip="{Binding [RuleFlowDevToggleTip], Source={x:Static services:LocalizationService.Instance}}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="🔧 " FontSize="10.5" VerticalAlignment="Center" />
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysSettings}" Stroke="{DynamicResource TextSecondaryBrush}" Width="10" Height="10" Margin="0,0,4,0" />
                                 <TextBlock Text="{Binding [RuleFlowDevToggle], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </DockPanel>
 
                     <!-- Collapsible Dev Binary Hex Payload (Hidden by default, for firmware engineers only) -->
-                    <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,10,0,0"
+                    <Border Background="{DynamicResource BgHeaderBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,10,0,0"
                             Visibility="{Binding IsDevPayloadVisible, Converter={StaticResource BoolToVis}}">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="DEVICE BINARY PAYLOAD (32-BYTE WIRE FORMAT)" FontSize="9" FontWeight="Bold" Foreground="#94A3B8" Margin="0,0,0,3" FontFamily="Consolas" />
-                                <TextBlock Text="{Binding SelectedRule.RawHex}" FontFamily="Consolas" FontSize="10.5" FontWeight="SemiBold" Foreground="#F8FAFC" TextWrapping="Wrap" />
+                                <TextBlock Text="DEVICE BINARY PAYLOAD (32-BYTE WIRE FORMAT)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" FontFamily="Consolas" />
+                                <TextBlock Text="{Binding SelectedRule.RawHex}" FontFamily="Consolas" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource BgPanelBrush}" TextWrapping="Wrap" />
                             </StackPanel>
                             <Button DockPanel.Dock="Right" Command="{Binding CopyHexCommand}"
-                                    Background="#1E293B" Foreground="#F8FAFC" BorderBrush="#475569" BorderThickness="1"
+                                    Background="{DynamicResource BgHeaderBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource TextSecondaryBrush}" BorderThickness="1"
                                     FontWeight="SemiBold" FontSize="10.5" Padding="10,4" Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding [RuleBtnCopyHex], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
@@ -793,7 +794,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Top Notice & Action Bar -->
-                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12,10" Margin="0,0,0,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,12">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Command="{Binding OpenModbusPortSettingsCommand}"
                                 Style="{StaticResource TiaTactileBtnStyle}" Padding="12,5" VerticalAlignment="Center">
@@ -803,18 +804,18 @@
                         </Button>
                         <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                             <TextBlock Text="{Binding [RuleModbusNoticeDeviceSettings], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
                 <!-- Modbus DataGrid & Empty State -->
-                <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6">
                     <Grid>
                         <DataGrid ItemsSource="{Binding ModbusCommands}" AutoGenerateColumns="False" IsReadOnly="True"
                                   CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
-                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalGridLinesBrush="{DynamicResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="{DynamicResource BgSubtleBrush}"
                                   HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                   HeadersVisibility="Column" RowHeaderWidth="0"
                                   ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
@@ -869,29 +870,29 @@
                                                         Style="{StaticResource TiaTactileBtnStyle}"
                                                         FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
                                                         ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
-                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                                 </Button>
 
                                                 <Button Command="{Binding DataContext.DeleteModbusCommandCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
-                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        Background="{DynamicResource BgSubtleBrush}" Foreground="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                         FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
                                                     <Button.Style>
                                                         <Style TargetType="Button">
                                                             <Setter Property="Template">
                                                                 <Setter.Value>
                                                                     <ControlTemplate TargetType="Button">
-                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" HorizontalAlignment="Center" />
                                                                         </Border>
                                                                     </ControlTemplate>
                                                                 </Setter.Value>
                                                             </Setter>
                                                             <Style.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FEE2E2" />
-                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                    <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                                                 </Trigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -905,16 +906,16 @@
                         </DataGrid>
 
                         <!-- Empty State -->
-                        <Border Background="White" Visibility="{Binding ModbusCommandCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                        <Border Background="{DynamicResource BgPanelBrush}" Visibility="{Binding ModbusCommandCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="🔄" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTimerCycle}" Stroke="{DynamicResource TextMutedBrush}" Width="40" Height="40" HorizontalAlignment="Center" Margin="0,0,0,12" />
                                 <TextBlock Text="{Binding [RuleModbusEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                           FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding [RuleModbusEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
                                 <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⚡ " />
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                         <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Button>
@@ -932,7 +933,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Top Notice & Action Bar -->
-                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12,10" Margin="0,0,0,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,12">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Command="{Binding OpenMqttBrokerSettingsCommand}"
                                 Style="{StaticResource TiaTactileBtnStyle}" Padding="12,5" VerticalAlignment="Center">
@@ -942,18 +943,18 @@
                         </Button>
                         <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                             <TextBlock Text="{Binding [RuleMqttNoticeDeviceSettings], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
                 <!-- MQTT DataGrid & Empty State -->
-                <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6">
                     <Grid>
                         <DataGrid ItemsSource="{Binding MqttServices}" AutoGenerateColumns="False" IsReadOnly="True"
                                   CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
-                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalGridLinesBrush="{DynamicResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="{DynamicResource BgSubtleBrush}"
                                   HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                   HeadersVisibility="Column" RowHeaderWidth="0"
                                   ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
@@ -996,29 +997,29 @@
                                                         Style="{StaticResource TiaTactileBtnStyle}"
                                                         FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
                                                         ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
-                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                                 </Button>
 
                                                 <Button Command="{Binding DataContext.DeleteMqttServiceCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
-                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        Background="{DynamicResource BgSubtleBrush}" Foreground="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                         FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
                                                     <Button.Style>
                                                         <Style TargetType="Button">
                                                             <Setter Property="Template">
                                                                 <Setter.Value>
                                                                     <ControlTemplate TargetType="Button">
-                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" HorizontalAlignment="Center" />
                                                                         </Border>
                                                                     </ControlTemplate>
                                                                 </Setter.Value>
                                                             </Setter>
                                                             <Style.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FEE2E2" />
-                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                    <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                                                 </Trigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1032,16 +1033,16 @@
                         </DataGrid>
 
                         <!-- Empty State -->
-                        <Border Background="White" Visibility="{Binding MqttServiceCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                        <Border Background="{DynamicResource BgPanelBrush}" Visibility="{Binding MqttServiceCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="☁️" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecCommunication}" Stroke="{DynamicResource TextMutedBrush}" Width="40" Height="40" HorizontalAlignment="Center" Margin="0,0,0,12" />
                                 <TextBlock Text="{Binding [RuleMqttEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                           FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding [RuleMqttEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
                                 <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⚡ " />
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                         <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Button>
@@ -1058,12 +1059,12 @@
                 </Grid.RowDefinitions>
 
                 <!-- Function Blocks DataGrid & Empty State -->
-                <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6">
                     <Grid>
                         <DataGrid ItemsSource="{Binding FunctionBlocks}" AutoGenerateColumns="False" IsReadOnly="True"
                                   CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="{StaticResource BorderLightBrush}" RowHeight="36"
-                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="#F8FAFC"
+                                  HorizontalGridLinesBrush="{DynamicResource BorderLightBrush}" RowHeight="36"
+                                  BorderThickness="0" Background="Transparent" AlternatingRowBackground="{DynamicResource BgSubtleBrush}"
                                   HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                   HeadersVisibility="Column" RowHeaderWidth="0"
                                   ColumnHeaderStyle="{StaticResource ModernColumnHeaderStyle}">
@@ -1102,29 +1103,29 @@
                                                         Style="{StaticResource TiaTactileBtnStyle}"
                                                         FontSize="10.5" Padding="6,3" Margin="0,0,6,0"
                                                         ToolTip="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}">
-                                                    <TextBlock Text="✏️" FontSize="11" VerticalAlignment="Center" />
+                                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                                 </Button>
 
                                                 <Button Command="{Binding DataContext.DeleteFunctionBlockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="{Binding [RuleBtnDelete], Source={x:Static services:LocalizationService.Instance}}"
-                                                        Background="#F3F4F6" Foreground="#B91C1C" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                                        Background="{DynamicResource BgSubtleBrush}" Foreground="{DynamicResource DangerBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                                         FontSize="11" FontWeight="SemiBold" Padding="6,3" Cursor="Hand">
                                                     <Button.Style>
                                                         <Style TargetType="Button">
                                                             <Setter Property="Template">
                                                                 <Setter.Value>
                                                                     <ControlTemplate TargetType="Button">
-                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                                                                            <TextBlock Text="🗑️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" HorizontalAlignment="Center" />
                                                                         </Border>
                                                                     </ControlTemplate>
                                                                 </Setter.Value>
                                                             </Setter>
                                                             <Style.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FEE2E2" />
-                                                                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                                                                    <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
                                                                 </Trigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1138,16 +1139,16 @@
                         </DataGrid>
 
                         <!-- Empty State -->
-                        <Border Background="White" Visibility="{Binding FunctionBlockCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
+                        <Border Background="{DynamicResource BgPanelBrush}" Visibility="{Binding FunctionBlockCount, Converter={StaticResource CompareToVis}, ConverterParameter=0}">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="⏱️" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTimers}" Stroke="{DynamicResource TextMutedBrush}" Width="40" Height="40" HorizontalAlignment="Center" Margin="0,0,0,12" />
                                 <TextBlock Text="{Binding [RuleFbEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                                           FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding [RuleFbEmptyDesc], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap" MaxWidth="500" TextAlignment="Center" />
                                 <Button Command="{Binding EditInLogicGraphCommand}" Style="{StaticResource TiaTactileBtnStyle}" Padding="16,6" HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⚡ " />
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTriggerPulse}" Stroke="{DynamicResource TextSecondaryBrush}" Width="11" Height="11" Margin="0,0,4,0" />
                                         <TextBlock Text="{Binding [RuleBtnViewCanvas], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Button>

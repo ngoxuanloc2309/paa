@@ -30,13 +30,13 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
 
         Icon="../Assets/app.png"
 
-        FontFamily="Segoe UI"
+        FontFamily="Segoe UI, Segoe UI Variable, system-ui"
 
-        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextFormattingMode="Ideal"
 
         TextOptions.TextRenderingMode="ClearType"
 
@@ -55,6 +55,7 @@
                 <ResourceDictionary Source="../Styles/Colors.xaml" />
 
                 <ResourceDictionary Source="../Styles/Controls.xaml" />
+                <ResourceDictionary Source="../Styles/Icons.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
 
@@ -70,7 +71,7 @@
 
 
 
-    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1">
 
         <Grid Margin="20">
 
@@ -114,10 +115,8 @@
 
 
 
-                <Border Grid.Column="0" Width="44" Height="420" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
-
-                    <TextBlock Text="⏱" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource PrimaryBrush}" />
-
+                <Border Grid.Column="0" Width="44" Height="44" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,14,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconTimerClock}" Stroke="{StaticResource PrimaryBrush}" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" StrokeThickness="1.8" />
                 </Border>
 
 
@@ -140,13 +139,13 @@
 
             <!-- 1. Card 1: Hiện trạng trên Bộ điều khiển -->
 
-            <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,12">
+            <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,14" Margin="0,0,0,12">
 
                 <StackPanel>
 
                     <TextBlock Text="{Binding [RtcSectionCurrent], Source={x:Static services:LocalizationService.Instance}}"
 
-                               FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,12" />
+                               FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" />
 
 
 
@@ -198,17 +197,17 @@
 
                                     <Style TargetType="Border">
 
-                                        <Setter Property="Background" Value="#F1F5F9" />
+                                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderLightBrush}" />
 
                                         <Style.Triggers>
 
                                             <DataTrigger Binding="{Binding HasHardwareRtc}" Value="True">
 
-                                                <Setter Property="Background" Value="#F1F5F9" />
+                                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                                <Setter Property="BorderBrush" Value="#107C41" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
 
                                             </DataTrigger>
 
@@ -224,13 +223,13 @@
 
                                         <Style TargetType="TextBlock">
 
-                                            <Setter Property="Foreground" Value="#475569" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
 
                                             <Style.Triggers>
 
                                                 <DataTrigger Binding="{Binding HasHardwareRtc}" Value="True">
 
-                                                    <Setter Property="Foreground" Value="#107C41" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
 
                                                 </DataTrigger>
 
@@ -248,7 +247,7 @@
 
                             <!-- Giải thích kỹ thuật phụ trợ -->
 
-                            <TextBlock Text="{Binding HwRtcDescriptionText}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding HwRtcDescriptionText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
 
                         </StackPanel>
 
@@ -258,7 +257,7 @@
 
                     <!-- Cảnh báo nếu có sự cố gián đoạn nguồn nuôi -->
 
-                    <Border Background="{StaticResource WarningLightBrush}" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="2" Padding="10,6" Margin="0,10,0,0"
+                    <Border Background="{DynamicResource WarningLightBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,10,0,0"
 
                             Visibility="{Binding BatteryWarningText, Converter={StaticResource NullToVis}}">
 
@@ -274,13 +273,13 @@
 
             <!-- 2. Card 2: Thiết lập Múi giờ Triển khai -->
 
-            <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,16">
+            <Border Grid.Row="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,14" Margin="0,0,0,16">
 
                 <StackPanel>
 
                     <TextBlock Text="{Binding [RtcSectionConfig], Source={x:Static services:LocalizationService.Instance}}"
 
-                               FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                               FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
 
 
@@ -308,7 +307,7 @@
 
                               Padding="8,0"
 
-                              BorderBrush="#CBD5E1">
+                              BorderBrush="{DynamicResource BorderLightBrush}">
 
                         <ComboBox.ItemContainerStyle>
 
@@ -334,7 +333,7 @@
 
 
 
-                    <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="12,10">
+                    <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10">
 
                         <TextBlock Text="{Binding TargetPreviewTimeText}" 
 
@@ -350,7 +349,7 @@
 
             <!-- 3. Error Alert (nếu có lỗi giao tiếp) -->
 
-            <Border Grid.Row="3" Background="{StaticResource DangerLightBrush}" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,12"
+            <Border Grid.Row="3" Background="{DynamicResource DangerLightBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,12"
 
                     Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVis}}">
 

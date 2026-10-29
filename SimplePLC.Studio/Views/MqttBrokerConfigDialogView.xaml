@@ -27,7 +27,7 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
 
         Icon="../Assets/app.png"
 
@@ -63,7 +63,7 @@
 
 
 
-    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
 
         <Grid Margin="16,14">
 
@@ -99,7 +99,7 @@
 
 
 
-                <Border Grid.Column="0" Width="44" Height="44" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
+                <Border Grid.Column="0" Width="44" Height="44" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
 
                     <TextBlock Text="📡" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
@@ -111,11 +111,11 @@
 
                     <TextBlock Text="{Binding [MqttBrokerDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                               FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                               FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                     <TextBlock Text="{Binding [MqttBrokerDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
 
                 </StackPanel>
 
@@ -131,7 +131,7 @@
 
                     <!-- Card 1: Dịch vụ & Máy chủ Broker -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
 
                         <StackPanel>
 
@@ -147,11 +147,11 @@
 
                                 <TextBlock Text="{Binding [MqttBrokerSectionNetwork], Source={x:Static services:LocalizationService.Instance}}"
 
-                                           FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
                                 <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" Content="{Binding [MqttBrokerEnabledLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                          FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                          FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
                             </Grid>
 
@@ -177,17 +177,17 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerHostLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
                                     <Grid>
 
                                         <TextBox x:Name="HostTextBox" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" 
 
-                                                 Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+                                                 Padding="8,6" FontSize="12.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                         <TextBlock Text="{Binding [MqttBrokerHostPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                   FontSize="12" Foreground="#94A3B8" FontStyle="Italic"
+                                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
 
                                                    Margin="9,7,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
 
@@ -225,9 +225,9 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerPortLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
-                                    <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="#CBD5E1" Width="80" HorizontalAlignment="Left" />
+                                    <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Width="80" HorizontalAlignment="Left" />
 
                                 </StackPanel>
 
@@ -241,7 +241,7 @@
 
                                  <CheckBox IsChecked="{Binding UseTls}" Content="{Binding [MqttBrokerTlsLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                           FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                           FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                             </StackPanel>
 
@@ -249,7 +249,7 @@
 
                             <!-- TLS / SSL Certificate & Security Parameters (Shows when UseTls is True) -->
 
-                            <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="14,12" Margin="0,10,0,0"
+                            <Border Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,12" Margin="0,10,0,0"
 
                                     Visibility="{Binding UseTls, Converter={StaticResource BoolToVis}}">
 
@@ -267,11 +267,11 @@
 
                                         <TextBlock Text="{Binding [MqttBrokerSectionTls], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                   FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+                                                   FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
-                                        <Border Grid.Column="1" Background="#E2E8F0" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
+                                        <Border Grid.Column="1" Background="{DynamicResource IndustrialBorderSubtleBrush}" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
 
-                                            <TextBlock Text="TLS 1.2 / 1.3" FontSize="10" FontWeight="SemiBold" Foreground="#475569" />
+                                            <TextBlock Text="TLS 1.2 / 1.3" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                                         </Border>
 
@@ -283,7 +283,7 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerCaCertLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
                                     <Grid Margin="0,0,0,8">
 
@@ -305,7 +305,7 @@
 
                                         <TextBox Grid.Column="0" Text="{Binding CaCertPath, Mode=OneWay}" IsReadOnly="True"
 
-                                                 Padding="8,6" FontSize="11.5" BorderBrush="#CBD5E1" Background="#FFFFFF" />
+                                                 Padding="8,6" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Background="{DynamicResource BgPanelBrush}" />
 
 
 
@@ -331,7 +331,7 @@
 
                                     <!-- Cert Details Info Badge (When HasCaCert is True) -->
 
-                                    <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8"
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8"
 
                                             Visibility="{Binding HasCaCert, Converter={StaticResource BoolToVis}}">
 
@@ -359,31 +359,31 @@
 
                                             <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [MqttBrokerCertIssuer], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                       FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" />
+                                                       FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontWeight="SemiBold" />
 
                                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CaCertIssuer}"
 
-                                                       FontSize="10.5" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
+                                                       FontSize="10.5" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
 
 
 
                                             <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [MqttBrokerCertExpiry], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                       FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                                       FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontWeight="SemiBold" Margin="0,2,0,0" />
 
                                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CaCertExpiry}"
 
-                                                       FontSize="10.5" Foreground="#0F172A" Margin="0,2,0,0" />
+                                                       FontSize="10.5" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,2,0,0" />
 
 
 
                                             <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [MqttBrokerCertFingerprint], Source={x:Static services:LocalizationService.Instance}}"
 
-                                                       FontSize="10.5" Foreground="#64748B" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                                       FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontWeight="SemiBold" Margin="0,2,0,0" />
 
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CaCertSha256}"
 
-                                                       FontSize="10" FontFamily="Consolas" Foreground="#334155" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                                       FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
 
                                         </Grid>
 
@@ -395,7 +395,7 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerCertNone], Source={x:Static services:LocalizationService.Instance}}"
 
-                                               FontSize="11" Foreground="#64748B" FontStyle="Italic" Margin="0,0,0,6">
+                                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic" Margin="0,0,0,6">
 
                                         <TextBlock.Style>
 
@@ -427,7 +427,7 @@
 
                                               Content="{Binding [MqttBrokerAllowSelfSignedLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                              FontSize="11.5" Foreground="#334155" Margin="0,4,0,0" />
+                                              FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
 
                                 </StackPanel>
 
@@ -441,13 +441,13 @@
 
                     <!-- Card 2: Xác thực & Định danh Client -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
 
                         <StackPanel>
 
                             <TextBlock Text="{Binding [MqttBrokerSectionAuth], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
 
 
@@ -455,17 +455,17 @@
 
                             <TextBlock Text="{Binding [MqttBrokerClientIdLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
                             <Grid Margin="0,0,0,10">
 
                                 <TextBox x:Name="ClientIdTextBox" Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" 
 
-                                         Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+                                         Padding="8,6" FontSize="12.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 <TextBlock Text="{Binding [MqttBrokerClientIdPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
 
-                                           FontSize="12" Foreground="#94A3B8" FontStyle="Italic"
+                                           FontSize="12" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
 
                                            Margin="9,7,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
 
@@ -515,11 +515,11 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerUserLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
                                     <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+                                             Padding="8,6" FontSize="12.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -531,11 +531,11 @@
 
                                     <TextBlock Text="{Binding [MqttBrokerPassLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
 
                                     <TextBox Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+                                             Padding="8,6" FontSize="12.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -549,13 +549,13 @@
 
                     <!-- Card 3: Thông số Phiên (Session Options) -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
 
                         <StackPanel>
 
                             <TextBlock Text="{Binding [MqttBrokerSectionSession], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
 
 
@@ -579,9 +579,9 @@
 
                                 <TextBlock Grid.Column="0" Text="{Binding [MqttBrokerKeepAliveLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
-                                <TextBox Grid.Column="1" Text="{Binding KeepAliveSec, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="#CBD5E1" Width="70" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding KeepAliveSec, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Width="70" HorizontalAlignment="Left" VerticalAlignment="Center" />
 
 
 
@@ -591,7 +591,7 @@
 
                                           Content="{Binding [MqttBrokerCleanSessionLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                          FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                          FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
                             </Grid>
 
@@ -602,14 +602,14 @@
 
 
                     <!-- Card 3.5: Last Will & Testament (LWT) -->
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10" Margin="0,0,0,10">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,8">
                                 <TextBlock Text="{Binding [MqttWillSectionTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                                 <CheckBox IsChecked="{Binding WillEnabled}" HorizontalAlignment="Right"
                                           Content="{Binding [MqttWillEnableLabel], Source={x:Static services:LocalizationService.Instance}}"
-                                          FontSize="11.5" Foreground="#0284C7" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                          FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Visibility="{Binding WillEnabled, Converter={StaticResource BoolToVis}}">
@@ -625,15 +625,15 @@
                                     <!-- Will Topic -->
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="{Binding [MqttWillTopicLabel], Source={x:Static services:LocalizationService.Instance}}"
-                                                   FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                                   FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                         <TextBox Text="{Binding WillTopic, UpdateSourceTrigger=PropertyChanged}" MaxLength="32"
-                                                 Padding="8,6" FontSize="12.5" BorderBrush="#CBD5E1" />
+                                                 Padding="8,6" FontSize="12.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
                                     </StackPanel>
 
                                     <!-- Will QoS -->
                                     <StackPanel Grid.Column="2">
-                                        <TextBlock Text="QoS" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                                        <ComboBox SelectedIndex="{Binding WillQos}" Height="30" FontSize="12" BorderBrush="#CBD5E1">
+                                        <TextBlock Text="QoS" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                        <ComboBox SelectedIndex="{Binding WillQos}" Height="30" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}">
                                             <ComboBoxItem Content="QoS 0" />
                                             <ComboBoxItem Content="QoS 1" />
                                             <ComboBoxItem Content="QoS 2" />
@@ -643,15 +643,15 @@
                                     <!-- Will Retain -->
                                     <CheckBox Grid.Column="4" IsChecked="{Binding WillRetain}" VerticalAlignment="Bottom" Margin="0,0,0,8"
                                               Content="{Binding [MqttWillRetainLabel], Source={x:Static services:LocalizationService.Instance}}"
-                                              FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
+                                              FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
                                 </Grid>
 
                                 <!-- Will Payload -->
                                 <StackPanel>
                                     <TextBlock Text="{Binding [MqttWillPayloadLabel], Source={x:Static services:LocalizationService.Instance}}"
-                                               FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                               FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding WillPayload, UpdateSourceTrigger=PropertyChanged}" MaxLength="30"
-                                             Padding="8,6" FontSize="12.5" FontFamily="Consolas" BorderBrush="#CBD5E1" />
+                                             Padding="8,6" FontSize="12.5" FontFamily="Consolas" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
@@ -659,7 +659,7 @@
 
                     <!-- Card 4: Kiểm tra kết nối TCP -->
 
-                    <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="14,10">
+                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="14,10">
 
                         <Grid>
 
@@ -699,13 +699,13 @@
 
                                     <Style TargetType="TextBlock">
 
-                                        <Setter Property="Foreground" Value="#64748B" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
 
                                         <Style.Triggers>
 
                                             <DataTrigger Binding="{Binding IsTestSuccess}" Value="True">
 
-                                                <Setter Property="Foreground" Value="#107C41" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
 
                                                 <Setter Property="FontWeight" Value="SemiBold" />
 
@@ -713,7 +713,7 @@
 
                                             <DataTrigger Binding="{Binding IsTestSuccess}" Value="False">
 
-                                                <Setter Property="Foreground" Value="#B91C1C" />
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
 
                                                 <Setter Property="FontWeight" Value="SemiBold" />
 

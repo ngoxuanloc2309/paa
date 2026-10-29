@@ -26,8 +26,8 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                                CornerRadius="2" Width="340" Margin="0,0,20,20" Padding="18">
+                        <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
+                                CornerRadius="6" Width="340" Margin="0,0,20,20" Padding="18">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -40,7 +40,7 @@
                                 <!-- Top Badge & Icon -->
                                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
                                     <TextBlock Text="{Binding Icon}" FontSize="24" DockPanel.Dock="Left" Margin="0,0,10,0" />
-                                    <Border Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,3" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="Bold" Foreground="{Binding BadgeColor}" />
                                     </Border>
                                 </DockPanel>
@@ -56,7 +56,7 @@
                                            TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,16" MinHeight="54" />
 
                                 <!-- Tags Used Summary -->
-                                <Border Grid.Row="3" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,16">
+                                <Border Grid.Row="3" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,16">
                                     <StackPanel>
                                         <TextBlock Text="{Binding [BlueprintsUsedTags], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
                                         <TextBlock Text="{Binding TagsSummary}" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="Medium" TextWrapping="Wrap" />

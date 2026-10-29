@@ -26,7 +26,7 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#ECEFF1"
+        Background="{DynamicResource BgWindowBrush}"
 
         Icon="../Assets/app.png"
 
@@ -58,9 +58,9 @@
 
             <Style x:Key="BtnIndustrialPrimary" TargetType="Button">
 
-                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
 
-                <Setter Property="Foreground" Value="#FFFFFF" />
+                <Setter Property="Foreground" Value="{DynamicResource BgPanelBrush}" />
 
                 <Setter Property="FontWeight" Value="SemiBold" />
 
@@ -70,7 +70,7 @@
 
                 <Setter Property="BorderThickness" Value="1" />
 
-                <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHoverBrush}" />
 
                 <Setter Property="Cursor" Value="Hand" />
 
@@ -100,25 +100,25 @@
 
                                 <Trigger Property="IsMouseOver" Value="True">
 
-                                    <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}" />
 
-                                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHoverBrush}" />
 
                                 </Trigger>
 
                                 <Trigger Property="IsPressed" Value="True">
 
-                                    <Setter Property="Background" Value="{StaticResource PrimaryActiveBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource PrimaryActiveBrush}" />
 
                                 </Trigger>
 
                                 <Trigger Property="IsEnabled" Value="False">
 
-                                    <Setter Property="Background" Value="#E2E8F0" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
-                                    <Setter Property="Foreground" Value="#94A3B8" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
 
                                     <Setter TargetName="BtnBorder" Property="Opacity" Value="0.65" />
 
@@ -140,9 +140,9 @@
 
             <Style x:Key="BtnIndustrialSecondary" TargetType="Button">
 
-                <Setter Property="Background" Value="#FFFFFF" />
+                <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
 
-                <Setter Property="Foreground" Value="#1E293B" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
 
                 <Setter Property="FontWeight" Value="Medium" />
 
@@ -152,7 +152,7 @@
 
                 <Setter Property="BorderThickness" Value="1" />
 
-                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                 <Setter Property="Cursor" Value="Hand" />
 
@@ -182,25 +182,25 @@
 
                                 <Trigger Property="IsMouseOver" Value="True">
 
-                                    <Setter Property="Background" Value="#F1F5F9" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                    <Setter Property="BorderBrush" Value="#94A3B8" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </Trigger>
 
                                 <Trigger Property="IsPressed" Value="True">
 
-                                    <Setter Property="Background" Value="#E2E8F0" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
                                 </Trigger>
 
                                 <Trigger Property="IsEnabled" Value="False">
 
-                                    <Setter Property="Background" Value="#F8FAFC" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
 
-                                    <Setter Property="Foreground" Value="#94A3B8" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
 
                                     <Setter TargetName="SecBorder" Property="Opacity" Value="0.5" />
 
@@ -224,7 +224,7 @@
 
 
 
-    <Border BorderBrush="#94A3B8" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
 
         <Grid>
 
@@ -248,7 +248,7 @@
 
             <!-- 0. Industrial Header Ribbon (Docked edge-to-edge, Slate Ribbon) -->
 
-            <Border Grid.Row="0" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="14,10">
+            <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="14,10">
 
                 <Grid>
 
@@ -264,7 +264,7 @@
 
 
 
-                    <Border Grid.Column="0" Width="34" Height="34" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,10,0">
+                    <Border Grid.Column="0" Width="34" Height="34" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Margin="0,0,10,0">
 
                         <TextBlock Text="📦" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
@@ -276,11 +276,11 @@
 
                         <TextBlock Text="{Binding [UpdateTitleNewRelease], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontSize="13.5" FontWeight="Bold" Foreground="#0F172A" />
+                                   FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                         <TextBlock Text="{Binding [UpdateDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontSize="11" Foreground="#475569" Margin="0,1,0,0" />
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,1,0,0" />
 
                     </StackPanel>
 
@@ -288,11 +288,11 @@
 
                     <!-- Official Technical Chip -->
 
-                    <Border Grid.Column="2" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="8,4" VerticalAlignment="Center">
+                    <Border Grid.Column="2" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,4" VerticalAlignment="Center">
 
                         <TextBlock Text="{Binding [UpdateDialogBadgeRelease], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                   FontSize="10" FontWeight="SemiBold" Foreground="#334155" />
+                                   FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                     </Border>
 
@@ -330,7 +330,7 @@
 
                 <!-- Row 0: Version & Package Specs Bar -->
 
-                <Border Grid.Row="0" Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="12,7" Margin="0,0,0,8">
+                <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="12,7" Margin="0,0,0,8">
 
                     <Grid>
 
@@ -352,27 +352,27 @@
 
                             <TextBlock Text="{Binding [UpdateDialogCurrentVersion], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11.5" Foreground="#64748B" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
 
-                            <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
 
-                                <TextBlock x:Name="TxtCurrentVersion" Text="v2.2.1" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" />
+                                <TextBlock x:Name="TxtCurrentVersion" Text="v2.2.1" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                             </Border>
 
 
 
-                            <TextBlock Text="➔" FontSize="11" Foreground="#94A3B8" Margin="8,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,8,0" VerticalAlignment="Center" />
 
 
 
                             <TextBlock Text="{Binding [UpdateDialogLatestVersion], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11.5" Foreground="#64748B" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
 
-                            <Border Background="#F1F5F9" BorderBrush="#475569" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource TextSecondaryBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
 
-                                <TextBlock x:Name="TxtLatestVersion" Text="v2.3.0" FontSize="11.5" FontWeight="Bold" Foreground="#1E293B" />
+                                <TextBlock x:Name="TxtLatestVersion" Text="v2.3.0" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                             </Border>
 
@@ -386,13 +386,13 @@
 
                             <TextBlock Text="{Binding [UpdateDialogPackageSize], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11.5" Foreground="#64748B" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                       FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
 
-                            <TextBlock x:Name="TxtAssetSize" Text="42.5 MB" FontSize="11.5" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock x:Name="TxtAssetSize" Text="42.5 MB" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
 
-                            <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="5,1" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="5,1" VerticalAlignment="Center">
 
-                                <TextBlock Text="win-x64 setup" FontSize="10" Foreground="#475569" />
+                                <TextBlock Text="win-x64 setup" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
 
                             </Border>
 
@@ -406,19 +406,19 @@
 
                 <!-- Row 1: Changelog Card -->
 
-                <Border Grid.Row="1" Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Padding="12,8">
+                <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="12,8">
 
                     <DockPanel>
 
-                        <Border DockPanel.Dock="Top" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,6">
+                        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,6">
 
                             <DockPanel>
 
                                 <TextBlock DockPanel.Dock="Left" Text="{Binding [UpdateDialogChangelogTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="11" FontWeight="Bold" Foreground="#1E293B" />
+                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
-                                <TextBlock DockPanel.Dock="Right" Text="SPLC-SPEC-CHG" FontSize="10.5" Foreground="#94A3B8" HorizontalAlignment="Right" />
+                                <TextBlock DockPanel.Dock="Right" Text="SPLC-SPEC-CHG" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
 
                             </DockPanel>
 
@@ -442,21 +442,21 @@
 
                 <!-- Row 2: Download Progress (Collapsed by default) -->
 
-                <Border x:Name="ProgressPanel" Grid.Row="2" Background="White" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
+                <Border x:Name="ProgressPanel" Grid.Row="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
 
                     <StackPanel>
 
                         <DockPanel Margin="0,0,0,4">
 
-                            <TextBlock x:Name="TxtProgressStatus" DockPanel.Dock="Left" Text="{Binding [UpdateDialogDownloading], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="#334155" />
+                            <TextBlock x:Name="TxtProgressStatus" DockPanel.Dock="Left" Text="{Binding [UpdateDialogDownloading], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
 
-                            <TextBlock x:Name="TxtProgressPercent" DockPanel.Dock="Right" Text="0%" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right" />
+                            <TextBlock x:Name="TxtProgressPercent" DockPanel.Dock="Right" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
 
                         </DockPanel>
 
                         <ProgressBar x:Name="PrgDownload" Height="5" Minimum="0" Maximum="100" Value="0" 
 
-                                     Foreground="{StaticResource IndustrialPrimaryBrush}" Background="#E2E8F0" BorderThickness="0" />
+                                     Foreground="{DynamicResource IndustrialPrimaryBrush}" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0" />
 
                     </StackPanel>
 
@@ -466,7 +466,7 @@
 
                 <!-- Row 3: Dedicated Error / Alert Panel (Collapsed by default) -->
 
-                <Border x:Name="ErrorAlertPanel" Grid.Row="3" Background="#FEF2F2" BorderBrush="#F87171" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
+                <Border x:Name="ErrorAlertPanel" Grid.Row="3" Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,8,0,0" Visibility="Collapsed">
 
                     <Grid>
 
@@ -484,9 +484,9 @@
 
                         <!-- Error Icon Badge -->
 
-                        <Border Grid.Column="0" Width="26" Height="26" Background="#FEE2E2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,10,0">
+                        <Border Grid.Column="0" Width="26" Height="26" Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,10,0">
 
-                            <TextBlock Text="⚠" FontSize="14" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0" />
+                            <TextBlock Text="⚠" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0" />
 
                         </Border>
 
@@ -498,9 +498,9 @@
 
                             <TextBlock x:Name="TxtErrorHeading" Text="{Binding [UpdateDialogErrHeading], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                       FontSize="11" FontWeight="Bold" Foreground="#991B1B" />
+                                       FontSize="11" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" />
 
-                            <TextBlock x:Name="TxtErrorMessage" Text="" FontSize="11" Foreground="#B91C1C" TextWrapping="Wrap" LineHeight="16" Margin="0,2,0,0" />
+                            <TextBlock x:Name="TxtErrorMessage" Text="" FontSize="11" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" LineHeight="16" Margin="0,2,0,0" />
 
                         </StackPanel>
 
@@ -528,7 +528,7 @@
 
             <!-- 2. Mechanical Footer Toolbar (Docked edge-to-edge, Industrial Strip) -->
 
-            <Border Grid.Row="2" Background="#DFE3E8" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,8">
+            <Border Grid.Row="2" Background="{DynamicResource SelectionHoverBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,1,0,0" Padding="12,8">
 
                 <Grid>
 

@@ -25,7 +25,7 @@ public sealed class DeviceHealthReader : IDeviceHealthReader
             ModbusRegisterMap.DeviceHealthAddress,
             ModbusRegisterMap.DeviceHealthLength,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return RegisterCodec.DecodeDeviceHealth(rawRegisters);
     }

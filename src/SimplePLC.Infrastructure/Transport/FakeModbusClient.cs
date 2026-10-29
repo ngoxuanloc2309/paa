@@ -89,7 +89,7 @@ public sealed class FakeModbusClient : IModbusClient
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { /* ARCH_ALLOW_SWALLOW: Expected cancellation on shutdown */ }
         }, token);
     }
 
@@ -132,9 +132,9 @@ public sealed class FakeModbusClient : IModbusClient
         EnsureConnected();
 
         if (LatencyMs > 0)
-            await Task.Delay(LatencyMs, cancellationToken);
+            await Task.Delay(LatencyMs, cancellationToken).ConfigureAwait(false);
 
-        return await _simulator.ReadHoldingRegistersAsync(slaveId, startAddress, count, cancellationToken);
+        return await _simulator.ReadHoldingRegistersAsync(slaveId, startAddress, count, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WriteMultipleRegistersAsync(
@@ -147,9 +147,9 @@ public sealed class FakeModbusClient : IModbusClient
         EnsureConnected();
 
         if (LatencyMs > 0)
-            await Task.Delay(LatencyMs, cancellationToken);
+            await Task.Delay(LatencyMs, cancellationToken).ConfigureAwait(false);
 
-        await _simulator.WriteMultipleRegistersAsync(slaveId, startAddress, values, cancellationToken);
+        await _simulator.WriteMultipleRegistersAsync(slaveId, startAddress, values, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WriteSingleRegisterAsync(
@@ -162,9 +162,9 @@ public sealed class FakeModbusClient : IModbusClient
         EnsureConnected();
 
         if (LatencyMs > 0)
-            await Task.Delay(LatencyMs, cancellationToken);
+            await Task.Delay(LatencyMs, cancellationToken).ConfigureAwait(false);
 
-        await _simulator.WriteSingleRegisterAsync(slaveId, address, value, cancellationToken);
+        await _simulator.WriteSingleRegisterAsync(slaveId, address, value, cancellationToken).ConfigureAwait(false);
     }
 
     private void EnsureConnected()

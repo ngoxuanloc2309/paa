@@ -363,14 +363,14 @@ public sealed class ModbusTcpClient : IModbusClient
 
         if (_stream != null)
         {
-            try { await _stream.DisposeAsync().ConfigureAwait(false); } catch { }
+            try { await _stream.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             _stream = null;
         }
 
         if (_tcpClient != null)
         {
-            try { _tcpClient.Close(); } catch { }
-            try { _tcpClient.Dispose(); } catch { }
+            try { _tcpClient.Close(); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
+            try { _tcpClient.Dispose(); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             _tcpClient = null;
         }
 

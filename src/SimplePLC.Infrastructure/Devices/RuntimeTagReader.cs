@@ -40,7 +40,7 @@ public sealed class RuntimeTagReader : IRuntimeTagReader
         int bufferOffset = 0;
         foreach (var (chunkAddress, chunkCount) in chunks)
         {
-            var chunkData = await _client.ReadHoldingRegistersAsync(slaveId, chunkAddress, chunkCount, cancellationToken);
+            var chunkData = await _client.ReadHoldingRegistersAsync(slaveId, chunkAddress, chunkCount, cancellationToken).ConfigureAwait(false);
             Array.Copy(chunkData, 0, rawRegisters, bufferOffset, chunkCount);
             bufferOffset += chunkCount;
         }

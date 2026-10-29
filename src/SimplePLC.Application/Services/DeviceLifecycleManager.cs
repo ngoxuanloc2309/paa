@@ -196,7 +196,7 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
         // Hủy bất kỳ tác vụ ConnectAsync đang chờ phản hồi ngay lập tức để giải phóng gate
         lock (_stateLock)
         {
-            try { _activeConnectCts?.Cancel(); } catch { }
+            try { _activeConnectCts?.Cancel(); } catch { /* ARCH_ALLOW_SWALLOW: Cancellation race ignored */ }
         }
 
         await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -518,7 +518,7 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
             {
                 if (match.Session != null)
                 {
-                    try { await match.Session.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await match.Session.DisposeAsync().ConfigureAwait(false); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
                 }
             }
         }
@@ -556,7 +556,7 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
             {
                 _recoveryCts.Cancel();
             }
-            catch { }
+            catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
         }
 
         if (_recoveryTask != null)
@@ -565,8 +565,8 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
             {
                 await _recoveryTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { }
-            catch { }
+            catch (OperationCanceledException) { /* ARCH_ALLOW_SWALLOW: Expected cancellation */ }
+            catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             _recoveryTask = null;
         }
 
@@ -576,7 +576,7 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
             {
                 _recoveryCts.Dispose();
             }
-            catch { }
+            catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             _recoveryCts = null;
         }
     }
@@ -623,8 +623,8 @@ public sealed class DeviceLifecycleManager : IDeviceLifecycleManager
 
         if (_recoveryCts != null)
         {
-            try { _recoveryCts.Cancel(); } catch { }
-            try { _recoveryCts.Dispose(); } catch { }
+            try { _recoveryCts.Cancel(); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
+            try { _recoveryCts.Dispose(); } catch { /* ARCH_ALLOW_SWALLOW: Teardown cleanup */ }
             _recoveryCts = null;
         }
         _gate.Dispose();

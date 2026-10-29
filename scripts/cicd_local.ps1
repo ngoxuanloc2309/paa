@@ -155,12 +155,12 @@ $releaseContent = @"
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
 ## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Đa cổng RS-485 Modbus Master & Slave (0x1400..0x143F)**: Cấu hình vai trò Master/Slave độc lập cho từng cổng vật lý. Tự động lọc sạch dropdown của các khối Master (MB_READ/MB_WRITE), tự động chuyển cổng an toàn sang Master hợp lệ đầu tiên khi cổng cũ chuyển sang Slave.
-- **Bảng ánh xạ bộ nhớ Modbus Slave Sandbox (0x1500..0x157F, 32 entries)**: Cơ chế Sandbox 3 cấp độ; khóa cứng `🔒 ReadOnly` an toàn cho DI/AI (bảo vệ nút dừng khẩn E-Stop và cảm biến), tùy biến quyền ReadOnly/ReadWrite linh hoạt cho VREG/VFLAG/DO.
-- **Xuất bảng Modbus Slave Map không giật lag (Zero-Lag Async Export)**: Xuất file CSV (UTF-8 BOM tương thích Excel tiếng Việt) và Markdown; triệt tiêu 100% hiện tượng đơ/lag UI kèm nút mở thư mục trực tiếp.
-- **Safety Gate Trình Biên Dịch**: Tự động chặn biên dịch F7 nếu phát hiện khối lệnh MB_READ hoặc MB_WRITE trỏ vào cổng Slave, ngăn ngừa triệt để lỗi phần cứng và race condition.
-- **Công thái học giao diện & Chuẩn hóa Đa ngữ**: Kích thước dialog 1020x680 hiện đại, độc lập Minimize/Maximize, song ngữ Anh-Việt 100% toàn diện trên mọi nhãn, badge, tooltip.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 31 bài kiểm thử tự động qua cổng vật lý COM7-COM9 và 1,515+ unit tests toàn giải pháp.
+- **Chuẩn Hóa Bản Đồ Địa Chỉ Bộ Nhớ Modbus Slave Cố Định (Industrial Fixed Memory Map, SPLC-SPEC-SLAVE-001)**: Loại bỏ hoàn toàn bảng ánh xạ động 0x1500; chuyển đổi sang chuẩn công nghiệp truy xuất RAM O(1) trực tiếp (như Schneider Electric, Moxa ioLogik, Advantech ADAM).
+- **Phân Đoạn Bộ Nhớ Dạng Tab Phong Cách Moxa (Segmented Memory Navigation Tabs)**: 4 Tab điều hướng kèm bộ đếm live trực tiếp (Tất cả, Holding Registers 4xxxx, Coils 0xxxx, Discrete Inputs 1xxxx).
+- **Tinh Giản Bảng Địa Chỉ 5 Cột Vàng & Chuẩn Hóa Typography**: Bảng 5 cột tinh gọn (Modbus Address 1-based kèm hover Tooltip hiển thị Wire Offset và Function Code, Device Tag, Data Type, Access Right, Description). Căn lề trái toàn bộ các cột, chuẩn hóa phông chữ hệ thống Segoe UI đồng bộ Fluent 2 Desktop.
+- **Loại Bỏ 2 Tham Số Nội Bộ Không Cần Thiết**: Tự động hóa hoàn toàn Inter-frame Delay theo phần cứng RTU t3.5 và loại bỏ nhãn dải Sandbox 0x1500.
+- **Tài Liệu ICD Firmware & Bộ Thư Viện C Mẫu**: Đặc tả chi tiết tại SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md kèm bảng điều phối O(1) và quy chuẩn định thời t3.5.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,646 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

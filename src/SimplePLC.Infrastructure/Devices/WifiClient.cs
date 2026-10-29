@@ -30,7 +30,7 @@ public sealed class WifiClient : IWifiClient
             ModbusRegisterMap.WifiConfigBaseAddress,
             ModbusRegisterMap.WifiConfigRegisters,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return WifiCodec.DecodeConfig(rawRegisters);
     }
@@ -47,7 +47,7 @@ public sealed class WifiClient : IWifiClient
             ModbusRegisterMap.WifiConfigBaseAddress,
             buffer,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
     }
 
     public async Task TriggerWifiCommandAsync(byte slaveId, ushort command, CancellationToken cancellationToken = default)
@@ -57,7 +57,7 @@ public sealed class WifiClient : IWifiClient
             ModbusRegisterMap.WifiControlAddress,
             command,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
     }
 
     public async Task<WifiScanControlDto> ReadWifiScanStatusAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
@@ -67,7 +67,7 @@ public sealed class WifiClient : IWifiClient
             ModbusRegisterMap.WifiControlAddress,
             ModbusRegisterMap.WifiControlRegisters,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return WifiCodec.DecodeControl(rawRegisters);
     }
@@ -83,7 +83,7 @@ public sealed class WifiClient : IWifiClient
             ModbusRegisterMap.WifiScanTableBaseAddress,
             regLength,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         return WifiCodec.DecodeScanResults(rawRegisters, actualCount);
     }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -27,7 +28,7 @@ public abstract partial class GraphNodeViewModel : ObservableObject, IDisposable
     private string _title = "Node";
 
     [ObservableProperty]
-    private string _icon = "⚡";
+    private string _icon = string.Empty;
 
     [ObservableProperty]
     private Point _location;
@@ -194,11 +195,13 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         get
         {
             if (Tag == null) return "—";
-            if (Tag.IsDigital)
+            if (Tag.IsDigital || Tag.DataType == TagDataType.Boolean)
             {
-                return Tag.Value != 0
-                    ? $"● {LocalizationService.Tr("NodeLiveOn")}"
-                    : $"○ {LocalizationService.Tr("NodeLiveOff")}";
+                return Tag.Value != 0 ? "1" : "0";
+            }
+            if (Tag.DataType == TagDataType.Float32)
+            {
+                return SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(Tag.Value));
             }
             return Tag.Value.ToString();
         }
@@ -208,32 +211,33 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     {
         get
         {
+            bool isBool = Tag?.IsDigital ?? (Tag?.DataType == TagDataType.Boolean);
+            bool isFloat = Tag?.DataType == TagDataType.Float32;
+
             if (!IsLiveOnline)
             {
                 if (HasReceivedUpdate)
                 {
-                    string valStr = (Tag?.IsDigital ?? true)
-                        ? (LiveRawValue != 0 ? LocalizationService.Tr("NodeLiveOn") : LocalizationService.Tr("NodeLiveOff"))
-                        : LiveRawValue.ToString("N0");
+                    string valStr = isBool
+                        ? (LiveRawValue != 0 ? "1" : "0")
+                        : (isFloat ? SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(LiveRawValue)) : LiveRawValue.ToString("N0"));
                     return string.Format(LocalizationService.Tr("NodeLastKnown"), valStr);
                 }
                 return ValueBadgeText;
             }
 
-            if (Tag != null && !Tag.IsDigital)
+            string suffix = LiveQuality == TagQuality.Stale ? " [STALE]" : "";
+            if (isBool)
             {
-                string suffix = LiveQuality == TagQuality.Stale ? " ⚠️" : "";
-                return $"{LiveRawValue:N0}{suffix}";
+                return LiveRawValue != 0 ? $"1{suffix}" : $"0{suffix}";
             }
 
-            string onText = $"● {LocalizationService.Tr("NodeLiveOn")}";
-            string offText = $"○ {LocalizationService.Tr("NodeLiveOff")}";
-            if (LiveQuality == TagQuality.Stale)
+            if (isFloat)
             {
-                return LiveRawValue != 0 ? $"{onText} ⚠️" : $"{offText} ⚠️";
+                return $"{SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(LiveRawValue))}{suffix}";
             }
 
-            return LiveRawValue != 0 ? onText : offText;
+            return $"{LiveRawValue:N0}{suffix}";
         }
     }
 
@@ -246,7 +250,7 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     public InputNodeViewModel(TagModel? tag = null)
     {
         Title = tag?.Name ?? "DI0";
-        Icon = "🏷️";
+        Icon = "Input";
         Tag = tag;
         OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = false, Node = this });
     }
@@ -313,6 +317,7 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         {
             newValue.PropertyChanged += OnTagPropertyChanged;
         }
+        TagValueText = newValue?.FormattedValue ?? "0";
         Title = newValue?.Name ?? "DI0";
         OnPropertyChanged(nameof(TagCode));
         OnPropertyChanged(nameof(TagKindText));
@@ -326,8 +331,44 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     }
 
     public string SimButtonContent => (Tag != null && Tag.Value == 1)
-        ? LocalizationService.Tr("SimBtnOn1")
-        : LocalizationService.Tr("SimBtnOff0");
+        ? "● 1"
+        : "○ 0";
+
+    [RelayCommand]
+    public void SetTagValueBool(object? param)
+    {
+        if (Tag == null) return;
+        int val = 1;
+        if (param is int i) val = i;
+        else if (param is string s && SmartInputParser.TryParseBool(s, out int parsed)) val = parsed;
+        Tag.Value = val != 0 ? 1 : 0;
+        OnPropertyChanged(nameof(ValueBadgeText));
+        OnPropertyChanged(nameof(SimButtonContent));
+    }
+
+    [ObservableProperty]
+    private string _tagValueText = "0";
+
+    private bool _isUpdatingTagFromText;
+
+    partial void OnTagValueTextChanged(string value)
+    {
+        if (Tag == null) return;
+        if (SmartInputParser.TryParseForTag(value, Tag, out int rawVal, out _))
+        {
+            _isUpdatingTagFromText = true;
+            try
+            {
+                Tag.Value = rawVal;
+            }
+            finally
+            {
+                _isUpdatingTagFromText = false;
+            }
+            OnPropertyChanged(nameof(ValueBadgeText));
+            OnPropertyChanged(nameof(SimButtonContent));
+        }
+    }
 
     private void OnTagPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -340,6 +381,10 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         OnPropertyChanged(nameof(DisplayTitle));
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(SimButtonContent));
+        if (!_isUpdatingTagFromText && (e.PropertyName == nameof(TagModel.Value) || e.PropertyName == nameof(TagModel.DataType)))
+        {
+            TagValueText = Tag?.FormattedValue ?? "0";
+        }
     }
 
     protected override void OnLanguageChanged()
@@ -367,6 +412,54 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
     [NotifyPropertyChangedFor(nameof(IsTimeWindowRange))]
     [NotifyPropertyChangedFor(nameof(IsTimePointInTime))]
     private TriggerType _triggerType = TriggerType.ON_RISE;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TriggerActionText))]
+    [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(InputConnectionBadge))]
+    [NotifyPropertyChangedFor(nameof(HasWireConnection))]
+    private TagModel? _inputTag;
+
+    partial void OnInputTagChanged(TagModel? oldValue, TagModel? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.PropertyChanged -= OnTagPropertyChanged;
+        }
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnTagPropertyChanged;
+        }
+        OnPropertyChanged(nameof(TriggerActionText));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(InputConnectionBadge));
+        OnPropertyChanged(nameof(HasWireConnection));
+    }
+
+    private void OnTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias))
+        {
+            OnPropertyChanged(nameof(TriggerActionText));
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(InputConnectionBadge));
+        }
+    }
+
+    public string InputConnectionBadge => InputTag != null
+        ? $"🔗 Connected: {InputTag.Name}"
+        : string.Empty;
+
+    public bool HasWireConnection => InputTag != null;
+
+    public override void Dispose()
+    {
+        if (InputTag != null)
+        {
+            InputTag.PropertyChanged -= OnTagPropertyChanged;
+        }
+        base.Dispose();
+    }
 
     partial void OnTriggerTypeChanged(TriggerType value)
     {
@@ -420,15 +513,27 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
         ? LocalizationService.Tr("NodeTitleTrigger")
         : CustomLabel;
 
-    public string TriggerActionText => TriggerType switch
+    public string TriggerActionText
     {
-        TriggerType.ON_RISE => LocalizationService.Tr("OptTrigRise"),
-        TriggerType.ON_FALL => LocalizationService.Tr("OptTrigFall"),
-        TriggerType.ON_CHANGE => LocalizationService.Tr("OptTrigChange"),
-        TriggerType.INTERVAL => LocalizationService.Tr("OptTrigInterval"),
-        TriggerType.TIME_WINDOW => LocalizationService.Tr("OptTrigWindow"),
-        _ => TriggerType.ToString()
-    };
+        get
+        {
+            string actionName = TriggerType switch
+            {
+                TriggerType.ON_RISE => LocalizationService.Tr("OptTrigRise"),
+                TriggerType.ON_FALL => LocalizationService.Tr("OptTrigFall"),
+                TriggerType.ON_CHANGE => LocalizationService.Tr("OptTrigChange"),
+                TriggerType.INTERVAL => LocalizationService.Tr("OptTrigInterval"),
+                TriggerType.TIME_WINDOW => LocalizationService.Tr("OptTrigWindow"),
+                _ => TriggerType.ToString()
+            };
+
+            if (InputTag != null && !string.IsNullOrWhiteSpace(InputTag.Name))
+            {
+                return $"{InputTag.Name}: {actionName}";
+            }
+            return actionName;
+        }
+    }
 
     public string TriggerParamText
     {
@@ -446,7 +551,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
         TriggerType.ON_FALL => LocalizationService.Instance.IsVietnamese ? "SƯỜN XUỐNG (1 → 0)" : "FALLING EDGE (1 → 0)",
         TriggerType.ON_CHANGE => LocalizationService.Instance.IsVietnamese ? "BIẾN THIÊN GIÁ TRỊ" : "VALUE CHANGE",
         TriggerType.INTERVAL => LocalizationService.Instance.IsVietnamese ? "CHU KỲ LẶP" : "PERIODIC INTERVAL",
-        TriggerType.TIME_WINDOW => LocalizationService.Instance.IsVietnamese ? "⏰ THỜI GIAN THỰC (RTC)" : "⏰ TIME TRIGGER (RTC)",
+        TriggerType.TIME_WINDOW => LocalizationService.Instance.IsVietnamese ? "THỜI GIAN THỰC (RTC)" : "TIME TRIGGER (RTC)",
         _ => TriggerType.ToString()
     };
 
@@ -458,9 +563,9 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
             {
                 if (CompareOp == CompareOp.BETWEEN)
                 {
-                    return $"⏰ {TimeStartFormatted} → {TimeEndFormatted}";
+                    return $"{TimeStartFormatted} → {TimeEndFormatted}";
                 }
-                return $"⏰ {TimeStartFormatted}";
+                return $"{TimeStartFormatted}";
             }
 
             string baseTxt;
@@ -737,7 +842,7 @@ public partial class TriggerNodeViewModel : GraphNodeViewModel
     public TriggerNodeViewModel()
     {
         Title = "Trigger";
-        Icon = "⚡";
+        Icon = "Trigger";
         InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = false, Node = this });
         OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = true, Node = this });
         ThresholdLoText = NumericInputHelper.FormatDouble(ThresholdLo);
@@ -930,7 +1035,7 @@ public partial class GuardNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
                 if (HasReceivedUpdate)
                 {
                     string tagVal = GuardTag.IsDigital
-                        ? (LiveRawValue != 0 ? (isVi ? "BẬT" : "ON") : (isVi ? "TẮT" : "OFF"))
+                        ? (LiveRawValue != 0 ? "1" : "0")
                         : LiveRawValue.ToString("N0");
                     return $"{baseText} ({GuardTagShortText}: {tagVal})";
                 }
@@ -938,17 +1043,17 @@ public partial class GuardNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             }
 
             string tagValOnline = GuardTag.IsDigital
-                ? (LiveRawValue != 0 ? (isVi ? "BẬT" : "ON") : (isVi ? "TẮT" : "OFF"))
+                ? (LiveRawValue != 0 ? "1" : "0")
                 : LiveRawValue.ToString("N0");
 
-            string staleSuffix = LiveQuality == TagQuality.Stale ? " ⚠️" : "";
+            string staleSuffix = LiveQuality == TagQuality.Stale ? " [STALE]" : "";
             return $"{baseText} ({GuardTagShortText}: {tagValOnline}){staleSuffix}";
         }
     }
 
     public string SimButtonContent => (GuardTag != null && GuardTag.Value == 1)
-        ? LocalizationService.Tr("SimBtnOn1")
-        : LocalizationService.Tr("SimBtnOff0");
+        ? "● 1"
+        : "○ 0";
 
     public override string DisplayTitle => string.IsNullOrWhiteSpace(CustomLabel)
         ? LocalizationService.Tr("NodeTitleGuard")
@@ -990,7 +1095,7 @@ public partial class GuardNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     public GuardNodeViewModel(TagModel? guardTag = null)
     {
         Title = "Guard";
-        Icon = "🛡️";
+        Icon = "Guard";
         _guardTag = guardTag;
         InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
         OutputConnectors.Add(new ConnectorViewModel { Title = "Out", TooltipKey = "PinTooltipOut", IsInput = false, IsEvent = true, Node = this });
@@ -1118,6 +1223,60 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     private int _actionParam = 1;
 
     [ObservableProperty]
+    private string _actionParamText = "1";
+
+    public bool IsTargetBoolean => TargetTag == null || TargetTag.IsDigital || TargetTag.DataType == TagDataType.Boolean;
+    public bool IsTargetReal => TargetTag != null && TargetTag.DataType == TagDataType.Float32;
+    public bool IsTargetInteger => TargetTag != null && !TargetTag.IsDigital && TargetTag.DataType != TagDataType.Float32;
+
+    private bool _isUpdatingFromText;
+
+    partial void OnActionParamChanged(int value)
+    {
+        if (_isUpdatingFromText) return;
+
+        if (IsTargetBoolean)
+        {
+            ActionParamText = SmartInputParser.FormatBool(value);
+        }
+        else if (IsTargetReal)
+        {
+            ActionParamText = SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(value));
+        }
+        else
+        {
+            ActionParamText = value.ToString();
+        }
+    }
+
+    partial void OnActionParamTextChanged(string value)
+    {
+        if (SmartInputParser.TryParseForTag(value, TargetTag, out int rawVal, out _))
+        {
+            _isUpdatingFromText = true;
+            try
+            {
+                ActionParam = IsTargetBoolean ? (rawVal != 0 ? 1 : 0) : rawVal;
+            }
+            finally
+            {
+                _isUpdatingFromText = false;
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void SetActionParamBool(object? param)
+    {
+        int val = 1;
+        if (param is int i) val = i;
+        else if (param is string s && SmartInputParser.TryParseBool(s, out int parsed)) val = parsed;
+
+        ActionParam = val != 0 ? 1 : 0;
+        ActionParamText = ActionParam.ToString();
+    }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SimLedStatusText))]
     [NotifyPropertyChangedFor(nameof(SimStatusText))]
     [NotifyPropertyChangedFor(nameof(ActionStatusPillText))]
@@ -1161,7 +1320,11 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [NotifyPropertyChangedFor(nameof(ActionExpression))]
     [NotifyPropertyChangedFor(nameof(TargetTagShortText))]
     [NotifyPropertyChangedFor(nameof(LiveTargetBadgeText))]
+    [NotifyPropertyChangedFor(nameof(IsTargetBoolean))]
+    [NotifyPropertyChangedFor(nameof(IsTargetReal))]
+    [NotifyPropertyChangedFor(nameof(IsTargetInteger))]
     private TagModel? _targetTag;
+
 
     public string TargetTagShortText
     {
@@ -1201,12 +1364,12 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
 
             if (TargetTag != null && !TargetTag.IsDigital)
             {
-                string suffix = LiveQuality == TagQuality.Stale ? " ⚠️" : "";
+                string suffix = LiveQuality == TagQuality.Stale ? " [STALE]" : "";
                 return $"{baseText} [Current: {LiveRawValue:N0}]{suffix}";
             }
 
             string stateStr = LiveRawValue != 0 ? "ON" : "OFF";
-            string staleSuffix = LiveQuality == TagQuality.Stale ? " ⚠️" : "";
+            string staleSuffix = LiveQuality == TagQuality.Stale ? " [STALE]" : "";
             return $"{baseText} [Current: {stateStr}]{staleSuffix}";
         }
     }
@@ -1251,6 +1414,26 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         OnPropertyChanged(nameof(TargetTagShortText));
         OnPropertyChanged(nameof(LiveTargetBadgeText));
         OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(IsTargetBoolean));
+        OnPropertyChanged(nameof(IsTargetReal));
+        OnPropertyChanged(nameof(IsTargetInteger));
+
+        if (IsTargetBoolean)
+        {
+            if (ActionParam != 0 && ActionParam != 1)
+            {
+                ActionParam = 1;
+            }
+            ActionParamText = SmartInputParser.FormatBool(ActionParam);
+        }
+        else if (IsTargetReal)
+        {
+            ActionParamText = SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(ActionParam));
+        }
+        else
+        {
+            ActionParamText = ActionParam.ToString();
+        }
     }
 
     private void OnTargetTagPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -1269,7 +1452,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             string tag = TargetTag?.Name ?? "TAG";
             return ActionType switch
             {
-                ActionType.SET_TAG => $"{tag} = {ActionParam}",
+                ActionType.SET_TAG => IsTargetBoolean ? $"{tag} = {SmartInputParser.FormatBool(ActionParam)}" : $"{tag} = {ActionParam}", 
                 ActionType.TOGGLE_TAG => $"TOGGLE {tag}",
                 ActionType.INC_COUNTER => $"{tag} += {ActionParam}",
                 ActionType.WRITE_REMOTE => $"MODBUS {ActionParam}",
@@ -1314,7 +1497,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             string tag = TargetTag?.Name ?? "TAG";
             return ActionType switch
             {
-                ActionType.SET_TAG => $"{tag} = {ActionParam}",
+                ActionType.SET_TAG => IsTargetBoolean ? $"{tag} = {SmartInputParser.FormatBool(ActionParam)}" : $"{tag} = {ActionParam}", 
                 ActionType.TOGGLE_TAG => $"TOGGLE {tag}",
                 ActionType.INC_COUNTER => $"{tag} += {ActionParam}",
                 ActionType.WRITE_REMOTE => $"MODBUS {ActionParam}",
@@ -1333,7 +1516,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             string tgt = TargetTag?.DisplayName ?? "Target Tag";
             return ActionType switch
             {
-                ActionType.SET_TAG => $"Set {tgt} = {ActionParam}",
+                ActionType.SET_TAG => IsTargetBoolean ? $"Set {tgt} = {SmartInputParser.FormatBool(ActionParam)}" : $"Set {tgt} = {ActionParam}", 
                 ActionType.TOGGLE_TAG => $"Toggle {tgt}",
                 ActionType.INC_COUNTER => $"Increment {tgt} by {ActionParam}",
                 ActionType.WRITE_REMOTE => $"Write {tgt} = {ActionParam} (Modbus)",
@@ -1348,7 +1531,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     public ActionNodeViewModel(TagModel? target = null)
     {
         Title = "Action";
-        Icon = "⚙️";
+        Icon = "Action";
         TargetTag = target;
         InputConnectors.Add(new ConnectorViewModel { Title = "In", TooltipKey = "PinTooltipIn", IsInput = true, IsEvent = true, Node = this });
     }
@@ -1885,10 +2068,10 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
 
     public string ModeGlyph => TimerMode switch
     {
-        "TOF" => "⌛",
-        "TP" => "📶",
-        "CYCLE" => "🔄",
-        _ => "🕒"
+        "TOF" => "TOF",
+        "TP" => "TP",
+        "CYCLE" => "CYCLE",
+        _ => "TON"
     };
 
     public string PresetText => $"{PresetMs:N0} ms ({FormatDurationHumanReadable(PresetMs)})";
@@ -1923,7 +2106,7 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     public TimerNodeViewModel(string mode = "TON", TagModel? inTag = null, TagModel? qTag = null, uint presetMs = 3000, uint onTimeMs = 1000, uint offTimeMs = 1000, bool startWithOn = true)
     {
         Title = string.Equals(mode, "CYCLE", StringComparison.OrdinalIgnoreCase) ? "Cycle Timer" : $"{mode} Timer";
-        Icon = string.Equals(mode, "CYCLE", StringComparison.OrdinalIgnoreCase) ? "🔄" : "⏱️";
+        Icon = mode;
         TimerMode = mode;
         InputTag = inTag;
         OutputTag = qTag;
@@ -2072,8 +2255,8 @@ public partial class CounterNodeViewModel : GraphNodeViewModel, ILiveTagBoundNod
 
     public string ModeGlyph => CounterMode switch
     {
-        "CTD" => "🔽",
-        _ => "🔼"
+        "CTD" => "CTD",
+        _ => "CTU"
     };
 
     public string PresetText => $"{PresetValue} (PV)";
@@ -2126,7 +2309,7 @@ public partial class CounterNodeViewModel : GraphNodeViewModel, ILiveTagBoundNod
     public CounterNodeViewModel(string mode = "CTU", TagModel? inTag = null, TagModel? cvTag = null, TagModel? qTag = null, TagModel? resetTag = null, int presetValue = 10)
     {
         Title = $"{mode} Counter";
-        Icon = "🔢";
+        Icon = "Counter";
         CounterMode = mode;
         InputTag = inTag;
         CvTag = cvTag;

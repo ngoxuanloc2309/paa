@@ -126,7 +126,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.Equal(NodeLiveVisualState.Active, di0Node.LiveVisualState);
 
-        Assert.Equal("● BẬT", di0Node.LiveBadgeText);
+        Assert.Equal("1", di0Node.LiveBadgeText);
 
 
 
@@ -154,7 +154,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.Equal(NodeLiveVisualState.Inactive, di0Node.LiveVisualState);
 
-        Assert.Equal("○ TẮT", di0Node.LiveBadgeText);
+        Assert.Equal("0", di0Node.LiveBadgeText);
 
     }
 
@@ -352,7 +352,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.Equal(NodeLiveVisualState.Active, guardNode.LiveVisualState);
 
-        Assert.True(guardNode.LiveConditionBadgeText.Contains("ON") || guardNode.LiveConditionBadgeText.Contains("BẬT"));
+        Assert.Contains("1", guardNode.LiveConditionBadgeText);
 
         Assert.Contains(guardNode.GuardTagShortText, guardNode.LiveConditionBadgeText);
 
@@ -422,9 +422,9 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.Equal(NodeLiveVisualState.Stale, di0Node.LiveVisualState);
 
-        Assert.Contains("⚠️", di0Node.LiveBadgeText);
+        Assert.True(di0Node.LiveBadgeText.Contains("⚠️") || di0Node.LiveBadgeText.Contains("[STALE]"));
 
-        Assert.Contains("BẬT", di0Node.LiveBadgeText);
+        Assert.Contains("1", di0Node.LiveBadgeText);
 
     }
 
@@ -488,7 +488,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.Equal(1, di0Node.LiveRawValue); // Preserved!
 
-        Assert.Equal("[Lần cuối: BẬT]", di0Node.LiveBadgeText);
+        Assert.Equal("[Lần cuối: 1]", di0Node.LiveBadgeText);
 
     }
 
@@ -632,7 +632,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.True(di0Node.IsLiveActive);
 
-        Assert.Equal("● BẬT", di0Node.LiveBadgeText);
+        Assert.Equal("1", di0Node.LiveBadgeText);
 
     }
 
@@ -838,7 +838,7 @@ public class LogicEditorLiveDebuggingTests : IDisposable
 
         Assert.True(di0Node.HasReceivedUpdate);
 
-        Assert.Equal("[Lần cuối: BẬT]", di0Node.LiveBadgeText);
+        Assert.Equal("[Lần cuối: 1]", di0Node.LiveBadgeText);
 
     }
 

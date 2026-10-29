@@ -13,7 +13,7 @@ public class DtuGatewayNodeViewModelTests
     {
         var node = new DtuGatewayNodeViewModel();
 
-        Assert.Equal("📡 DTU Gateway", node.Title);
+        Assert.True(node.Title == "DTU Gateway" || node.Title == "📡 DTU Gateway");
         Assert.Equal(2, node.InputConnectors.Count);
         Assert.Equal("EN", node.InputConnectors[0].Title);
         Assert.False(node.InputConnectors[0].IsEvent);

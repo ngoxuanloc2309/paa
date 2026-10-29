@@ -13,16 +13,16 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-        <!-- Crisp Flat DataGrid Column Header Styles -->
+        <!-- Crisp Flat DataGrid Column Header Styles (IBM Carbon Standard) -->
         <Style x:Key="TagColHeaderLeft" TargetType="DataGridColumnHeader">
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#475569" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="Background" Value="#F8FAFC" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
+            <Setter Property="MinHeight" Value="32" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Template">
@@ -42,7 +42,7 @@
 
         <Style x:Key="TagColHeaderCenter" TargetType="DataGridColumnHeader" BasedOn="{StaticResource TagColHeaderLeft}">
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Padding" Value="4,8" />
+            <Setter Property="Padding" Value="4,0" />
         </Style>
 
         <!-- Flat Compact ComboBox Style for DataGrid Cells (Industrial Slate Standard) -->
@@ -51,7 +51,7 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="2"
+                    CornerRadius="3"
                     SnapsToDevicePixels="True">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -60,7 +60,7 @@
                     </Grid.ColumnDefinitions>
                     <Path x:Name="Arrow" Grid.Column="1"
                           Data="M 0 0 L 3.5 3.5 L 7 0"
-                          Stroke="#64748B"
+                          Stroke="{DynamicResource TextMutedBrush}"
                           StrokeThickness="1.2"
                           StrokeStartLineCap="Round"
                           StrokeEndLineCap="Round"
@@ -71,13 +71,13 @@
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Border" Property="BorderBrush" Value="#94A3B8" />
-                    <Setter TargetName="Border" Property="Background" Value="#F8FAFC" />
-                    <Setter TargetName="Arrow" Property="Stroke" Value="#1E293B" />
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BorderMediumBrush}" />
+                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                    <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
-                    <Setter TargetName="Arrow" Property="Stroke" Value="{StaticResource PrimaryBrush}" />
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+                    <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource PrimaryBrush}" />
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -88,14 +88,14 @@
             <Setter Property="Padding" Value="4,4" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBoxItem">
                         <Border x:Name="ItemBorder"
                                 Background="Transparent"
-                                CornerRadius="2"
+                                CornerRadius="3"
                                 Margin="2,1"
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
@@ -104,11 +104,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#F1F5F9" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#E2E8F0" />
-                                <Setter Property="Foreground" Value="#0F172A" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SelectionHighlightTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -121,10 +121,10 @@
             <Setter Property="Width" Value="84" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="ItemContainerStyle" Value="{StaticResource FlatTypeComboBoxItemStyle}" />
@@ -159,10 +159,10 @@
                                       MinWidth="{TemplateBinding ActualWidth}"
                                       MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                     <Border x:Name="DropDownBorder"
-                                            Background="#FFFFFF"
+                                            Background="{DynamicResource BgPanelBrush}"
                                             BorderThickness="1"
-                                            BorderBrush="{StaticResource BorderLightBrush}"
-                                            CornerRadius="2"
+                                            BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                            CornerRadius="4"
                                             Margin="0,2,0,4">
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Color="#64748B" Opacity="0.15" />
@@ -179,7 +179,7 @@
                                 <Setter TargetName="DropDownBorder" Property="MinHeight" Value="24" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" Value="#94A3B8" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderMediumBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -188,7 +188,7 @@
         </Style>
     </UserControl.Resources>
     
-    <Grid Margin="20">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -197,14 +197,14 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="{Binding TitleText}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="{Binding TitleText}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
             <TextBlock Text="{Binding [TagCatalogDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
+                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
         </StackPanel>
 
         <!-- Filter Bar & Toolbar -->
-        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="12" Margin="0,0,0,14">
+        <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,12">
             <DockPanel LastChildFill="True">
                 <!-- Group Filter Buttons (Dynamic with Active State) -->
                 <ItemsControl ItemsSource="{Binding GroupButtons}" DockPanel.Dock="Left" VerticalAlignment="Center">
@@ -221,13 +221,13 @@
                                     Margin="0,0,6,0">
                                 <Button.Style>
                                     <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#F3F4F6" />
-                                        <Setter Property="Foreground" Value="#475569" />
+                                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                         <Setter Property="BorderThickness" Value="1" />
-                                        <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-                                        <Setter Property="Padding" Value="12,6" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                        <Setter Property="Padding" Value="12,5" />
                                         <Setter Property="FontWeight" Value="SemiBold" />
-                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="FontSize" Value="11.5" />
                                         <Setter Property="Cursor" Value="Hand" />
                                         <Setter Property="Template">
                                             <Setter.Value>
@@ -235,7 +235,7 @@
                                                     <Border Background="{TemplateBinding Background}"
                                                             BorderBrush="{TemplateBinding BorderBrush}"
                                                             BorderThickness="{TemplateBinding BorderThickness}"
-                                                            CornerRadius="2"
+                                                            CornerRadius="4"
                                                             Padding="{TemplateBinding Padding}">
                                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     </Border>
@@ -244,12 +244,13 @@
                                         </Setter>
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#DFE3E8" />
+                                                <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                             </Trigger>
                                             <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="Background" Value="#E0F2FE" />
-                                                <Setter Property="Foreground" Value="{StaticResource IndustrialPrimaryBrush}" />
-                                                <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                                <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -265,16 +266,16 @@
                     <Button Command="{Binding ResetDefaultAliasesCommand}"
                             Content="{Binding [TagBtnReset], Source={x:Static services:LocalizationService.Instance}}"
                             Style="{StaticResource TiaTactileBtnStyle}"
-                            Padding="10,6" Margin="0,0,8,0" FontSize="12" />
+                            Padding="10,5" Margin="0,0,8,0" FontSize="11.5" />
 
                     <!-- Export CSV Button -->
                     <Button Command="{Binding ExportCsvCommand}"
                             Content="{Binding [TagBtnExportCsv], Source={x:Static services:LocalizationService.Instance}}"
-                            Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
-                            Padding="10,6" Margin="0,0,12,0" FontSize="12" FontWeight="SemiBold" Foreground="#107C41" Cursor="Hand">
+                            Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
+                            Padding="10,5" Margin="0,0,12,0" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                             </ControlTemplate>
@@ -283,8 +284,8 @@
                             <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#F1F5F9" />
-                                        <Setter Property="BorderBrush" Value="#107C41" />
+                                        <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -292,7 +293,7 @@
                     </Button>
 
                     <!-- Enhanced Search Bar -->
-                    <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Width="260" Height="32" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Width="260" Height="30" VerticalAlignment="Center">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="28" />
@@ -300,11 +301,11 @@
                                 <ColumnDefinition Width="26" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="🔍" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Path Grid.Column="0" Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysSearch}" Stroke="{DynamicResource TextMutedBrush}" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
                             <Grid Grid.Column="1">
                                 <TextBlock Text="{Binding [TagSearchPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
-                                           Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center" IsHitTestVisible="False">
+                                           Foreground="{DynamicResource TextMutedBrush}" FontSize="11.5" VerticalAlignment="Center" IsHitTestVisible="False">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed" />
@@ -320,14 +321,15 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                                 <TextBox Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="Transparent" BorderThickness="0" FontSize="11"
-                                         Foreground="#0F172A" VerticalContentAlignment="Center" Padding="0" />
+                                         Background="Transparent" BorderThickness="0" FontSize="11.5"
+                                         Foreground="{DynamicResource TextPrimaryBrush}" VerticalContentAlignment="Center" Padding="0" />
                             </Grid>
 
                             <Button Grid.Column="2" Command="{Binding ClearSearchCommand}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Background="Transparent" BorderThickness="0" Foreground="#94A3B8" Cursor="Hand"
-                                    FontWeight="Bold" FontSize="11" Content="✕" Width="18" Height="18" Padding="0">
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                    Width="18" Height="18" Padding="0">
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysClear}" Stroke="{DynamicResource TextMutedBrush}" Width="9" Height="9" />
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Visibility" Value="Visible" />
@@ -339,7 +341,7 @@
                                                 <Setter Property="Visibility" Value="Collapsed" />
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Foreground" Value="#B91C1C" />
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
@@ -352,32 +354,32 @@
         </Border>
 
         <!-- Tag Group Explanation Card -->
-        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="14,12" Margin="0,0,0,14">
+        <Border Grid.Row="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
             <StackPanel>
                 <!-- Card Header -->
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding CurrentGroupInfo.Icon}" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding CurrentGroupInfo.GroupName}" FontSize="14" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CurrentGroupInfo.Icon}" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CurrentGroupInfo.GroupName}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     </StackPanel>
                     
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <!-- Hardware Spec Badge -->
-                        <Border Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="8,3" Margin="0,0,10,0">
-                            <TextBlock Text="{Binding CurrentGroupInfo.HardwareSpec}" FontSize="11" FontWeight="SemiBold" Foreground="#334155" />
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="8,3" Margin="0,0,10,0">
+                            <TextBlock Text="{Binding CurrentGroupInfo.HardwareSpec}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                         </Border>
 
                         <!-- Toggle Banner Button -->
                         <Button Command="{Binding ToggleBannerCommand}"
                                 ToolTip="{Binding BannerToggleText}"
-                                Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1"
                                 Padding="8,3" Cursor="Hand">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding BannerToggleIcon}" FontSize="9" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                            <TextBlock Text="{Binding BannerToggleText}" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding BannerToggleIcon}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <TextBlock Text="{Binding BannerToggleText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -386,7 +388,7 @@
                                 <Style TargetType="Button">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#ECEFF1" />
+                                            <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -397,7 +399,7 @@
 
                 <!-- Details Section (Collapsible) -->
                 <StackPanel Visibility="{Binding IsBannerExpanded, Converter={StaticResource BoolToVis}}">
-                    <Separator Background="{StaticResource BorderLightBrush}" Margin="0,10,0,10" />
+                    <Separator Background="{DynamicResource IndustrialBorderSubtleBrush}" Margin="0,10,0,10" />
 
                     <!-- Details 2-Column Grid -->
                     <Grid>
@@ -408,20 +410,20 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Column 1: Field Device Meaning -->
-                        <Border Grid.Column="0" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8">
+                        <Border Grid.Column="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
                             <StackPanel>
                                 <TextBlock Text="{Binding [TagBannerSecMeaning], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="#475569" Margin="0,0,0,4" />
-                                <TextBlock Text="{Binding CurrentGroupInfo.Description}" FontSize="12" Foreground="#1E293B" TextWrapping="Wrap" LineHeight="18" />
+                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding CurrentGroupInfo.Description}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="18" />
                             </StackPanel>
                         </Border>
 
                         <!-- Column 2: Role in PLC Rules -->
-                        <Border Grid.Column="2" Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8">
+                        <Border Grid.Column="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
                             <StackPanel>
                                 <TextBlock Text="{Binding [TagBannerSecRole], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,4" />
-                                <TextBlock Text="{Binding CurrentGroupInfo.RoleInPLC}" FontSize="12" Foreground="#1E293B" TextWrapping="Wrap" LineHeight="18" />
+                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding CurrentGroupInfo.RoleInPLC}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="18" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -429,17 +431,23 @@
             </StackPanel>
         </Border>
 
-        <!-- Tag Table -->
-        <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6">
+        <!-- Tag Table (IBM Carbon Density & Fluent 2 Card) -->
+        <Border Grid.Row="3" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="0">
             <DataGrid ItemsSource="{Binding FilteredTags}" AutoGenerateColumns="False" 
                       CanUserAddRows="False" CanUserResizeColumns="True"
-                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9" HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal" 
+                      HorizontalGridLinesBrush="{DynamicResource IndustrialBorderSubtleBrush}" 
+                      HeadersVisibility="Column"
                       ColumnHeaderStyle="{StaticResource TagColHeaderLeft}"
                       EnableRowVirtualization="True"
                       VirtualizingPanel.IsVirtualizing="True"
                       VirtualizingPanel.VirtualizationMode="Recycling"
                       ScrollViewer.CanContentScroll="True"
-                      Background="White" BorderThickness="0" RowHeight="38" AlternatingRowBackground="#FAFAFA"
+                      Background="{DynamicResource BgPanelBrush}" 
+                      RowBackground="{DynamicResource BgPanelBrush}"
+                      AlternatingRowBackground="{DynamicResource BgSubtleBrush}"
+                      BorderThickness="0" 
+                      RowHeight="32"
                       SelectionMode="Single"
                       SnapsToDevicePixels="True"
                       UseLayoutRounding="True"
@@ -448,16 +456,16 @@
                       RenderOptions.ClearTypeHint="Enabled">
 
                 <DataGrid.Columns>
-                    <!-- Index (Centered Header & Cell) -->
+                    <!-- Index (Centered Header & Cell, Monospace) -->
                     <DataGridTextColumn Header="{Binding [ColTagIndex], Source={x:Static services:LocalizationService.Instance}}" 
                                         HeaderStyle="{StaticResource TagColHeaderCenter}"
-                                        Width="55" Binding="{Binding Index}" IsReadOnly="True">
+                                        Width="50" Binding="{Binding Index}" IsReadOnly="True">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#64748B" />
-                                <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter Property="FontFamily" Value="Consolas, Cascadia Code, Segoe UI" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter Property="FontSize" Value="12" />
+                                <Setter Property="FontSize" Value="11.5" />
                                 <Setter Property="HorizontalAlignment" Value="Center" />
                                 <Setter Property="VerticalAlignment" Value="Center" />
                             </Style>
@@ -466,31 +474,31 @@
 
                     <!-- Tag Code (Left Aligned, 12px indent) -->
                     <DataGridTextColumn Header="{Binding [ColTagName], Source={x:Static services:LocalizationService.Instance}}" 
-                                        Width="130" MinWidth="110" Binding="{Binding Name}" IsReadOnly="True">
+                                        Width="135" MinWidth="110" Binding="{Binding Name}" IsReadOnly="True">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="FontWeight" Value="Bold" />
-                                <Setter Property="Foreground" Value="#1E293B" />
-                                <Setter Property="FontFamily" Value="Consolas, Segoe UI" />
-                                <Setter Property="FontSize" Value="12.5" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                <Setter Property="FontFamily" Value="Consolas, Cascadia Code, Segoe UI" />
+                                <Setter Property="FontSize" Value="12" />
                                 <Setter Property="VerticalAlignment" Value="Center" />
                                 <Setter Property="Margin" Value="12,0" />
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- Modbus Address (Left Aligned, 12px indent) -->
-                    <DataGridTemplateColumn Header="{Binding [ColTagModbus], Source={x:Static services:LocalizationService.Instance}}" Width="165" MinWidth="150">
+                    <!-- Modbus Address (Left Aligned Pill) -->
+                    <DataGridTemplateColumn Header="{Binding [ColTagModbus], Source={x:Static services:LocalizationService.Instance}}" Width="160" MinWidth="140">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Border Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="3" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0">
-                                    <TextBlock Text="{Binding ModbusAddressText}" FontFamily="Consolas, Segoe UI" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" />
+                                <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0">
+                                    <TextBlock Text="{Binding ModbusAddressText}" FontFamily="Consolas, Cascadia Code, Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Data Type (Centered Header & Cell) -->
+                    <!-- Data Type (Centered Header & Cell Badge) -->
                     <DataGridTemplateColumn Header="{Binding [ColTagDataType], Source={x:Static services:LocalizationService.Instance}}" 
                                             HeaderStyle="{StaticResource TagColHeaderCenter}"
                                             Width="105" MinWidth="95">
@@ -498,14 +506,14 @@
                             <DataTemplate>
                                 <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Border x:Name="StaticBadge" 
-                                            Background="#F1F5F9" 
-                                            BorderBrush="{StaticResource BorderLightBrush}" 
+                                            Background="{DynamicResource BgSubtleBrush}" 
+                                            BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
                                             BorderThickness="1" 
-                                            CornerRadius="2" 
-                                            Padding="8,2.5" 
+                                            CornerRadius="3" 
+                                            Padding="8,2" 
                                             HorizontalAlignment="Center" 
                                             VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding DataTypeText}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding DataTypeText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
                                     </Border>
                                     <ComboBox x:Name="EditCombo"
                                               Style="{StaticResource FlatTypeComboBoxStyle}"
@@ -532,15 +540,15 @@
                                             Width="100" MinWidth="90">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Border Background="#E2E8F0" CornerRadius="3" Padding="8,3" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Group}" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center" />
+                                <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Padding="8,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Group}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- Alias (Left Aligned, Editable) -->
-                    <DataGridTemplateColumn Header="{Binding [ColTagAlias], Source={x:Static services:LocalizationService.Instance}}" Width="*" MinWidth="200">
+                    <DataGridTemplateColumn Header="{Binding [ColTagAlias], Source={x:Static services:LocalizationService.Instance}}" Width="*" MinWidth="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Grid VerticalAlignment="Center" Margin="6,2">
@@ -548,18 +556,18 @@
                                              BorderThickness="1" BorderBrush="Transparent"
                                              Background="Transparent"
                                              VerticalContentAlignment="Center"
-                                             Padding="6,4"
-                                             Foreground="#0F172A" FontSize="12">
+                                             Padding="6,3"
+                                             Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11.5">
                                         <TextBox.Style>
                                             <Style TargetType="TextBox">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                                        <Setter Property="Background" Value="#F8FAFC" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                                     </Trigger>
                                                     <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
-                                                        <Setter Property="Background" Value="#FFFFFF" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                                        <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -567,7 +575,7 @@
                                     </TextBox>
                                     <!-- Placeholder khi chưa có Alias -->
                                     <TextBlock Text="{Binding [TagAliasPlaceholder], Source={x:Static services:LocalizationService.Instance}}"
-                                               Foreground="#94A3B8" FontSize="11.5" FontStyle="Italic"
+                                               Foreground="{DynamicResource TextMutedBrush}" FontSize="11" FontStyle="Italic"
                                                VerticalAlignment="Center" Margin="8,0" IsHitTestVisible="False">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -588,19 +596,19 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Live Value & Quick Toggle (Left Aligned, 12px indent) -->
-                    <DataGridTemplateColumn Header="{Binding [ColTagValue], Source={x:Static services:LocalizationService.Instance}}" Width="160" MinWidth="150">
+                    <!-- Live Value & Quick Toggle (Right/Left Aligned with LED Status Dot) -->
+                    <DataGridTemplateColumn Header="{Binding [ColTagValue], Source={x:Static services:LocalizationService.Instance}}" Width="160" MinWidth="140">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
                                     <!-- LED Indicator Dot -->
-                                    <Border Width="9" Height="9" CornerRadius="4.5" Margin="0,0,8,0">
+                                    <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,8,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#94A3B8" />
+                                                <Setter Property="Background" Value="{DynamicResource TextMutedBrush}" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Value}" Value="1">
-                                                        <Setter Property="Background" Value="#107C41" />
+                                                        <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -608,18 +616,18 @@
                                     </Border>
 
                                     <!-- Value Text -->
-                                    <TextBlock Text="{Binding Value}" FontWeight="Bold" FontFamily="Consolas, Segoe UI" FontSize="13" Foreground="#0F172A" MinWidth="36" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Value}" FontWeight="Bold" FontFamily="Consolas, Cascadia Code, Segoe UI" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" MinWidth="36" VerticalAlignment="Center" />
 
                                     <!-- Quick Toggle Button for Digital Tags -->
                                     <Button Command="{Binding DataContext.ToggleTagValueCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                             CommandParameter="{Binding}" 
                                             ToolTip="{Binding [TagToggleTip], Source={x:Static services:LocalizationService.Instance}}"
                                             Visibility="{Binding IsDigital, Converter={StaticResource BoolToVis}}"
-                                            Margin="8,0,0,0" Padding="6,3" Cursor="Hand" Background="#F1F5F9" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
+                                            Margin="8,0,0,0" Padding="6,2" Cursor="Hand" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                    <TextBlock Text="⚡ 0↔1" FontSize="10" FontWeight="Bold" Foreground="#334155" />
+                                                    <TextBlock Text="⚡ 0↔1" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 </Border>
                                             </ControlTemplate>
                                         </Button.Template>
@@ -627,7 +635,7 @@
                                             <Style TargetType="Button">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#DFE3E8" />
+                                                        <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -642,4 +650,3 @@
         </Border>
     </Grid>
 </UserControl>
-

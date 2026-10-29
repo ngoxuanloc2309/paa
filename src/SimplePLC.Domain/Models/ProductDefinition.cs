@@ -87,6 +87,11 @@ public sealed class ProductDefinition
     public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
 
     /// <summary>
+    /// Năng lực phân hệ Modbus RTU Slave & Sandbox (0x1500).
+    /// </summary>
+    public bool SupportsModbusSlave => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_SLAVE) != 0;
+
+    /// <summary>
     /// Năng lực phân hệ REST API HTTP Client (0x1600..0x163F).
     /// </summary>
     public bool SupportsHttpClient => (HardwareCapabilities & SPLC_HardwareCapabilities.HTTP_CLIENT) != 0;

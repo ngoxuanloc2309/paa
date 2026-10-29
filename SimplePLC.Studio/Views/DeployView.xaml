@@ -17,7 +17,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header Action Ribbon (Industrial Desktop Style) -->
-        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,16">
+        <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="16,14" Margin="0,0,0,16">
             <DockPanel LastChildFill="True">
                 <!-- Action Button at Top Right -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
@@ -28,8 +28,8 @@
                             <Style TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSuccess}" Value="True">
-                                        <Setter Property="Background" Value="#107C41" />
-                                        <Setter Property="BorderBrush" Value="#0B5A2F" />
+                                        <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SuccessDarkBrush}" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
@@ -37,8 +37,8 @@
                                             <Condition Binding="{Binding IsSuccess}" Value="False" />
                                             <Condition Binding="{Binding IsDeploying}" Value="False" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Background" Value="{StaticResource IndustrialPrimaryBrush}" />
-                                        <Setter Property="BorderBrush" Value="{StaticResource IndustrialPrimaryHoverBrush}" />
+                                        <Setter Property="Background" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryHoverBrush}" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -50,28 +50,28 @@
                 <StackPanel VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="{Binding [DeployTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                   FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
                         
-                        <Border Background="#F3F4F6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,3" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,3" Margin="12,0,0,0" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
                                 <Ellipse Width="7" Height="7" Margin="0,0,6,0" VerticalAlignment="Center">
                                     <Ellipse.Style>
                                         <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#94A3B8" />
+                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
-                                                    <Setter Property="Fill" Value="#107C41" />
+                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Ellipse.Style>
                                 </Ellipse>
-                                <TextBlock Text="{Binding DeviceInfoBadge}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                <TextBlock Text="{Binding DeviceInfoBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
 
-                    <TextBlock Text="{Binding StatusSubtitle}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,0" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding StatusSubtitle}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,5,0,0" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -84,19 +84,19 @@
             </Grid.ColumnDefinitions>
 
             <!-- Column 0: Bản Kê Khai Cấu Hình & Chẩn Đoán (Left Column) -->
-            <Border Grid.Column="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16" Margin="0,0,16,0">
+            <Border Grid.Column="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="16" Margin="0,0,16,0">
                 <DockPanel>
                     <!-- Header of Left Column -->
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
                         <TextBlock Text="{Binding [DeployManifestHeader], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                         <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#F3F4F6" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasValidRules}" Value="True">
-                                            <Setter Property="Background" Value="#F1F5F9" />
+                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -105,11 +105,11 @@
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Text" Value="{Binding [DeployManifestNotReady], Source={x:Static services:LocalizationService.Instance}}" />
-                                        <Setter Property="Foreground" Value="#94A3B8" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasValidRules}" Value="True">
                                                 <Setter Property="Text" Value="{Binding [DeployManifestValid], Source={x:Static services:LocalizationService.Instance}}" />
-                                                <Setter Property="Foreground" Value="#107C41" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -124,8 +124,8 @@
                         <Border Visibility="{Binding CanDeploy, Converter={StaticResource InverseBoolToVis}}" Margin="0,0,0,14">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#FFFBEB" />
-                                    <Setter Property="BorderBrush" Value="#C05621" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningDarkBrush}" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
                                     <Setter Property="Padding" Value="12" />
@@ -140,8 +140,8 @@
                                 </Style>
                             </Border.Style>
                             <StackPanel>
-                                <TextBlock Text="{Binding StatusTitle}" FontWeight="Bold" FontSize="12" Foreground="#C05621" Margin="0,0,0,4" />
-                                <TextBlock Text="{Binding StatusSubtitle}" FontSize="11" Foreground="#92400E" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                <TextBlock Text="{Binding StatusTitle}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource WarningDarkBrush}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding StatusSubtitle}" FontSize="11" Foreground="{DynamicResource WarningDarkBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
                                 
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="{Binding [DeployBtnOpenRules], Source={x:Static services:LocalizationService.Instance}}" 
@@ -159,8 +159,8 @@
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed" />
-                                    <Setter Property="Background" Value="#F8FAFC" />
-                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
                                     <Setter Property="Padding" Value="12" />
@@ -172,15 +172,15 @@
                                 </Style>
                             </Border.Style>
                             <DockPanel LastChildFill="True">
-                                <Border Width="3" Background="#107C41" CornerRadius="1" Margin="0,0,10,0" DockPanel.Dock="Left" />
+                                <Border Width="3" Background="{DynamicResource SuccessBrush}" CornerRadius="1" Margin="0,0,10,0" DockPanel.Dock="Left" />
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Ellipse Width="6.5" Height="6.5" Fill="#107C41" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <Ellipse Width="6.5" Height="6.5" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                         <TextBlock Text="{Binding [DeploySuccessTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                                   FontWeight="Bold" FontSize="12" Foreground="#0F172A" />
+                                                   FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding [DeploySuccessDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="#475569" TextWrapping="Wrap" />
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -188,35 +188,35 @@
                         <!-- Manifest Details (Always Available) -->
                         <StackPanel>
                             <!-- Item 1: Quy tắc nạp -->
-                            <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding [DeployRuleCountLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Text="{Binding ManifestRuleCountText}" 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
 
                             <!-- Item 2: Tóm tắt logic -->
-                            <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding [DeployLogicSummaryLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                                    <TextBlock Text="{Binding ManifestRuleSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+                                    <TextBlock Text="{Binding ManifestRuleSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Item 3: Cơ chế an toàn -->
-                            <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding [DeploySafetyMechLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
                                     <TextBlock Text="{Binding [DeploySafetyMechDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#334155" TextWrapping="Wrap" />
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -232,14 +232,14 @@
                 </Grid.RowDefinitions>
 
                 <!-- Upper Section: 5 Steps Stepper -->
-                <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16" Margin="0,0,0,16">
+                <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="16" Margin="0,0,0,16">
                     <DockPanel>
                         <!-- Stepper Header -->
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <TextBlock Text="{Binding [DeployPipelineHeader], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                            <Border Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding StepperBadgeText}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                       FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                            <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding StepperBadgeText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                             </Border>
                         </DockPanel>
 
@@ -247,18 +247,18 @@
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12" Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}">
                             <DockPanel Margin="0,0,0,6">
                                 <TextBlock Text="{Binding [DeployProgressLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontWeight="Bold" FontFamily="Consolas" 
-                                           Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Right" FontSize="12" />
+                                           Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" FontSize="12" />
                             </DockPanel>
-                            <ProgressBar Value="{Binding ProgressPercent}" Height="6" Foreground="{StaticResource PrimaryBrush}" Background="#DFE3E8" BorderThickness="0" />
+                            <ProgressBar Value="{Binding ProgressPercent}" Height="6" Foreground="{DynamicResource PrimaryBrush}" Background="{DynamicResource SelectionHoverBrush}" BorderThickness="0" />
                         </StackPanel>
 
                         <!-- 5 Steps List (Single-line per step) -->
                         <ItemsControl ItemsSource="{Binding Steps}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#F8F9FA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,6">
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="10,8" Margin="0,0,0,6">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="28" />
@@ -271,16 +271,16 @@
                                                     HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#F3F4F6" />
-                                                        <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+                                                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderLightBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
-                                                                <Setter Property="Background" Value="#F1F5F9" />
-                                                                <Setter Property="BorderBrush" Value="#107C41" />
+                                                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
-                                                                <Setter Property="Background" Value="#ECEFF1" />
-                                                                <Setter Property="BorderBrush" Value="#334155" />
+                                                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -288,13 +288,13 @@
                                                 <TextBlock Text="{Binding Index}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
-                                                                    <Setter Property="Foreground" Value="#107C41" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
-                                                                    <Setter Property="Foreground" Value="#334155" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -303,19 +303,19 @@
                                             </Border>
 
                                             <!-- Step Title -->
-                                            <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0" />
 
                                             <!-- Step Status Badge -->
                                             <Border Grid.Column="2" CornerRadius="2" Padding="6,2" VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#F3F4F6" />
+                                                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
-                                                                <Setter Property="Background" Value="#F1F5F9" />
+                                                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
-                                                                <Setter Property="Background" Value="#ECEFF1" />
+                                                                <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -324,15 +324,15 @@
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Text" Value="{Binding [DeployStepStatusPending], Source={x:Static services:LocalizationService.Instance}}" />
-                                                            <Setter Property="Foreground" Value="#94A3B8" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.Success}">
                                                                     <Setter Property="Text" Value="{Binding [DeployStepStatusDone], Source={x:Static services:LocalizationService.Instance}}" />
-                                                                    <Setter Property="Foreground" Value="#107C41" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:StepStatus.InProgress}">
                                                                     <Setter Property="Text" Value="{Binding [DeployStepStatusRunning], Source={x:Static services:LocalizationService.Instance}}" />
-                                                                    <Setter Property="Foreground" Value="#334155" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -348,13 +348,13 @@
                 </Border>
 
                 <!-- Lower Section: Console Output Log -->
-                <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2">
+                <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2">
                     <DockPanel>
                         <!-- Console Header -->
-                        <Border DockPanel.Dock="Top" Background="#ECEFF1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="12,8">
                             <DockPanel>
                                 <TextBlock Text="{Binding [DeployOutputLogHeader], Source={x:Static services:LocalizationService.Instance}}" 
-                                           FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                     <Button Content="{Binding [DeployBtnCopy], Source={x:Static services:LocalizationService.Instance}}" 
                                             Command="{Binding CopyLogCommand}" Style="{StaticResource BtnSecondary}" Padding="8,3" FontSize="10" Margin="0,0,6,0" />
@@ -366,7 +366,7 @@
 
                         <!-- Terminal Textbox -->
                         <TextBox Text="{Binding ConsoleLog}" IsReadOnly="True"
-                                 Background="#FFFFFF" Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11"
+                                 Background="{DynamicResource BgPanelBrush}" Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11"
                                  BorderThickness="0" Padding="12,10" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
                     </DockPanel>
                 </Border>

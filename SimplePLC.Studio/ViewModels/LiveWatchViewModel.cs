@@ -85,7 +85,7 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
         get
         {
             bool isVi = LocalizationService.Instance.IsVietnamese;
-            string prefix = isVi ? "⭐ Theo dõi" : "⭐ Watchlist";
+            string prefix = isVi ? "Theo dõi" : "Watchlist";
             int count = WatchlistCount;
             return count > 0 ? $"{prefix} ({count})" : prefix;
         }
@@ -576,6 +576,44 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public async Task ForceTagZeroAsync(WatchTagItemModel? tag)
+    {
+        if (_diagnosticController == null || !IsManualModeActive || tag == null) return;
+        try
+        {
+            await _diagnosticController.ForceTagAsync(tag.Index, 0);
+            tag.ApplyManualOverride(0);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                ex.Message,
+                LocalizationService.Instance["LiveWatchErrorTitle"],
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    public async Task ForceTagOneAsync(WatchTagItemModel? tag)
+    {
+        if (_diagnosticController == null || !IsManualModeActive || tag == null) return;
+        try
+        {
+            await _diagnosticController.ForceTagAsync(tag.Index, 1);
+            tag.ApplyManualOverride(1);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                ex.Message,
+                LocalizationService.Instance["LiveWatchErrorTitle"],
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
     public async Task ForceTagBooleanAsync(object? parameter)
     {
         if (_diagnosticController == null || !IsManualModeActive) return;
@@ -617,8 +655,14 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
     {
         if (_diagnosticController == null || !IsManualModeActive || tag == null) return;
 
-        if (int.TryParse(tag.ManualInputValue, out int val))
+        bool isDigital = tag.Kind is SimplePLC.Domain.Enums.TagKind.DiscreteInput 
+                         or SimplePLC.Domain.Enums.TagKind.DiscreteOutput 
+                         or SimplePLC.Domain.Enums.TagKind.VirtualFlag 
+                         or SimplePLC.Domain.Enums.TagKind.ModbusCoil;
+
+        if (SmartInputParser.TryParse(tag.ManualInputValue, tag.DataType, isDigital, out int val, out string formattedDisplay))
         {
+            tag.ManualInputValue = formattedDisplay;
             try
             {
                 await _diagnosticController.ForceTagAsync(tag.Index, val);

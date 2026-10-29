@@ -834,11 +834,11 @@ public class LogicEditorViewModelTests : IDisposable
 
         // Body displays Alias and Value Status (no duplicate "DI0")
         Assert.Equal("Máy đang chạy", inputNode.TagDescriptionText);
-        Assert.Equal("○ TẮT", inputNode.ValueBadgeText);
+        Assert.Equal("0", inputNode.ValueBadgeText);
 
         // When Value transitions to 1
         tag.Value = 1;
-        Assert.Equal("● BẬT", inputNode.ValueBadgeText);
+        Assert.Equal("1", inputNode.ValueBadgeText);
 
         // Action node displays target tag alias without duplicating target tag code
         var tagDO0 = new TagModel { Name = "DO0", Alias = "Đèn còi đỏ", Kind = TagKind.DiscreteOutput };

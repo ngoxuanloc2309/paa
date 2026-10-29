@@ -31,11 +31,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="BtnBorder" Property="Background" Value="#E2E8F0" />
-                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#0369A1" />
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="BtnBorder" Property="Opacity" Value="0.5" />
@@ -49,7 +49,7 @@
     <UserControl.RenderTransform>
         <TranslateTransform x:Name="DragTransform" />
     </UserControl.RenderTransform>
-    <Border x:Name="RootBorder" Background="#F8FAFC" BorderBrush="#94A3B8" BorderThickness="1.5" CornerRadius="4"
+    <Border x:Name="RootBorder" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1.5" CornerRadius="4"
             MaxWidth="360" SnapsToDevicePixels="True">
         <Grid>
             <Grid.RowDefinitions>
@@ -59,7 +59,7 @@
             </Grid.RowDefinitions>
 
             <!-- 1. HEADER (Draggable) -->
-            <Border x:Name="HeaderBorder" Grid.Row="0" Background="#0F172A" CornerRadius="3,3,0,0" Padding="10,6"
+            <Border x:Name="HeaderBorder" Grid.Row="0" Background="{DynamicResource BgHeaderBrush}" CornerRadius="3,3,0,0" Padding="10,6"
                     Cursor="SizeAll"
                     MouseLeftButtonDown="Header_MouseLeftButtonDown"
                     MouseMove="Header_MouseMove"
@@ -69,15 +69,15 @@
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                         <TextBlock Text="🎛️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding [VirtualIoBoardTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                   FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" FontFamily="Segoe UI" VerticalAlignment="Center" />
-                        <Border Background="#107C41" CornerRadius="2" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding [VirtualIoBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" FontFamily="Consolas" />
+                                   FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                        <Border Background="{DynamicResource SuccessBrush}" CornerRadius="2" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding [VirtualIoBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" FontFamily="Consolas" />
                         </Border>
                     </StackPanel>
 
                     <!-- Close button -->
                     <Button Command="{Binding ToggleVirtualIoBoardCommand}" DockPanel.Dock="Right"
-                            Background="Transparent" BorderThickness="0" Foreground="#94A3B8"
+                            Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextMutedBrush}"
                             FontSize="11" FontWeight="Bold" Cursor="Hand" Padding="4,1" VerticalAlignment="Center"
                             ToolTip="{Binding [VirtualIoToggleTip], Source={x:Static services:LocalizationService.Instance}}">
                         <TextBlock Text="✕" />
@@ -89,12 +89,12 @@
             <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="450" Padding="8,6">
                 <StackPanel>
                     <!-- SECTION 1: DIGITAL INPUTS (DI0..DI7) -->
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
                         <StackPanel>
                             <DockPanel LastChildFill="True" Margin="0,0,0,6">
                                 <TextBlock Text="{Binding [VirtualIoInputsTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="10" FontWeight="Bold" Foreground="#1E3A8A" FontFamily="Segoe UI" VerticalAlignment="Center" />
-                                <TextBlock Text="TACTILE SWITCH" FontSize="8.5" FontWeight="Bold" Foreground="#94A3B8" FontFamily="Consolas"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource IndustrialPrimaryBrush}" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                                <TextBlock Text="TACTILE SWITCH" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" FontFamily="Consolas"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </DockPanel>
 
@@ -111,8 +111,8 @@
                                                 Margin="2" Padding="6,4" Cursor="Hand">
                                             <Button.Style>
                                                 <Style TargetType="Button">
-                                                    <Setter Property="Background" Value="#F1F5F9" />
-                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                                     <Setter Property="BorderThickness" Value="1" />
                                                     <Setter Property="Template">
                                                         <Setter.Value>
@@ -126,10 +126,10 @@
                                                                         <Border x:Name="StatusPill" DockPanel.Dock="Right" CornerRadius="2" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center">
                                                                             <Border.Style>
                                                                                 <Style TargetType="Border">
-                                                                                    <Setter Property="Background" Value="#E2E8F0" />
+                                                                                    <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
                                                                                     <Style.Triggers>
                                                                                         <DataTrigger Binding="{Binding Value}" Value="1">
-                                                                                            <Setter Property="Background" Value="#107C41" />
+                                                                                            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>
                                                                                 </Style>
@@ -138,11 +138,11 @@
                                                                                 <TextBlock.Style>
                                                                                     <Style TargetType="TextBlock">
                                                                                         <Setter Property="Text" Value="0" />
-                                                                                        <Setter Property="Foreground" Value="#64748B" />
+                                                                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                                                                         <Style.Triggers>
                                                                                             <DataTrigger Binding="{Binding Value}" Value="1">
                                                                                                 <Setter Property="Text" Value="1" />
-                                                                                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                                                                                <Setter Property="Foreground" Value="{DynamicResource BgPanelBrush}" />
                                                                                             </DataTrigger>
                                                                                         </Style.Triggers>
                                                                                     </Style>
@@ -152,14 +152,14 @@
 
                                                                         <!-- Tag Name & Alias -->
                                                                         <StackPanel VerticalAlignment="Center">
-                                                                            <TextBlock Text="{Binding Name}" FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F172A" />
-                                                                            <TextBlock Text="{Binding Alias}" FontSize="9" Foreground="#64748B" TextTrimming="CharacterEllipsis" MaxWidth="100" />
+                                                                            <TextBlock Text="{Binding Name}" FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                                            <TextBlock Text="{Binding Alias}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="100" />
                                                                         </StackPanel>
                                                                     </DockPanel>
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="BtnBdr" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                                                        <Setter TargetName="BtnBdr" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -167,8 +167,8 @@
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Value}" Value="1">
-                                                            <Setter Property="Background" Value="#F1F5F9" />
-                                                            <Setter Property="BorderBrush" Value="#107C41" />
+                                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -181,12 +181,12 @@
                     </Border>
 
                     <!-- SECTION 2: DIGITAL OUTPUTS (DO0..DO7) -->
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
                         <StackPanel>
                             <DockPanel LastChildFill="True" Margin="0,0,0,6">
                                 <TextBlock Text="{Binding [VirtualIoOutputsTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="10" FontWeight="Bold" Foreground="#0F766E" FontFamily="Segoe UI" VerticalAlignment="Center" />
-                                <TextBlock Text="INDICATOR LED" FontSize="8.5" FontWeight="Bold" Foreground="#94A3B8" FontFamily="Consolas"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessDarkBrush}" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                                <TextBlock Text="INDICATOR LED" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" FontFamily="Consolas"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </DockPanel>
 
@@ -201,13 +201,13 @@
                                         <Border Margin="2" Padding="6,4" CornerRadius="3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#F8FAFC" />
-                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                                     <Setter Property="BorderThickness" Value="1" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Value}" Value="1">
-                                                            <Setter Property="Background" Value="#F1F5F9" />
-                                                            <Setter Property="BorderBrush" Value="#107C41" />
+                                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -217,13 +217,13 @@
                                                 <Border DockPanel.Dock="Right" Width="14" Height="14" CornerRadius="7" VerticalAlignment="Center" Margin="4,0,0,0">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#CBD5E1" />
-                                                            <Setter Property="BorderBrush" Value="#94A3B8" />
+                                                            <Setter Property="Background" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource TextMutedBrush}" />
                                                             <Setter Property="BorderThickness" Value="1.5" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Value}" Value="1">
-                                                                    <Setter Property="Background" Value="#107C41" />
-                                                                    <Setter Property="BorderBrush" Value="#0E6B37" />
+                                                                    <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessDarkBrush}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -232,8 +232,8 @@
 
                                                 <!-- Tag info -->
                                                 <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F172A" />
-                                                    <TextBlock Text="{Binding Alias}" FontSize="9" Foreground="#64748B" TextTrimming="CharacterEllipsis" MaxWidth="100" />
+                                                    <TextBlock Text="{Binding Name}" FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding Alias}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="100" />
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -244,12 +244,12 @@
                     </Border>
 
                     <!-- SECTION 3: ANALOG INPUTS (AI0..AI3) -->
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="8,6">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="8,6">
                         <StackPanel>
                             <DockPanel LastChildFill="True" Margin="0,0,0,6">
                                 <TextBlock Text="{Binding [VirtualIoAnalogTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                           FontSize="10" FontWeight="Bold" Foreground="#334155" FontFamily="Segoe UI" VerticalAlignment="Center" />
-                                <TextBlock Text="0 - 10000 mV" FontSize="8.5" FontWeight="Bold" Foreground="#94A3B8" FontFamily="Consolas"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                                <TextBlock Text="0 - 10000 mV" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" FontFamily="Consolas"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </DockPanel>
 
@@ -257,10 +257,10 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel LastChildFill="True" Margin="0,2,0,4">
-                                            <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" Foreground="#0F172A"
+                                            <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextPrimaryBrush}"
                                                        Width="32" VerticalAlignment="Center" DockPanel.Dock="Left" />
                                             <TextBlock Text="{Binding Value, StringFormat='{}{0} mV'}" FontSize="9.5" FontWeight="SemiBold" FontFamily="Consolas"
-                                                       Foreground="#334155" Width="55" TextAlignment="Right" VerticalAlignment="Center" DockPanel.Dock="Right" />
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="55" TextAlignment="Right" VerticalAlignment="Center" DockPanel.Dock="Right" />
                                             <Slider Value="{Binding Value, Mode=TwoWay}" Minimum="0" Maximum="10000" SmallChange="100" LargeChange="1000"
                                                     VerticalAlignment="Center" Margin="6,0" />
                                         </DockPanel>
@@ -273,11 +273,11 @@
             </ScrollViewer>
 
             <!-- 3. QUICK ACTIONS FOOTER -->
-            <Border x:Name="FooterBorder" Grid.Row="2" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="8,6" CornerRadius="0,0,3,3">
+            <Border x:Name="FooterBorder" Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="8,6" CornerRadius="0,0,3,3">
                 <DockPanel LastChildFill="False">
                     <Button Command="{Binding SetAllVirtualDiCommand}" CommandParameter="0"
                             Style="{StaticResource TactileToolbarBtnStyle}"
-                            Background="#FFFFFF" BorderBrush="#CBD5E1" Foreground="#475569"
+                            Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Foreground="{DynamicResource TextSecondaryBrush}"
                             FontSize="10" FontWeight="Medium" Padding="8,3" Margin="0,0,6,0" Cursor="Hand" DockPanel.Dock="Left">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="⏹" FontSize="9" Margin="0,0,4,0" VerticalAlignment="Center" />
@@ -287,7 +287,7 @@
 
                     <Button Command="{Binding ResetAllVirtualIoCommand}"
                             Style="{StaticResource TactileToolbarBtnStyle}"
-                            Background="#FFFFFF" BorderBrush="#CBD5E1" Foreground="#B91C1C"
+                            Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Foreground="{DynamicResource DangerBrush}"
                             FontSize="10" FontWeight="Medium" Padding="8,3" Cursor="Hand" DockPanel.Dock="Right">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="↺" FontSize="10" FontWeight="Bold" Margin="0,0,4,0" VerticalAlignment="Center" />

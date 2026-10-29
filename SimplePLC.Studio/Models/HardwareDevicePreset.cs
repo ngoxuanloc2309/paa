@@ -182,7 +182,7 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "DTU_RS485_NET",
-            DisplayName = "SynaptiX DTU (Industrial 485 Gateway)",
+            DisplayName = "SynaptiX DTU",
             DescriptionKey = "PresetDtuDesc",
             DeviceClass = SPLC_DeviceClass.DTU,
             DeviceVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
@@ -191,7 +191,7 @@ public sealed class HardwareDevicePreset
             DigitalOutputs = 0,
             AnalogInputs = 0,
             VirtualFlags = 32,
-            VirtualRegisters = 64,
+            VirtualRegisters = 32,
             RetentiveRegisters = 32,
             Counters = 4,
             MaxRules = 50,

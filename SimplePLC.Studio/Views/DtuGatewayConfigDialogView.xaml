@@ -11,7 +11,7 @@
         ResizeMode="CanResizeWithGrip"
         controls:WindowChromeHelper.EnableIndependentMinimize="True"
         ShowInTaskbar="True"
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
         Icon="../Assets/app.png"
         FontFamily="Segoe UI"
         TextOptions.TextFormattingMode="Display"

@@ -26,7 +26,7 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
 
         Icon="../Assets/app.png"
 
@@ -60,7 +60,7 @@
 
 
 
-    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1">
 
         <Grid Margin="20">
 
@@ -98,7 +98,7 @@
 
 
 
-                <Border Grid.Column="0" Width="44" Height="44" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="2" Margin="0,0,14,0">
+                <Border Grid.Column="0" Width="44" Height="44" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,14,0">
 
                     <TextBlock Text="📟" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
@@ -126,17 +126,17 @@
 
                         <Style TargetType="Border">
 
-                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
 
-                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource BorderLightBrush}" />
 
                             <Style.Triggers>
 
                                 <DataTrigger Binding="{Binding IsOnline}" Value="True">
 
-                                    <Setter Property="Background" Value="#F1F5F9" />
+                                    <Setter Property="Background" Value="{DynamicResource SuccessLightBrush}" />
 
-                                    <Setter Property="BorderBrush" Value="#107C41" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
 
                                 </DataTrigger>
 
@@ -152,13 +152,13 @@
 
                             <Style TargetType="TextBlock">
 
-                                <Setter Property="Foreground" Value="#64748B" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
 
                                 <Style.Triggers>
 
                                     <DataTrigger Binding="{Binding IsOnline}" Value="True">
 
-                                        <Setter Property="Foreground" Value="#107C41" />
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
 
                                     </DataTrigger>
 
@@ -184,13 +184,13 @@
 
                     <!-- Card 1: Nhận dạng phần cứng & Firmware (Mục 1) -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,12">
 
                         <StackPanel>
 
                             <TextBlock Text="{Binding [DeviceInfoGroupOverview], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
                             <Grid>
 
@@ -244,7 +244,7 @@
 
                                 <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding [DeviceInfoFwVersion], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4" VerticalAlignment="Center" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="#334155" Margin="6,4" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding FwVersion}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="6,4" VerticalAlignment="Center" />
 
 
 
@@ -270,13 +270,13 @@
 
                     <!-- Card 2: Bản đồ tài nguyên I/O & Bộ nhớ (Mục 2) -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,12">
 
                         <StackPanel>
 
                             <TextBlock Text="{Binding [DeviceInfoGroupResources], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
                             <Grid>
 
@@ -372,13 +372,13 @@
 
                     <!-- Card 3: Thông số truyền thông -->
 
-                    <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="16,12">
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12">
 
                         <StackPanel>
 
                             <TextBlock Text="{Binding [DeviceInfoGroupComms], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" Margin="0,0,0,10" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
 
                             <Grid>
 

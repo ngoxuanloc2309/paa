@@ -497,9 +497,10 @@ public sealed class RuntimeEngine : IRuntimeEngine
         var open = current != 0;
         var passed = rule.Guard.Negated ? !open : open;
         string expected = rule.Guard.Negated ? "0" : "1";
-        summary = passed
-            ? $"Guard {rule.Guard.Tag.Name} == {current} (Passed)"
-            : $"Guard {rule.Guard.Tag.Name} == {current} (Blocked, cần {expected})";
+        string statusText = passed
+            ? LocalizationService.Tr("SimScanGuardPassed")
+            : string.Format(LocalizationService.Tr("SimScanGuardBlockedReq"), expected);
+        summary = $"Guard {rule.Guard.Tag.Name} == {current} ({statusText})";
         return passed;
     }
 
@@ -514,9 +515,10 @@ public sealed class RuntimeEngine : IRuntimeEngine
         var open = current != 0;
         var passed = rule.GuardNegated ? !open : open;
         string expected = rule.GuardNegated ? "0" : "1";
-        summary = passed
-            ? $"Guard {rule.GuardTag.Name} == {current} (Passed)"
-            : $"Guard {rule.GuardTag.Name} == {current} (Blocked, cần {expected})";
+        string statusText = passed
+            ? LocalizationService.Tr("SimScanGuardPassed")
+            : string.Format(LocalizationService.Tr("SimScanGuardBlockedReq"), expected);
+        summary = $"Guard {rule.GuardTag.Name} == {current} ({statusText})";
         return passed;
     }
 

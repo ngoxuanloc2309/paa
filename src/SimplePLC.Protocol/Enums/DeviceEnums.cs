@@ -95,7 +95,8 @@ public enum SPLC_HardwareCapabilities : uint
     MODBUS_TCP    = 0x0400, // Bit 10: Hỗ trợ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502)
     FLOAT32       = 0x0800, // Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 / REAL
     HTTP_CLIENT   = 0x1000, // Bit 12: Hỗ trợ phân hệ xuất bản dữ liệu REST API HTTP/HTTPS Client (0x1600)
-    TRANSPARENT_STREAM = 0x2000 // Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network Passthrough
+    TRANSPARENT_STREAM = 0x2000, // Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network Passthrough
+    MODBUS_SLAVE  = 0x4000  // Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500)
 }
 
 /// <summary>
@@ -145,7 +146,8 @@ public enum SPLC_ErrorCode : ushort
     BUSY = 3,
     CRC_MISMATCH = 4,
     UNSUPPORTED = 5,
-    FLASH = 6
+    FLASH = 6,
+    SLAVE_PORT_CONFLICT = 7
 }
 
 

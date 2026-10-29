@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Application.Enums;
@@ -67,17 +68,98 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
+    [NotifyPropertyChangedFor(nameof(FormulaExpression))]
+    [NotifyPropertyChangedFor(nameof(SimulationProgressText))]
     [NotifyPropertyChangedFor(nameof(BoundTagIndex))]
     [NotifyPropertyChangedFor(nameof(InputBadgeText))]
     [NotifyPropertyChangedFor(nameof(InputConnectionSummary))]
+    [NotifyPropertyChangedFor(nameof(InputConnectionBadge))]
+    [NotifyPropertyChangedFor(nameof(HasWireInputConnection))]
     private TagModel? _inputTag;
+
+    partial void OnInputTagChanged(TagModel? oldValue, TagModel? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.PropertyChanged -= OnInputTagPropertyChanged;
+        }
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnInputTagPropertyChanged;
+        }
+        OnPropertyChanged(nameof(FormulaExpression));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(InputConnectionBadge));
+        OnPropertyChanged(nameof(HasWireInputConnection));
+    }
+
+    private void OnInputTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias))
+        {
+            OnPropertyChanged(nameof(FormulaExpression));
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(InputConnectionBadge));
+        }
+    }
+
+    public string InputConnectionBadge => InputTag != null
+        ? $"🔗 Connected: {InputTag.Name}"
+        : string.Empty;
+
+    public bool HasWireInputConnection => InputTag != null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     [NotifyPropertyChangedFor(nameof(OutputBadgeText))]
     [NotifyPropertyChangedFor(nameof(OutputConnectionSummary))]
+    [NotifyPropertyChangedFor(nameof(OutputConnectionBadge))]
+    [NotifyPropertyChangedFor(nameof(HasWireOutputConnection))]
     private TagModel? _outputTag;
+
+    partial void OnOutputTagChanged(TagModel? oldValue, TagModel? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.PropertyChanged -= OnOutputTagPropertyChanged;
+        }
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnOutputTagPropertyChanged;
+        }
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(OutputConnectionBadge));
+        OnPropertyChanged(nameof(HasWireOutputConnection));
+    }
+
+    private void OnOutputTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias))
+        {
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(OutputConnectionBadge));
+        }
+    }
+
+    public string OutputConnectionBadge => OutputTag != null
+        ? $"🔗 Connected: {OutputTag.Name}"
+        : string.Empty;
+
+    public bool HasWireOutputConnection => OutputTag != null;
+
+    public override void Dispose()
+    {
+        if (InputTag != null)
+        {
+            InputTag.PropertyChanged -= OnInputTagPropertyChanged;
+        }
+        if (OutputTag != null)
+        {
+            OutputTag.PropertyChanged -= OnOutputTagPropertyChanged;
+        }
+        base.Dispose();
+    }
 
     // Two-Point Calibration Helper Properties
     [ObservableProperty]
@@ -291,9 +373,18 @@ public partial class ScaleNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         }
     }
 
-    public string FormulaExpression => Offset < 0 
-        ? $"y = {Gain:0.#####}·x - {Math.Abs(Offset):0.#####}" 
-        : $"y = {Gain:0.#####}·x + {Offset:0.#####}";
+    public string FormulaExpression
+    {
+        get
+        {
+            string varName = (InputTag != null && !string.IsNullOrWhiteSpace(InputTag.Name))
+                ? InputTag.Name
+                : "x";
+            return Offset < 0 
+                ? $"y = {Gain:0.#####}·{varName} - {Math.Abs(Offset):0.#####}" 
+                : $"y = {Gain:0.#####}·{varName} + {Offset:0.#####}";
+        }
+    }
 
     public string LiveFormattedValue => $"{LiveScaledValue.ToString($"F{Math.Clamp(DecimalPlaces, 0, 4)}")} {Unit}";
 

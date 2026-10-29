@@ -31,7 +31,7 @@ public class LiveWatchViewModelTests
         Assert.Equal("DI0", tag0.Name);
         Assert.Equal(TagKind.DiscreteInput, tag0.Kind);
         Assert.Equal(TagQuality.Unknown, tag0.Quality);
-        Assert.Equal("OFF [Last]", tag0.FormattedValue);
+        Assert.Equal("0 [Last]", tag0.FormattedValue);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class LiveWatchViewModelTests
         Assert.Equal(1, di0.RawValue);
         Assert.True(di0.IsBoolean);
         Assert.True(di0.IsOn);
-        Assert.Equal("ON", di0.FormattedValue);
+        Assert.Equal("1", di0.FormattedValue);
         Assert.Equal("0x00000001", di0.RawHexText);
         Assert.True(di0.IsModifiedRecently);
 
@@ -313,21 +313,21 @@ public class LiveWatchViewModelTests
         };
 
         // When Good: no [Last] suffix
-        Assert.Equal("● ON (1)", tag.BooleanDisplayValue);
-        Assert.Equal("ON", tag.FormattedValue);
-        Assert.Equal("ON", tag.FormattedDisplayValue);
+        Assert.Equal("● 1", tag.BooleanDisplayValue);
+        Assert.Equal("1", tag.FormattedValue);
+        Assert.Equal("1", tag.FormattedDisplayValue);
 
         // When Unknown (after Reset / Disconnect): appends [Last] suffix
         tag.Quality = TagQuality.Unknown;
-        Assert.Equal("● ON (1) [Last]", tag.BooleanDisplayValue);
-        Assert.Equal("ON [Last]", tag.FormattedValue);
-        Assert.Equal("ON [Last]", tag.FormattedDisplayValue);
+        Assert.Equal("● 1 [Last]", tag.BooleanDisplayValue);
+        Assert.Equal("1 [Last]", tag.FormattedValue);
+        Assert.Equal("1 [Last]", tag.FormattedDisplayValue);
 
         // When Stale: also appends [Last] suffix
         tag.Quality = TagQuality.Stale;
-        Assert.Equal("● ON (1) [Last]", tag.BooleanDisplayValue);
-        Assert.Equal("ON [Last]", tag.FormattedValue);
-        Assert.Equal("ON [Last]", tag.FormattedDisplayValue);
+        Assert.Equal("● 1 [Last]", tag.BooleanDisplayValue);
+        Assert.Equal("1 [Last]", tag.FormattedValue);
+        Assert.Equal("1 [Last]", tag.FormattedDisplayValue);
 
         // Check Vietnamese localization
         var loc = SimplePLC.Studio.Services.LocalizationService.Instance;
@@ -335,9 +335,9 @@ public class LiveWatchViewModelTests
         try
         {
             tag.NotifyLanguageChanged();
-            Assert.Equal("● BẬT (1) [Gần nhất]", tag.BooleanDisplayValue);
-            Assert.Equal("ON [Gần nhất]", tag.FormattedValue);
-            Assert.Equal("BẬT [Gần nhất]", tag.FormattedDisplayValue);
+            Assert.Equal("● 1 [Gần nhất]", tag.BooleanDisplayValue);
+            Assert.Equal("1 [Gần nhất]", tag.FormattedValue);
+            Assert.Equal("1 [Gần nhất]", tag.FormattedDisplayValue);
         }
         finally
         {

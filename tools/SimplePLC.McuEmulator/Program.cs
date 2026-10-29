@@ -113,7 +113,7 @@ internal class Program
         var simulator = new McuReferenceSimulator(wireProfile);
         bool isGateway = capsProfile != "remote-io" && capsProfile != "remoteio" && capsProfile != "no-mqtt";
         var initialCaps = isGateway
-            ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER
+            ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_SLAVE
             : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
         simulator.SetHardwareCapabilities(initialCaps);
         simulator.SetPhysicalRs485PortCount(rs485PortCount);
@@ -270,7 +270,7 @@ internal class Program
                 {
                     isGateway = !isGateway;
                     var newCaps = isGateway
-                        ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER
+                        ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_SLAVE
                         : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
                     simulator.SetHardwareCapabilities(newCaps);
                     Console.ForegroundColor = ConsoleColor.Magenta;

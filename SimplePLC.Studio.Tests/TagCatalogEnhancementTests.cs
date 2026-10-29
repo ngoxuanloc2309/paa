@@ -66,11 +66,11 @@ public class TagCatalogEnhancementTests
         var c0 = vm.AllTags.First(t => t.Name == "COUNTER0");
 
         Assert.Equal("10001 (0x0000)", di0.ModbusAddressText);
-        Assert.Equal("BOOL (Bit)", di0.DataTypeText);
+        Assert.Equal("BOOL", di0.DataTypeText);
         Assert.True(di0.IsReadOnly);
 
         Assert.Equal("00001 (0x0008)", do0.ModbusAddressText);
-        Assert.Equal("BOOL (Bit)", do0.DataTypeText);
+        Assert.Equal("BOOL", do0.DataTypeText);
         Assert.False(do0.IsReadOnly);
 
         Assert.Equal("30001 (0x0010)", ai0.ModbusAddressText);
@@ -78,7 +78,7 @@ public class TagCatalogEnhancementTests
         Assert.True(ai0.IsReadOnly);
 
         Assert.Equal("00021 (0x0014)", vf0.ModbusAddressText);
-        Assert.Equal("BOOL (Bit)", vf0.DataTypeText);
+        Assert.Equal("BOOL", vf0.DataTypeText);
 
         Assert.Equal("40053 (0x0034)", vr0.ModbusAddressText);
         Assert.Equal("INT32", vr0.DataTypeText);

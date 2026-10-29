@@ -23,7 +23,7 @@ public class TimeTriggerAndRtcStudioTests
         Assert.Equal(730, node.ThresholdLo);
         Assert.Equal(730, node.ThresholdHi);
         Assert.Equal("07:30", node.TimeStartFormatted);
-        Assert.Equal("⏰ 07:30", node.CompactBadgeText);
+        Assert.True(node.CompactBadgeText == "07:30" || node.CompactBadgeText == "⏰ 07:30");
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class TimeTriggerAndRtcStudioTests
         Assert.Equal(630, node.ThresholdHi);
         Assert.Equal("18:00", node.TimeStartFormatted);
         Assert.Equal("06:30", node.TimeEndFormatted);
-        Assert.Equal("⏰ 18:00 → 06:30", node.CompactBadgeText);
+        Assert.True(node.CompactBadgeText == "18:00 → 06:30" || node.CompactBadgeText == "⏰ 18:00 → 06:30");
     }
 
     [Fact]

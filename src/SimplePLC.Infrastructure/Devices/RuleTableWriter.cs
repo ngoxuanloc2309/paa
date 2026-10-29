@@ -155,7 +155,8 @@ public sealed class RuleTableWriter : IRuleTableWriter
         bool hasMbRead = modbusMasterConfigs != null && modbusMasterConfigs.Count > 0;
         bool hasMbWrite = modbusMasterWriteConfigs != null && modbusMasterWriteConfigs.Count > 0;
         bool hasMbPorts = modbusPortConfigs != null && modbusPortConfigs.Count > 0;
-        bool hasModbusWork = hasMbRead || hasMbWrite || hasMbPorts;
+        bool hasSlavePort = modbusPortConfigs != null && modbusPortConfigs.Any(p => p.Role == ModbusPortRole.Slave && p.Enabled);
+        bool hasModbusWork = hasMbRead || hasMbWrite || hasMbPorts || hasSlavePort;
         ushort physicalRs485PortCount = 2;
 
         bool isMqttPubSupported = false;
@@ -246,6 +247,16 @@ public sealed class RuleTableWriter : IRuleTableWriter
             // Cơ chế an toàn Fail-Fast: Chặn triển khai nếu dự án dùng Modbus Master nhưng phần cứng không đáp ứng
             if (hasModbusWork)
             {
+                if (capsReadException != null && (hasMbRead || hasMbWrite || hasSlavePort))
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Communication error reading hardware capabilities at 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}: {capsReadException.Message}. Modbus deployment aborted for safety.");
+                }
+
                 try
                 {
                     var rawPortRegs = await _client.ReadHoldingRegistersAsync(
@@ -279,6 +290,16 @@ public sealed class RuleTableWriter : IRuleTableWriter
                         SPLC_ErrorCode.UNSUPPORTED,
                         0,
                         $"Device does not declare Modbus Master capability (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MODBUS_MASTER at 0x0A08). Deployment aborted for safety.");
+                }
+
+                if (hasSlavePort && (caps & SPLC_HardwareCapabilities.MODBUS_SLAVE) == 0)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not support Modbus Slave (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MODBUS_SLAVE at 0x0A08). Deployment aborted for safety.");
                 }
 
                 if (physicalRs485PortCount == 0 && (hasMbRead || hasMbWrite))
@@ -505,6 +526,23 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
+        // 4.4.1 Nạp Bảng Ánh Xạ Modbus Slave (0x1500) nếu có cấu hình (SPLC-SPEC-SLAVE-001)
+        if (slaveMapConfigs != null && slaveMapConfigs.Count > 0)
+        {
+            var mapRegs = new ushort[ModbusRegisterMap.ModbusSlaveMapTableTotalLength];
+            ModbusSlaveMapCodec.EncodeEntries(slaveMapConfigs, mapRegs);
+
+            progressLogger?.Invoke($"[Modbus Slave Map] Writing {mapRegs.Length} registers to 0x{ModbusRegisterMap.ModbusSlaveMapBaseAddress:X04} (Sandbox Mapping Table)...");
+            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                ModbusRegisterMap.ModbusSlaveMapBaseAddress,
+                mapRegs.AsMemory());
+
+            foreach (var (chunkAddress, chunkMemory) in chunks)
+            {
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         // 4.5 Nạp cấu hình MQTT Will Message (0x0E60) nếu có
         var effectiveWill = mqttWillConfig ?? dtuConfig?.MqttWillConfig;
         if (effectiveWill != null && effectiveWill.Enabled)
@@ -608,7 +646,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
             ModbusRegisterMap.RuleCountStagedAddress,
             transferInfo,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         // 3. Bước 2 (R10): Ghi STAGING_RULE_TABLE (0x9010) theo các chunks an toàn (16 regs = 1 rule)
         if (totalRegisters > 0)
@@ -620,7 +658,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
 
             foreach (var (chunkAddress, chunkMemory) in chunks)
             {
-                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken);
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -650,10 +688,10 @@ public sealed class RuleTableWriter : IRuleTableWriter
             ModbusRegisterMap.CommitCommandAddress,
             ModbusRegisterMap.CommitMagic,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
 
         // 5. Bước 4 (R10): Chờ MCU xác thực CRC và kiểm tra trạng thái CONFIG_STATUS
-        return await WaitForCommitCompletionAsync(slaveId, initialVersion, cancellationToken);
+        return await WaitForCommitCompletionAsync(slaveId, initialVersion, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<RuleDeployResult> WaitForCommitCompletionAsync(byte slaveId, ushort initialVersion, CancellationToken cancellationToken)
@@ -669,7 +707,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 ModbusRegisterMap.ConfigStatusAddress,
                 2, // Đọc cả CONFIG_STATUS (0x9000) và CONFIG_ERROR_CODE (0x9001)
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
 
             ushort status = statusRegs[0];
             var errorCode = (SPLC_ErrorCode)statusRegs[1];
@@ -690,7 +728,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 ModbusRegisterMap.ActiveRuleVersionAddress,
                 1,
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
             ushort currentVersion = verRegs.Length > 0 ? verRegs[0] : (ushort)0;
 
             if (status == 3 && (currentVersion != initialVersion || (initialVersion == 0 && currentVersion > 0)))
@@ -703,7 +741,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 );
             }
 
-            await Task.Delay(35, cancellationToken);
+            await Task.Delay(35, cancellationToken).ConfigureAwait(false);
         }
 
         return new RuleDeployResult(

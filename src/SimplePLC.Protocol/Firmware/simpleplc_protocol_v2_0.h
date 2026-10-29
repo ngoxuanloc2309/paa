@@ -513,7 +513,8 @@ typedef enum {
     SPLC_CAP_MODBUS_TCP    = 0x0400, /* Bit 10: Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502) */
     SPLC_CAP_FLOAT32       = 0x0800, /* Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math */
     SPLC_CAP_HTTP_CLIENT   = 0x1000, /* Bit 12: Hỗ trợ phân hệ REST API HTTP Client (0x1600..0x163F) */
-    SPLC_CAP_TRANSPARENT_STREAM = 0x2000 /* Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network */
+    SPLC_CAP_TRANSPARENT_STREAM = 0x2000, /* Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network */
+    SPLC_CAP_MODBUS_SLAVE  = 0x4000  /* Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500) */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -599,7 +600,8 @@ typedef enum {
     SPLC_ERR_BUSY                 = 3,
     SPLC_ERR_CRC_MISMATCH         = 4,
     SPLC_ERR_UNSUPPORTED          = 5,
-    SPLC_ERR_FLASH                = 6
+    SPLC_ERR_FLASH                = 6,
+    SPLC_ERR_SLAVE_PORT_CONFLICT  = 7
 } SPLC_ErrorCode_t;
 
 typedef enum {

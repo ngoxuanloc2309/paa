@@ -26,7 +26,7 @@
 
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
 
-        Background="#F8FAFC"
+        Background="{DynamicResource BgWindowBrush}"
 
         Icon="../Assets/app.png"
 
@@ -60,7 +60,7 @@
 
 
 
-    <Border BorderBrush="#CBD5E1" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
 
         <Grid Margin="18,14">
 
@@ -96,7 +96,7 @@
 
 
 
-                <Border Grid.Column="0" Width="38" Height="38" Background="#E2E8F0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Margin="0,0,12,0">
+                <Border Grid.Column="0" Width="38" Height="38" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,12,0">
 
                     <TextBlock Text="📶" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
@@ -108,11 +108,11 @@
 
                     <TextBlock Text="{Binding [WifiDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                               FontSize="14.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                               FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                     <TextBlock Text="{Binding [WifiDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
 
-                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
 
                 </StackPanel>
 
@@ -128,7 +128,7 @@
 
                 <!-- CARD 1: Trạng thái kết nối hiện tại (Current Status) -->
 
-                <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,10">
+                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,10">
 
                     <StackPanel>
 
@@ -150,13 +150,13 @@
 
                             <TextBlock Grid.Column="0" Text="{Binding [WifiSectionLive], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
 
 
 
                             <!-- Status Pill -->
 
-                            <Border Grid.Column="1" HorizontalAlignment="Left" CornerRadius="3" Padding="8,3" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1">
+                            <Border Grid.Column="1" HorizontalAlignment="Left" CornerRadius="3" Padding="8,3" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1">
 
                                 <StackPanel Orientation="Horizontal">
 
@@ -166,37 +166,37 @@
 
                                             <Style TargetType="Ellipse">
 
-                                                <Setter Property="Fill" Value="#64748B" />
+                                                <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
 
                                                 <Style.Triggers>
 
                                                     <DataTrigger Binding="{Binding ConnectionStatus}" Value="3">
 
-                                                        <Setter Property="Fill" Value="#107C41" />
+                                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
 
                                                     </DataTrigger>
 
                                                     <DataTrigger Binding="{Binding ConnectionStatus}" Value="2">
 
-                                                        <Setter Property="Fill" Value="#0284C7" />
+                                                        <Setter Property="Fill" Value="{DynamicResource IndustrialPrimaryBrush}" />
 
                                                     </DataTrigger>
 
                                                     <DataTrigger Binding="{Binding ConnectionStatus}" Value="1">
 
-                                                        <Setter Property="Fill" Value="#D97706" />
+                                                        <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
 
                                                     </DataTrigger>
 
                                                     <DataTrigger Binding="{Binding ConnectionStatus}" Value="4">
 
-                                                        <Setter Property="Fill" Value="#DC2626" />
+                                                        <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
 
                                                     </DataTrigger>
 
                                                     <DataTrigger Binding="{Binding ConnectionStatus}" Value="5">
 
-                                                        <Setter Property="Fill" Value="#DC2626" />
+                                                        <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
 
                                                     </DataTrigger>
 
@@ -208,7 +208,7 @@
 
                                     </Ellipse>
 
-                                    <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B" />
+                                    <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                                 </StackPanel>
 
@@ -244,7 +244,7 @@
 
                         <!-- Sub-row: Telemetry parameters (IP, RSSI, MAC) -->
 
-                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Padding="10,6">
+                        <Border Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="10,6">
 
                             <Grid>
 
@@ -270,9 +270,9 @@
 
                                     <TextBlock Text="{Binding [WifiCurrentIpLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
-                                    <TextBlock Text="{Binding CurrentIp}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" />
+                                    <TextBlock Text="{Binding CurrentIp}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                                 </StackPanel>
 
@@ -284,11 +284,11 @@
 
                                     <TextBlock Text="{Binding [WifiRssiLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
-                                        <TextBlock Text="{Binding RssiDbm, StringFormat={}{0} dBm}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,6,0" />
+                                        <TextBlock Text="{Binding RssiDbm, StringFormat={}{0} dBm}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,6,0" />
 
                                         <ProgressBar Width="55" Height="7" Minimum="0" Maximum="100" Value="{Binding SignalQualityPercent}" VerticalAlignment="Center" />
 
@@ -304,9 +304,9 @@
 
                                     <TextBlock Text="{Binding [WifiMacLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
-                                    <TextBlock Text="{Binding MacAddress}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" />
+                                    <TextBlock Text="{Binding MacAddress}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
 
                                 </StackPanel>
 
@@ -322,7 +322,7 @@
 
                 <!-- CARD 2: Chọn mạng Wi-Fi & Xác thực (Network Selection & Credentials) -->
 
-                <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,10">
+                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,10">
 
                     <StackPanel>
 
@@ -342,11 +342,11 @@
 
                             <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}" Content="{Binding [WifiEnabledLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                      FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                      FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
                             <CheckBox Grid.Column="2" IsChecked="{Binding AutoReconnect}" Content="{Binding [WifiAutoReconnectLabel], Source={x:Static services:LocalizationService.Instance}}"
 
-                                      Foreground="#334155" VerticalAlignment="Center" />
+                                      Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
                         </Grid>
 
@@ -372,11 +372,11 @@
 
                                 <TextBlock Text="{Binding [WifiSsidLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
 
                                 <TextBox Text="{Binding Ssid, UpdateSourceTrigger=PropertyChanged}" 
 
-                                         Padding="7,5" FontSize="12" BorderBrush="#CBD5E1" />
+                                         Padding="7,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                             </StackPanel>
 
@@ -400,7 +400,7 @@
 
                         <!-- Nearby Networks Table (Compact & Clickable) -->
 
-                        <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="3" Height="105" Margin="0,0,0,8">
+                        <Border BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Height="105" Margin="0,0,0,8">
 
                             <Grid>
 
@@ -418,7 +418,7 @@
 
                                           RowHeight="24"
 
-                                          Background="#FFFFFF"
+                                          Background="{DynamicResource BgPanelBrush}"
 
                                           FontSize="10.5"
 
@@ -446,7 +446,7 @@
 
                                 <TextBlock Text="{Binding [WifiScanEmptyHelp], Source={x:Static services:LocalizationService.Instance}}"
 
-                                           FontSize="10.5" Foreground="#94A3B8" FontStyle="Italic" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic" HorizontalAlignment="Center" VerticalAlignment="Center"
 
                                            IsHitTestVisible="False">
 
@@ -498,19 +498,19 @@
 
                                 <TextBlock Text="{Binding [WifiPasswordLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                           FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
 
                                 <Grid>
 
                                     <TextBox x:Name="PasswordTextBox" Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="7,5" FontSize="12" BorderBrush="#CBD5E1"
+                                             Padding="7,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
 
                                              Visibility="{Binding IsPasswordVisible, Converter={StaticResource BoolToVis}}" />
 
                                     <PasswordBox x:Name="PasswordBoxControl" PasswordChar="●"
 
-                                                 Padding="7,5" FontSize="12" BorderBrush="#CBD5E1"
+                                                 Padding="7,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
 
                                                  PasswordChanged="PasswordBoxControl_PasswordChanged">
 
@@ -546,7 +546,7 @@
 
                                       Content="{Binding [WifiShowPassword], Source={x:Static services:LocalizationService.Instance}}"
 
-                                      FontSize="10.5" Foreground="#64748B" VerticalAlignment="Bottom" Margin="0,0,0,6" />
+                                      FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Bottom" Margin="0,0,0,6" />
 
                         </Grid>
 
@@ -558,7 +558,7 @@
 
                 <!-- CARD 3: Cấu hình giao thức IP (IP Protocol Configuration) -->
 
-                <Border Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10">
+                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10">
 
                     <StackPanel>
 
@@ -576,13 +576,13 @@
 
                             <TextBlock Grid.Column="0" Text="{Binding [WifiSectionIp], Source={x:Static services:LocalizationService.Instance}}"
 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center" />
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
                             <CheckBox Grid.Column="2" IsChecked="{Binding IsDhcp}" 
 
                                       Content="{Binding [WifiDhcpHelp], Source={x:Static services:LocalizationService.Instance}}"
 
-                                      FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                      FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
                         </Grid>
 
@@ -644,11 +644,11 @@
 
                                     <TextBlock Text="{Binding [WifiStaticIpLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
                                     <TextBox Text="{Binding StaticIp, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="6,4" FontSize="11" BorderBrush="#CBD5E1" />
+                                             Padding="6,4" FontSize="11" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -660,11 +660,11 @@
 
                                     <TextBlock Text="{Binding [WifiSubnetLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
                                     <TextBox Text="{Binding StaticSubnet, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="6,4" FontSize="11" BorderBrush="#CBD5E1" />
+                                             Padding="6,4" FontSize="11" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -676,11 +676,11 @@
 
                                     <TextBlock Text="{Binding [WifiGatewayLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
                                     <TextBox Text="{Binding StaticGateway, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="6,4" FontSize="11" BorderBrush="#CBD5E1" />
+                                             Padding="6,4" FontSize="11" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -692,11 +692,11 @@
 
                                     <TextBlock Text="{Binding [WifiDnsLabel], Source={x:Static services:LocalizationService.Instance}}" 
 
-                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,1" />
+                                               FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,1" />
 
                                     <TextBox Text="{Binding StaticDns, UpdateSourceTrigger=PropertyChanged}" 
 
-                                             Padding="6,4" FontSize="11" BorderBrush="#CBD5E1" />
+                                             Padding="6,4" FontSize="11" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                 </StackPanel>
 
@@ -730,7 +730,7 @@
 
 
 
-                <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="#DC2626" FontSize="11.5" FontWeight="SemiBold"
+                <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="11.5" FontWeight="SemiBold"
 
                            VerticalAlignment="Center" TextWrapping="Wrap" />
 
