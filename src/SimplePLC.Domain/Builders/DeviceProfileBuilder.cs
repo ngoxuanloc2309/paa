@@ -210,6 +210,7 @@ public static class DeviceProfileBuilder
             2 => "Data Logger",
             3 => "Gateway",
             4 => "Controller",
+            5 => "DTU Gateway",
             _ => "SimplePLC Device"
         };
 

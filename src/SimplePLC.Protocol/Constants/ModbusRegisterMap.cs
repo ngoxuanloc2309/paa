@@ -252,6 +252,9 @@ public static class ModbusRegisterMap
     public const ushort MqttBrokerControlBitCleanSession = 0x0004;   // Bit 2: Clean Session
     public const ushort MqttBrokerControlVersionMask = 0x0018;       // Bit 3..4: Version (0=3.1.1, 1=5.0)
     public const ushort MqttBrokerControlVersionShift = 3;
+    public const ushort MqttBrokerControlBitUseMtls = 0x0020;          // Bit 5: Mutual TLS (mTLS) Active
+    public const ushort MqttBrokerControlBitIgnoreHostname = 0x0040;   // Bit 6: Ignore Subject Alternative Name / IP Mismatch
+    public const ushort MqttBrokerControlBitAllowSelfSigned = 0x0080;  // Bit 7: Allow Self-Signed Certificates
 
     // ==========================================
     // 2.5 PHÂN VÙNG MQTT TLS CERTIFICATE STAGING (0x0F00 - 0x0F4F)
@@ -453,7 +456,8 @@ public static class ModbusRegisterMap
     public const ushort DtuTcpConfigBaseAddress = 0x1640;
     public const int DtuTcpConfigRegisters = 64; // 128 Bytes
     public const int DtuTcpHostMaxChars = 64;
-    public const int DtuTcpHeartbeatMaxChars = 48;
+    public const int DtuTcpHeartbeatMaxChars = 16;
+    public const int DtuTcpRegistrationMaxChars = 32;
 
     public const ushort DtuRoutingConfigBaseAddress = 0x1680;
     public const int DtuRoutingConfigRegisters = 64; // 128 Bytes

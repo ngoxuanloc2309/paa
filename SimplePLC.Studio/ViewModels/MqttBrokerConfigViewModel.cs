@@ -71,8 +71,60 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
     [ObservableProperty]
     private bool _allowSelfSigned;
 
+    // Mutual TLS (mTLS) Client Certificate & Key Properties (IEC 62443-4-2)
+    [ObservableProperty]
+    private bool _useMtls;
+
+    [ObservableProperty]
+    private string _clientCertPath = string.Empty;
+
+    [ObservableProperty]
+    private string _clientCertPem = string.Empty;
+
+    [ObservableProperty]
+    private string _clientCertSubject = string.Empty;
+
+    [ObservableProperty]
+    private string _clientCertIssuer = string.Empty;
+
+    [ObservableProperty]
+    private string _clientCertExpiry = string.Empty;
+
+    [ObservableProperty]
+    private string _clientCertSha256 = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasClientCert;
+
+    [ObservableProperty]
+    private string _clientKeyPath = string.Empty;
+
+    [ObservableProperty]
+    private string _clientKeyPem = string.Empty;
+
+    [ObservableProperty]
+    private string _clientKeyPassword = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasClientKey;
+
+    // Advanced TLS Protocol Parameters
+    [ObservableProperty]
+    private bool _ignoreHostname;
+
+    [ObservableProperty]
+    private int _tlsVersionIndex; // 0: Auto (TLS 1.2/1.3), 1: TLS 1.2, 2: TLS 1.3
+
+    [ObservableProperty]
+    private string _sniHostname = string.Empty;
+
     [ObservableProperty]
     private bool _isTesting;
+
+    /// <summary>
+    /// Cho biết nút kiểm tra kết nối có thể thực thi hay không (chỉ khi dịch vụ được kích hoạt và không trong quá trình test).
+    /// </summary>
+    public bool CanTestConnection => IsEnabled && !IsTesting;
 
     [ObservableProperty]
     private string _testStatusMessage = string.Empty;
@@ -116,13 +168,24 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _caCertPem = metadata.MqttTlsCaCertPem ?? string.Empty;
         _allowSelfSigned = metadata.MqttTlsAllowSelfSigned;
 
+        // Load mTLS & Advanced Settings
+        _useMtls = metadata.MqttTlsMtlsEnabled;
+        _clientCertPath = metadata.MqttTlsClientCertPath ?? string.Empty;
+        _clientCertPem = metadata.MqttTlsClientCertPem ?? string.Empty;
+        _clientKeyPath = metadata.MqttTlsClientKeyPath ?? string.Empty;
+        _clientKeyPem = metadata.MqttTlsClientKeyPem ?? string.Empty;
+        _clientKeyPassword = metadata.MqttTlsClientKeyPassword ?? string.Empty;
+        _ignoreHostname = metadata.MqttTlsIgnoreHostname;
+        _tlsVersionIndex = metadata.MqttTlsProtocolVersion >= 0 && metadata.MqttTlsProtocolVersion <= 2 ? metadata.MqttTlsProtocolVersion : 0;
+        _sniHostname = metadata.MqttTlsSniHostname ?? string.Empty;
+
         _willEnabled = metadata.MqttWillEnabled;
         _willTopic = metadata.MqttWillTopic ?? string.Empty;
         _willPayload = string.IsNullOrEmpty(metadata.MqttWillPayload) ? "{\"status\":\"offline\"}" : metadata.MqttWillPayload;
         _willQos = metadata.MqttWillQos;
         _willRetain = metadata.MqttWillRetain;
 
-        // Tự động phân tích chứng chỉ nếu đã có sẵn trong metadata
+        // Tự động phân tích chứng chỉ CA nếu đã có sẵn trong metadata
         if (!string.IsNullOrWhiteSpace(_caCertPem))
         {
             ParseCertPem(_caCertPem, _caCertPath);
@@ -139,6 +202,41 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
                 // Bỏ qua nếu file không đọc được lúc khởi tạo
             }
         }
+
+        // Tự động phân tích chứng chỉ Client nếu đã có sẵn trong metadata
+        if (!string.IsNullOrWhiteSpace(_clientCertPem))
+        {
+            ParseClientCert(_clientCertPem, _clientCertPath);
+        }
+        else if (!string.IsNullOrWhiteSpace(_clientCertPath) && File.Exists(_clientCertPath))
+        {
+            try
+            {
+                string pem = File.ReadAllText(_clientCertPath);
+                ParseClientCert(pem, _clientCertPath);
+            }
+            catch
+            {
+                // Bỏ qua nếu file không đọc được lúc khởi tạo
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_clientKeyPath))
+        {
+            HasClientKey = true;
+        }
+    }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanTestConnection));
+        TestConnectionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsTestingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanTestConnection));
+        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnUseTlsChanged(bool value)
@@ -212,7 +310,6 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         }
         catch (Exception)
         {
-            // Dự phòng nếu định dạng DER nhị phân hoặc chuỗi đặc biệt
             CaCertPath = filePath;
             CaCertPem = pemContent;
             CaCertSubject = Path.GetFileName(filePath);
@@ -236,6 +333,187 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void BrowseClientCert()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = LocalizationService.Instance["MqttBrokerClientCertLabel"],
+            Filter = "Certificate / Bundle Files (*.crt;*.cer;*.pem;*.pfx;*.p12)|*.crt;*.cer;*.pem;*.pfx;*.p12|All Files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            LoadClientCertificateFile(dialog.FileName);
+        }
+    }
+
+    public void LoadClientCertificateFile(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath)) return;
+
+            string ext = Path.GetExtension(filePath).ToLowerInvariant();
+            if (ext == ".pfx" || ext == ".p12")
+            {
+                // PKCS#12 bundle
+                ClientCertPath = filePath;
+                ClientCertPem = string.Empty;
+                var cert = new X509Certificate2(filePath, ClientKeyPassword, X509KeyStorageFlags.EphemeralKeySet);
+                ClientCertSubject = cert.Subject;
+                ClientCertIssuer = cert.Issuer;
+                ClientCertExpiry = cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss");
+                byte[] hash = cert.GetCertHash(HashAlgorithmName.SHA256);
+                ClientCertSha256 = BitConverter.ToString(hash).Replace("-", ":");
+                HasClientCert = true;
+                HasClientKey = true; // PKCS#12 contains private key
+                ClientKeyPath = filePath;
+            }
+            else
+            {
+                string pemContent = File.ReadAllText(filePath);
+                ParseClientCert(pemContent, filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            ClearClientCert();
+            TestStatusMessage = string.Format(LocalizationService.Instance["MqttBrokerTlsCertInvalid"], ex.Message);
+            IsTestSuccess = false;
+        }
+    }
+
+    public void ParseClientCert(string pemContent, string filePath)
+    {
+        try
+        {
+            X509Certificate2 cert;
+            if (File.Exists(filePath))
+            {
+                cert = new X509Certificate2(filePath);
+            }
+            else
+            {
+                cert = X509Certificate2.CreateFromPem(pemContent);
+            }
+
+            ClientCertPath = filePath;
+            ClientCertPem = pemContent;
+            ClientCertSubject = cert.Subject;
+            ClientCertIssuer = cert.Issuer;
+            ClientCertExpiry = cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss");
+
+            byte[] hash = cert.GetCertHash(HashAlgorithmName.SHA256);
+            ClientCertSha256 = BitConverter.ToString(hash).Replace("-", ":");
+            HasClientCert = true;
+        }
+        catch (Exception)
+        {
+            ClientCertPath = filePath;
+            ClientCertPem = pemContent;
+            ClientCertSubject = Path.GetFileName(filePath);
+            ClientCertIssuer = "Client Certificate";
+            ClientCertExpiry = "Loaded";
+            ClientCertSha256 = "N/A";
+            HasClientCert = true;
+        }
+    }
+
+    [RelayCommand]
+    public void ClearClientCert()
+    {
+        ClientCertPath = string.Empty;
+        ClientCertPem = string.Empty;
+        ClientCertSubject = string.Empty;
+        ClientCertIssuer = string.Empty;
+        ClientCertExpiry = string.Empty;
+        ClientCertSha256 = string.Empty;
+        HasClientCert = false;
+    }
+
+    [RelayCommand]
+    public void BrowseClientKey()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = LocalizationService.Instance["MqttBrokerClientKeyLabel"],
+            Filter = "Key Files (*.key;*.pem)|*.key;*.pem|All Files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            LoadClientKeyFile(dialog.FileName);
+        }
+    }
+
+    public void LoadClientKeyFile(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath)) return;
+            ClientKeyPath = filePath;
+            ClientKeyPem = File.ReadAllText(filePath);
+            HasClientKey = true;
+        }
+        catch (Exception ex)
+        {
+            ClearClientKey();
+            TestStatusMessage = string.Format(LocalizationService.Instance["MqttBrokerTlsCertInvalid"], ex.Message);
+            IsTestSuccess = false;
+        }
+    }
+
+    [RelayCommand]
+    public void ClearClientKey()
+    {
+        ClientKeyPath = string.Empty;
+        ClientKeyPem = string.Empty;
+        HasClientKey = false;
+    }
+
+    /// <summary>
+    /// Tạo đối tượng X509Certificate2 kết hợp chứng chỉ công khai và khóa bí mật cho xác thực mTLS.
+    /// </summary>
+    public X509Certificate2? CreateClientCertificate()
+    {
+        if (!HasClientCert) return null;
+
+        try
+        {
+            string ext = Path.GetExtension(ClientCertPath).ToLowerInvariant();
+            if ((ext == ".pfx" || ext == ".p12") && File.Exists(ClientCertPath))
+            {
+                return new X509Certificate2(ClientCertPath, ClientKeyPassword, X509KeyStorageFlags.EphemeralKeySet);
+            }
+
+            if (!string.IsNullOrWhiteSpace(ClientCertPem) && !string.IsNullOrWhiteSpace(ClientKeyPem))
+            {
+                return X509Certificate2.CreateFromPem(ClientCertPem, ClientKeyPem);
+            }
+
+            if (File.Exists(ClientCertPath) && File.Exists(ClientKeyPath))
+            {
+                string certText = File.ReadAllText(ClientCertPath);
+                string keyText = File.ReadAllText(ClientKeyPath);
+                return X509Certificate2.CreateFromPem(certText, keyText);
+            }
+
+            if (File.Exists(ClientCertPath))
+            {
+                return new X509Certificate2(ClientCertPath);
+            }
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTestConnection))]
     private async Task TestConnectionAsync()
     {
         if (string.IsNullOrWhiteSpace(Host))
@@ -262,7 +540,7 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         try
         {
             using var client = new TcpClient();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
             
             await client.ConnectAsync(Host.Trim(), Port, cts.Token).ConfigureAwait(false);
 
@@ -277,10 +555,16 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
                         if (AllowSelfSigned) return true;
                         if (sslPolicyErrors == SslPolicyErrors.None) return true;
 
-                        // Nếu có tệp CA riêng, kiểm tra khớp Issuer hoặc Cert
+                        // Bỏ qua lỗi tên miền khi cấu hình IP trong nhà máy
+                        if (IgnoreHostname && sslPolicyErrors == SslPolicyErrors.RemoteCertificateNameMismatch)
+                        {
+                            return true;
+                        }
+
+                        // Nếu có tệp CA riêng, kiểm tra khớp Fingerprint
                         if (HasCaCert && !string.IsNullOrWhiteSpace(CaCertSha256) && certificate != null)
                         {
-                            byte[] serverHash = certificate.GetCertHash();
+                            byte[] serverHash = certificate.GetCertHash(HashAlgorithmName.SHA256);
                             string serverSha = BitConverter.ToString(serverHash).Replace("-", ":");
                             if (serverSha.Equals(CaCertSha256, StringComparison.OrdinalIgnoreCase))
                             {
@@ -288,23 +572,52 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
                             }
                         }
 
-                        // Nếu người dùng chọn bỏ qua lỗi
                         return sslPolicyErrors == SslPolicyErrors.None;
                     });
 
+                var targetHost = !string.IsNullOrWhiteSpace(SniHostname) ? SniHostname.Trim() : Host.Trim();
+
+                var sslProtocols = TlsVersionIndex switch
+                {
+                    1 => SslProtocols.Tls12,
+                    2 => SslProtocols.Tls13,
+                    _ => SslProtocols.Tls12 | SslProtocols.Tls13
+                };
+
                 var sslOptions = new SslClientAuthenticationOptions
                 {
-                    TargetHost = Host.Trim(),
-                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                    TargetHost = targetHost,
+                    EnabledSslProtocols = sslProtocols
                 };
+
+                X509Certificate2? clientCert = null;
+                if (UseMtls)
+                {
+                    clientCert = CreateClientCertificate();
+                    if (clientCert != null)
+                    {
+                        sslOptions.ClientCertificates = new X509CertificateCollection { clientCert };
+                        sslOptions.LocalCertificateSelectionCallback = (s, t, localCerts, remoteCert, issuers) => clientCert;
+                    }
+                }
 
                 await sslStream.AuthenticateAsClientAsync(sslOptions, cts.Token).ConfigureAwait(false);
 
                 IsTestSuccess = true;
-                TestStatusMessage = string.Format(
-                    LocalizationService.Instance["MqttBrokerTlsTestSuccess"],
-                    sslStream.SslProtocol,
-                    sslStream.CipherAlgorithm);
+                if (UseMtls && clientCert != null)
+                {
+                    TestStatusMessage = string.Format(
+                        LocalizationService.Instance["MqttBrokerMtlsTestSuccess"],
+                        sslStream.SslProtocol,
+                        sslStream.CipherAlgorithm);
+                }
+                else
+                {
+                    TestStatusMessage = string.Format(
+                        LocalizationService.Instance["MqttBrokerTlsTestSuccess"],
+                        sslStream.SslProtocol,
+                        sslStream.CipherAlgorithm);
+                }
             }
             else
             {
@@ -352,10 +665,21 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _metadata.MqttCleanSession = CleanSession;
         _metadata.MqttKeepAliveSec = KeepAliveSec > 0 ? KeepAliveSec : (ushort)60;
 
-        // Lưu thông số chứng chỉ TLS (SPLC-SPEC-MQTT-003)
+        // Lưu thông số chứng chỉ Server CA
         _metadata.MqttTlsCaCertPath = CaCertPath ?? string.Empty;
         _metadata.MqttTlsCaCertPem = CaCertPem ?? string.Empty;
         _metadata.MqttTlsAllowSelfSigned = AllowSelfSigned;
+
+        // Lưu thông số mTLS và cấu hình TLS nâng cao
+        _metadata.MqttTlsMtlsEnabled = UseMtls;
+        _metadata.MqttTlsClientCertPath = ClientCertPath ?? string.Empty;
+        _metadata.MqttTlsClientCertPem = ClientCertPem ?? string.Empty;
+        _metadata.MqttTlsClientKeyPath = ClientKeyPath ?? string.Empty;
+        _metadata.MqttTlsClientKeyPem = ClientKeyPem ?? string.Empty;
+        _metadata.MqttTlsClientKeyPassword = ClientKeyPassword ?? string.Empty;
+        _metadata.MqttTlsIgnoreHostname = IgnoreHostname;
+        _metadata.MqttTlsProtocolVersion = TlsVersionIndex;
+        _metadata.MqttTlsSniHostname = SniHostname?.Trim() ?? string.Empty;
 
         _metadata.MqttWillEnabled = WillEnabled;
         _metadata.MqttWillTopic = WillTopic?.Trim() ?? string.Empty;

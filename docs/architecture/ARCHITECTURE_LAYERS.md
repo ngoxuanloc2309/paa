@@ -340,3 +340,21 @@ Thứ tự implementation:
 9. Domain rule model + mapping
 10. Presentation integration
 ```
+
+---
+
+## 14. DTU Gateway & Stream Subsystem Architecture
+
+Phân hệ DTU Gateway (`SYNX-DTU-485`) được tích hợp xuyên suốt 4 tầng kiến trúc:
+
+1. **Protocol Layer (`SimplePLC.Protocol`):**
+   - Quản lý khế ước thanh ghi `0x1600..0x16BF` (`splc_dtu_http_config_t`, `splc_dtu_tcp_config_t`, `splc_dtu_routing_config_t`).
+   - Định nghĩa hằng số phân vùng, enums payload mode (Standard=0, Custom=1, Raw=2), trigger mode và registration type.
+2. **Domain Layer (`SimplePLC.Domain`):**
+   - Định nghĩa các bất biến nghiệp vụ của cổng nối tiếp và kênh mạng độc lập với cơ chế truyền tải.
+3. **Application Layer (`SimplePLC.Application`):**
+   - Xử lý đóng gói cấu hình DTU, tính toán kiểm tra bộ đệm gói tin, biên dịch các trường JSON macro sang cấu trúc nhị phân khi nạp xuống thiết bị.
+4. **Presentation Layer (`SimplePLC.Studio`):**
+   - `DtuGatewayStudioView` & `DtuGatewayStudioViewModel`: Quản lý 4 không gian làm việc (RS-485, Uplink, Payload Formatter, Live Diagnostic Terminal).
+   - Tuân thủ nghiêm ngặt chuẩn token màu Fluent 2 (`Colors.xaml`) và không bao giờ rò rỉ chi tiết thanh ghi Modbus lên giao diện người dùng.
+```

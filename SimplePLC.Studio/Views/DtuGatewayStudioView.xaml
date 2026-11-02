@@ -351,16 +351,17 @@
                         <StackPanel>
                             <!-- MQTT PANEL -->
                             <StackPanel Visibility="{Binding UplinkMode, Converter={StaticResource CompareToVisConverter}, ConverterParameter=Mqtt}">
+                                <!-- 1. MQTT BROKER CONNECTION & AUTHENTICATION CARD -->
                                 <Border Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding [DtuMqttBrokerCardTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10" />
+                                        <TextBlock Text="{Binding [DtuMqttBrokerCardTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+                                        <!-- Row 1: Host, Port, TLS -->
                                         <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="2*" />
+                                                <ColumnDefinition Width="2.5*" />
                                                 <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="1*" />
-                                                <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="110" />
                                                 <ColumnDefinition Width="14" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
@@ -372,46 +373,64 @@
                                                 <TextBlock Text="{Binding [DtuMqttPortLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttPort, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="4">
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,4">
+                                                <CheckBox IsChecked="{Binding MqttUseTls}" Content="{Binding [DtuMqttTlsLabel], Source={x:Static services:LocalizationService.Instance}}"
+                                                          FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                                <Button Command="{Binding OpenAdvancedMqttConfigCommand}"
+                                                        Style="{StaticResource BtnSecondary}"
+                                                        Padding="8,4" Height="26"
+                                                        ToolTip="{Binding [DtuMqttAdvancedTlsTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysLock}" Width="11" Height="11" Stroke="{DynamicResource TextSecondaryBrush}" Margin="0,0,5,0" />
+                                                        <TextBlock Text="{Binding [DtuMqttAdvancedConfigBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Row 2: Client ID, Username, Password, Keep-Alive (Symmetric 4-column layout) -->
+                                        <Grid Margin="0,0,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="110" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
                                                 <TextBlock Text="{Binding [DtuMqttClientIdLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttClientId, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <CheckBox Grid.Column="6" IsChecked="{Binding MqttUseTls}" Content="{Binding [DtuMqttTlsLabel], Source={x:Static services:LocalizationService.Instance}}"
-                                                      FontSize="11.5" VerticalAlignment="Bottom" Margin="0,0,0,8" />
-                                        </Grid>
-
-                                        <Grid Margin="0,0,0,10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="140" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
+                                            <StackPanel Grid.Column="2">
                                                 <TextBlock Text="{Binding [DtuMqttUserLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttUsername, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="2">
+                                            <StackPanel Grid.Column="4">
                                                 <TextBlock Text="{Binding [DtuMqttPassLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttPassword, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="4">
+                                            <StackPanel Grid.Column="6">
                                                 <TextBlock Text="{Binding [DtuMqttKeepAliveLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttKeepAlive, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
 
-                                        <!-- Topics Row: Telemetry Publish & Downlink Subscribe -->
-                                        <Grid Margin="0,0,0,4">
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 2. MQTT TOPICS & QUALITY OF SERVICE (QoS) CARD -->
+                                <Border Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding [DtuMqttTopicsCardTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+                                        <!-- Row 1: Telemetry Publish & Downlink Subscribe Topics (Balanced 50/50 split) -->
+                                        <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="1.5*" />
+                                                <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="1.5*" />
-                                                <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="90" />
-                                                <ColumnDefinition Width="14" />
-                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
                                                 <TextBlock Text="{Binding [DtuMqttPubTopicLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
@@ -421,7 +440,16 @@
                                                 <TextBlock Text="{Binding [DtuMqttSubTopicLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding MqttSubscribeTopic, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="4">
+                                        </Grid>
+
+                                        <!-- Row 2: QoS & Retain Message -->
+                                        <Grid Margin="0,0,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130" />
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
                                                 <TextBlock Text="{Binding [DtuMqttQosLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <ComboBox SelectedIndex="{Binding MqttQos}" Height="28" FontSize="11.5">
                                                     <ComboBoxItem Content="QoS 0" />
@@ -429,7 +457,7 @@
                                                     <ComboBoxItem Content="QoS 2" />
                                                 </ComboBox>
                                             </StackPanel>
-                                            <CheckBox Grid.Column="6" IsChecked="{Binding MqttRetain}" Content="{Binding [DtuMqttRetainLabel], Source={x:Static services:LocalizationService.Instance}}"
+                                            <CheckBox Grid.Column="2" IsChecked="{Binding MqttRetain}" Content="{Binding [DtuMqttRetainLabel], Source={x:Static services:LocalizationService.Instance}}"
                                                       FontSize="11.5" VerticalAlignment="Bottom" Margin="0,0,0,6" />
                                         </Grid>
                                     </StackPanel>
@@ -507,14 +535,25 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="14" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding [DtuHttpTriggerModeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                                                <ComboBox SelectedValue="{Binding HttpTriggerMode}" SelectedValuePath="Tag" Height="30" FontSize="12">
+                                                    <ComboBoxItem Content="{Binding [DtuHttpTriggerOnData], Source={x:Static services:LocalizationService.Instance}}" Tag="OnDataReceived" />
+                                                    <ComboBoxItem Content="{Binding [DtuHttpTriggerPeriodic], Source={x:Static services:LocalizationService.Instance}}" Tag="Periodic" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
                                                 <TextBlock Text="{Binding [DtuHttpTimeoutLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                                                 <TextBox Text="{Binding HttpTimeoutSec, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="2">
+                                            <StackPanel Grid.Column="4" IsEnabled="{Binding IsHttpPeriodicTrigger}">
                                                 <TextBlock Text="{Binding [DtuHttpIntervalLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                                                <TextBox Text="{Binding HttpIntervalSec, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" FontSize="12" />
+                                                <TextBox Text="{Binding HttpIntervalSec, UpdateSourceTrigger=PropertyChanged}"
+                                                         ToolTip="{Binding [DtuHttpIntervalHint], Source={x:Static services:LocalizationService.Instance}}"
+                                                         Padding="8,5" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
 
@@ -626,7 +665,7 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <Grid>
+                                        <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="140" />
                                                 <ColumnDefinition Width="14" />
@@ -641,6 +680,32 @@
                                                 <TextBox Text="{Binding TcpHeartbeatPayload, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" Padding="8,5" FontSize="12" />
                                             </StackPanel>
                                         </Grid>
+
+                                        <!-- Registration / Login Packet Card (Fluent 2 Desktop Style, CornerRadius=4) -->
+                                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding [DtuTcpRegistrationTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="180" />
+                                                        <ColumnDefinition Width="14" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding [DtuTcpRegistrationTypeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                                                        <ComboBox SelectedValue="{Binding TcpRegistrationType}" SelectedValuePath="Tag" Height="28" FontSize="11.5">
+                                                            <ComboBoxItem Content="{Binding [DtuTcpRegNone], Source={x:Static services:LocalizationService.Instance}}" Tag="None" />
+                                                            <ComboBoxItem Content="{Binding [DtuTcpRegOnConnect], Source={x:Static services:LocalizationService.Instance}}" Tag="OnConnect" />
+                                                            <ComboBoxItem Content="{Binding [DtuTcpRegPrepend], Source={x:Static services:LocalizationService.Instance}}" Tag="PrependToEveryPacket" />
+                                                        </ComboBox>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Visibility="{Binding TcpRegistrationType, Converter={StaticResource CompareToVisConverter}, ConverterParameter=!None}">
+                                                        <TextBlock Text="{Binding [DtuTcpRegistrationPayloadLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                                                        <TextBox Text="{Binding TcpRegistrationPayload, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" Padding="8,5" FontSize="12" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -671,9 +736,10 @@
                     </ScrollViewer>
                 </Grid>
 
-                <!-- TAB 2: JSON PAYLOAD FORMATTER &amp; TEMPLATE -->
+                <!-- TAB 2: JSON PAYLOAD FORMATTER &amp; TEMPLATE (3 Modes: Standard, Custom, Raw) -->
                 <Grid Visibility="{Binding SelectedTabIndex, Converter={StaticResource CompareToVisConverter}, ConverterParameter=2}">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
@@ -687,7 +753,8 @@
                         </StackPanel>
 
                         <!-- Syntax Status Badge (Vector Icon, CornerRadius=4) -->
-                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="4" Padding="8,3">
+                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="4" Padding="8,3"
+                                Visibility="{Binding PayloadMode, Converter={StaticResource CompareToVisConverter}, ConverterParameter=Custom}">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
@@ -734,15 +801,62 @@
                         </Border>
                     </DockPanel>
 
-                    <Grid Grid.Row="1">
+                    <!-- Payload Mode Selector (Fluent 2 Segmented Tabs, CornerRadius=4) -->
+                    <Border Grid.Row="1" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="3" Margin="0,0,0,12" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton GroupName="DtuPayloadModeGroup"
+                                         IsChecked="{Binding PayloadMode, Converter={StaticResource CompareConverter}, ConverterParameter=Standard}"
+                                         Style="{StaticResource DtuSegmentedTabRadioBtnStyle}" Margin="0,0,2,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconFileText}" Width="13" Height="13" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding [DtuPayloadModeStandard], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="DtuPayloadModeGroup"
+                                         IsChecked="{Binding PayloadMode, Converter={StaticResource CompareConverter}, ConverterParameter=Custom}"
+                                         Style="{StaticResource DtuSegmentedTabRadioBtnStyle}" Margin="0,0,2,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPencil}" Width="13" Height="13" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding [DtuPayloadModeCustom], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="DtuPayloadModeGroup"
+                                         IsChecked="{Binding PayloadMode, Converter={StaticResource CompareConverter}, ConverterParameter=Raw}"
+                                         Style="{StaticResource DtuSegmentedTabRadioBtnStyle}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysGlobe}" Width="13" Height="13" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding [DtuPayloadModeRaw], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="14" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- Left: Template Editor -->
-                        <Border Grid.Column="0" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                        <!-- Left Panel Mode 1: Standard IEC/ISA-95 Formatter Options -->
+                        <Border Grid.Column="0" Visibility="{Binding PayloadMode, Converter={StaticResource CompareToVisConverter}, ConverterParameter=Standard}"
+                                Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,12">
+                            <StackPanel>
+                                <TextBlock Text="{Binding [DtuStandardFieldsTitle], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding [DtuStandardFieldsDesc], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,14" TextWrapping="Wrap" />
+
+                                <CheckBox IsChecked="{Binding IncludeDeviceId}" Content="{Binding [DtuChkIncludeDeviceId], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                                <CheckBox IsChecked="{Binding IncludeTimestamp}" Content="{Binding [DtuChkIncludeTimestamp], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                                <CheckBox IsChecked="{Binding IncludePort}" Content="{Binding [DtuChkIncludePort], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                                <CheckBox IsChecked="{Binding IncludeSequence}" Content="{Binding [DtuChkIncludeSequence], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                                <CheckBox IsChecked="{Binding IncludeHexStream}" Content="{Binding [DtuChkIncludeHexStream], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                                <CheckBox IsChecked="{Binding IncludePayloadLength}" Content="{Binding [DtuChkIncludePayloadLength], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Margin="0,0,0,10" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Left Panel Mode 2: Custom JSON Template Editor -->
+                        <Border Grid.Column="0" Visibility="{Binding PayloadMode, Converter={StaticResource CompareToVisConverter}, ConverterParameter=Custom}"
+                                Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -762,9 +876,23 @@
                                         <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,4,4"><TextBlock Text="{}{BAUDRATE}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" /></Border>
                                         <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,4,4"><TextBlock Text="{}{SERIAL_PAYLOAD}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" /></Border>
                                         <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,4,4"><TextBlock Text="{}{HEX_STREAM}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" /></Border>
+                                        <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,4,4"><TextBlock Text="{}{PAYLOAD_LEN}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" /></Border>
+                                        <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,4,4"><TextBlock Text="{}{PACKET_SEQ}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" /></Border>
                                     </WrapPanel>
                                 </StackPanel>
                             </Grid>
+                        </Border>
+
+                        <!-- Left Panel Mode 3: Raw Transparent Passthrough Notice Card -->
+                        <Border Grid.Column="0" Visibility="{Binding PayloadMode, Converter={StaticResource CompareToVisConverter}, ConverterParameter=Raw}"
+                                Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,24">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Border Width="40" Height="40" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12" HorizontalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysGlobe}" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center" Stroke="{DynamicResource IndustrialPrimaryBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding [DtuPayloadModeRaw], Source={x:Static services:LocalizationService.Instance}}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding [DtuPayloadRawNotice], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Right: Live Preview -->
@@ -777,7 +905,7 @@
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Text="{Binding [DtuJsonPreviewTitle], Source={x:Static services:LocalizationService.Instance}}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" />
                                 <DockPanel Grid.Row="1" Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding [DtuJsonSampleLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding [DtuJsonSampleLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                     <TextBox Text="{Binding SampleSerialInput, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" FontSize="11.5" FontFamily="Consolas" />
                                 </DockPanel>
                                 <Border Grid.Row="2" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
@@ -807,6 +935,8 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="10" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="10" />
                                 <ColumnDefinition Width="Auto" />
@@ -815,16 +945,27 @@
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" Text="{Binding [DtuMonitorTestInputLabel], Source={x:Static services:LocalizationService.Instance}}" FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                            <TextBox Grid.Column="2" Text="{Binding TestPacketInput, UpdateSourceTrigger=PropertyChanged}"
+
+                            <!-- Dual Format Selector (ASCII vs HEX) -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <RadioButton Content="{Binding [DtuMonitorFormatAscii], Source={x:Static services:LocalizationService.Instance}}"
+                                             IsChecked="{Binding TestPacketIsHex, Converter={StaticResource InverseBoolConverter}}"
+                                             GroupName="DtuPacketFormatGroup" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <RadioButton Content="{Binding [DtuMonitorFormatHex], Source={x:Static services:LocalizationService.Instance}}"
+                                             IsChecked="{Binding TestPacketIsHex}"
+                                             GroupName="DtuPacketFormatGroup" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <TextBox Grid.Column="4" Text="{Binding TestPacketInput, UpdateSourceTrigger=PropertyChanged}"
                                      Padding="8,5" FontSize="12" FontFamily="Consolas" />
-                            <Button Grid.Column="4" Command="{Binding SendTestPacketCommand}"
+                            <Button Grid.Column="6" Command="{Binding SendTestPacketCommand}"
                                     Padding="14,5" FontSize="11.5" FontWeight="SemiBold" Style="{StaticResource BtnPrimary}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlay}" Width="12" Height="12" Stroke="{DynamicResource BgWindowBrush}" Margin="0,0,6,0" />
                                     <TextBlock Text="{Binding [DtuMonitorSendBtn], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Column="6" Command="{Binding ClearTerminalCommand}"
+                            <Button Grid.Column="8" Command="{Binding ClearTerminalCommand}"
                                     Padding="10,5" FontSize="11.5" Style="{StaticResource BtnSecondary}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Width="12" Height="12" Stroke="{DynamicResource TextSecondaryBrush}" Margin="0,0,6,0" />

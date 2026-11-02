@@ -43,7 +43,7 @@ public static class DtuConfigCodec
 
         destination[1] = config.TimeoutSec;
         destination[2] = config.PeriodicIntervalSec;
-        destination[3] = 0; // Reserved
+        destination[3] = (ushort)config.TriggerMode;
 
         MqttTelemetryCodec.EncodePackedAscii(config.Url, destination.Slice(4, 32), ModbusRegisterMap.DtuHttpUrlMaxChars);
         MqttTelemetryCodec.EncodePackedAscii(config.CustomHeaders, destination.Slice(36, 28), ModbusRegisterMap.DtuHttpHeadersMaxChars);
@@ -61,6 +61,8 @@ public static class DtuConfigCodec
 
         ushort timeout = source[1];
         ushort periodic = source[2];
+        ushort triggerVal = source[3];
+        var triggerMode = Enum.IsDefined(typeof(DtuHttpTriggerMode), triggerVal) ? (DtuHttpTriggerMode)triggerVal : DtuHttpTriggerMode.OnDataReceived;
 
         string url = MqttTelemetryCodec.DecodePackedAscii(source.Slice(4, 32));
         string headers = MqttTelemetryCodec.DecodePackedAscii(source.Slice(36, 28));
@@ -71,6 +73,7 @@ public static class DtuConfigCodec
             Method = method,
             TimeoutSec = timeout,
             PeriodicIntervalSec = periodic,
+            TriggerMode = triggerMode,
             Url = url,
             CustomHeaders = headers
         };
@@ -94,12 +97,13 @@ public static class DtuConfigCodec
         destination[2] = config.LocalPort;
         destination[3] = config.ReconnectDelaySec;
         destination[4] = config.HeartbeatIntervalSec;
-        destination[5] = 0;
+        destination[5] = (ushort)config.RegistrationType;
         destination[6] = 0;
         destination[7] = 0;
 
-        MqttTelemetryCodec.EncodePackedAscii(config.RemoteHost, destination.Slice(8, 32), ModbusRegisterMap.DtuTcpHostMaxChars);
-        MqttTelemetryCodec.EncodePackedAscii(config.HeartbeatPayload, destination.Slice(40, 24), ModbusRegisterMap.DtuTcpHeartbeatMaxChars);
+        MqttTelemetryCodec.EncodePackedAscii(config.RemoteHost, destination.Slice(8, 32), 64);
+        MqttTelemetryCodec.EncodePackedAscii(config.HeartbeatPayload, destination.Slice(40, 8), 16);
+        MqttTelemetryCodec.EncodePackedAscii(config.RegistrationPayload, destination.Slice(48, 16), 32);
     }
 
     public static DtuTcpConfigDto DecodeTcp(ReadOnlySpan<ushort> source)
@@ -116,9 +120,12 @@ public static class DtuConfigCodec
         ushort localPort = source[2];
         ushort reconnectDelay = source[3];
         ushort heartbeatInterval = source[4];
+        ushort regTypeVal = source[5];
+        var regType = Enum.IsDefined(typeof(DtuTcpRegistrationType), regTypeVal) ? (DtuTcpRegistrationType)regTypeVal : DtuTcpRegistrationType.None;
 
         string host = MqttTelemetryCodec.DecodePackedAscii(source.Slice(8, 32));
-        string heartbeat = MqttTelemetryCodec.DecodePackedAscii(source.Slice(40, 24));
+        string heartbeat = MqttTelemetryCodec.DecodePackedAscii(source.Slice(40, 8));
+        string registration = MqttTelemetryCodec.DecodePackedAscii(source.Slice(48, 16));
 
         return new DtuTcpConfigDto
         {
@@ -128,8 +135,10 @@ public static class DtuConfigCodec
             LocalPort = localPort,
             ReconnectDelaySec = reconnectDelay,
             HeartbeatIntervalSec = heartbeatInterval,
+            RegistrationType = regType,
             RemoteHost = host,
-            HeartbeatPayload = heartbeat
+            HeartbeatPayload = heartbeat,
+            RegistrationPayload = registration
         };
     }
 
@@ -151,6 +160,7 @@ public static class DtuConfigCodec
 
         destination[1] = config.FrameTimeoutDelayMs;
         destination[2] = config.MaxPacketSize;
+        destination[3] = (ushort)(((ushort)config.PayloadMode & 0x00FF) | ((ushort)config.PayloadFlags << 8));
     }
 
     public static void DecodeRouting(ReadOnlySpan<ushort> source, DtuConfigDto target)
@@ -171,5 +181,10 @@ public static class DtuConfigCodec
         target.PortIndex = (byte)((control & RoutingControlPortIndexMask) >> RoutingControlPortIndexShift);
         target.FrameTimeoutDelayMs = source[1];
         target.MaxPacketSize = source[2];
+
+        ushort payloadMeta = source[3];
+        ushort payloadModeVal = (ushort)(payloadMeta & 0x00FF);
+        target.PayloadMode = Enum.IsDefined(typeof(DtuPayloadMode), payloadModeVal) ? (DtuPayloadMode)payloadModeVal : DtuPayloadMode.Standard;
+        target.PayloadFlags = (byte)((payloadMeta >> 8) & 0x00FF);
     }
 }

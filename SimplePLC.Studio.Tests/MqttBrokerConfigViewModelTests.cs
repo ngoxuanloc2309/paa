@@ -1,9 +1,17 @@
+using System;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests cho MqttBrokerConfigViewModel kiểm tra cấu hình MQTT Broker,
+/// nạp và giải mã chứng chỉ TLS/SSL, Mutual TLS (mTLS) và tham số nâng cao.
+/// </summary>
 public class MqttBrokerConfigViewModelTests
 {
     [Fact]
@@ -199,12 +207,12 @@ public class MqttBrokerConfigViewModelTests
     public void ParseCertPem_ValidX509Pem_ExtractsIssuerAndSha256Fingerprint()
     {
         // Arrange: Generate an authentic self-signed X509 certificate in memory
-        using var rsa = System.Security.Cryptography.RSA.Create(2048);
-        var req = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest(
             "CN=SPX Test Root CA, O=SPX Automation",
             rsa,
-            System.Security.Cryptography.HashAlgorithmName.SHA256,
-            System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
         using var cert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(365));
         string pem = cert.ExportCertificatePem();
 
@@ -242,5 +250,148 @@ public class MqttBrokerConfigViewModelTests
         Assert.Equal("Loaded", vm.CaCertExpiry);
         Assert.Equal("N/A", vm.CaCertSha256);
     }
-}
 
+    [Fact]
+    public void Mtls_LoadClientCertAndKey_ShouldExtractSubjectAndCommitToMetadata()
+    {
+        // Arrange
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest(
+            "CN=PLC-EDGE-CLIENT-01, O=SPX Automation",
+            rsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(365));
+        string certPem = cert.ExportCertificatePem();
+        string keyPem = rsa.ExportPkcs8PrivateKeyPem();
+
+        var meta = new ProjectMetadata();
+        var vm = new MqttBrokerConfigViewModel(meta)
+        {
+            UseTls = true,
+            UseMtls = true,
+            ClientKeyPassword = "TestPassword"
+        };
+
+        // Act 1: Parse Client Cert
+        vm.ParseClientCert(certPem, "client.crt");
+        vm.ClientKeyPem = keyPem;
+        vm.ClientKeyPath = "client.key";
+        vm.HasClientKey = true;
+
+        // Assert 1
+        Assert.True(vm.HasClientCert);
+        Assert.True(vm.HasClientKey);
+        Assert.Contains("CN=PLC-EDGE-CLIENT-01", vm.ClientCertSubject);
+        Assert.False(string.IsNullOrWhiteSpace(vm.ClientCertSha256));
+
+        // Act 2: Verify CreateClientCertificate
+        using var combinedCert = vm.CreateClientCertificate();
+        Assert.NotNull(combinedCert);
+        Assert.True(combinedCert.HasPrivateKey);
+
+        // Act 3: Save commits to metadata
+        vm.SaveCommand.Execute(null);
+        Assert.True(meta.MqttTlsMtlsEnabled);
+        Assert.Equal("client.crt", meta.MqttTlsClientCertPath);
+        Assert.Equal(certPem, meta.MqttTlsClientCertPem);
+        Assert.Equal("client.key", meta.MqttTlsClientKeyPath);
+        Assert.Equal(keyPem, meta.MqttTlsClientKeyPem);
+        Assert.Equal("TestPassword", meta.MqttTlsClientKeyPassword);
+    }
+
+    [Fact]
+    public void Mtls_ClearClientCertAndKey_ShouldResetProperties()
+    {
+        // Arrange
+        var meta = new ProjectMetadata
+        {
+            MqttTlsMtlsEnabled = true,
+            MqttTlsClientCertPath = "client.crt",
+            MqttTlsClientCertPem = "PEM",
+            MqttTlsClientKeyPath = "client.key",
+            MqttTlsClientKeyPem = "KEY_PEM"
+        };
+        var vm = new MqttBrokerConfigViewModel(meta);
+        Assert.True(vm.UseMtls);
+        Assert.True(vm.HasClientKey);
+
+        // Act
+        vm.ClearClientCertCommand.Execute(null);
+        vm.ClearClientKeyCommand.Execute(null);
+
+        // Assert
+        Assert.False(vm.HasClientCert);
+        Assert.Empty(vm.ClientCertPath);
+        Assert.Empty(vm.ClientCertPem);
+        Assert.False(vm.HasClientKey);
+        Assert.Empty(vm.ClientKeyPath);
+        Assert.Empty(vm.ClientKeyPem);
+    }
+
+    [Fact]
+    public void AdvancedTlsSettings_ShouldCommitToMetadata()
+    {
+        // Arrange
+        var meta = new ProjectMetadata();
+        var vm = new MqttBrokerConfigViewModel(meta)
+        {
+            UseTls = true,
+            IgnoreHostname = true,
+            TlsVersionIndex = 2, // TLS 1.3
+            SniHostname = "custom-sni.broker.net"
+        };
+
+        // Act
+        vm.SaveCommand.Execute(null);
+
+        // Assert
+        Assert.True(meta.MqttTlsIgnoreHostname);
+        Assert.Equal(2, meta.MqttTlsProtocolVersion);
+        Assert.Equal("custom-sni.broker.net", meta.MqttTlsSniHostname);
+    }
+
+    [Fact]
+    public void OnIsEnabledChanged_WhenFalse_DisablesTestConnectionCommand()
+    {
+        // Arrange
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "broker.hivemq.com",
+            MqttBrokerPort = 1883
+        };
+        var vm = new MqttBrokerConfigViewModel(meta);
+        Assert.True(vm.CanTestConnection);
+        Assert.True(vm.TestConnectionCommand.CanExecute(null));
+
+        // Act: Bỏ tích công tắc tổng Master Switch
+        vm.IsEnabled = false;
+
+        // Assert: Nút kiểm tra kết nối phải bị vô hiệu hóa
+        Assert.False(vm.CanTestConnection);
+        Assert.False(vm.TestConnectionCommand.CanExecute(null));
+
+        // Act: Bật lại công tắc tổng
+        vm.IsEnabled = true;
+
+        // Assert: Nút kiểm tra kết nối được kích hoạt lại
+        Assert.True(vm.CanTestConnection);
+        Assert.True(vm.TestConnectionCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void Save_WhenDisabled_PersistsDisabledStateToMetadata()
+    {
+        // Arrange
+        var meta = new ProjectMetadata { MqttBrokerEnabled = true };
+        var vm = new MqttBrokerConfigViewModel(meta);
+
+        // Act
+        vm.IsEnabled = false;
+        vm.SaveCommand.Execute(null);
+
+        // Assert
+        Assert.False(meta.MqttBrokerEnabled);
+    }
+}

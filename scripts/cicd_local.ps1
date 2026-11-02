@@ -154,13 +154,14 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp ($ReleaseTag)
-- **Chuẩn Hóa Bản Đồ Địa Chỉ Bộ Nhớ Modbus Slave Cố Định (Industrial Fixed Memory Map, SPLC-SPEC-SLAVE-001)**: Loại bỏ hoàn toàn bảng ánh xạ động 0x1500; chuyển đổi sang chuẩn công nghiệp truy xuất RAM O(1) trực tiếp (như Schneider Electric, Moxa ioLogik, Advantech ADAM).
-- **Phân Đoạn Bộ Nhớ Dạng Tab Phong Cách Moxa (Segmented Memory Navigation Tabs)**: 4 Tab điều hướng kèm bộ đếm live trực tiếp (Tất cả, Holding Registers 4xxxx, Coils 0xxxx, Discrete Inputs 1xxxx).
-- **Tinh Giản Bảng Địa Chỉ 5 Cột Vàng & Chuẩn Hóa Typography**: Bảng 5 cột tinh gọn (Modbus Address 1-based kèm hover Tooltip hiển thị Wire Offset và Function Code, Device Tag, Data Type, Access Right, Description). Căn lề trái toàn bộ các cột, chuẩn hóa phông chữ hệ thống Segoe UI đồng bộ Fluent 2 Desktop.
-- **Loại Bỏ 2 Tham Số Nội Bộ Không Cần Thiết**: Tự động hóa hoàn toàn Inter-frame Delay theo phần cứng RTU t3.5 và loại bỏ nhãn dải Sandbox 0x1500.
-- **Tài Liệu ICD Firmware & Bộ Thư Viện C Mẫu**: Đặc tả chi tiết tại SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md kèm bảng điều phối O(1) và quy chuẩn định thời t3.5.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,646 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML.
+## 🚀 Tính năng nổi bật & Nâng cấp ()
+- **Studio Định Tuyến & Cổng Chuyển Tiếp Dữ Liệu DTU Gateway (0x1600..0x16BF, SPLC-SPEC-DTU-001)**: Hỗ trợ đa giao thức HTTP REST Client, TCP Socket, MQTT Uplink và RS-485 Downlink với 3 chế độ định dạng dữ liệu (Standard IEC JSON, Custom Template, Raw Passthrough).
+- **Đồng Bộ Hai Chiều & Vòng Đời Tự Động DTU Gateway**: Tự động phản chiếu và lưu trữ hai chiều giữa DTU Studio và các hộp thoại cấu hình toàn cục (Global Modbus Master Ports & Global MQTT Broker Settings).
+- **Tối Ưu Hóa Hộp Thoại MQTT Broker & Tự Động Đổi Cổng (Auto-Switching 1883/8883)**: Bố cục 1 cột tinh gọn chuẩn Fluent 2 Desktop; tự động chuyển đổi cổng 1883 (TCP) và 8883 (TLS); tích hợp Master Switch làm mờ và khóa cấu hình khi tắt dịch vụ MQTT.
+- **Tinh Gọn Không Gian Lập Trình Canvas FBD**: Loại bỏ hoàn toàn khối DTU trên Canvas, chuyển sang Studio DTU chuyên dụng.
+- **Chuẩn Hóa Thuật Ngữ Giao Diện Công Nghiệp**: Thống nhất 100% sử dụng 'thiết bị' / 'device', loại bỏ hoàn toàn các thuật ngữ 'vi điều khiển', 'MCU', 'PLC' trên UI.
+- **Hoàn Thiện Chỉ Mục Tham Chiếu Master Specification (SPLC-DOC-SPEC-V20-MASTER)**: Bổ sung đầy đủ 15 liên kết tới toàn bộ Subsystem Wire ICDs, Conformance Spec và 5 Sổ tay khối hàm FBD.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,697 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

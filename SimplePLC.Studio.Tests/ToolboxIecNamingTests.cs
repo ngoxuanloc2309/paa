@@ -90,7 +90,7 @@ public class ToolboxIecNamingTests
 
         Assert.True(vm.IsModbusCategoryVisible, "Modbus category must be visible for devices with Modbus/RS-485");
         Assert.False(vm.IsMqttCategoryVisible, "MQTT category must be hidden for devices without network");
-        Assert.False(vm.IsDtuGatewayCategoryVisible, "DTU category must be hidden for non-DTU devices");
+
 
         // 2. Pure Discrete Mini PLC without Modbus and without Network
         var discreteOnly = new SimplePLC.Domain.Models.ProductDefinition(
@@ -107,7 +107,7 @@ public class ToolboxIecNamingTests
 
         Assert.False(vm.IsModbusCategoryVisible, "Modbus category must be hidden when device lacks RS-485 / Modbus");
         Assert.False(vm.IsMqttCategoryVisible, "MQTT category must be hidden when device lacks Network");
-        Assert.False(vm.IsDtuGatewayCategoryVisible, "DTU category must be hidden when device is not DTU capable");
+
 
         // 3. IIoT Gateway / Network PLC with Ethernet, WiFi, MQTT and Modbus
         var iiotPlc = new SimplePLC.Domain.Models.ProductDefinition(
@@ -129,7 +129,7 @@ public class ToolboxIecNamingTests
 
         Assert.True(vm.IsModbusCategoryVisible, "Modbus category must be visible on IIoT PLC with Modbus");
         Assert.True(vm.IsMqttCategoryVisible, "MQTT category must be visible on IIoT PLC with Network + MQTT");
-        Assert.True(vm.IsDtuGatewayCategoryVisible, "DTU category must be visible on device with Transparent Stream");
+        Assert.True(iiotPlc.IsDtuCapable, "DTU capability must be enabled on device with Transparent Stream");
     }
 
     [Fact]

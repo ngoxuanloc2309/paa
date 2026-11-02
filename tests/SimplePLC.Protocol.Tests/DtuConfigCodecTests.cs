@@ -62,6 +62,7 @@ public sealed class DtuConfigCodecTests
             Method = DtuHttpMethod.Put,
             TimeoutSec = 15,
             PeriodicIntervalSec = 10,
+            TriggerMode = DtuHttpTriggerMode.Periodic,
             Url = "https://api.factory-cloud.io/v1/telemetry",
             CustomHeaders = "Authorization: Bearer token123\nContent-Type: app/json"
         };
@@ -77,6 +78,7 @@ public sealed class DtuConfigCodecTests
         Assert.Equal(original.Method, decoded.Method);
         Assert.Equal(original.TimeoutSec, decoded.TimeoutSec);
         Assert.Equal(original.PeriodicIntervalSec, decoded.PeriodicIntervalSec);
+        Assert.Equal(original.TriggerMode, decoded.TriggerMode);
         Assert.Equal(original.Url, decoded.Url);
         Assert.Equal(original.CustomHeaders, decoded.CustomHeaders);
     }
@@ -89,12 +91,14 @@ public sealed class DtuConfigCodecTests
         {
             Enabled = true,
             SocketMode = DtuTcpSocketMode.Server,
-            RemoteHost = "192.168.1.100",
+            RemoteHost = "dtu-gateway-cloud-staging.industrial-network.enterprise.io", // > 48 chars (58 chars)
             RemotePort = 502,
             LocalPort = 9000,
             ReconnectDelaySec = 3,
             HeartbeatIntervalSec = 20,
-            HeartbeatPayload = "PING_MCU_DTU"
+            HeartbeatPayload = "PING_MCU_DTU",
+            RegistrationType = DtuTcpRegistrationType.OnConnect,
+            RegistrationPayload = "REG:STATION_485"
         };
 
         var registers = new ushort[ModbusRegisterMap.DtuTcpConfigRegisters];
@@ -112,6 +116,8 @@ public sealed class DtuConfigCodecTests
         Assert.Equal(original.ReconnectDelaySec, decoded.ReconnectDelaySec);
         Assert.Equal(original.HeartbeatIntervalSec, decoded.HeartbeatIntervalSec);
         Assert.Equal(original.HeartbeatPayload, decoded.HeartbeatPayload);
+        Assert.Equal(original.RegistrationType, decoded.RegistrationType);
+        Assert.Equal(original.RegistrationPayload, decoded.RegistrationPayload);
     }
 
     [Fact]
@@ -125,7 +131,9 @@ public sealed class DtuConfigCodecTests
             SerialMode = DtuSerialMode.ModbusMaster,
             UplinkMode = DtuUplinkMode.Http,
             FrameTimeoutDelayMs = 35,
-            MaxPacketSize = 1024
+            MaxPacketSize = 1024,
+            PayloadMode = DtuPayloadMode.Custom,
+            PayloadFlags = 0x3F
         };
 
         var registers = new ushort[ModbusRegisterMap.DtuRoutingConfigRegisters];
@@ -142,5 +150,7 @@ public sealed class DtuConfigCodecTests
         Assert.Equal(original.UplinkMode, decoded.UplinkMode);
         Assert.Equal(original.FrameTimeoutDelayMs, decoded.FrameTimeoutDelayMs);
         Assert.Equal(original.MaxPacketSize, decoded.MaxPacketSize);
+        Assert.Equal(original.PayloadMode, decoded.PayloadMode);
+        Assert.Equal(original.PayloadFlags, decoded.PayloadFlags);
     }
 }

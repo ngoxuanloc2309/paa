@@ -88,13 +88,27 @@ Kỹ sư lựa chọn một trong các chế độ Uplink:
   - Phương thức: `POST` hoặc `PUT`.
   - Endpoint URL: `https://api.factory-cloud.io/v1/sensors/push`.
   - Request Headers: Thêm token xác thực (VD: `Authorization: Bearer <TOKEN>`).
-  - Timeout & Chu kỳ gửi tự động (Periodic Interval).
+  - **Chế độ kích hoạt (Trigger Mode - RFC 9110):**
+    * *Khi nhận dữ liệu RS-485 (On Serial Data Received - Event-Driven):* Gửi ngay lập tức khi nhận được 1 frame từ RS-485 (thích hợp cho đầu cân, máy in, máy quét barcode).
+    * *Định kỳ theo thời gian (Periodic Interval):* Gửi theo chu kỳ số giây đã cài đặt.
 - **Chế độ 3: RS-485 to TCP Socket (Client/Server)**
   - *TCP Client:* Nhập IP/Domain máy chủ đích và Cổng từ xa. DTU tự động thiết lập socket và tái kết nối theo chu kỳ `Reconnect Delay`.
   - *TCP Server:* Nhập Cổng lắng nghe cục bộ (`Local Port`). Các client SCADA kết nối vào IP của DTU để thu thập dữ liệu.
   - *Heartbeat Keep-Alive:* Định kỳ gửi chuỗi ký tự giữ phiên (VD: `PING`) để tránh router ngắt phiên NAT.
+  - **Gói tin Báo danh Định danh (Registration / Login Packet - IEC 62443-4-2 CR 1.2):**
+    * *Không sử dụng (None):* Truyền luồng socket trực tiếp.
+    * *Gửi khi vừa kết nối (Send on Connect):* Ngay khi vừa thông socket TCP, DTU tự động gửi chuỗi mã trạm (VD: `ID:FACTORY_GATEWAY_01` hoặc macro `{{DEVICE_ID}}`) để Server nhận diện nguồn.
+    * *Gắn tiền tố vào đầu mỗi gói tin (Prepend to Every Packet):* Gắn mã trạm vào đầu mỗi frame dữ liệu gửi lên.
 
-### Bước 4: Tùy biến Bản tin JSON (Tab 3) — Cơ chế Phía Studio & Firmware
+### Bước 4: Định Dạng Dữ Liệu (Tab 3: Payload Formatter — 3 Chế Độ)
+Hệ thống cung cấp 3 chế độ định dạng dữ liệu linh hoạt:
+1. **Chế độ Chuẩn Công Nghiệp (Standard IEC Telemetry - No-Code):**
+   - Tích chọn trực tiếp các trường: `Device ID`, `Timestamp UTC`, `Port Index`, `Sequence Counter`, `Hex Stream`, `Payload Length`.
+   - DTU tự động đóng gói JSON chuẩn hóa quốc tế (chuẩn ISA-95 / IEC 62541).
+2. **Chế độ Tùy Biến (Custom JSON Template):**
+   - Soạn thảo mẫu JSON tự do cho các nền tảng đặc thù (AWS IoT Core, ThingsBoard, ERP) bằng hệ thống Macro (`{{DEVICE_ID}}`, `{{TIMESTAMP}}`, `{{PORT}}`, `{{BAUDRATE}}`, `{{SERIAL_PAYLOAD}}`, `{{HEX_STREAM}}`, `{{PAYLOAD_LEN}}`, `{{PACKET_SEQ}}`).
+3. **Chế độ Dữ Liệu Thô (Raw Transparent Passthrough):**
+   - Bỏ qua hoàn toàn tầng đóng gói JSON. Toàn bộ luồng byte RS-485 được chuyển tiếp nguyên bản lên mạng (phù hợp cho Server SCADA socket truyền thống).
 Cú pháp mẫu tiêu chuẩn trên giao diện Studio:
 ```json
 {
@@ -120,7 +134,7 @@ Cú pháp mẫu tiêu chuẩn trên giao diện Studio:
   - *Giai đoạn 3:* Hỗ trợ **TCP Server**.
 
 ### Bước 5: Kiểm tra với Live Diagnostic Terminal (Tab 4)
-1. Nhập chuỗi byte thử nghiệm vào ô **Gói tin RS-485 truyền thử** (VD: `TEMP:29.8,HUM:55.4` hoặc hex chuỗi Modbus `01 03 04 01 23 45 67 8A BC`).
+1. Chọn định dạng dữ liệu bắn thử: **ASCII Text** (chuỗi ký tự UTF-8 như `TEMP:29.8,HUM:55.4`) hoặc **HEX Bytes** (chuỗi mã Hex như `01 03 00 00 00 02 C4 0B` để kiểm thử bản tin Modbus RTU nhị phân). Nhập chuỗi vào ô truyền thử.
 2. Nhấn **`🚀 Gửi Thử Nghiệm (Send Test)`**.
 3. Quan sát kết quả xử lý thời gian thực trên màn hình đen Terminal công nghiệp:
    - Gói tin ghi nhận tại RS-485.
@@ -128,7 +142,17 @@ Cú pháp mẫu tiêu chuẩn trên giao diện Studio:
    - Bản tin xuất bản lên kênh Uplink tương ứng kèm xác nhận (ACK).
 
 ### Bước 6: Nạp Cấu Hình Xuống Thiết Bị (Deploy)
-- Nhấn nút **`🚀 Nạp DTU xuống Thiết Bị`** trên thanh tiêu đề. Toàn bộ cấu hình sẽ được chuyển đổi nhị phân, kiểm tra checksum và nạp qua quy trình Staging an toàn vào vi điều khiển.
+- Nhấn nút **`🚀 Nạp DTU xuống Thiết Bị`** trên thanh tiêu đề. Toàn bộ cấu hình sẽ được chuyển đổi nhị phân, kiểm tra checksum và nạp qua quy trình Staging an toàn vào vi điều khiển (`0x1600..0x16BF`).
+
+### Bước 7: Đọc Cấu Hình Từ Thiết Bị (Upload)
+- Khi kết nối với bo mạch DTU Gateway vật lý đã cấu hình trước đó, kỹ sư có thể đọc toàn bộ thông số đang chạy trên MCU lên giao diện SynaptiX IDE:
+  1. Vào menu **`PLC` -> `Đọc cấu hình từ thiết bị (Upload)...`** (hoặc phím tắt trên thanh công cụ).
+  2. Studio sẽ tự động gửi lệnh Modbus FC03 đọc toàn bộ hình ảnh thiết bị (`FullDeviceConfigurationDto`):
+     - Định tuyến Routing RS-485 (`0x1680..0x16BF`).
+     - Cấu hình HTTP REST Client (`0x1600..0x163F`).
+     - Cấu hình TCP Socket Client / Server (`0x1640..0x167F`).
+     - Cấu hình MQTT Broker & LWT Di chúc (`0x0E00..0x0E7F`).
+  3. Đối với thiết bị thuần DTU Gateway (`device_class == 5`), Studio **tự động chuyển ngay sang màn hình `DTU Gateway Studio` (Tab 0)** và điền chính xác toàn bộ thông số vừa tải lên từ thiết bị (Baud Rate, Chế độ truyền, URL, TCP Host/Port, JSON Template).
 
 ---
 

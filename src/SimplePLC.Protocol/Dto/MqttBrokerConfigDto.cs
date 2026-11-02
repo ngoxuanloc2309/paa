@@ -27,6 +27,21 @@ public sealed class MqttBrokerConfigDto
     public bool UseTls { get; set; } = false;
 
     /// <summary>
+    /// Kích hoạt xác thực 2 chiều Mutual TLS (mTLS, Bit 5).
+    /// </summary>
+    public bool UseMtls { get; set; } = false;
+
+    /// <summary>
+    /// Bỏ qua kiểm tra khớp tên miền Hostname / SAN (Bit 6).
+    /// </summary>
+    public bool IgnoreHostname { get; set; } = false;
+
+    /// <summary>
+    /// Cho phép chứng chỉ tự ký (Bit 7).
+    /// </summary>
+    public bool AllowSelfSigned { get; set; } = false;
+
+    /// <summary>
     /// Xóa phiên làm việc cũ khi kết nối (Clean Session, Bit 2).
     /// </summary>
     public bool CleanSession { get; set; } = true;

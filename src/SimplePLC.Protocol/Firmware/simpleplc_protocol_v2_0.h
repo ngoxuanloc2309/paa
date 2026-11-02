@@ -313,7 +313,8 @@ extern "C" {
 #define SPLC_ADDR_DTU_TCP                 0x1640  /* 64 regs (128 B): SPLC_DtuTcpConfig_t (FC03/FC16, RW) */
 #define SPLC_LEN_DTU_TCP                  64
 #define SPLC_DTU_TCP_HOST_MAX_CHARS       64
-#define SPLC_DTU_TCP_HEARTBEAT_MAX_CHARS  48
+#define SPLC_DTU_TCP_HEARTBEAT_MAX_CHARS  16
+#define SPLC_DTU_TCP_REG_MAX_CHARS        32
 #define SPLC_DTU_TCP_CTRL_ENABLED_BIT     0x0001
 #define SPLC_DTU_TCP_CTRL_MODE_MASK       0x0002
 #define SPLC_DTU_TCP_CTRL_MODE_SHIFT      1
@@ -1167,7 +1168,7 @@ typedef struct SPLC_PACKED {
     uint16_t http_control;                        /* +0: Bit 0=Enabled, Bit 1..2=Method (1=POST, 2=PUT) */
     uint16_t timeout_sec;                         /* +1: Request Timeout in seconds */
     uint16_t periodic_interval_sec;               /* +2: Periodic Interval in seconds */
-    uint16_t reserved_0;                          /* +3: Reserved */
+    uint16_t trigger_mode;                        /* +3: 0=OnDataReceived (Event-driven), 1=Periodic */
     char     url[64];                             /* +4..35: REST API URL (64 bytes ASCII) */
     char     custom_headers[56];                  /* +36..63: Headers (56 bytes ASCII) */
 } SPLC_DtuHttpConfig_t;
@@ -1182,9 +1183,11 @@ typedef struct SPLC_PACKED {
     uint16_t local_port;                          /* +2: Local Port */
     uint16_t reconnect_delay_sec;                 /* +3: Reconnect delay in seconds */
     uint16_t heartbeat_interval_sec;              /* +4: Heartbeat interval in seconds */
-    uint16_t reserved[3];                         /* +5..7: Reserved (6 bytes) */
+    uint16_t registration_type;                   /* +5: 0=None, 1=OnConnect, 2=Prepend */
+    uint16_t reserved[2];                         /* +6..7: Reserved (4 bytes) */
     char     remote_host[64];                     /* +8..39: Host/IP (64 bytes ASCII) */
-    char     heartbeat_payload[48];               /* +40..63: Heartbeat string (48 bytes ASCII) */
+    char     heartbeat_payload[16];               /* +40..47: Heartbeat string (16 bytes ASCII) */
+    char     registration_payload[32];            /* +48..63: Registration payload (32 bytes ASCII) */
 } SPLC_DtuTcpConfig_t;
 
 /**
@@ -1195,7 +1198,8 @@ typedef struct SPLC_PACKED {
     uint16_t routing_control;                     /* +0: Bit 0=Enabled, Bit 1..3=SerialMode, Bit 4..7=UplinkMode, Bit 8..15=PortIndex */
     uint16_t frame_timeout_delay_ms;              /* +1: Frame delimiter timeout (ms) */
     uint16_t max_packet_size;                     /* +2: Max packet buffer size (bytes) */
-    uint16_t reserved[61];                        /* +3..63: Reserved (122 bytes) */
+    uint16_t payload_meta;                        /* +3: Low byte = payload_mode (0=Standard, 1=Custom, 2=Raw), High byte = payload_flags */
+    uint16_t reserved[60];                        /* +4..63: Reserved (120 bytes) */
 } SPLC_DtuRoutingConfig_t;
 
 #pragma pack(pop)

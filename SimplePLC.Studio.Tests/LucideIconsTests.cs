@@ -177,4 +177,33 @@ public class LucideIconsTests
             loc.CurrentLanguage = origLang;
         }
     }
+
+    [Fact]
+    public void DtuGatewayStudioView_AllReferencedIcons_ExistInIconsResourceDictionary()
+    {
+        string dtuViewPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SimplePLC.Studio", "Views", "DtuGatewayStudioView.xaml");
+        if (!File.Exists(dtuViewPath))
+        {
+            dtuViewPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "SimplePLC.Studio", "Views", "DtuGatewayStudioView.xaml"));
+        }
+
+        string iconsPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SimplePLC.Studio", "Styles", "Icons.xaml");
+        if (!File.Exists(iconsPath))
+        {
+            iconsPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "SimplePLC.Studio", "Styles", "Icons.xaml"));
+        }
+
+        Assert.True(File.Exists(dtuViewPath), $"DtuGatewayStudioView.xaml not found at: {dtuViewPath}");
+        Assert.True(File.Exists(iconsPath), $"Icons.xaml not found at: {iconsPath}");
+
+        string dtuContent = File.ReadAllText(dtuViewPath);
+        string iconsContent = File.ReadAllText(iconsPath);
+
+        var usedIcons = Regex.Matches(dtuContent, @"\{StaticResource\s+(Icon[A-Za-z0-9_]+)\}");
+        foreach (Match match in usedIcons)
+        {
+            string iconKey = match.Groups[1].Value;
+            Assert.True(iconsContent.Contains($"x:Key=\"{iconKey}\""), $"Icon key '{iconKey}' referenced in DtuGatewayStudioView.xaml is missing from Icons.xaml.");
+        }
+    }
 }

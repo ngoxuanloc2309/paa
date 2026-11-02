@@ -44,7 +44,7 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 
 | Vùng thanh ghi | Tên phân vùng | Chiều | FC | Kích thước | Mô tả chi tiết |
 | :--- | :--- | :---: | :---: | :--- | :--- |
-| `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Nhận dạng phần cứng: Class (1: REMOTE_IO, 2: DATALOGGER, 3: GATEWAY, 4: CONTROLLER), Variant, HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
+| `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Nhận dạng phần cứng: Class (1: REMOTE_IO, 2: DATALOGGER, 3: GATEWAY, 4: CONTROLLER, 5: DTU), Variant (DTU: 1=RS485_NET), HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
 | `0x0010` | **Rule Table Info** | R | FC03 | 1 reg (2 B) | Số lượng Rule đang kích hoạt (`active_rule_count`, 0..100). |
 | `0x0020..0x0029` | **Device Resource Info** | R | FC03 | 10 regs (20 B) | Hồ sơ tự mô tả: WireProfile (=2), MaxRules (=100), ActiveTags (=124), DI=8, DO=8, AI=4, VFLAG=32, VREG=32, RETAIN=32, COUNTER=8. |
 | `0x0080..0x00BF` | **Tag DataType Registry** | R/W | FC03/FC16 | 64 regs (128 B) | Bảng đăng ký kiểu dữ liệu Tag Catalog IEC 61131-3 (1 byte/tag: 1=BOOL, 2=INT32, 3=REAL). Studio nạp xuống MCU khi deploy. |
@@ -398,7 +398,7 @@ Nếu Host gửi yêu cầu không hợp lệ, MCU phản hồi frame ngoại l�
 Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio, firmware MCU bắt buộc phải vượt qua 100% các tiêu chí sau:
 
 - [ ] **CHKL-01: Header Compilation**: Biên dịch firmware với [`simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h) không có cảnh báo padding hoặc alignment trên trình biên dịch GCC / Clang / Keil ARMCC.
-- [ ] **CHKL-02: Device Descriptor Check**: Đọc `0x0000` (10 regs) trả về đúng Device Class hợp lệ (`1` = Remote I/O, `2` = Datalogger, `3` = Gateway, `4` = Controller), `ProtocolVersion=2`, `RuleFormatVersion=7`.
+- [ ] **CHKL-02: Device Descriptor Check**: Đọc `0x0000` (10 regs) trả về đúng Device Class hợp lệ (`1` = Remote I/O, `2` = Datalogger, `3` = Gateway, `4` = Controller, `5` = DTU Gateway), `ProtocolVersion=2`, `RuleFormatVersion=7`. Khi `device_class == 5` (DTU), `device_variant` phải là `1` (`SPLC_DTU_VARIANT_RS485_NET`).
 - [ ] **CHKL-03: Device Resource Info Check**: Đọc `0x0020` (10 regs) trả về đúng `WireProfile=2`, `MaxRules` và `ActiveTags` khớp với cấu hình profile thiết bị.
 - [ ] **CHKL-04: Deterministic Scan Time**: Đọc `0x0800` (10 regs) trường `scan_time_ms` nằm quanh 10 ms danh định (tuyệt đối không phải microsecond).
 - [ ] **CHKL-05: Real-Time Clock Sync**: Ghi timestamp UTC và múi giờ vào `0x0810..0x0813` bằng FC16 → MCU cập nhật đúng giờ và tính toán chính xác `current_hhmm`.
@@ -709,6 +709,56 @@ Khi thiết bị khai báo cờ năng lực `SPLC_CAP_TRANSPARENT_STREAM` (`0x04
   - Khi `payload_mode == 0` (Standard IEC): Tự động sinh chuỗi JSON chuẩn chứa các trường `device_id`, `timestamp`, `port`, `seq`, `payload`.
   - Xem tài liệu đặc tả chi tiết tại [`SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`](SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md).
 
+#### 13.9.2.1. Cấu Hình Khởi Tạo Định Danh & Hồ Sơ Tự Mô Tả Cho Thiết Bị DTU Gateway (Class 5)
+
+Để SynaptiX IDE tự động nhận diện thiết bị là **DTU Gateway (RS-485)** và kích hoạt đầy đủ giao diện cấu hình DTU (bỏ qua bắt buộc bảng logic rỗng), Firmware MCU của thiết bị DTU chuyên dụng (ví dụ bo mạch STM32/ESP32 DTU) bắt buộc phải nạp sẵn các thông số sau vào bảng Flash Descriptor:
+
+```c
+#include "simpleplc_protocol_v2_0.h"
+
+/* 1. Định danh phần cứng tại 0x0000..0x0009 */
+const SPLC_DeviceDescriptor_t g_dtu_device_descriptor = {
+    .device_class        = SPLC_DEV_CLASS_DTU,           /* = 5: Thiết bị DTU Gateway */
+    .device_variant      = SPLC_DTU_VARIANT_RS485_NET,   /* = 1: DTU RS-485 to Network */
+    .hw_version_major    = 1,
+    .hw_version_minor    = 0,
+    .hw_version_patch    = 0,
+    .fw_version_major    = 2,
+    .fw_version_minor    = 12,
+    .fw_version_patch    = 0,
+    .protocol_version    = 2,                            /* Wire Protocol V2.0 */
+    .rule_format_version = 7                             /* 32-byte Rule Format V7 */
+};
+
+/* 2. Hồ sơ tài nguyên tự mô tả tại 0x0020..0x0029 */
+const SPLC_DeviceResourceInfo_t g_dtu_resource_info = {
+    .wire_profile        = 2,                            /* Wire Profile V2 */
+    .max_rules           = 50,                           /* Hỗ trợ 50 rules chuyển đổi phụ trợ */
+    .runtime_tag_count   = 100,                          /* Tổng 100 tag runtime */
+    .di_count            = 0,                            /* DTU chuyên dụng không có DI vật lý */
+    .do_count            = 0,                            /* Không có DO vật lý */
+    .ai_count            = 0,                            /* Không có AI vật lý */
+    .vflag_count         = 32,                           /* 32 Virtual Flags */
+    .vreg_count          = 32,                           /* 32 Virtual Registers */
+    .vreg_retain_count   = 32,                           /* 32 Retain Registers Flash */
+    .counter_count       = 4                             /* 4 bộ đếm phụ trợ */
+};
+
+/* 3. Khai báo năng lực phần cứng tại 0x0A08..0x0A09 (Big-Endian uint32) */
+/* Cần bật các bit: STREAM, HTTP, MODBUS_MASTER, MQTT_PUB, MQTT_SUB, ETHERNET/WIFI */
+const uint32_t g_dtu_hardware_capabilities = 
+    SPLC_CAP_TRANSPARENT_STREAM |  /* 0x2000: Hỗ trợ Transparent Stream */
+    SPLC_CAP_HTTP_CLIENT        |  /* 0x1000: Hỗ trợ HTTP REST Client */
+    SPLC_CAP_MODBUS_MASTER      |  /* 0x0100: Hỗ trợ Modbus Master Poller */
+    SPLC_CAP_MQTT_PUB           |  /* 0x0010: Hỗ trợ MQTT Publish */
+    SPLC_CAP_MQTT_SUB           |  /* 0x0020: Hỗ trợ MQTT Subscribe */
+    SPLC_CAP_ETH                |  /* 0x0008: Cổng mạng Ethernet RJ45 */
+    SPLC_CAP_RETAIN;               /* 0x0002: Lưu trữ cấu hình Flash */
+
+/* 4. Khai báo số cổng RS-485 tại 0x0A0A */
+const uint16_t g_dtu_rs485_port_count = 1; /* Hoặc 2 / 4 tùy phần cứng DTU */
+```
+
 ---
 
 ### 13.10. Quy Trình Nạp Cấu Hình Đa Phân Hệ Từ SynaptiX IDE Xuống MCU (Multi-Subsystem Staged Deployment Sequence)
@@ -752,6 +802,9 @@ sequenceDiagram
     end
     opt Có Phát Xung PULSE_OUT
         IDE->>MCU: FC16 Write 0x1200.. (Pulse Out up to 256 regs)
+    end
+    opt Có DTU Gateway (SPLC-SPEC-DTU-001)
+        IDE->>MCU: FC16 Write 0x1600.. (DTU HTTP, TCP, Routing up to 192 regs)
     end
 
     Note over IDE,MCU: BƯỚC 3: NẠP LUẬT VÀO STAGING BUFFER

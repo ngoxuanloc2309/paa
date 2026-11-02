@@ -268,6 +268,7 @@ public partial class MainViewModel : ObservableObject
             () => RuleTableVM?.Rules,
             () => LogicEditorVM);
         DtuGatewayStudioVM = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
+        DtuGatewayStudioVM.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
         AiChatVM.OnApplyRulesRequested = (specs, msg) => ApplyAiRulesToTable(specs, msg);
         AiChatVM.OnNavigateToTab = (tabIndex) => SelectTab(tabIndex);
 
@@ -1224,12 +1225,14 @@ public partial class MainViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             IsProjectDirty = true;
+            DtuGatewayStudioVM?.ReloadFromMetadata();
         }
     }
 
     partial void OnCurrentProjectMetadataChanged(ProjectMetadata value)
     {
         DtuGatewayStudioVM = new DtuGatewayStudioViewModel(value);
+        DtuGatewayStudioVM.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
         OnPropertyChanged(nameof(IsDtuProject));
         if (SelectedTabIndex == 0)
         {
@@ -1241,6 +1244,7 @@ public partial class MainViewModel : ObservableObject
     private void OpenDtuGateway()
     {
         var vm = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
+        vm.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
         var dialog = new Views.DtuGatewayConfigDialogView(vm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
@@ -1257,6 +1261,7 @@ public partial class MainViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             IsProjectDirty = true;
+            DtuGatewayStudioVM?.ReloadFromMetadata();
         }
     }
 
@@ -2061,11 +2066,73 @@ public partial class MainViewModel : ObservableObject
                 }).ToList();
             }
 
+            // Đồng bộ cấu hình DTU Gateway khi thiết bị có cấu hình DTU (SPLC-SPEC-DTU-001)
+            if (fullConfig.DtuConfig != null)
+            {
+                var dtu = fullConfig.DtuConfig;
+                CurrentProjectMetadata.DtuConfig.Enabled = dtu.Enabled;
+                CurrentProjectMetadata.DtuConfig.PortIndex = dtu.PortIndex;
+                CurrentProjectMetadata.DtuConfig.SerialMode = dtu.SerialMode.ToString();
+                CurrentProjectMetadata.DtuConfig.UplinkMode = dtu.UplinkMode.ToString();
+                CurrentProjectMetadata.DtuConfig.FrameTimeoutDelayMs = dtu.FrameTimeoutDelayMs > 0 ? dtu.FrameTimeoutDelayMs : (ushort)20;
+                CurrentProjectMetadata.DtuConfig.MaxPacketSize = dtu.MaxPacketSize > 0 ? dtu.MaxPacketSize : (ushort)512;
+                CurrentProjectMetadata.DtuConfig.PayloadMode = dtu.PayloadMode.ToString();
+                CurrentProjectMetadata.DtuConfig.IncludeDeviceId = (dtu.PayloadFlags & 0x01) != 0;
+                CurrentProjectMetadata.DtuConfig.IncludeTimestamp = (dtu.PayloadFlags & 0x02) != 0;
+                CurrentProjectMetadata.DtuConfig.IncludePort = (dtu.PayloadFlags & 0x04) != 0;
+                CurrentProjectMetadata.DtuConfig.IncludeSequence = (dtu.PayloadFlags & 0x08) != 0;
+                CurrentProjectMetadata.DtuConfig.IncludeHexStream = (dtu.PayloadFlags & 0x10) != 0;
+                CurrentProjectMetadata.DtuConfig.IncludePayloadLength = (dtu.PayloadFlags & 0x20) != 0;
+
+                if (dtu.HttpConfig != null)
+                {
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.Enabled = dtu.HttpConfig.Enabled;
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.Method = dtu.HttpConfig.Method == SimplePLC.Protocol.Enums.DtuHttpMethod.Put ? "PUT" : "POST";
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.Url = dtu.HttpConfig.Url ?? string.Empty;
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.Headers = dtu.HttpConfig.CustomHeaders ?? string.Empty;
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.TimeoutSec = dtu.HttpConfig.TimeoutSec > 0 ? dtu.HttpConfig.TimeoutSec : (ushort)10;
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.PeriodicIntervalSec = dtu.HttpConfig.PeriodicIntervalSec > 0 ? dtu.HttpConfig.PeriodicIntervalSec : (ushort)5;
+                    CurrentProjectMetadata.DtuConfig.HttpSettings.TriggerMode = dtu.HttpConfig.TriggerMode.ToString();
+                }
+
+                if (dtu.TcpConfig != null)
+                {
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.Enabled = dtu.TcpConfig.Enabled;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.SocketMode = dtu.TcpConfig.SocketMode.ToString();
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.RemoteHost = dtu.TcpConfig.RemoteHost ?? string.Empty;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.RemotePort = dtu.TcpConfig.RemotePort > 0 ? dtu.TcpConfig.RemotePort : (ushort)8888;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.LocalPort = dtu.TcpConfig.LocalPort > 0 ? dtu.TcpConfig.LocalPort : (ushort)8888;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.ReconnectDelaySec = dtu.TcpConfig.ReconnectDelaySec > 0 ? dtu.TcpConfig.ReconnectDelaySec : (ushort)5;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.HeartbeatIntervalSec = dtu.TcpConfig.HeartbeatIntervalSec > 0 ? dtu.TcpConfig.HeartbeatIntervalSec : (ushort)30;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.HeartbeatPayload = dtu.TcpConfig.HeartbeatPayload ?? string.Empty;
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.RegistrationType = dtu.TcpConfig.RegistrationType.ToString();
+                    CurrentProjectMetadata.DtuConfig.TcpSettings.RegistrationPayload = dtu.TcpConfig.RegistrationPayload ?? string.Empty;
+                }
+
+                if (dtu.MqttWillConfig != null)
+                {
+                    CurrentProjectMetadata.MqttWillEnabled = dtu.MqttWillConfig.Enabled;
+                    CurrentProjectMetadata.MqttWillTopic = dtu.MqttWillConfig.Topic ?? string.Empty;
+                    CurrentProjectMetadata.MqttWillPayload = dtu.MqttWillConfig.Payload ?? string.Empty;
+                    CurrentProjectMetadata.MqttWillQos = dtu.MqttWillConfig.Qos;
+                    CurrentProjectMetadata.MqttWillRetain = dtu.MqttWillConfig.Retain;
+                }
+
+                DtuGatewayStudioVM.ReloadFromMetadata();
+            }
+
             RuleTableVM.LoadFromDomainRuleTable(domainTable);
             RuleTableVM.UpdateSubsystemsFromDevice(fullConfig);
             LogicEditorVM?.ReconstructFullGraphFromDevice(fullConfig, RuleTableVM.Rules);
             IsProjectDirty = false;
-            SelectTab(2); // Giữ nguyên màn hình Bảng quy tắc (Rule Table), không nhảy sang màn Logic Canvas
+            if (IsDtuProject)
+            {
+                SelectTab(0); // Tự động chuyển về màn DTU Studio khi thiết bị là DTU Gateway
+            }
+            else
+            {
+                SelectTab(2); // Giữ nguyên màn hình Bảng quy tắc (Rule Table) cho PLC Controller
+            }
 
             ShowNotification(
                 string.Format(Loc["UploadSuccessMessage"], domainTable.Count),

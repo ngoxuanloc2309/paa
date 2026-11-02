@@ -85,6 +85,18 @@ public sealed record SupportedDeviceProfile(
         );
 
     /// <summary>
+    /// Profile chuẩn cho thiết bị SynaptiX DTU Gateway (RS485 to Network: MQTT, HTTP, TCP).
+    /// </summary>
+    public static SupportedDeviceProfile DtuGatewayRs485NetV2_0 =>
+        new(
+            DeviceClass: (ushort)SPLC_DeviceClass.DTU,
+            DeviceVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            ProtocolVersion: 2,
+            RuleFormatVersion: 7,
+            ProfileName: "SynaptiX DTU Gateway (RS485-NET) V2.0"
+        );
+
+    /// <summary>
     /// Danh sách tất cả các profile mặc định được SimplePLC V2.0 hỗ trợ.
     /// </summary>
     public static IReadOnlyList<SupportedDeviceProfile> DefaultProfiles => new[]
@@ -93,6 +105,7 @@ public sealed record SupportedDeviceProfile(
         RemoteIo16Di16DoV2_0,
         GatewayRs485EthV2_0,
         Datalogger8AiV2_0,
-        ControllerV2_0
+        ControllerV2_0,
+        DtuGatewayRs485NetV2_0
     };
 }

@@ -29,6 +29,13 @@ Do giới hạn bộ nhớ của khung truyền thông Modbus RTU, một tệp c
 | `0x0F42` | `CERT_COMMIT_COMMAND` | W | UINT16 | 1 reg | Lệnh chốt nguyên tử: Ghi `0xA5A5` để MCU lưu vĩnh viễn vào Flash và nạp vào mbedTLS. |
 | `0x0F43` | `CERT_ACTIVE_TYPE_MASK`| R | UINT16 | 1 reg | Cờ phản ánh: Bit 0: Root CA active, Bit 1: Client Cert active, Bit 2: Client Key active. |
 
+### 2.1. Cờ Điều Khiển Bảo Mật Tại BROKER_CONTROL (`0x0E00`)
+Cấu hình kích hoạt TLS/mTLS được điều khiển trực tiếp qua các bitmask tại thanh ghi điều khiển Broker `0x0E00`:
+* **Bit 1 (`0x0002`): `MqttBrokerControlBitUseTls`** — Bật kết nối bảo mật TLS/SSL (cổng mặc định 8883).
+* **Bit 5 (`0x0020`): `MqttBrokerControlBitUseMtls`** — Bật chế độ xác thực hai chiều Mutual TLS (mTLS). MCU bắt buộc nạp cả Client Certificate và Client Key vào mbedTLS/WolfSSL context khi bắt tay.
+* **Bit 6 (`0x0040`): `MqttBrokerControlBitIgnoreHostname`** — Cho phép bỏ qua kiểm tra khớp tên miền Subject Alternative Name (SAN) / Common Name (CN), hỗ trợ kết nối qua địa chỉ IP nội bộ trong nhà máy.
+* **Bit 7 (`0x0080`): `MqttBrokerControlBitAllowSelfSigned`** — Cho phép chứng chỉ tự ký (Insecure LAN test).
+
 ---
 
 ## 3. Cấu Trúc Nhị Phân Byte-Exact Của Struct (`SPLC_CertChunk_t`)

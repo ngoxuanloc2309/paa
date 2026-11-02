@@ -1,0 +1,41 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+# Visual Studio / Rider / VS Code
+.vs/
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+.idea/
+.vscode/
+
+# Temporary and extraction files
+*.tmp
+*_temp.txt
+*_text.txt
+diag_copy.docx
+dotnet-install.ps1
+.spec_extracted/
+~$*
+crash.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# BenchmarkDotNet artifacts
+[Bb]enchmark[Dd]ot[Nn]et.[Aa]rtifacts/
+
+# Teamwork and agent workspaces
+.agents/*
+!.agents/skills/
+temp_doc_render/
+scratch/

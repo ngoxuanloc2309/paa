@@ -65,11 +65,19 @@ public class ComparisonConverter : IValueConverter
 public class ComparisonToVisibilityConverter : IValueConverter
 {
     /// <summary>
-    /// Returns Visible if value matches parameter; otherwise Collapsed.
+    /// Returns Visible if value matches parameter (or does not match if parameter starts with '!'); otherwise Collapsed.
     /// </summary>
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        bool match = value?.ToString() == parameter?.ToString();
+        string? paramStr = parameter?.ToString();
+        bool invert = false;
+        if (paramStr != null && paramStr.StartsWith("!"))
+        {
+            invert = true;
+            paramStr = paramStr.Substring(1);
+        }
+        bool match = value?.ToString() == paramStr;
+        if (invert) match = !match;
         return match ? Visibility.Visible : Visibility.Collapsed;
     }
 

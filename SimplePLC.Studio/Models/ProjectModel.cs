@@ -46,6 +46,15 @@ public class ProjectMetadata
     public string MqttTlsCaCertPath { get; set; } = string.Empty;
     public string MqttTlsCaCertPem { get; set; } = string.Empty;
     public bool MqttTlsAllowSelfSigned { get; set; } = false;
+    public bool MqttTlsMtlsEnabled { get; set; } = false;
+    public string MqttTlsClientCertPath { get; set; } = string.Empty;
+    public string MqttTlsClientCertPem { get; set; } = string.Empty;
+    public string MqttTlsClientKeyPath { get; set; } = string.Empty;
+    public string MqttTlsClientKeyPem { get; set; } = string.Empty;
+    public string MqttTlsClientKeyPassword { get; set; } = string.Empty;
+    public bool MqttTlsIgnoreHostname { get; set; } = false;
+    public int MqttTlsProtocolVersion { get; set; } = 0;
+    public string MqttTlsSniHostname { get; set; } = string.Empty;
 
     // Wi-Fi Configuration Settings (SPLC-SPEC-WIFI-004)
     public bool WifiEnabled { get; set; } = false;
@@ -93,6 +102,41 @@ public class DtuConfigModel
     public ushort FrameTimeoutDelayMs { get; set; } = 20;
     public ushort MaxPacketSize { get; set; } = 512;
 
+    /// <summary>
+    /// Chế độ định dạng dữ liệu truyền lên mạng: "Standard" (chuẩn công nghiệp IEC), "Custom" (mẫu JSON tùy biến), hoặc "Raw" (dữ liệu thô không bọc JSON).
+    /// </summary>
+    public string PayloadMode { get; set; } = "Standard";
+
+    /// <summary>
+    /// Có đính kèm mã định danh thiết bị trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludeDeviceId { get; set; } = true;
+
+    /// <summary>
+    /// Có đính kèm thời gian UTC ISO-8601 trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludeTimestamp { get; set; } = true;
+
+    /// <summary>
+    /// Có đính kèm chỉ số cổng vật lý RS-485 trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludePort { get; set; } = true;
+
+    /// <summary>
+    /// Có đính kèm số thứ tự gói tin tăng dần trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludeSequence { get; set; } = true;
+
+    /// <summary>
+    /// Có đính kèm chuỗi byte Hex trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludeHexStream { get; set; } = false;
+
+    /// <summary>
+    /// Có đính kèm độ dài byte gói tin trong bản tin JSON chuẩn công nghiệp hay không.
+    /// </summary>
+    public bool IncludePayloadLength { get; set; } = false;
+
     public DtuHttpModel HttpSettings { get; set; } = new();
     public DtuTcpModel TcpSettings { get; set; } = new();
     public string CustomJsonTemplate { get; set; } = "{\n  \"device\": \"{{DEVICE_ID}}\",\n  \"timestamp\": \"{{TIMESTAMP}}\",\n  \"data\": \"{{SERIAL_PAYLOAD}}\"\n}";
@@ -107,6 +151,11 @@ public class DtuHttpModel
     public string Method { get; set; } = "POST"; // POST, PUT
     public ushort TimeoutSec { get; set; } = 10;
     public ushort PeriodicIntervalSec { get; set; } = 5;
+
+    /// <summary>
+    /// Chế độ kích hoạt gửi bản tin HTTP: "OnDataReceived" (khi có dữ liệu RS-485) hoặc "Periodic" (chu kỳ).
+    /// </summary>
+    public string TriggerMode { get; set; } = "OnDataReceived";
     public string Url { get; set; } = "https://api.factory-cloud.io/v1/telemetry";
     public string Headers { get; set; } = "Content-Type: application/json";
     public List<DtuHttpFieldModel> Fields { get; set; } = new();
@@ -135,6 +184,16 @@ public class DtuTcpModel
     public ushort ReconnectDelaySec { get; set; } = 5;
     public ushort HeartbeatIntervalSec { get; set; } = 30;
     public string HeartbeatPayload { get; set; } = "PING";
+
+    /// <summary>
+    /// Cơ chế gửi gói tin định danh: "None" (tắt), "OnConnect" (khi mở socket), hoặc "PrependToEveryPacket" (gắn đầu gói).
+    /// </summary>
+    public string RegistrationType { get; set; } = "None";
+
+    /// <summary>
+    /// Nội dung chuỗi báo danh định danh (hỗ trợ nhập văn bản hoặc macro {{DEVICE_ID}}).
+    /// </summary>
+    public string RegistrationPayload { get; set; } = "{{DEVICE_ID}}";
 }
 
 /// <summary>

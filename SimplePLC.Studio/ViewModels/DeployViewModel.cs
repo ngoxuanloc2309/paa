@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using SimplePLC.Application.Models;
@@ -521,16 +521,19 @@ public partial class DeployViewModel : ObservableObject
                 ruleTable = new RuleTable();
             }
 
+
+            var meta = _getMetadata?.Invoke();
             int totalFbs = (fbTimers?.Count ?? 0) + (fbCounters?.Count ?? 0);
             int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
             int totalModbus = (modbusMasterConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
             int totalDirectWrite = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
-            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0)
+            bool isDtuEnabled = meta?.DtuConfig != null && meta.DtuConfig.Enabled;
+            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0 && !isDtuEnabled)
             {
                 Steps[0].Status = StepStatus.Failed;
                 DeployState = DeployState.Failed;
                 PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus và Direct Write đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
+                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus, Direct Write và DTU Gateway đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
                     : "Cannot deploy: Rule table, Function Blocks, MQTT blocks, Modbus, and Direct Write are empty. Please add at least one rule or function block.";
                 StatusMessage = PreflightSummary;
                 AppendLog(PreflightSummary);
@@ -556,7 +559,7 @@ public partial class DeployViewModel : ObservableObject
             Steps[0].Status = StepStatus.Success;
             ProgressPercent = 30;
             AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
-            var meta = _getMetadata?.Invoke();
+
             if (totalFbs > 0 || totalMqtt > 0 || totalModbus > 0 || totalDirectWrite > 0)
             {
                 bool isVi = LocalizationService.Instance.IsVietnamese;
@@ -616,6 +619,9 @@ public partial class DeployViewModel : ObservableObject
                     Host = meta.MqttBrokerHost?.Trim() ?? string.Empty,
                     Port = (ushort)(meta.MqttBrokerPort > 0 ? meta.MqttBrokerPort : 1883),
                     UseTls = meta.MqttTlsEnabled,
+                    UseMtls = meta.MqttTlsMtlsEnabled,
+                    IgnoreHostname = meta.MqttTlsIgnoreHostname,
+                    AllowSelfSigned = meta.MqttTlsAllowSelfSigned,
                     CleanSession = meta.MqttCleanSession,
                     KeepAliveSec = meta.MqttKeepAliveSec > 0 ? meta.MqttKeepAliveSec : (ushort)60,
                     ClientId = meta.MqttClientId ?? string.Empty,
@@ -707,6 +713,84 @@ public partial class DeployViewModel : ObservableObject
                 }
             }
 
+            DtuConfigDto? dtuConfigDto = null;
+            if (meta?.DtuConfig != null && meta.DtuConfig.Enabled)
+            {
+                var dtuModel = meta.DtuConfig;
+                byte portIdx = dtuModel.PortIndex;
+                string sMode = dtuModel.SerialMode;
+                string uMode = dtuModel.UplinkMode;
+
+                dtuConfigDto = new DtuConfigDto
+                {
+                    Enabled = true,
+                    PortIndex = portIdx,
+                    SerialMode = sMode switch
+                    {
+                        "ModbusMaster" => DtuSerialMode.ModbusMaster,
+                        "ModbusSlave" => DtuSerialMode.ModbusSlave,
+                        _ => DtuSerialMode.Transference
+                    },
+                    UplinkMode = uMode switch
+                    {
+                        "Mqtt" => DtuUplinkMode.Mqtt,
+                        "Http" => DtuUplinkMode.Http,
+                        "TcpClient" => DtuUplinkMode.TcpClient,
+                        "TcpServer" => DtuUplinkMode.TcpServer,
+                        _ => DtuUplinkMode.None
+                    },
+                    FrameTimeoutDelayMs = dtuModel.FrameTimeoutDelayMs,
+                    MaxPacketSize = dtuModel.MaxPacketSize,
+                    PayloadMode = dtuModel.PayloadMode switch
+                    {
+                        "Custom" => DtuPayloadMode.Custom,
+                        "Raw" => DtuPayloadMode.Raw,
+                        _ => DtuPayloadMode.Standard
+                    },
+                    PayloadFlags = (byte)(
+                        (dtuModel.IncludeDeviceId ? 1 : 0) |
+                        (dtuModel.IncludeTimestamp ? 2 : 0) |
+                        (dtuModel.IncludePort ? 4 : 0) |
+                        (dtuModel.IncludeSequence ? 8 : 0) |
+                        (dtuModel.IncludeHexStream ? 16 : 0) |
+                        (dtuModel.IncludePayloadLength ? 32 : 0)
+                    ),
+                    HttpConfig = new DtuHttpConfigDto
+                    {
+                        Enabled = uMode == "Http" || dtuModel.HttpSettings.Enabled,
+                        Method = dtuModel.HttpSettings.Method == "PUT" ? DtuHttpMethod.Put : DtuHttpMethod.Post,
+                        Url = dtuModel.HttpSettings.Url ?? string.Empty,
+                        CustomHeaders = dtuModel.HttpSettings.Headers ?? string.Empty,
+                        TimeoutSec = dtuModel.HttpSettings.TimeoutSec,
+                        PeriodicIntervalSec = dtuModel.HttpSettings.PeriodicIntervalSec,
+                        TriggerMode = dtuModel.HttpSettings.TriggerMode == "Periodic" ? DtuHttpTriggerMode.Periodic : DtuHttpTriggerMode.OnDataReceived
+                    },
+                    TcpConfig = new DtuTcpConfigDto
+                    {
+                        Enabled = uMode is "TcpClient" or "TcpServer" || dtuModel.TcpSettings.Enabled,
+                        SocketMode = dtuModel.TcpSettings.SocketMode == "Server" ? DtuTcpSocketMode.Server : DtuTcpSocketMode.Client,
+                        RemoteHost = dtuModel.TcpSettings.RemoteHost ?? string.Empty,
+                        RemotePort = dtuModel.TcpSettings.RemotePort,
+                        LocalPort = dtuModel.TcpSettings.LocalPort,
+                        ReconnectDelaySec = dtuModel.TcpSettings.ReconnectDelaySec,
+                        HeartbeatIntervalSec = dtuModel.TcpSettings.HeartbeatIntervalSec,
+                        HeartbeatPayload = dtuModel.TcpSettings.HeartbeatPayload ?? string.Empty,
+                        RegistrationType = dtuModel.TcpSettings.RegistrationType switch
+                        {
+                            "OnConnect" => DtuTcpRegistrationType.OnConnect,
+                            "PrependToEveryPacket" => DtuTcpRegistrationType.PrependToEveryPacket,
+                            _ => DtuTcpRegistrationType.None
+                        },
+                        RegistrationPayload = dtuModel.TcpSettings.RegistrationPayload ?? string.Empty
+                    }
+                };
+
+                bool isVi = LocalizationService.Instance.IsVietnamese;
+                AppendLog(isVi
+                    ? $"[DTU Gateway] Phát hiện cấu hình DTU (Serial: {dtuConfigDto.SerialMode}, Uplink: {dtuConfigDto.UplinkMode}, Cổng: {dtuConfigDto.PortIndex + 1}) -> Nạp xuống phân vùng 0x1600..0x16BF của MCU."
+                    : $"[DTU Gateway] Detected DTU configuration (Serial: {dtuConfigDto.SerialMode}, Uplink: {dtuConfigDto.UplinkMode}, Port: {dtuConfigDto.PortIndex + 1}) -> Deploying to MCU partition 0x1600..0x16BF.");
+            }
+
             var deployUseCase = GetDeployUseCase();
             var deployResult = await deployUseCase.ExecuteAsync(
                 ruleTable,
@@ -721,6 +805,7 @@ public partial class DeployViewModel : ObservableObject
                 modbusPortConfigs,
                 modbusSlaveMapConfigs,
                 tagDataTypes,
+                dtuConfig: dtuConfigDto,
                 slaveId: 1,
                 ct: default,
                 progressLogger: AppendLog).ConfigureAwait(true);

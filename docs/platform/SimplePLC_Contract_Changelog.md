@@ -1,5 +1,36 @@
 # SimplePLC Platform Contract Changelog
 
+## [2.12.0 / Studio v2.12.0] - 2026-11-02 (DTU GATEWAY MULTI-PROTOCOL ROUTING STUDIO, BIDIRECTIONAL SYNC, MQTT MASTER SWITCH & COMPACT BROKER DIALOG - GitHub #10)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Đồng Bộ Hóa Toàn Diện Master Specification (`SimplePLC_App_MCU_Structs_v2.0_Self_Describing_Profile.md`)**:
+  - Bổ sung phân hệ DTU Gateway vào mục Subsystem Detailed ICDs (Mục 9 liên kết `SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`).
+  - Mở rộng Master Memory Map V2.0 với 192 thanh ghi Holding Registers (`0x1600..0x16BF`, 384 Bytes) gồm 3 khối: HTTP REST Client (`0x1600`), TCP Socket (`0x1640`), và Routing & Payload Format (`0x1680`).
+  - Thêm đặc tả cấu trúc C `SPLC_DtuHttpConfig_t`, `SPLC_DtuTcpConfig_t`, `SPLC_DtuRoutingConfig_t`, các hằng số thanh ghi và macro kiểm tra tĩnh `_Static_assert` trong `simpleplc_protocol_v2_0.h`.
+  - Mở rộng Conformance Checklist với tiêu chí `CHKL-24: DTU Gateway Multi-Channel Routing & Wire Conformance (0x1600..0x16BF & SPLC-SPEC-DTU-001)`.
+  - Hoàn thiện toàn diện chỉ mục tra cứu Master Specification với đủ 15 liên kết tới toàn bộ Subsystem Wire ICDs, MCU Conformance Spec và 5 Sổ tay khối hàm IEC 61131-3 FBD.
+- **2. Đồng Bộ Hai Chiều & Vòng Đời Tự Động DTU Gateway Studio (Bidirectional Sync & Auto-Refresh Lifecycle)**:
+  - Đồng bộ hóa 2 chiều tức thì giữa Studio DTU Gateway và các Dialog cấu hình toàn cục (Global Modbus Master Ports & Global MQTT Broker Settings).
+  - Tự động nạp và phản chiếu cấu hình khi mở DTU Studio (`OnNavigatedToAsync`) hoặc thay đổi thông số mạng.
+- **3. Cải Tiến Hộp Thoại MQTT Broker & Tính Năng Tự Động Đổi Cổng (Auto-Switching 1883/8883)**:
+  - Bố cục 1 cột tinh gọn Fluent 2 Desktop (Compact 1-Column Layout) thay thế layout dàn trải cũ.
+  - Tự động chuyển đổi cổng mạng thông minh: Bật TLS $\rightarrow$ 8883, Tắt TLS $\rightarrow$ 1883 (bảo toàn cổng tùy biến người dùng).
+  - Tích hợp Master Switch ("Kích hoạt dịch vụ MQTT Client trên thiết bị"): Khi tắt, tự động làm mờ (`Opacity="0.55"`) và khóa toàn bộ các card cấu hình Broker, Network, TLS và nút Test Connection.
+  - Loại bỏ hoàn toàn khối inline TLS thừa trên DTU view, thay bằng nút điều hướng chuyên dụng `[Certs & Advanced...]` mở hộp thoại cấu hình TLS/mTLS tập trung.
+- **4. Tinh Gọn Khối Lập Trình Canvas: Gỡ Bỏ Khối DTU Node Thừa**:
+  - Loại bỏ hoàn toàn khối DTU Gateway trên FBD Canvas (`DtuGatewayNodeViewModel`, toolbox item) nhằm giải phóng không gian lập trình logic cho người dùng, chuyển đổi 100% việc cấu hình DTU sang Studio chuyên dụng độc lập.
+- **5. Chuẩn Hóa Thuật Ngữ Giao Diện Người Dùng (Zero Vi Điều Khiển / Zero PLC)**:
+  - Thay thế toàn bộ các từ ngữ kỹ thuật nội bộ "vi điều khiển", "MCU" và "PLC" bằng "thiết bị" / "device" trên toàn bộ giao diện và từ điển song ngữ.
+- **6. Chuẩn Hóa 3 Chế Độ Định Dạng Dữ Liệu DTU (Standard IEC JSON / Custom Template / Raw Passthrough)**:
+  - Cho phép tùy chọn linh hoạt giữa định dạng IEC JSON tự động, nạp template tùy biến từ Studio, hoặc truyền dòng byte thô nguyên bản (Raw Passthrough) triệt tiêu hoàn toàn chi phí xử lý chuỗi và tối ưu bộ nhớ vi điều khiển.
+- **7. Hoàn Thiện Giao Tiếp HTTP REST & TCP Socket**:
+  - Hỗ trợ HTTP kích hoạt theo sự kiện (`OnDataReceived`) hoặc gửi theo chu kỳ (`Periodic`).
+  - Hỗ trợ gói tin báo danh kết nối TCP Socket (Registration Packet: None, OnConnect, PrependToEveryPacket) và heartbeat giữ phiên PING.
+  - Khôi phục chuẩn Host đồng nhất toàn nền tảng: Giữ nguyên `remote_host` = 64 bytes (32 registers, khớp 100% với MQTT Broker Host), phân bổ `heartbeat_payload` = 16 bytes và `registration_payload` = 32 bytes (vừa vặn cho MAC/IMEI/Station ID), đảm bảo tổng đúng 128 bytes (64 registers).
+- **8. Kiểm Thử Đầy Đủ & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
+  - Toàn bộ 1,697 unit tests trên 5 tầng kiến trúc Clean Architecture đều PASS (1,012 Studio, 218 Protocol, 180 Infrastructure, 233 Application, 54 Domain).
+  - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu/hình học XAML.
+
 ## [2.11.4 / Studio v2.11.4] - 2026-10-29 (MODBUS SLAVE INDUSTRIAL FIXED MEMORY MAP, MOXA SEGMENTED TABS & 5-COLUMN LEAN DATAGRID - GitHub #11)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

@@ -826,41 +826,6 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Category 8: Gateway & Telemetry (DTU Gateway) (Issue #17) -->
-                        <Expander Style="{StaticResource ToolboxExpanderStyle}" IsExpanded="True"
-                                  Visibility="{Binding IsDtuGatewayCategoryVisible, Converter={StaticResource BoolToVis}}">
-                            <Expander.Header>
-                                <DockPanel LastChildFill="True">
-                                    <Path Style="{StaticResource IecToolboxExpanderIconStyle}" Data="{StaticResource IconIecCommunication}" />
-                                    <TextBlock Text="{Binding [ToolboxGatewayCategory], Source={x:Static services:LocalizationService.Instance}, FallbackValue='GATEWAY'}" 
-                                               FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                                </DockPanel>
-                            </Expander.Header>
-                            <StackPanel Margin="0,2,0,0">
-                                <!-- DTU Gateway Block -->
-                                <Border Tag="DtuGateway" Style="{StaticResource ToolboxCardStyle}"
-                                        IsEnabled="{Binding IsDtuGatewaySupported}"
-                                        PreviewMouseMove="ToolboxItem_MouseMove"
-                                        ToolTip="{Binding DtuGatewayDisabledTooltip}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="3" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" CornerRadius="1,0,0,1" />
-                                        <StackPanel Grid.Column="1" Margin="8,5,8,5">
-                                            <DockPanel LastChildFill="True">
-                                                <Path Style="{StaticResource IecToolboxCardIconStyle}" Data="{StaticResource IconIecCommunication}" Stroke="{DynamicResource PrimaryBrush}" DockPanel.Dock="Left" />
-                                                <TextBlock Text="{Binding [ToolboxDtuGatewayTitle], Source={x:Static services:LocalizationService.Instance}, FallbackValue='DTU Gateway'}" 
-                                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" />
-                                            </DockPanel>
-                                            <TextBlock Text="{Binding [ToolboxDtuGatewayDesc], Source={x:Static services:LocalizationService.Instance}, FallbackValue='Cầu nối dữ liệu RS-485 lên Internet (MQTT, HTTP, TCP)'}" 
-                                                       FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" Margin="16,1.5,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Expander>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -3120,47 +3085,6 @@
                                         Padding="12,7" HorizontalAlignment="Stretch" />
                             </StackPanel>
                         </Border>
-                    </StackPanel>
-
-                    <!-- DTU GATEWAY NODE PROPERTIES FORM -->
-                    <StackPanel Visibility="{Binding SelectedDtuGatewayNode, Converter={StaticResource NullToVis}}" Margin="0,0,0,12">
-                        <!-- Header Banner -->
-                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,0,10">
-                            <DockPanel LastChildFill="True">
-                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecCommunication}" Stroke="{DynamicResource PrimaryBrush}" Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding [ToolboxDtuGatewayTitle], Source={x:Static services:LocalizationService.Instance}, FallbackValue='DTU GATEWAY'}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.SummaryText}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-
-                        <TextBlock Text="{Binding [InspectorNodeLabel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBox Text="{Binding SelectedDtuGatewayNode.CustomLabel, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Margin="0,0,0,10" />
-
-                        <!-- Settings Summary Card -->
-                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,12">
-                            <StackPanel>
-                                <DockPanel Margin="0,0,0,6">
-                                    <TextBlock Text="Cổng nối tiếp:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
-                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.PortDisplayName}" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" />
-                                </DockPanel>
-                                <DockPanel Margin="0,0,0,6">
-                                    <TextBlock Text="Chế độ 485:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
-                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.SerialMode}" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" />
-                                </DockPanel>
-                                <DockPanel Margin="0,0,0,6">
-                                    <TextBlock Text="Kênh Uplink:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
-                                    <TextBlock Text="{Binding SelectedDtuGatewayNode.UplinkMode}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
-                                </DockPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Button to open DTU Hub Dialog -->
-                        <Button Content="{Binding [InspectorConfigureBtn], Source={x:Static services:LocalizationService.Instance}, FallbackValue='Cấu hình DTU Gateway...'}"
-                                Command="{Binding OpenDtuGatewayConfigCommand}"
-                                CommandParameter="{Binding SelectedDtuGatewayNode}"
-                                Padding="12,6" FontWeight="SemiBold" Style="{StaticResource BtnPrimary}" HorizontalAlignment="Stretch" Cursor="Hand" />
                     </StackPanel>
 
                     <!-- INPUT NODE PROPERTIES FORM -->

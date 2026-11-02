@@ -7,6 +7,9 @@ using SimplePLC.Studio.ViewModels;
 
 namespace SimplePLC.Studio.Services;
 
+/// <summary>
+/// Giao diện dịch vụ biên dịch sơ đồ FBD trực quan thành bảng luật logic và cấu hình nhị phân ngoại vi.
+/// </summary>
 public interface IRuleCompiler
 {
     SimplePLC.Studio.Models.CompileResult Compile(
@@ -17,6 +20,9 @@ public interface IRuleCompiler
         IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? modbusPorts = null);
 }
 
+/// <summary>
+/// Trình biên dịch sơ đồ FBD cấp Studio tích hợp phân tích ngữ pháp, kiểm tra ranh giới và đóng gói cấu hình.
+/// </summary>
 public sealed class RuleCompiler : IRuleCompiler
 {
     private readonly SimplePLC.Application.Logic.Compilation.RuleCompiler _coreCompiler = new();
@@ -126,15 +132,6 @@ public sealed class RuleCompiler : IRuleCompiler
                                 mbWrite.PortIndex + 1, effectivePhysicalPorts),
                             NodeId: node.Id));
                     }
-                }
-                else if (node is DtuGatewayNodeViewModel && !targetProduct.IsDtuCapable && !targetProduct.SupportsTransparentStream && !targetProduct.SupportsNetwork)
-                {
-                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
-                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
-                        string.Format(LocalizationService.Instance.IsVietnamese
-                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ DTU Gateway."
-                            : "Target device '{0}' hardware profile does not support DTU Gateway.", targetProduct.ProductName),
-                        NodeId: node.Id));
                 }
             }
         }
@@ -907,37 +904,7 @@ public sealed class RuleCompiler : IRuleCompiler
                         executionOrder: actionOrder++,
                         label: dw.DisplayTitle));
                     break;
-
-                case DtuGatewayNodeViewModel dtuNode:
-                    ushort? dtuEnTag = null;
-                    ushort? dtuTrigTag = null;
-
-                    var dtuEnConn = connectionList.FirstOrDefault(c => c.Target?.Node == dtuNode &&
-                        (c.Target == dtuNode.EnConnector || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)));
-                    if (dtuEnConn?.Source?.Node is InputNodeViewModel dtuEnIn && dtuEnIn.Tag != null)
-                    {
-                        dtuEnTag = ResolveTagIndex(dtuEnIn.Tag, targetProduct);
-                    }
-
-                    var dtuTrigConn = connectionList.FirstOrDefault(c => c.Target?.Node == dtuNode &&
-                        (c.Target == dtuNode.TrigConnector || string.Equals(c.Target.Title, "TRIG", StringComparison.OrdinalIgnoreCase)));
-                    if (dtuTrigConn?.Source?.Node is InputNodeViewModel dtuTrigIn && dtuTrigIn.Tag != null)
-                    {
-                        dtuTrigTag = ResolveTagIndex(dtuTrigIn.Tag, targetProduct);
-                    }
-
-                    graph.Nodes.Add(LogicNode.CreateDtuGateway(
-                        id: dtuNode.Id,
-                        enTag: dtuEnTag,
-                        trigTag: dtuTrigTag,
-                        portIndex: dtuNode.PortIndex,
-                        uplinkMode: dtuNode.UplinkMode,
-                        serialMode: dtuNode.SerialMode,
-                        executionOrder: actionOrder++,
-                        label: dtuNode.Title));
-                    break;
-
-                default:
+default:
                     studioDiagnostics.Add(new(SimplePLC.Studio.Models.DiagnosticSeverity.Error, LocalizationService.Tr("DiagUnsupportedNode"), NodeId: node.Id));
                     break;
             }

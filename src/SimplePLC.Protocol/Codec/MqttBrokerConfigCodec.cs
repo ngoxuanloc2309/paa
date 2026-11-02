@@ -6,13 +6,15 @@ namespace SimplePLC.Protocol.Codec;
 
 /// <summary>
 /// Codec mã hóa và giải mã cấu hình kết nối MQTT Broker (0x0E00, 96 thanh ghi = 192 bytes).
-/// Tuân thủ chuẩn SPLC-SPEC-MQTT-001.
+/// Tuân thủ chuẩn SPLC-SPEC-MQTT-001 và chuẩn bảo mật SPLC-SPEC-MQTT-003.
 /// </summary>
 public static class MqttBrokerConfigCodec
 {
     /// <summary>
     /// Mã hóa DTO cấu hình Broker thành 96 thanh ghi Modbus vào Span đích.
     /// </summary>
+    /// <param name="config">Đối tượng DTO cấu hình kết nối MQTT Broker.</param>
+    /// <param name="destination">Vùng đệm bộ nhớ đích (tối thiểu 96 thanh ghi).</param>
     public static void Encode(MqttBrokerConfigDto config, Span<ushort> destination)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -28,6 +30,9 @@ public static class MqttBrokerConfigCodec
         if (config.UseTls) control |= ModbusRegisterMap.MqttBrokerControlBitUseTls;
         if (config.CleanSession) control |= ModbusRegisterMap.MqttBrokerControlBitCleanSession;
         control |= (ushort)((config.ProtocolVersion << ModbusRegisterMap.MqttBrokerControlVersionShift) & ModbusRegisterMap.MqttBrokerControlVersionMask);
+        if (config.UseMtls) control |= ModbusRegisterMap.MqttBrokerControlBitUseMtls;
+        if (config.IgnoreHostname) control |= ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname;
+        if (config.AllowSelfSigned) control |= ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned;
         destination[0] = control;
 
         // 2. Offset +1: BROKER_PORT
@@ -57,6 +62,8 @@ public static class MqttBrokerConfigCodec
     /// <summary>
     /// Giải mã 96 thanh ghi Modbus thành MqttBrokerConfigDto.
     /// </summary>
+    /// <param name="source">Vùng đệm thanh ghi Modbus nguồn (tối thiểu 96 thanh ghi).</param>
+    /// <returns>Đối tượng DTO giải mã chứa các thuộc tính cấu hình.</returns>
     public static MqttBrokerConfigDto Decode(ReadOnlySpan<ushort> source)
     {
         if (source.Length < ModbusRegisterMap.MqttBrokerConfigRegisters)
@@ -67,6 +74,9 @@ public static class MqttBrokerConfigCodec
         bool useTls = (control & ModbusRegisterMap.MqttBrokerControlBitUseTls) != 0;
         bool cleanSession = (control & ModbusRegisterMap.MqttBrokerControlBitCleanSession) != 0;
         byte protocolVersion = (byte)((control & ModbusRegisterMap.MqttBrokerControlVersionMask) >> ModbusRegisterMap.MqttBrokerControlVersionShift);
+        bool useMtls = (control & ModbusRegisterMap.MqttBrokerControlBitUseMtls) != 0;
+        bool ignoreHostname = (control & ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname) != 0;
+        bool allowSelfSigned = (control & ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned) != 0;
 
         ushort port = source[1];
         ushort keepAlive = source[2];
@@ -87,7 +97,10 @@ public static class MqttBrokerConfigCodec
             KeepAliveSec = keepAlive,
             ClientId = clientId,
             Username = username,
-            Password = password
+            Password = password,
+            UseMtls = useMtls,
+            IgnoreHostname = ignoreHostname,
+            AllowSelfSigned = allowSelfSigned
         };
     }
 }
