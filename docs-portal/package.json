@@ -1,0 +1,17 @@
+{
+  "name": "synaptix-docs-portal",
+  "version": "2.8.0",
+  "private": true,
+  "type": "module",
+  "description": "SynaptiX Edge Automation Platform — International Bilingual Technical Documentation Portal (EN/VI)",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "markdown-it-mathjax3": "^4.3.2",
+    "mermaid": "^11.4.1",
+    "vitepress": "^1.6.3"
+  }
+}
