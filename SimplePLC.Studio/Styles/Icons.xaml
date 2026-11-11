@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!--
       Lucide Icons - https://lucide.dev
@@ -74,6 +74,12 @@
     <!-- Khối MQTT Subscribe: Nhận bản tin từ Broker (Downlink Telemetry Reception) -->
     <StreamGeometry x:Key="IconIecMqttSubscribe">M21,7 A6,6 0 0,1 15,1 M21,13 A12,12 0 0,1 9,1 M12,20 L4,20 L4,12 M4,20 L15,9</StreamGeometry>
 
+    <!-- Khối REST API HTTP Client (Web / REST API / Webhook) -->
+    <StreamGeometry x:Key="IconIecHttpClient">M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2 M2,12 L22,12 M12,2 C7,6 7,18 12,22 M12,2 C17,6 17,18 12,22</StreamGeometry>
+
+    <!-- Khối TCP Client (Socket Stream Passthrough) -->
+    <StreamGeometry x:Key="IconIecTcpClient">M4,5 L20,5 L20,16 L16,16 L16,19 L8,19 L8,16 L4,16 Z M8,9 L8,12 M12,9 L12,12 M16,9 L16,12</StreamGeometry>
+
     <!-- Khối Modbus Master / Slave -->
     <StreamGeometry x:Key="IconIecModbus">M4,6 L20,6 M20,6 L16,2 M20,6 L16,10 M20,18 L4,18 M4,18 L8,14 M4,18 L8,22</StreamGeometry>
 
@@ -108,6 +114,7 @@
     <StreamGeometry x:Key="IconSysDisconnect">M2,2 L22,22 M9,2 L9,5 M15,2 L15,7 M6,7 L11,7 M18,8 L18,11 M12,17 L12,22</StreamGeometry>
 
     <!-- Live Watch / Real-time Eye Inspection -->
+    <StreamGeometry x:Key="IconSysEye">M2,12 C2,12 5,5 12,5 C19,5 22,12 22,12 C22,12 19,19 12,19 C5,19 2,12 2,12 Z M12,9 A3,3 0 1,0 12,15 A3,3 0 1,0 12,9</StreamGeometry>
     <StreamGeometry x:Key="IconSysLiveWatch">M2,12 C2,12 5,5 12,5 C19,5 22,12 22,12 C22,12 19,19 12,19 C5,19 2,12 2,12 Z M12,9 A3,3 0 1,0 12,15 A3,3 0 1,0 12,9</StreamGeometry>
 
     <!-- Tag Catalog / Symbol Table -->
@@ -121,6 +128,10 @@
 
     <!-- Search Tool -->
     <StreamGeometry x:Key="IconSysSearch">M11,3 A8,8 0 1,0 11,19 A8,8 0 1,0 11,3 M21,21 L16.7,16.7</StreamGeometry>
+
+    <!-- Chevron Left & Right (Lucide Chevron Left/Right) -->
+    <StreamGeometry x:Key="IconSysChevronLeft">M15,18 L9,12 L15,6</StreamGeometry>
+    <StreamGeometry x:Key="IconSysChevronRight">M9,18 L15,12 L9,6</StreamGeometry>
 
     <!-- Clear / Close (X) -->
     <StreamGeometry x:Key="IconSysClear">M18,6 L6,18 M6,6 L18,18</StreamGeometry>
@@ -160,7 +171,10 @@
     <StreamGeometry x:Key="IconSysSettings">M12,15 A3,3 0 1,0 12,9 A3,3 0 1,0 12,15 M19.4,15 A1.65,1.65 0 0,0 19.7,16.8 L20,17.2 A2,2 0 0,1 18.6,20.1 L18.1,20 A1.65,1.65 0 0,0 16.3,20.8 L16.1,21.3 A2,2 0 0,1 13.2,22.2 L13,21.7 A1.65,1.65 0 0,0 11.2,21.7 L11,22.2 A2,2 0 0,1 8.1,21.3 L7.9,20.8 A1.65,1.65 0 0,0 6.1,20 L5.6,20.1 A2,2 0 0,1 4.2,17.2 L4.5,16.8 A1.65,1.65 0 0,0 4.8,15 L4.3,14.8 A2,2 0 0,1 3.4,11.9 L3.9,11.7 A1.65,1.65 0 0,0 4.7,9.9 L4.2,9.4 A2,2 0 0,1 5.6,6.5 L6.1,6.6 A1.65,1.65 0 0,0 7.9,5.8 L8.1,5.3 A2,2 0 0,1 11,4.4 L11.2,4.9 A1.65,1.65 0 0,0 13,4.9 L13.2,4.4 A2,2 0 0,1 16.1,5.3 L16.3,5.8 A1.65,1.65 0 0,0 18.1,6.6 L18.6,6.5 A2,2 0 0,1 20,9.4 L19.7,9.8 A1.65,1.65 0 0,0 19.4,11.6 L19.9,11.8 A2,2 0 0,1 20.8,14.7 Z</StreamGeometry>
 
     <!-- Warning / Alert Triangle -->
+    <StreamGeometry x:Key="IconSysAlert">M10.29,3.86 L1.82,18 A2,2 0 0,0 3.55,21 L20.45,21 A2,2 0 0,0 22.18,18 L13.71,3.86 A2,2 0 0,0 10.29,3.86 Z M12,9 L12,13 M12,17 L12.01,17</StreamGeometry>
     <StreamGeometry x:Key="IconSysAlertTriangle">M10.29,3.86 L1.82,18 A2,2 0 0,0 3.55,21 L20.45,21 A2,2 0 0,0 22.18,18 L13.71,3.86 A2,2 0 0,0 10.29,3.86 Z M12,9 L12,13 M12,17 L12.01,17</StreamGeometry>
+    <!-- Information / Help Circle -->
+    <StreamGeometry x:Key="IconSysInfo">M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2 M12,16 L12,12 M12,8 L12.01,8</StreamGeometry>
 
     <!-- Success Checkmark -->
     <StreamGeometry x:Key="IconSysCheck">M20,6 L9,17 L4,12</StreamGeometry>
@@ -173,6 +187,27 @@
 
     <!-- Radio / Antenna / Wireless Gateway (Lucide Radio) -->
     <StreamGeometry x:Key="IconSysRadio">M4.9,19.1 C2.9,17.1 2.9,13.9 4.9,11.9 M19.1,19.1 C21.1,17.1 21.1,13.9 19.1,11.9 M7.8,16.2 C6.6,15 6.6,13 7.8,11.8 M16.2,16.2 C17.4,15 17.4,13 16.2,11.8 M12,12 A2,2 0 1,0 12,8 A2,2 0 1,0 12,12 M12,12 L12,22</StreamGeometry>
+
+    <!-- Wi-Fi Network Signal Arcs (Lucide Wifi) -->
+    <StreamGeometry x:Key="IconSysWifi">M5,12.5 C8.9,8.6 15.1,8.6 19,12.5 M8.5,16 C10.4,14.1 13.6,14.1 15.5,16 M1.5,9 C7.3,3.2 16.7,3.2 22.5,9 M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
+
+    <!-- Cloud Uplink / IoT Cloud (Lucide Cloud) -->
+    <StreamGeometry x:Key="IconSysCloud">M18,10 C17.4,6.6 14.5,4 11,4 C8.1,4 5.6,5.8 4.6,8.4 C2,8.9 0,11.2 0,14 C0,17.3 2.7,20 6,20 L18,20 C20.8,20 23,17.8 23,15 C23,12.4 20.8,10.2 18,10 Z</StreamGeometry>
+
+    <!-- Activity / Telemetry Waveform / Inspector Diagnostics (Lucide Activity) -->
+    <StreamGeometry x:Key="IconSysTelemetryWave">M22,12 L18,12 L15,21 L9,3 L6,12 L2,12</StreamGeometry>
+
+    <!-- Success Check Circle (Lucide Check-Circle) -->
+    <StreamGeometry x:Key="IconSysCheckCircle">M22,11.08 A10,10 0 1,1 16.07,2.86 M22,4 L12,14.01 L9,11.01</StreamGeometry>
+
+    <!-- Alert Circle / Danger / Error (Lucide Alert-Circle) -->
+    <StreamGeometry x:Key="IconSysAlertCircle">M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2 M12,8 L12,12 M12,16 L12.01,16</StreamGeometry>
+
+    <!-- Terminal / Command Prompt / Hex Console (Lucide Terminal) -->
+    <StreamGeometry x:Key="IconSysTerminal">M4,17 L10,11 L4,5 M12,19 L20,19</StreamGeometry>
+
+    <!-- Wizard / Magic Wand / Quick Setup (Lucide Wand-2) -->
+    <StreamGeometry x:Key="IconSysWizard">M15,4 L20,9 L9,20 L4,20 L4,15 Z M14.5,4.5 L19.5,9.5 M8,2 L9,5 L12,6 L9,7 L8,10 L7,7 L4,6 L7,5 Z</StreamGeometry>
 
 
     <!-- ========================================================================= -->
@@ -187,6 +222,8 @@
     <StreamGeometry x:Key="IconScaleRamp">M2,20 L22,20 M2,20 L20,4 M14,4 L20,4 L20,10 M6,20 L6,17 M10,20 L10,13 M14,20 L14,9</StreamGeometry>
     <StreamGeometry x:Key="IconComparatorOp">M16,16 L19,8 L22,16 C21.13,16.65 20.08,17 19,17 C17.92,17 16.87,16.65 16,16 Z M2,16 L5,8 L8,16 C7.13,16.65 6.08,17 5,17 C3.92,17 2.87,16.65 2,16 Z M7,21 L17,21 M12,3 L12,21 M3,7 L5,7 C7,7 10,6 12,4 C14,6 17,7 19,7 L21,7</StreamGeometry>
     <StreamGeometry x:Key="IconMqttBroadcast">M22,2 L11,13 M22,2 L15,22 L11,13 L2,9 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconMqttTelemetry">M3,17 A6,6 0 0,1 9,23 M3,11 A12,12 0 0,1 15,23 M12,4 L20,4 L20,12 M20,4 L9,15</StreamGeometry>
+    <StreamGeometry x:Key="IconMqttCommand">M21,7 A6,6 0 0,1 15,1 M21,13 A12,12 0 0,1 9,1 M12,20 L4,20 L4,12 M4,20 L15,9</StreamGeometry>
     <StreamGeometry x:Key="IconModbusMaster">M4,6 L20,6 M20,6 L16,2 M20,6 L16,10 M20,18 L4,18 M4,18 L8,14 M4,18 L8,22</StreamGeometry>
 
 

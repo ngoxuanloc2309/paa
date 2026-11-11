@@ -3,6 +3,9 @@ namespace SimplePLC.Application.Logic.Compilation;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 
+/// <summary>
+/// Thẩm định và ngăn chặn các xung đột ghi (Write Conflicts) giữa các luật logic trong chu kỳ quét.
+/// </summary>
 public static class WriteConflictValidator
 {
     public const string ErrConflictingWriters = "SPLC-COMP-DEP-002";

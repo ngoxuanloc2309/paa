@@ -22,6 +22,9 @@ namespace SimplePLC.Studio.Tests;
 
 
 
+/// <summary>
+/// Unit tests verifying industrial dialog styling, theme resources, and window resize parameters.
+/// </summary>
 public class DialogStylingAndWindowResizeTests
 
 {
@@ -31,6 +34,9 @@ public class DialogStylingAndWindowResizeTests
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SimplePLC.Studio", "Views"));
 
 
+
+    private static readonly string ControlsDirectory = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SimplePLC.Studio", "Controls"));
 
     private static readonly string StylesDirectory = Path.GetFullPath(
 
@@ -177,17 +183,14 @@ public class DialogStylingAndWindowResizeTests
     [InlineData("MqttSubConfigDialogView.xaml")]
 
     public void AllConfigDialogViews_MustUse_TableRowDeleteBtnStyle(string xamlFileName)
-
     {
-
         string filePath = Path.Combine(ViewsDirectory, xamlFileName);
-
+        if (xamlFileName == "MqttConfigDialogView.xaml")
+            filePath = Path.Combine(ControlsDirectory, "MqttTelemetryPublishControl.xaml");
+        else if (xamlFileName == "MqttSubConfigDialogView.xaml")
+            filePath = Path.Combine(ControlsDirectory, "MqttCommandSubscribeControl.xaml");
         string content = File.ReadAllText(filePath);
-
-
-
         Assert.Contains("Style=\"{StaticResource TableRowDeleteBtnStyle}\"", content);
-
     }
 
 

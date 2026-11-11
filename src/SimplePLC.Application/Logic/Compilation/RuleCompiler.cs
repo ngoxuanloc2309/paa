@@ -8,6 +8,9 @@ using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
+/// <summary>
+/// Trình biên dịch đồ thị FBD thành các bảng luật (Rules) và cấu hình nhị phân chuẩn MCU.
+/// </summary>
 public sealed class RuleCompiler : IRuleCompiler
 {
     public const string ErrActionNoIncoming = "SPLC-COMP-001";
@@ -24,6 +27,7 @@ public sealed class RuleCompiler : IRuleCompiler
     public const string ErrUnsupportedWriterCombination = WriteConflictValidator.ErrUnsupportedWriterCombination;
     public const string ErrIndeterminateOrdering = "SPLC-COMP-DEP-004";
     public const string ErrModbusPortSlaveConflict = "SPLC-COMP-MB-SLAVE";
+    public const string ErrActionReadOnlyTarget = "SPLC-COMP-ACT-RO";
 
     public CompileResult Compile(LogicGraph graph, ProductDefinition product, string? programId = null) =>
         Compile(graph, product, programId, null, null);
@@ -58,6 +62,8 @@ public sealed class RuleCompiler : IRuleCompiler
         var modbusReadNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusRead).ToList();
         var modbusWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusWrite).ToList();
         var directWriteNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.DirectWrite).ToList();
+        var httpNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.HttpClient).ToList();
+        var tcpNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.TcpClient).ToList();
 
         // Safety Gate: Modbus Master nodes cannot target a port configured as Modbus Slave
         if (modbusPorts != null)
@@ -361,12 +367,82 @@ public sealed class RuleCompiler : IRuleCompiler
             });
         }
 
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0 && mqttSubNodes.Count == 0 && modbusReadNodes.Count == 0 && modbusWriteNodes.Count == 0 && directWriteNodes.Count == 0)
+        DtuHttpConfigDto? compiledDtuHttp = null;
+        DtuTcpConfigDto? compiledDtuTcp = null;
+        DtuConfigDto? compiledDtu = null;
+
+        if (httpNodes.Count > 0 || tcpNodes.Count > 0)
+        {
+            compiledDtu = new DtuConfigDto
+            {
+                Enabled = true,
+                PortIndex = 0,
+                SerialMode = SimplePLC.Protocol.Enums.DtuSerialMode.Transference
+            };
+
+            var firstHttp = httpNodes.FirstOrDefault();
+            if (firstHttp?.HttpClientData != null)
+            {
+                var hData = firstHttp.HttpClientData;
+                compiledDtu.Enabled = true;
+                compiledDtu.UplinkMode = SimplePLC.Protocol.Enums.DtuUplinkMode.Http;
+                compiledDtu.PayloadMode = string.Equals(hData.PayloadMode, "Raw", StringComparison.OrdinalIgnoreCase)
+                    ? SimplePLC.Protocol.Enums.DtuPayloadMode.Raw
+                    : SimplePLC.Protocol.Enums.DtuPayloadMode.Custom;
+
+                compiledDtuHttp = new DtuHttpConfigDto
+                {
+                    Enabled = true,
+                    Method = string.Equals(hData.Method, "PUT", StringComparison.OrdinalIgnoreCase) ? SimplePLC.Protocol.Enums.DtuHttpMethod.Put : SimplePLC.Protocol.Enums.DtuHttpMethod.Post,
+                    Url = hData.Url ?? string.Empty,
+                    CustomHeaders = hData.CustomHeaders ?? string.Empty,
+                    TimeoutSec = hData.TimeoutSec,
+                    PeriodicIntervalSec = hData.PeriodicIntervalSec,
+                    TriggerMode = string.Equals(hData.TriggerMode, "Periodic", StringComparison.OrdinalIgnoreCase) ? SimplePLC.Protocol.Enums.DtuHttpTriggerMode.Periodic : SimplePLC.Protocol.Enums.DtuHttpTriggerMode.OnDataReceived
+                };
+                compiledDtu.HttpConfig = compiledDtuHttp;
+            }
+
+            var firstTcp = tcpNodes.FirstOrDefault();
+            if (firstTcp?.TcpClientData != null)
+            {
+                var tData = firstTcp.TcpClientData;
+                compiledDtu.Enabled = true;
+                if (firstHttp == null)
+                {
+                    compiledDtu.UplinkMode = SimplePLC.Protocol.Enums.DtuUplinkMode.TcpClient;
+                    compiledDtu.PayloadMode = string.Equals(tData.PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase)
+                        ? SimplePLC.Protocol.Enums.DtuPayloadMode.Custom
+                        : SimplePLC.Protocol.Enums.DtuPayloadMode.Raw;
+                }
+
+                compiledDtuTcp = new DtuTcpConfigDto
+                {
+                    Enabled = true,
+                    SocketMode = SimplePLC.Protocol.Enums.DtuTcpSocketMode.Client,
+                    RemoteHost = tData.RemoteHost ?? string.Empty,
+                    RemotePort = tData.RemotePort,
+                    ReconnectDelaySec = tData.ReconnectDelaySec,
+                    HeartbeatIntervalSec = tData.HeartbeatIntervalSec,
+                    HeartbeatPayload = tData.HeartbeatPayload ?? string.Empty,
+                    RegistrationType = tData.RegistrationType switch
+                    {
+                        "OnConnect" => SimplePLC.Protocol.Enums.DtuTcpRegistrationType.OnConnect,
+                        "PrependToEveryPacket" => SimplePLC.Protocol.Enums.DtuTcpRegistrationType.PrependToEveryPacket,
+                        _ => SimplePLC.Protocol.Enums.DtuTcpRegistrationType.None
+                    },
+                    RegistrationPayload = tData.RegistrationPayload ?? string.Empty
+                };
+                compiledDtu.TcpConfig = compiledDtuTcp;
+            }
+        }
+
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mqttNodes.Count == 0 && mqttSubNodes.Count == 0 && modbusReadNodes.Count == 0 && modbusWriteNodes.Count == 0 && directWriteNodes.Count == 0 && httpNodes.Count == 0 && tcpNodes.Count == 0)
         {
             diagnostics.Add(new CompileDiagnostic(
                 WarnNoActions,
                 DiagnosticSeverity.Warning,
-                "Graph does not contain any Action, Timer, Counter, Scale, MQTT, Modbus, or Direct Write nodes. 0 rules produced."));
+                "Graph does not contain any Action, Timer, Counter, Scale, MQTT, Modbus, Direct Write, or DTU nodes. 0 rules produced."));
 
             var emptyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -391,7 +467,10 @@ public sealed class RuleCompiler : IRuleCompiler
                 compiledModbusConfigs,
                 compiledModbusWriteConfigs,
                 compiledDirectWriteConfigs,
-                slaveMapConfigs);
+                slaveMapConfigs,
+                dtuHttpConfig: compiledDtuHttp,
+                dtuTcpConfig: compiledDtuTcp,
+                dtuConfig: compiledDtu);
 
             return CompileResult.Success(telemetryOnlyProgram, diagnostics);
         }
@@ -413,7 +492,7 @@ public sealed class RuleCompiler : IRuleCompiler
                 continue;
             }
 
-            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
+            if (directSource.Kind is LogicNodeKind.Counter or LogicNodeKind.Timer or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 // Action node connects from Counter, Timer, Scale, MQTT, Modbus, or Direct Write port as visual destination.
                 // The rules are fully expanded in Step 2b / 2c / 2d (Macro Expansion) or handled by communication subsystems.
@@ -423,8 +502,14 @@ public sealed class RuleCompiler : IRuleCompiler
             LogicNode? triggerNode = null;
             LogicNode? guardNode = null;
             LogicNode? directComparatorNode = null;
+            LogicNode? directInputNode = null;
+            ushort? resolvedDirectTagIndex = null;
 
-            if (directSource.Kind == LogicNodeKind.Trigger)
+            if (directSource.Kind == LogicNodeKind.Input)
+            {
+                directInputNode = directSource;
+            }
+            else if (directSource.Kind == LogicNodeKind.Trigger)
             {
                 triggerNode = directSource;
             }
@@ -442,7 +527,7 @@ public sealed class RuleCompiler : IRuleCompiler
                     diagnostics.Add(new CompileDiagnostic(
                         ErrGuardNoTrigger,
                         DiagnosticSeverity.Error,
-                        $"Guard node '{guardLabel}' is not connected to an upstream Trigger or Comparator.",
+                        $"Guard node '{guardLabel}' is not connected to an upstream Trigger, Comparator, or Input.",
                         NodeId: guardNode.Id));
                     continue;
                 }
@@ -455,15 +540,27 @@ public sealed class RuleCompiler : IRuleCompiler
                 {
                     directComparatorNode = guardSource;
                 }
+                else if (guardSource.Kind == LogicNodeKind.Input)
+                {
+                    directInputNode = guardSource;
+                }
                 else
                 {
-                    var guardLabel2 = GetNodeLabel(guardNode, "Guard");
-                    diagnostics.Add(new CompileDiagnostic(
-                        ErrGuardNoTrigger,
-                        DiagnosticSeverity.Error,
-                        $"Guard node '{guardLabel2}' must be connected to an upstream Trigger or Comparator.",
-                        NodeId: guardNode.Id));
-                    continue;
+                    var grdSrcTag = ResolveSourcePortTagIndex(guardSource, guardIncoming.SourcePort);
+                    if (grdSrcTag.HasValue)
+                    {
+                        resolvedDirectTagIndex = grdSrcTag.Value;
+                    }
+                    else
+                    {
+                        var guardLabel2 = GetNodeLabel(guardNode, "Guard");
+                        diagnostics.Add(new CompileDiagnostic(
+                            ErrGuardNoTrigger,
+                            DiagnosticSeverity.Error,
+                            $"Guard node '{guardLabel2}' must be connected to an upstream Trigger, Comparator, or Input.",
+                            NodeId: guardNode.Id));
+                        continue;
+                    }
                 }
             }
             else
@@ -472,48 +569,81 @@ public sealed class RuleCompiler : IRuleCompiler
                 diagnostics.Add(new CompileDiagnostic(
                     ErrActionNoIncoming,
                     DiagnosticSeverity.Error,
-                    $"Action node '{actionLabel2}' must be fed by Trigger, Comparator, or Guard, but got {directSource.Kind}.",
+                    $"Action node '{actionLabel2}' must be fed by Input, Trigger, Comparator, or Guard, but got {directSource.Kind}.",
                     NodeId: actionNode.Id));
                 continue;
             }
 
-            // Trace Trigger upstream input (or via Comparator)
-            LogicNode? inputNode = null;
+            // Trace Trigger upstream input (or via Comparator or direct Input)
+            LogicNode? inputNode = directInputNode;
             LogicNode? comparatorNode = directComparatorNode;
+            ushort? resolvedTriggerTagIndex = resolvedDirectTagIndex ?? directInputNode?.InputData?.TagIndex;
 
             if (triggerNode != null)
             {
+                if (triggerNode.TriggerData?.InputTagIndex != null)
+                {
+                    resolvedTriggerTagIndex = triggerNode.TriggerData.InputTagIndex;
+                }
+
                 var triggerIncoming = graph.GetIncomingEdges(triggerNode.Id).FirstOrDefault();
                 if (triggerIncoming != null && nodeMap.TryGetValue(triggerIncoming.SourceNodeId, out var candidateSrc))
                 {
                     if (candidateSrc.Kind == LogicNodeKind.Input)
                     {
                         inputNode = candidateSrc;
+                        resolvedTriggerTagIndex = candidateSrc.InputData?.TagIndex;
                     }
                     else if (candidateSrc.Kind == LogicNodeKind.Comparator)
                     {
                         comparatorNode = candidateSrc;
-                        var compIncoming = graph.GetIncomingEdges(comparatorNode.Id).FirstOrDefault();
-                        if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc) && compSrc.Kind == LogicNodeKind.Input)
+                        if (comparatorNode.ComparatorData != null)
                         {
-                            inputNode = compSrc;
+                            resolvedTriggerTagIndex = comparatorNode.ComparatorData.InTagIndex;
+                        }
+                        var compIncoming = graph.GetIncomingEdges(comparatorNode.Id).FirstOrDefault();
+                        if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc))
+                        {
+                            var compTag = ResolveSourcePortTagIndex(compSrc, compIncoming.SourcePort);
+                            if (compTag.HasValue)
+                            {
+                                resolvedTriggerTagIndex = compTag.Value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var srcTag = ResolveSourcePortTagIndex(candidateSrc, triggerIncoming.SourcePort);
+                        if (srcTag.HasValue)
+                        {
+                            resolvedTriggerTagIndex = srcTag.Value;
                         }
                     }
                 }
             }
             else if (directComparatorNode != null)
             {
-                var compIncoming = graph.GetIncomingEdges(directComparatorNode.Id).FirstOrDefault();
-                if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc) && compSrc.Kind == LogicNodeKind.Input)
+                if (directComparatorNode.ComparatorData != null)
                 {
-                    inputNode = compSrc;
+                    resolvedTriggerTagIndex = directComparatorNode.ComparatorData.InTagIndex;
+                }
+                var compIncoming = graph.GetIncomingEdges(directComparatorNode.Id).FirstOrDefault();
+                if (compIncoming != null && nodeMap.TryGetValue(compIncoming.SourceNodeId, out var compSrc))
+                {
+                    var compTag = ResolveSourcePortTagIndex(compSrc, compIncoming.SourcePort);
+                    if (compTag.HasValue)
+                    {
+                        resolvedTriggerTagIndex = compTag.Value;
+                    }
                 }
             }
 
-            var triggerData = triggerNode?.TriggerData ?? new TriggerNodeData { Type = TriggerKind.OnChange };
+            var triggerData = triggerNode?.TriggerData ?? (directInputNode != null || resolvedTriggerTagIndex.HasValue
+                ? new TriggerNodeData { Type = TriggerKind.OnRise }
+                : new TriggerNodeData { Type = TriggerKind.OnChange });
             bool requiresInput = triggerData.Type is not (TriggerKind.Interval or TriggerKind.TimeWindow);
 
-            if (requiresInput && inputNode == null)
+            if (requiresInput && !resolvedTriggerTagIndex.HasValue)
             {
                 string missingNodeId = triggerNode?.Id ?? directComparatorNode?.Id ?? actionNode.Id;
                 string missingNodeLabel = GetNodeLabel(triggerNode, GetNodeLabel(directComparatorNode, "Trigger"));
@@ -527,11 +657,7 @@ public sealed class RuleCompiler : IRuleCompiler
             }
 
             // Resolve Trigger Tag
-            ushort triggerTagIndex = inputNode?.InputData?.TagIndex ?? 0;
-            if (comparatorNode?.ComparatorData != null)
-            {
-                triggerTagIndex = comparatorNode.ComparatorData.InTagIndex;
-            }
+            ushort triggerTagIndex = resolvedTriggerTagIndex ?? (comparatorNode?.ComparatorData?.InTagIndex ?? inputNode?.InputData?.TagIndex ?? 0);
             var triggerTag = product.FindTagByIndex(triggerTagIndex);
             if (triggerTag == null)
             {
@@ -600,6 +726,17 @@ public sealed class RuleCompiler : IRuleCompiler
                     ErrTagNotFound,
                     DiagnosticSeverity.Error,
                     $"Action Target Tag index {actionData.TargetTagIndex} not found in device profile.",
+                    NodeId: actionNode.Id));
+                continue;
+            }
+
+            if (actionTag.IsReadOnly)
+            {
+                var actLabel = GetNodeLabel(actionNode, "Action");
+                diagnostics.Add(new CompileDiagnostic(
+                    ErrActionReadOnlyTarget,
+                    DiagnosticSeverity.Error,
+                    $"Action node '{actLabel}' cannot write to read-only tag '{actionTag.Name}'.",
                     NodeId: actionNode.Id));
                 continue;
             }
@@ -1376,7 +1513,10 @@ public sealed class RuleCompiler : IRuleCompiler
             compiledModbusConfigs,
             compiledModbusWriteConfigs,
             compiledDirectWriteConfigs,
-            slaveMapConfigs);
+            slaveMapConfigs,
+            dtuHttpConfig: compiledDtuHttp,
+            dtuTcpConfig: compiledDtuTcp,
+            dtuConfig: compiledDtu);
 
         return CompileResult.Success(program, diagnostics);
     }
@@ -1399,4 +1539,55 @@ public sealed class RuleCompiler : IRuleCompiler
 
     private static string GetNodeLabel(LogicNode? node, string fallback = "Node") =>
         !string.IsNullOrWhiteSpace(node?.Label) ? node.Label : fallback;
+
+    /// <summary>
+    /// Phân giải chỉ số Tag từ cổng ngõ ra của một Node nguồn (Input, ModbusRead, MqttSubscribe, Scale, Timer, Counter).
+    /// </summary>
+    private static ushort? ResolveSourcePortTagIndex(LogicNode srcNode, string sourcePort)
+    {
+        if (srcNode.Kind == LogicNodeKind.Input && srcNode.InputData != null)
+        {
+            return srcNode.InputData.TagIndex;
+        }
+
+        if (srcNode.Kind == LogicNodeKind.ModbusRead && srcNode.ModbusReadData != null)
+        {
+            if (string.Equals(sourcePort, "Valid", StringComparison.OrdinalIgnoreCase))
+                return srcNode.ModbusReadData.ValidTagIndex;
+            if (string.Equals(sourcePort, "Error", StringComparison.OrdinalIgnoreCase))
+                return srcNode.ModbusReadData.ErrorTagIndex;
+            if (string.Equals(sourcePort, "ErrCode", StringComparison.OrdinalIgnoreCase))
+                return srcNode.ModbusReadData.ErrCodeTagIndex;
+
+            var pin = srcNode.ModbusReadData.Pins.FirstOrDefault(p =>
+                string.Equals(p.Id, sourcePort, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, sourcePort, StringComparison.OrdinalIgnoreCase));
+            return pin?.TargetTagIndex;
+        }
+
+        if (srcNode.Kind == LogicNodeKind.MqttSubscribe && srcNode.MqttSubscribeData != null)
+        {
+            var pin = srcNode.MqttSubscribeData.Pins.FirstOrDefault(p =>
+                string.Equals(p.Id, sourcePort, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, sourcePort, StringComparison.OrdinalIgnoreCase));
+            return pin?.TargetTagIndex;
+        }
+
+        if (srcNode.Kind == LogicNodeKind.Scale && srcNode.ScaleData != null)
+        {
+            return srcNode.ScaleData.OutTagIndex ?? srcNode.ScaleData.InTagIndex;
+        }
+
+        if (srcNode.Kind == LogicNodeKind.Timer && srcNode.TimerData != null)
+        {
+            return srcNode.TimerData.QTagIndex;
+        }
+
+        if (srcNode.Kind == LogicNodeKind.Counter && srcNode.CounterData != null)
+        {
+            return srcNode.CounterData.QTagIndex;
+        }
+
+        return null;
+    }
 }

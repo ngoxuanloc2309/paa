@@ -553,6 +553,7 @@
                             <DataTemplate>
                                 <Grid VerticalAlignment="Center" Margin="6,2">
                                     <TextBox Text="{Binding Alias, UpdateSourceTrigger=PropertyChanged}" 
+                                             IsReadOnly="{Binding IsAliasEditable, Converter={StaticResource InverseBoolConverter}}"
                                              BorderThickness="1" BorderBrush="Transparent"
                                              Background="Transparent"
                                              VerticalContentAlignment="Center"
@@ -561,13 +562,25 @@
                                         <TextBox.Style>
                                             <Style TargetType="TextBox">
                                                 <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsMouseOver" Value="True" />
+                                                            <Condition Property="IsReadOnly" Value="False" />
+                                                        </MultiTrigger.Conditions>
                                                         <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
                                                         <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsFocused" Value="True">
+                                                    </MultiTrigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsFocused" Value="True" />
+                                                            <Condition Property="IsReadOnly" Value="False" />
+                                                        </MultiTrigger.Conditions>
                                                         <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                                                         <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                                                    </MultiTrigger>
+                                                    <Trigger Property="IsReadOnly" Value="True">
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                        <Setter Property="Focusable" Value="False" />
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>

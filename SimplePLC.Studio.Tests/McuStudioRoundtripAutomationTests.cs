@@ -1,3 +1,4 @@
+using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Infrastructure.Simulator;
@@ -40,6 +41,10 @@ public class McuStudioRoundtripAutomationTests
         // Đảm bảo bắt đầu với dự án sạch 0 rules
         mainVM.NewProject();
 
+        if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
         await mainVM.ToggleConnect();
         Assert.True(mainVM.IsConnected, "MainViewModel must be connected to virtual simulator.");
 
@@ -130,7 +135,11 @@ public class McuStudioRoundtripAutomationTests
         finally
         {
             if (mainVM.IsConnected)
-                await mainVM.ToggleConnect();
+                if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
+        await mainVM.ToggleConnect();
         }
     }
 
@@ -176,7 +185,11 @@ public class McuStudioRoundtripAutomationTests
         finally
         {
             if (mainVM.IsConnected)
-                await mainVM.ToggleConnect();
+                if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
+        await mainVM.ToggleConnect();
         }
     }
 
@@ -215,7 +228,11 @@ public class McuStudioRoundtripAutomationTests
         finally
         {
             if (mainVM.IsConnected)
-                await mainVM.ToggleConnect();
+                if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
+        await mainVM.ToggleConnect();
         }
     }
 
@@ -240,6 +257,10 @@ public class McuStudioRoundtripAutomationTests
         // Kết nối vào Simulator
         mainVM.SelectedPort = "SIMULATOR (VIRTUAL)";
         mainVM.NewProject();
+        if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
         await mainVM.ToggleConnect();
         Assert.True(mainVM.IsConnected);
         Assert.True(mainVM.CanDoDeviceAction);
@@ -262,6 +283,10 @@ public class McuStudioRoundtripAutomationTests
         await mainVM.UploadFromDeviceAsync();
         Assert.Empty(mainVM.RuleTableVM.Rules);
 
+        if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
         await mainVM.ToggleConnect();
     }
 }

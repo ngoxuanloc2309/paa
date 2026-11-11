@@ -1,4 +1,4 @@
-namespace SimplePLC.Protocol.Constants;
+﻿namespace SimplePLC.Protocol.Constants;
 
 /// <summary>
 /// Nguồn chân lý duy nhất (R3) cho bản đồ địa chỉ thanh ghi Modbus V1 theo Data Contract V1.7.
@@ -110,6 +110,23 @@ public static class ModbusRegisterMap
     public const ushort RtcFlagSynced = 0x0001;
     public const ushort RtcFlagHwPresent = 0x0002;
     public const ushort RtcFlagBatteryLow = 0x0004;
+
+    /// <summary>
+    /// Phân vùng thanh ghi hệ thống System Tags (0x0820..0x0827, 8 registers = 16 bytes, RO).
+    /// </summary>
+    public const ushort SystemRegistersBaseAddress = 0x0820;
+    public const ushort SystemRegistersLength = 8;
+    public const ushort SystemTagBaseIndex = 1000;
+    public const ushort SystemTagCount = 8;
+
+    public const ushort SysIndexFirstScan = 1000;
+    public const ushort SysIndexAlwaysOn = 1001;
+    public const ushort SysIndexAlwaysOff = 1002;
+    public const ushort SysIndexClock1S = 1003;
+    public const ushort SysIndexClock100Ms = 1004;
+    public const ushort SysIndexRtcHour = 1005;
+    public const ushort SysIndexRtcMinute = 1006;
+    public const ushort SysIndexCommOk = 1007;
 
     public const ushort RuntimeTagValuesBaseAddress = 0x0900;
     public const ushort RuntimeTagValuesMaxLength = MaxRuntimeTags * RegistersPerRuntimeTag; // 256 registers
@@ -462,6 +479,30 @@ public static class ModbusRegisterMap
     public const ushort DtuRoutingConfigBaseAddress = 0x1680;
     public const int DtuRoutingConfigRegisters = 64; // 128 Bytes
     public const ushort DtuRoutingControlBitEnabled = 0x0001;
+
+    // ==========================================
+    // 2.14 PHÂN VÙNG ZIGBEE MODBUS SUBSYSTEM (0x1700 - 0x173F)
+    // SPLC-SPEC-ZIGBEE-006: 64 Registers = 128 Bytes
+    // ==========================================
+    public const ushort ZigbeeConfigBaseAddress = 0x1700;
+    public const int ZigbeeConfigRegisters = 64; // 128 Bytes
+    public const int ZigbeeKeyRegisters = 8;    // 16 Bytes = 8 Registers (Offset +5..+12)
+    public const int ZigbeeKeyBytes = 16;       // 128-bit AES Key
+
+    // Bitmasks cho CONTROL_FLAGS (Offset +0)
+    public const ushort ZigbeeControlBitEnabled = 0x0001;        // Bit 0: Enable
+    public const ushort ZigbeeControlBitRoleSlave = 0x0002;      // Bit 1: 0=Master/Coord, 1=Slave/Router
+    public const ushort ZigbeeControlBitFramingAscii = 0x0004;   // Bit 2: 0=RTU, 1=ASCII (Hiện bắt buộc 0)
+    public const ushort ZigbeeControlBitSecurityEnabled = 0x0008;// Bit 3: 0=Off, 1=On (AES-128)
+    public const ushort ZigbeeControlBitAntennaExternal = 0x0010;// Bit 4: 0=Onboard PCB, 1=External SMA
+    public const ushort ZigbeeControlBitPreserveKey = 0x0020;    // Bit 5: Cờ lệnh giữ key cũ trong Flash
+    public const ushort ZigbeeControlReservedMask = 0xFFC0;      // Bit 6..15: Bắt buộc = 0
+
+    // Bitmasks cho STATUS_FLAGS (Offset +36)
+    public const ushort ZigbeeStatusBitKeySet = 0x0001;          // Bit 0: 1 = Flash có lưu khóa khác 0
+
+    // Cổng logic Modbus Master trên wire (MB_READ / MB_WRITE)
+    public const byte ZigbeeMasterPortIndex = 4;                 // Giá trị thô = 4 (0-based) đại diện cổng Zigbee
 
     public const ushort ConfigStatusAddress = 0x9000;
     public const ushort ConfigStatusLength = 1;

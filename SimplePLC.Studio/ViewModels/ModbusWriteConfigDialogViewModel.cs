@@ -49,13 +49,30 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
     [NotifyPropertyChangedFor(nameof(PortSelectorTooltip))]
+    [NotifyPropertyChangedFor(nameof(HasRestrictedIdError))]
+    [NotifyPropertyChangedFor(nameof(RestrictedIdErrorMessage))]
     private byte _portIndex;
 
     public ObservableCollection<OptionItem<byte>> AvailablePorts { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasRestrictedIdError))]
+    [NotifyPropertyChangedFor(nameof(RestrictedIdErrorMessage))]
     private byte _slaveId;
+
+    /// <summary>
+    /// Cho biết có lỗi chọn Slave ID cấm (236 hoặc 237) khi trỏ tới cổng vô tuyến Zigbee hay không.
+    /// </summary>
+    public bool HasRestrictedIdError => PortIndex == 4 && (SlaveId == 236 || SlaveId == 237);
+
+    /// <summary>
+    /// Thông báo cảnh báo lỗi khi nhập Slave ID 236/237 trên cổng Zigbee.
+    /// </summary>
+    public string RestrictedIdErrorMessage => LocalizationService.Tr("ModbusZigbeeRestrictedIdError")
+        ?? (LocalizationService.Instance.IsVietnamese
+            ? "Cấm sử dụng Slave ID 236 (0xEC) và 237 (0xED) trên cổng Zigbee vì trùng mã lệnh cấu hình module RF."
+            : "Slave IDs 236 (0xEC) and 237 (0xED) are restricted on Zigbee port due to RF module AT commands.");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -121,7 +138,13 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     public bool IsDirectRegistersMode => WriteMode == ModbusWriteMode.DirectRegisters;
 
     public string SummaryBadgeText => GetSummaryBadgeText();
-    private string GetSummaryBadgeText() => (LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ") + (WriteMode == ModbusWriteMode.ChannelIndexed ? $"{PortIndex + 1} | Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}" : $"{PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)");
+    private string GetSummaryBadgeText()
+    {
+        string portText = PortIndex == 4 ? "Zigbee" : $"{(LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ")}{PortIndex + 1}";
+        return portText + " | " + (WriteMode == ModbusWriteMode.ChannelIndexed 
+            ? $"Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}" 
+            : $"Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)");
+    }
 
 
 
@@ -188,6 +211,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     };
 
     private IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+    private SimplePLC.Studio.Models.ZigbeeConfigModel? _zigbeeConfig;
 
     public Action? OnOpenDevicePortSettings { get; set; }
 
@@ -197,20 +221,25 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         OnOpenDevicePortSettings?.Invoke();
     }
 
-    public void RefreshAvailablePorts(IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts)
+    public void RefreshAvailablePorts(
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts,
+        SimplePLC.Studio.Models.ZigbeeConfigModel? zigbeeConfig = null)
     {
         _modbusPorts = newPorts?.ToList();
+        if (zigbeeConfig != null) _zigbeeConfig = zigbeeConfig;
         UpdatePortOptions();
     }
 
     public ModbusWriteConfigDialogViewModel(
         ModbusWriteNodeViewModel node, 
         TagCatalogViewModel tagCatalog,
-        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null)
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null,
+        SimplePLC.Studio.Models.ZigbeeConfigModel? zigbeeConfig = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
         _modbusPorts = availablePorts?.ToList();
+        _zigbeeConfig = zigbeeConfig;
 
         _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
@@ -303,6 +332,22 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             }
         }
 
+        // Bổ sung cổng Zigbee Wireless (PortIndex = 4) nếu được kích hoạt hoặc nếu nốt đang dùng cổng này
+        if (_zigbeeConfig != null && _zigbeeConfig.Enabled)
+        {
+            string zigbeeLabel = isVi
+                ? $"🌐 Zigbee Wireless (Kênh {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})"
+                : $"🌐 Zigbee Wireless (Ch {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})";
+            targetList.Add(new OptionItem<byte>(4, zigbeeLabel));
+        }
+        else if (curPort == 4)
+        {
+            string disabledLabel = isVi
+                ? "🌐 Zigbee Wireless [ĐÃ TẮT TRÊN THIẾT BỊ]"
+                : "🌐 Zigbee Wireless [DISABLED ON DEVICE]";
+            targetList.Add(new OptionItem<byte>(4, disabledLabel));
+        }
+
         SyncOptions(AvailablePorts, targetList);
 
         if (!AvailablePorts.Any(p => p.Value == curPort) && AvailablePorts.Count > 0)
@@ -391,6 +436,18 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             {
                 return LocalizationService.Tr("ModbusNoPortsEnabledTooltip") 
                     ?? (isVi ? "Chưa có cổng RS-485 nào được kích hoạt trên thiết bị. Vui lòng vào Cài đặt > Cấu hình Cổng RS-485 để kích hoạt ít nhất 1 cổng." : "No RS-485 ports are currently enabled. Please open Settings > RS-485 Modbus Master Ports to enable at least one port.");
+            }
+
+            if (PortIndex == 4)
+            {
+                if (_zigbeeConfig != null && !_zigbeeConfig.Enabled)
+                {
+                    return isVi
+                        ? "Phân hệ vô tuyến Zigbee đang bị VÔ HIỆU HÓA trong cấu hình thiết bị. Vui lòng vào Cấu hình Thiết bị > Zigbee Wireless để kích hoạt."
+                        : "Zigbee wireless subsystem is DISABLED in device settings. Please open Device Configuration > Zigbee Wireless to enable.";
+                }
+                return LocalizationService.Tr("ModbusPortZigbeeTooltip")
+                    ?? (isVi ? "Truyền nhận dữ liệu qua sóng vô tuyến Zigbee Mesh 2.4 GHz (IEEE 802.15.4) thay cho cáp RS-485 vật lý." : "Transmit and receive data over 2.4 GHz IEEE 802.15.4 Zigbee wireless mesh instead of RS-485 cable.");
             }
 
             if (_modbusPorts != null && _modbusPorts.Count > 0)
@@ -914,6 +971,10 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void Apply()
     {
+        if (HasRestrictedIdError)
+        {
+            SlaveId = 1;
+        }
         Node.PortIndex = PortIndex;
         Node.SlaveId = Math.Clamp(SlaveId, (byte)1, (byte)247);
         Node.WriteMode = WriteMode;

@@ -652,8 +652,10 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private void Save()
+    /// <summary>
+    /// Lưu cấu hình MQTT Broker vào ProjectMetadata (Single Source of Truth).
+    /// </summary>
+    public void Apply()
     {
         _metadata.MqttBrokerEnabled = IsEnabled;
         _metadata.MqttBrokerHost = Host?.Trim() ?? string.Empty;
@@ -688,7 +690,53 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _metadata.MqttWillRetain = WillRetain;
 
         _metadata.LastModified = DateTime.UtcNow;
+    }
 
+    /// <summary>
+    /// Nạp lại cấu hình MQTT Broker từ ProjectMetadata.
+    /// </summary>
+    public void ReloadFromMetadata()
+    {
+        IsEnabled = _metadata.MqttBrokerEnabled;
+        Host = _metadata.MqttBrokerHost ?? string.Empty;
+        Port = _metadata.MqttBrokerPort > 0 ? _metadata.MqttBrokerPort : 1883;
+        ClientId = _metadata.MqttClientId ?? string.Empty;
+        Username = _metadata.MqttUsername ?? string.Empty;
+        Password = _metadata.MqttPassword ?? string.Empty;
+        UseTls = _metadata.MqttTlsEnabled;
+        CleanSession = _metadata.MqttCleanSession;
+        KeepAliveSec = _metadata.MqttKeepAliveSec > 0 ? _metadata.MqttKeepAliveSec : (ushort)60;
+
+        CaCertPath = _metadata.MqttTlsCaCertPath ?? string.Empty;
+        CaCertPem = _metadata.MqttTlsCaCertPem ?? string.Empty;
+        AllowSelfSigned = _metadata.MqttTlsAllowSelfSigned;
+
+        UseMtls = _metadata.MqttTlsMtlsEnabled;
+        ClientCertPath = _metadata.MqttTlsClientCertPath ?? string.Empty;
+        ClientCertPem = _metadata.MqttTlsClientCertPem ?? string.Empty;
+        ClientKeyPath = _metadata.MqttTlsClientKeyPath ?? string.Empty;
+        ClientKeyPem = _metadata.MqttTlsClientKeyPem ?? string.Empty;
+        ClientKeyPassword = _metadata.MqttTlsClientKeyPassword ?? string.Empty;
+        IgnoreHostname = _metadata.MqttTlsIgnoreHostname;
+        TlsVersionIndex = _metadata.MqttTlsProtocolVersion >= 0 && _metadata.MqttTlsProtocolVersion <= 2 ? _metadata.MqttTlsProtocolVersion : 0;
+        SniHostname = _metadata.MqttTlsSniHostname ?? string.Empty;
+
+        WillEnabled = _metadata.MqttWillEnabled;
+        WillTopic = _metadata.MqttWillTopic ?? string.Empty;
+        WillPayload = string.IsNullOrEmpty(_metadata.MqttWillPayload) ? "{\"status\":\"offline\"}" : _metadata.MqttWillPayload;
+        WillQos = _metadata.MqttWillQos;
+        WillRetain = _metadata.MqttWillRetain;
+
+        if (!string.IsNullOrWhiteSpace(CaCertPem))
+        {
+            ParseCertPem(CaCertPem, CaCertPath);
+        }
+    }
+
+    [RelayCommand]
+    private void Save()
+    {
+        Apply();
         RequestClose?.Invoke();
     }
 

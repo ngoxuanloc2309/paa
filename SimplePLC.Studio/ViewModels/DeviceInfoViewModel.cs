@@ -3,9 +3,13 @@ using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// ViewModel for displaying device hardware identity, I/O memory layout, and communication status.
+/// </summary>
 public sealed class DeviceInfoViewModel : ObservableObject
 {
     public string DeviceModel { get; init; } = "SynaptiX SYNX-RIO-884";
+    public string TargetModelText { get; init; } = "SynaptiX SYNX-RIO-884";
     public string DeviceClassText { get; init; } = "Remote I/O";
     public string DeviceVariantText { get; init; } = "8DI / 8DO / 4AI";
     public string HwVersion { get; init; } = "1.0.0";

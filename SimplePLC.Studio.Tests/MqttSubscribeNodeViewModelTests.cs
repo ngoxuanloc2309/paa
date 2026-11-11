@@ -4,6 +4,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests cho <see cref="MqttSubscribeNodeViewModel"/> kiểm thử luồng nhận lệnh MQTT Subscribe,
+/// quản lý chân kết nối, đồng bộ loại dữ liệu và xử lý hàng đợi.
+/// </summary>
 public class MqttSubscribeNodeViewModelTests
 {
     [Fact]
@@ -253,6 +257,76 @@ public class MqttSubscribeNodeViewModelTests
 
         node.QueueMode = MqttQueueMode.Fifo;
         Assert.Equal("FIFO (8)", node.QueueModeSummaryText);
+
+
+
+
+    }
+
+    [Fact]
+    public void MqttPin_DataTypeChange_ToBool_ResetsIncompatibleTargetTag_ToNone()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        var pin = new MqttPinBindingViewModel("TargetSpeed", "speed", MqttDataType.Int16);
+        dialog.ConfigurePinTagProvider(pin);
+        node.Pins.Add(pin);
+
+        var vreg = tagCatalog.AllTags.First(t => t.Kind == SimplePLC.Domain.Enums.TagKind.VirtualRegister);
+        pin.TargetTag = vreg;
+        Assert.Equal(vreg, pin.TargetTag);
+
+        // Switch DataType to Bool -> VREG is no longer in AvailableTags -> Must reset to None
+        pin.DataType = MqttDataType.Bool;
+        Assert.NotNull(pin.TargetTag);
+        Assert.Equal(SimplePLC.Domain.Enums.TagKind.None, pin.TargetTag.Kind);
+    }
+
+    [Fact]
+    public void MqttPin_TargetTagSelection_AutoSyncsDataType()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var vr0 = tagCatalog.AllTags.First(t => t.Name == "VREG0");
+        vr0.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+
+        var do0 = tagCatalog.AllTags.First(t => t.Name == "DO0");
+
+        var pin = new MqttPinBindingViewModel("TestPin", "test", MqttDataType.Int16);
+        pin.TagProvider = dt => tagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dt, includeNone: true);
+
+        // 1. Select DO0 (Digital) -> Auto-syncs to Bool
+        pin.TargetTag = do0;
+        Assert.Equal(MqttDataType.Bool, pin.DataType);
+
+        // 2. Select VREG0 (Float32) -> Auto-syncs to Float
+        pin.TargetTag = vr0;
+        Assert.Equal(MqttDataType.Float, pin.DataType);
+    }
+
+    [Fact]
+    public void MqttSubConfigDialogViewModel_ConfiguresPinTagProvider_WithWriteTargetOnly()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        dialog.AddPin();
+        var pin = node.Pins[0];
+        Assert.NotNull(pin.TagProvider);
+
+        pin.DataType = MqttDataType.Bool;
+        var available = pin.AvailableTags.ToList();
+
+        Assert.NotEmpty(available);
+        Assert.All(available, t =>
+        {
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.DiscreteInput, "DiscreteInput must NOT be in AvailableTags");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.AnalogInput, "AnalogInput must NOT be in AvailableTags");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.System, "System tag must NOT be in AvailableTags");
+        });
+
     }
 }
 

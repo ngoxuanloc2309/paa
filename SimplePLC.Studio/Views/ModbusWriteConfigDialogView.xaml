@@ -274,6 +274,10 @@
 
                                               Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center" />
 
+                                    <TextBlock Text="{Binding RestrictedIdErrorMessage}" 
+                                               Visibility="{Binding HasRestrictedIdError, Converter={StaticResource BoolToVis}}" 
+                                               FontSize="10" Foreground="{DynamicResource DangerBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+
                                 </StackPanel>
 
 

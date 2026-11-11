@@ -22,6 +22,392 @@ namespace SimplePLC.Studio.ViewModels;
 public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 {
     private readonly ProjectMetadata _metadata;
+    /// <summary>
+    /// Danh mục Tag toàn dự án dùng để tra cứu hoặc tạo mới Tag khi sinh FBD.
+    /// </summary>
+    public TagCatalogViewModel? TagCatalog { get; set; }
+
+    /// <summary>
+    /// ViewModel bộ soạn thảo FBD Logic dùng để tự động thả và nối dây các khối Gateway.
+    /// </summary>
+    public LogicEditorViewModel? LogicEditor { get; set; }
+
+    /// <summary>
+    /// Callback yêu cầu đóng cửa sổ Wizard (truyền true nếu hoàn tất nạp/sinh FBD thành công).
+    /// </summary>
+    public Action<bool>? RequestCloseDialog { get; set; }
+
+    /// <summary>
+    /// Callback yêu cầu đọc cấu hình trực tiếp từ phần cứng DTU.
+    /// </summary>
+    public Func<Task>? UploadFromDeviceRequested { get; set; }
+
+    /// <summary>
+    /// Callback mở hộp thoại trình hướng dẫn nhanh 1-2-3 (Quick Wizard).
+    /// </summary>
+    public Action? OpenQuickWizardRequested { get; set; }
+
+    // --- HARDWARE CONNECTION & ACTION BAR STATE ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedRssi))]
+    [NotifyPropertyChangedFor(nameof(SignalQualityPercent))]
+    private bool _isHardwareConnected;
+
+    [ObservableProperty]
+    private string _hardwarePortName = string.Empty;
+
+    [ObservableProperty]
+    private string _hardwareModelName = "SYNX-DTU-485";
+
+    [ObservableProperty]
+    private string _hardwareConnectionStatusBadge = "○ Chưa kết nối phần cứng";
+
+    /// <summary>
+    /// Cập nhật trạng thái kết nối phần cứng thời gian thực từ MainViewModel / LifecycleManager.
+    /// </summary>
+    public void UpdateHardwareConnectionState(bool isConnected, string port, string model)
+    {
+        IsHardwareConnected = isConnected;
+        HardwarePortName = port;
+        HardwareModelName = string.IsNullOrWhiteSpace(model) ? "SYNX-DTU-485" : model;
+        LiveTestInspectorVM.UpdateDeviceConnection(isConnected, port, HardwareModelName);
+
+        if (isConnected)
+        {
+            string portText = string.IsNullOrWhiteSpace(port) ? "COM" : port;
+            HardwareConnectionStatusBadge = LocalizationService.Instance.IsVietnamese
+                ? $"{portText}: ĐÃ KẾT NỐI ({HardwareModelName})"
+                : $"{portText}: CONNECTED ({HardwareModelName})";
+        }
+        else
+        {
+            HardwareConnectionStatusBadge = LocalizationService.Instance.IsVietnamese
+                ? "Chưa kết nối phần cứng"
+                : "Hardware Disconnected";
+        }
+    }
+
+    [RelayCommand]
+    public async Task UploadFromDeviceAsync()
+    {
+        if (UploadFromDeviceRequested != null)
+        {
+            await UploadFromDeviceRequested.Invoke();
+        }
+        else
+        {
+            DeployStatusMessage = LocalizationService.Instance.IsVietnamese
+                ? "Chưa kết nối phần cứng hoặc tính năng Upload không khả dụng."
+                : "Device not connected or Upload handler unavailable.";
+        }
+    }
+
+    [RelayCommand]
+    public void OpenQuickWizard()
+    {
+        OpenQuickWizardRequested?.Invoke();
+    }
+
+    // --- VERTICAL SIDEBAR NAVIGATION STATE ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSectionRs485))]
+    [NotifyPropertyChangedFor(nameof(IsSectionWifi))]
+    [NotifyPropertyChangedFor(nameof(IsSectionMqtt))]
+    [NotifyPropertyChangedFor(nameof(IsSectionHttp))]
+    [NotifyPropertyChangedFor(nameof(IsSectionTcp))]
+    [NotifyPropertyChangedFor(nameof(IsSectionZigbee))]
+    [NotifyPropertyChangedFor(nameof(IsSectionUplink))]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorTitle))]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    private int _selectedSectionIndex = 0; // 0: RS-485, 1: Wi-Fi, 2: MQTT Client, 3: HTTP Client, 4: TCP Client, 5: Zigbee Wireless
+
+    public bool IsSectionRs485 => SelectedSectionIndex == 0;
+    public bool IsSectionWifi => SelectedSectionIndex == 1;
+    public bool IsSectionMqtt => SelectedSectionIndex == 2;
+    public bool IsSectionHttp => SelectedSectionIndex == 3;
+    public bool IsSectionTcp => SelectedSectionIndex == 4;
+    public bool IsSectionZigbee => SelectedSectionIndex == 5;
+    public bool IsSectionUplink => IsSectionMqtt || IsSectionHttp || IsSectionTcp;
+
+    public string ActiveInspectorTitle
+    {
+        get
+        {
+            return SelectedSectionIndex switch
+            {
+                0 => LiveTestInspectorVM?.InspectorHeaderTitle ?? LocalizationService.Instance["DtuInspectorHeaderTitle"],
+                1 => LocalizationService.Instance["InspectorWifiHeaderTitle"],
+                2 => LocalizationService.Instance["InspectorMqttHeaderTitle"],
+                3 => LocalizationService.Instance["InspectorHttpHeaderTitle"],
+                4 => LocalizationService.Instance["InspectorTcpHeaderTitle"],
+                5 => LocalizationService.Instance["InspectorZigbeeHeaderTitle"],
+                _ => LocalizationService.Instance["DtuInspectorHeaderTitle"]
+            };
+        }
+    }
+
+    public string ActiveInspectorSubtitle
+    {
+        get
+        {
+            return SelectedSectionIndex switch
+            {
+                0 => LiveTestInspectorVM?.InspectorHeaderSubtitle ?? LocalizationService.Instance["DtuInspectorHeaderSubtitle"],
+                1 => WifiEnabled
+                    ? (string.IsNullOrWhiteSpace(WifiSsid)
+                        ? LocalizationService.Instance["InspectorWifiHeaderSubtitle"]
+                        : string.Format(LocalizationService.Instance["InspectorWifiConnectedSubtitle"], WifiSsid, WifiDhcpEnabled ? "DHCP" : WifiStaticIp))
+                    : LocalizationService.Instance["InspectorWifiDisabledSubtitle"],
+                2 => LocalizationService.Instance["InspectorMqttHeaderSubtitle"],
+                3 => LocalizationService.Instance["InspectorHttpHeaderSubtitle"],
+                4 => LocalizationService.Instance["InspectorTcpHeaderSubtitle"],
+                5 => LocalizationService.Instance["InspectorZigbeeHeaderSubtitle"],
+                _ => LocalizationService.Instance["DtuInspectorHeaderSubtitle"]
+            };
+        }
+    }
+
+    [RelayCommand]
+    public void SelectSection(object? param)
+    {
+        if (param is int i) SelectedSectionIndex = i;
+        else if (param != null && int.TryParse(param.ToString(), out int parsed)) SelectedSectionIndex = parsed;
+    }
+
+        [ObservableProperty]
+    private bool _isInspectorExpanded = true;
+
+    [ObservableProperty]
+    private bool _isWireFrameExpanded = false;
+
+    /// <summary>
+    /// Đóng/mở chi tiết khung truyền Modbus RTU Wire Frame (Moxa Style) on-demand.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleWireFrame()
+    {
+        IsWireFrameExpanded = !IsWireFrameExpanded;
+    }
+
+    /// <summary>
+    /// Thu gọn hoặc mở rộng bảng Inspector bên phải để tối ưu hóa không gian làm việc.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleInspector()
+    {
+        IsInspectorExpanded = !IsInspectorExpanded;
+    }
+
+    // Status Badges for Sidebar Navigation
+    public string Rs485StatusBadge
+    {
+        get
+        {
+            if (ModbusPortConfigVM?.SelectedPort?.IsSlaveMode ?? (SerialMode == "ModbusSlave"))
+                return "Slave";
+            int count = FastRegisters.Count;
+            if (count > 0)
+            {
+                return LocalizationService.Instance.IsVietnamese ? $"{count} kênh" : $"{count} regs";
+            }
+            return $"{BaudRate} bps";
+        }
+    }
+
+    /// <summary>
+    /// Thuộc tính tốc độ Baud phục vụ Inspector và DataBinding.
+    /// </summary>
+    public uint SerialBaudRate => BaudRate;
+
+    public string WifiStatusBadge => WifiEnabled
+        ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    public string UplinkStatusBadge => UplinkMode switch { "Http" => "HTTP REST", "TcpClient" => "TCP Socket", _ => "MQTT" };
+
+    public string MqttSidebarBadgeText => (MqttBrokerConfigVM?.IsEnabled ?? false)
+        ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    public string HttpSidebarBadgeText => HttpEnabled
+        ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    public string TcpSidebarBadgeText => TcpEnabled
+        ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    // --- WI-FI NETWORK CONFIGURATION ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WifiStatusBadge))]
+    [NotifyPropertyChangedFor(nameof(FormattedRssi))]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    [NotifyPropertyChangedFor(nameof(WifiActiveDisplay))]
+    private bool _wifiEnabled;
+
+    /// <summary>
+    /// Chuỗi hiển thị trạng thái kích hoạt Wi-Fi (Đã bật / Đã tắt).
+    /// </summary>
+    public string WifiActiveDisplay => WifiEnabled 
+        ? (LocalizationService.Instance.IsVietnamese ? "Đã bật" : "Enabled") 
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WifiAutoReconnectDisplay))]
+    private bool _wifiAutoReconnect = true;
+
+    /// <summary>
+    /// Chuỗi hiển thị trạng thái tự động kết nối lại (Bật / Tắt).
+    /// </summary>
+    public string WifiAutoReconnectDisplay => WifiAutoReconnect 
+        ? (LocalizationService.Instance.IsVietnamese ? "Bật" : "Enabled") 
+        : (LocalizationService.Instance.IsVietnamese ? "Tắt" : "Disabled");
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WifiStatusBadge))]
+    [NotifyPropertyChangedFor(nameof(WifiSsidDisplay))]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    private string _wifiSsid = string.Empty;
+
+    /// <summary>
+    /// Chuỗi hiển thị tên mạng Wi-Fi (SSID). Nếu chưa đặt SSID, hiển thị chuỗi giữ chỗ rõ ràng.
+    /// </summary>
+    public string WifiSsidDisplay => !string.IsNullOrWhiteSpace(WifiSsid)
+        ? WifiSsid
+        : LocalizationService.Instance["WifiNoSsidPlaceholder"];
+
+    [ObservableProperty]
+    private string _wifiPassword = string.Empty;
+
+    [ObservableProperty]
+    private bool _isWifiPasswordVisible = false;
+
+    [RelayCommand]
+    public void ToggleWifiPasswordVisibility() => IsWifiPasswordVisible = !IsWifiPasswordVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    [NotifyPropertyChangedFor(nameof(WifiIpAssignmentDisplay))]
+    private bool _wifiDhcpEnabled = true;
+
+    /// <summary>
+    /// Chuỗi hiển thị cơ chế cấp phát IP (DHCP Client tự động hoặc IP tĩnh).
+    /// </summary>
+    public string WifiIpAssignmentDisplay => WifiDhcpEnabled
+        ? LocalizationService.Instance["WifiIpDhcpAuto"]
+        : LocalizationService.Instance["WifiIpStaticManual"];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    private string _wifiStaticIp = "192.168.1.50";
+
+    [ObservableProperty]
+    private string _wifiSubnetMask = "255.255.255.0";
+
+    [ObservableProperty]
+    private string _wifiGateway = "192.168.1.1";
+
+    [ObservableProperty]
+    private string _wifiDns = "8.8.8.8";
+
+    // --- UPLINK PROTOCOL SWITCHING HELPERS ---
+    public bool IsUplinkMqtt => string.Equals(UplinkMode, "Mqtt", StringComparison.OrdinalIgnoreCase);
+    public bool IsUplinkHttp => string.Equals(UplinkMode, "Http", StringComparison.OrdinalIgnoreCase);
+    public bool IsUplinkTcp => string.Equals(UplinkMode, "TcpClient", StringComparison.OrdinalIgnoreCase);
+
+    [RelayCommand]
+    public void SetSerialMode(string mode)
+    {
+        SerialMode = mode;
+        if (ModbusPortConfigVM?.SelectedPort != null)
+        {
+            ModbusPortConfigVM.SelectedPort.Role = mode == "ModbusSlave" ? "Slave" : "Master";
+        }
+        NotifyPortRelatedProperties();
+    }
+
+    [RelayCommand]
+    public void SetUplinkMode(string mode)
+    {
+        UplinkMode = mode;
+        OnPropertyChanged(nameof(IsUplinkMqtt));
+        OnPropertyChanged(nameof(IsUplinkHttp));
+        OnPropertyChanged(nameof(IsUplinkTcp));
+        OnPropertyChanged(nameof(UplinkStatusBadge));
+        OnPropertyChanged(nameof(SummaryTopologyText));
+        OnPropertyChanged(nameof(EstimatedScanCycleMs));
+        OnPropertyChanged(nameof(EstimatedBusLoadText));
+        OnPropertyChanged(nameof(EstimatedMonthlyDataMb));
+        UpdateSummaryAndPreview();
+    }
+
+    // --- STEP WIZARD STATE (Multi-Step Guided Flow) ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStep1))]
+    [NotifyPropertyChangedFor(nameof(IsStep2))]
+    [NotifyPropertyChangedFor(nameof(IsStep3))]
+    [NotifyPropertyChangedFor(nameof(CanGoNext))]
+    [NotifyPropertyChangedFor(nameof(CanGoBack))]
+    [NotifyPropertyChangedFor(nameof(IsLastStep))]
+    private int _currentStepIndex = 1; // 1: RS-485 Modbus, 2: Uplink Protocol, 3: Timing & Review
+
+    public bool IsStep1 => CurrentStepIndex == 1;
+    public bool IsStep2 => CurrentStepIndex == 2;
+    public bool IsStep3 => CurrentStepIndex == 3;
+    public bool CanGoBack => CurrentStepIndex > 1;
+    public bool CanGoNext => CurrentStepIndex < 3 && IsCurrentStepValid;
+    public bool IsLastStep => CurrentStepIndex == 3;
+
+    public bool IsCurrentStepValid => CurrentStepIndex switch
+    {
+        1 => FastRegisters.Count > 0 || SerialMode == "ModbusSlave",
+        2 => !string.IsNullOrWhiteSpace(UplinkTargetHost),
+        3 => PublishIntervalSec > 0,
+        _ => true
+    };
+
+    public string UplinkTargetHost => UplinkMode switch
+    {
+        "Http" => HttpUrl,
+        "TcpClient" => TcpRemoteHost,
+        _ => MqttHost
+    };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
+    private ushort _publishIntervalSec = 10;
+
+    [ObservableProperty]
+    private bool _autoGenerateFbd = true;
+
+    [ObservableProperty]
+    private bool _sendOnChange = true;
+
+    [ObservableProperty]
+    private string _livePayloadPreview = "{\n  \"device\": \"SYNX-DTU-485\",\n  \"ts\": 1714800000,\n  \"NhietDo_C\": 25.5\n}";
+
+    /// <summary>
+    /// Danh sách các thanh ghi cảm biến cần đọc nhanh (Step 1).
+    /// </summary>
+    public ObservableCollection<DtuFastRegisterItem> FastRegisters { get; } = new();
+
+    public string SummaryTopologyText
+    {
+        get
+        {
+            string src = SerialMode == "ModbusMaster"
+                ? $"Modbus Master ({FastRegisters.Count} regs)"
+                : "Modbus Slave";
+            string dest = UplinkMode switch
+            {
+                "Http" => $"HTTP POST -> {HttpUrl}",
+                "TcpClient" => $"TCP Socket -> {TcpRemoteHost}:{TcpRemotePort}",
+                _ => $"MQTT -> {MqttHost}:{MqttPort} ({MqttPublishTopic})"
+            };
+            return $"{src}  ===>  {dest}";
+        }
+    }
+
 
     [ObservableProperty]
     private int _selectedTabIndex = 0; // 0: RS-485, 1: Uplink, 2: JSON, 3: Live Monitor
@@ -31,7 +417,15 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private int _selectedPortIndex = 0;
 
     [ObservableProperty]
-    private string _serialMode = "Transference"; // Transference, ModbusMaster, ModbusSlave
+    [NotifyPropertyChangedFor(nameof(CanGoNext))]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
+    [NotifyPropertyChangedFor(nameof(IsMasterMode))]
+    [NotifyPropertyChangedFor(nameof(IsSlaveMode))]
+    [NotifyPropertyChangedFor(nameof(Rs485StatusBadge))]
+    private string _serialMode = "ModbusMaster"; // ModbusMaster, ModbusSlave
+
+    public bool IsMasterMode => SerialMode == "ModbusMaster";
+    public bool IsSlaveMode => SerialMode == "ModbusSlave";
 
     [ObservableProperty]
     private uint _baudRate = 9600;
@@ -57,12 +451,128 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     [ObservableProperty]
     private byte _slaveId = 1;
 
+    [ObservableProperty]
+    private string _portName = "RS-485 #1";
+
+    [ObservableProperty]
+    private ushort _retryCount = 1;
+
+    [ObservableProperty]
+    private ushort _interFrameDelayMs = 20;
+
+    public IReadOnlyList<uint> AvailableBaudRates { get; } = new uint[] { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200 };
+    public IReadOnlyList<string> AvailableParities { get; } = new string[] { "None", "Even", "Odd" };
+    public IReadOnlyList<byte> AvailableDataBits { get; } = new byte[] { 7, 8 };
+    public IReadOnlyList<byte> AvailableStopBits { get; } = new byte[] { 1, 2 };
+    public IReadOnlyList<int> AvailableQosLevels { get; } = new int[] { 0, 1, 2 };
+
+    [ObservableProperty]
+    private ushort _pollingIntervalMs = 500;
+
+    [ObservableProperty]
+    private string _wifiDnsSecondary = "1.1.1.1";
+
+    [ObservableProperty]
+    private string _hardwareMacAddress = "24:6F:28:8A:4C:12";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedRssi))]
+    [NotifyPropertyChangedFor(nameof(SignalQualityPercent))]
+    private string _signalRssi = "-58 dBm (Tốt)";
+
+    /// <summary>
+    /// Phần trăm chất lượng tín hiệu Wi-Fi (0 - 100%) dùng cho thanh hiển thị trực quan.
+    /// </summary>
+    public int SignalQualityPercent
+    {
+        get
+        {
+            if (!WifiEnabled) return 0;
+            if (WifiVM != null && WifiVM.SignalQualityPercent > 0)
+            {
+                return WifiVM.SignalQualityPercent;
+            }
+            if (!IsHardwareConnected) return 0;
+            return 84; // -58 dBm tương đương ~84%
+        }
+    }
+
+    public string FormattedRssi
+    {
+        get
+        {
+            if (!WifiEnabled)
+            {
+                return LocalizationService.Instance["WifiRssiRadioOff"];
+            }
+            if (!IsHardwareConnected)
+            {
+                return LocalizationService.Instance["WifiRssiOffline"];
+            }
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (WifiVM != null && WifiVM.RssiDbm != -100 && WifiVM.RssiDbm != 0)
+            {
+                string quality = WifiVM.RssiDbm >= -65 
+                    ? (isVi ? "Tốt" : "Good") 
+                    : (WifiVM.RssiDbm >= -75 ? (isVi ? "Khá" : "Fair") : (isVi ? "Yếu" : "Weak"));
+                return $"{WifiVM.RssiDbm} dBm ({quality})";
+            }
+            return isVi ? "-58 dBm (Tốt)" : "-58 dBm (Good)";
+        }
+    }
+
+    [ObservableProperty]
+    private string _connectionStateText = "Sẵn sàng kết nối";
+
+    [ObservableProperty]
+    private ObservableCollection<string> _availableSsids = new() { "SynaptiX_Lab_5G", "Factory_IoT_Gateway", "Plant_Floor_4.0", "Sensor_Mesh_Network" };
+
+    [RelayCommand]
+    public void ScanNetworks()
+    {
+        ConnectionStateText = LocalizationService.Instance["WifiScanningText"];
+        AvailableSsids.Clear();
+        AvailableSsids.Add("SynaptiX_Lab_5G");
+        AvailableSsids.Add("Factory_IoT_Gateway");
+        AvailableSsids.Add("Plant_Floor_4.0");
+        AvailableSsids.Add("Sensor_Mesh_Network");
+        ConnectionStateText = string.Format(LocalizationService.Instance["WifiScanFoundFormat"], AvailableSsids.Count);
+    }
+
+    public ObservableCollection<ModbusSlaveMapEntryModel> SlaveMapEntries { get; } = new();
+
+    [RelayCommand]
+    public void AddSlaveMapEntry()
+    {
+        SlaveMapEntries.Add(new ModbusSlaveMapEntryModel
+        {
+            ModbusAddress = (ushort)(40001 + SlaveMapEntries.Count),
+            TargetTagName = $"SLAVE_REG_{SlaveMapEntries.Count + 1}",
+            DataType = 2,
+            AccessRight = "ReadWrite",
+            Description = "Thanh ghi Modbus Slave"
+        });
+    }
+
+    [RelayCommand]
+    public void RemoveSlaveMapEntry(ModbusSlaveMapEntryModel? entry)
+    {
+        if (entry != null)
+        {
+            SlaveMapEntries.Remove(entry);
+        }
+    }
+
     // --- Uplink Network Settings ---
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UplinkTargetHost))]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
     private string _uplinkMode = "Mqtt"; // Mqtt, Http, TcpClient, TcpServer
 
     // MQTT
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UplinkTargetHost))]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
     private string _mqttHost = "broker.hivemq.com";
 
     [ObservableProperty]
@@ -72,12 +582,14 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private string _mqttClientId = "synaptix_dtu_01";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MqttAuthTypeDisplay))]
     private string _mqttUsername = string.Empty;
 
     [ObservableProperty]
     private string _mqttPassword = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MqttTlsSecurityDisplay))]
     private bool _mqttUseTls = false;
 
     // MQTT TLS / SSL & mTLS Settings (SPLC-SPEC-MQTT-003)
@@ -102,6 +614,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private string _mqttTlsSniHostname = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MqttAuthTypeDisplay))]
     private bool _mqttTlsMtlsEnabled = false;
 
     [ObservableProperty]
@@ -137,6 +650,131 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private string _caCertSha256 = string.Empty;
 
     public bool HasCaCert => !string.IsNullOrWhiteSpace(MqttTlsCaCertPath) || !string.IsNullOrWhiteSpace(MqttTlsCaCertPem);
+
+    /// <summary>
+    /// Chuỗi hiển thị trạng thái mã hóa bảo mật TLS cho panel Inspector.
+    /// </summary>
+    public string MqttTlsSecurityDisplay => MqttUseTls
+        ? (LocalizationService.Instance.IsVietnamese ? "Bật (TLS v1.2/1.3)" : "Enabled (TLS v1.2/1.3)")
+        : (LocalizationService.Instance.IsVietnamese ? "Tắt" : "Disabled");
+
+    /// <summary>
+    /// Chuỗi hiển thị phương thức xác thực danh tính cho panel Inspector.
+    /// </summary>
+    public string MqttAuthTypeDisplay
+    {
+        get
+        {
+            if (MqttTlsMtlsEnabled)
+            {
+                return LocalizationService.Instance.IsVietnamese ? "Chứng chỉ mTLS x509" : "mTLS x509 Certificate";
+            }
+            if (!string.IsNullOrWhiteSpace(MqttUsername))
+            {
+                return LocalizationService.Instance.IsVietnamese ? "Tên người dùng / Mật khẩu" : "Username / Password";
+            }
+            return LocalizationService.Instance.IsVietnamese ? "Không xác thực" : "None (Anonymous)";
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi hiển thị chế độ phát bản tin Telemetry Publish (định kỳ hoặc xung kích hoạt).
+    /// </summary>
+    public string MqttPublishModeDisplay
+    {
+        get
+        {
+            if (MqttTelemetryNode == null) return "—";
+            if (MqttTelemetryNode.IsEventMode)
+                return LocalizationService.Instance.IsVietnamese ? "Theo xung kích hoạt (Trig)" : "On Trigger (Trig)";
+            if (MqttTelemetryNode.IsCovMode)
+                return $"COV (Δ{MqttTelemetryNode.Deadband})";
+            return LocalizationService.Instance.IsVietnamese 
+                ? $"Định kỳ ({MqttTelemetryNode.IntervalMs}ms)" 
+                : $"Periodic ({MqttTelemetryNode.IntervalMs}ms)";
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi hiển thị chế độ hàng đợi nhận lệnh MQTT Subscribe.
+    /// </summary>
+    public string MqttQueueModeDisplay => MqttCommandNode?.QueueModeSummaryText ?? "FIFO (16)";
+
+    /// <summary>
+    /// Chuỗi tổng quan số lượng trường dữ liệu xuất bản Telemetry Publish.
+    /// </summary>
+    public string MqttPublishFieldsSummaryText
+    {
+        get
+        {
+            int count = MqttTelemetryNode?.Fields?.Count ?? 0;
+            return LocalizationService.Instance.IsVietnamese ? $"{count} trường" : $"{count} fields";
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi tổng quan số lượng cổng lệnh nhận về Command Subscribe.
+    /// </summary>
+    public string MqttSubscribePinsSummaryText
+    {
+        get
+        {
+            int count = MqttCommandNode?.Pins?.Count ?? 0;
+            return LocalizationService.Instance.IsVietnamese ? $"{count} lệnh" : $"{count} commands";
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi hiển thị tỷ lệ pin đã được ánh xạ tới Tag ghi hợp lệ.
+    /// </summary>
+    public string MqttMappedTagsSummaryText
+    {
+        get
+        {
+            int mapped = MqttCommandNode?.Pins?.Count(p => p.TargetTag != null && p.TargetTag.Kind != TagKind.None) ?? 0;
+            int total = MqttCommandNode?.Pins?.Count ?? 0;
+            return $"{mapped}/{total} tags";
+        }
+    }
+
+    /// <summary>
+    /// Ước tính dung lượng payload JSON mỗi bản tin telemetry gửi đi.
+    /// </summary>
+    public string MqttEstimatedPayloadSizeText
+    {
+        get
+        {
+            int fieldCount = MqttTelemetryNode?.Fields?.Count ?? 0;
+            int estBytes = Math.Max(64, (fieldCount * 32) + 70);
+            return $"~{estBytes} bytes / msg";
+        }
+    }
+
+    /// <summary>
+    /// Tên chủ đề xuất bản MQTT Telemetry (Thuộc tính tương thích hai chiều của MqttPublishTopic).
+    /// </summary>
+    public string MqttTopic
+    {
+        get => MqttPublishTopic;
+        set => MqttPublishTopic = value;
+    }
+
+    public void NotifyMqttPubSummary()
+    {
+        OnPropertyChanged(nameof(MqttPublishTopic));
+        OnPropertyChanged(nameof(MqttTopic));
+        OnPropertyChanged(nameof(MqttPublishModeDisplay));
+        OnPropertyChanged(nameof(MqttPublishFieldsSummaryText));
+        OnPropertyChanged(nameof(MqttEstimatedPayloadSizeText));
+    }
+
+    public void NotifyMqttSubSummary()
+    {
+        OnPropertyChanged(nameof(MqttSubscribeTopic));
+        OnPropertyChanged(nameof(MqttQueueModeDisplay));
+        OnPropertyChanged(nameof(MqttSubscribePinsSummaryText));
+        OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
+    }
 
     [ObservableProperty]
     private string _clientCertSubject = string.Empty;
@@ -187,15 +825,26 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     // HTTP REST API
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HttpSidebarBadgeText))]
+    private bool _httpEnabled = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UplinkTargetHost))]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
+    [NotifyPropertyChangedFor(nameof(HttpEndpointDisplay))]
     private string _httpUrl = "https://api.factory-cloud.io/v1/telemetry";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HttpSidebarBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HttpMethodDisplay))]
     private string _httpMethod = "POST";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HttpHeadersDisplay))]
     private string _httpHeaders = "Content-Type: application/json\nAuthorization: Bearer token123";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HttpTimeoutDisplay))]
     private ushort _httpTimeoutSec = 10;
 
     [ObservableProperty]
@@ -211,10 +860,22 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     public ObservableCollection<DtuHttpFieldModel> HttpFields { get; } = new();
 
+    public string HttpHeadersText { get => HttpHeaders; set => HttpHeaders = value; }
+    public string HttpEndpointDisplay => string.IsNullOrWhiteSpace(HttpUrl) ? "https://..." : HttpUrl;
+    public string HttpMethodDisplay => HttpMethod;
+    public string HttpTimeoutDisplay => $"{HttpTimeoutSec}s";
+    public string HttpHeadersDisplay => string.IsNullOrWhiteSpace(HttpHeaders)
+        ? (LocalizationService.Instance.IsVietnamese ? "Mặc định (JSON)" : "Default (JSON)")
+        : $"{HttpHeaders.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length} headers";
+    public string HttpFieldCountDisplay => LocalizationService.Instance.IsVietnamese
+        ? $"{HttpFields.Count} trường"
+        : $"{HttpFields.Count} fields";
+
     [RelayCommand]
     private void AddHttpField()
     {
         HttpFields.Add(new DtuHttpFieldModel { Key = $"field{HttpFields.Count + 1}", ValueSource = "Payload" });
+        OnPropertyChanged(nameof(HttpFieldCountDisplay));
     }
 
     [RelayCommand]
@@ -223,17 +884,28 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         if (field != null)
         {
             HttpFields.Remove(field);
+            OnPropertyChanged(nameof(HttpFieldCountDisplay));
         }
     }
 
     // TCP Socket
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpSidebarBadgeText))]
+    private bool _tcpEnabled = false;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpModeDisplay))]
     private string _tcpSocketMode = "Client"; // Client, Server
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UplinkTargetHost))]
+    [NotifyPropertyChangedFor(nameof(SummaryTopologyText))]
+    [NotifyPropertyChangedFor(nameof(TcpServerDisplay))]
     private string _tcpRemoteHost = "192.168.1.100";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpSidebarBadgeText))]
+    [NotifyPropertyChangedFor(nameof(TcpPortDisplay))]
     private ushort _tcpRemotePort = 8888;
 
     [ObservableProperty]
@@ -243,16 +915,27 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private ushort _tcpReconnectDelaySec = 5;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpHeartbeatDisplay))]
     private ushort _tcpHeartbeatIntervalSec = 30;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpHeartbeatDisplay))]
     private string _tcpHeartbeatPayload = "PING";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TcpRegDisplay))]
     private string _tcpRegistrationType = "None"; // None, OnConnect, PrependToEveryPacket
 
     [ObservableProperty]
     private string _tcpRegistrationPayload = "{{DEVICE_ID}}";
+
+    public string TcpServerHost { get => TcpRemoteHost; set => TcpRemoteHost = value; }
+    public ushort TcpServerPort { get => TcpRemotePort; set => TcpRemotePort = value; }
+    public string TcpModeDisplay => TcpSocketMode;
+    public string TcpServerDisplay => string.IsNullOrWhiteSpace(TcpRemoteHost) ? "127.0.0.1" : TcpRemoteHost;
+    public string TcpPortDisplay => $"Port {TcpRemotePort}";
+    public string TcpHeartbeatDisplay => $"{TcpHeartbeatIntervalSec}s ({TcpHeartbeatPayload})";
+    public string TcpRegDisplay => TcpRegistrationType;
 
     // --- JSON Formatter & Preview ---
     [ObservableProperty]
@@ -319,15 +1002,548 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     public event Action? RequestClose;
 
     /// <summary>
+    /// Callback thông báo cấu hình thiết bị đã được commit vào ProjectMetadata (được wire bởi MainViewModel để đánh dấu IsProjectDirty).
+    /// </summary>
+    public Action? NotifyConfigurationCommitted { get; set; }
+
+    /// <summary>
+    /// Callback yêu cầu Studio lưu toàn bộ dự án xuống tệp (.splc), được wire bởi MainViewModel.
+    /// </summary>
+    public Action? RequestSaveProject { get; set; }
+
+    /// <summary>
     /// Callback yêu cầu Studio mở hộp thoại cấu hình MQTT Broker nâng cao (TLS/mTLS/Diagnostics).
     /// </summary>
     public Action? OpenMqttBrokerConfigRequested { get; set; }
 
-    public DtuGatewayStudioViewModel(ProjectMetadata metadata)
+    /// <summary>
+    /// ViewModel c?u h?nh ?a c?ng RS-485 Modbus Master & Slave (Single Source of Truth).
+    /// </summary>
+    public ModbusPortConfigViewModel ModbusPortConfigVM { get; }
+
+    /// <summary>
+    /// Năng lực phần cứng hiện tại được ánh xạ từ DevicePreset hoặc ProjectMetadata.
+    /// </summary>
+    public SPLC_HardwareCapabilities CurrentCapabilities
+    {
+        get
+        {
+            if (_metadata.HardwareCapabilities != 0)
+                return (SPLC_HardwareCapabilities)_metadata.HardwareCapabilities;
+
+            var preset = HardwareDevicePreset.BuiltInPresets.FirstOrDefault(p =>
+                (ushort)p.DeviceClass == _metadata.DeviceClass && p.DeviceVariant == _metadata.ProductVariant)
+                ?? HardwareDevicePreset.BuiltInPresets.FirstOrDefault(p => (ushort)p.DeviceClass == _metadata.DeviceClass);
+
+            return preset?.HardwareCapabilities ?? (SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB |
+                   SPLC_HardwareCapabilities.HTTP_CLIENT | SPLC_HardwareCapabilities.TRANSPARENT_STREAM |
+                   SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.ETHERNET |
+                   SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_TCP);
+        }
+    }
+
+    public bool HasRs485Capability => 
+        CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.MODBUS_MASTER) || 
+        CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.MODBUS_SLAVE);
+
+    public bool HasMqttCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.MQTT_PUB) || CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.MQTT_SUB);
+    public bool HasMqttTlsCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.MQTT_TLS_CERT);
+    public bool HasHttpCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.HTTP_CLIENT);
+    public bool HasTcpSocketCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.TRANSPARENT_STREAM);
+    public bool HasWifiCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.WIFI);
+    public bool HasEthernetCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.ETHERNET);
+    public bool HasSdDatalogCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.SD_DATALOG);
+    public bool HasZigbeeCapability => CurrentCapabilities.HasFlag(SPLC_HardwareCapabilities.ZIGBEE);
+
+    public bool HasSystemCapability => 
+        HasRs485Capability || HasWifiCapability || HasMqttCapability || HasHttpCapability || HasTcpSocketCapability || HasZigbeeCapability;
+
+    /// <summary>
+    /// Tự động chuyển đến section khả dụng đầu tiên nếu section hiện tại không được phần cứng hỗ trợ.
+    /// </summary>
+    public void SelectFirstAvailableSection()
+    {
+        if (IsSectionRs485 && !HasRs485Capability)
+        {
+            if (HasWifiCapability) SelectSection(1);
+            else if (HasMqttCapability) SelectSection(2);
+            else if (HasHttpCapability) SelectSection(3);
+            else if (HasTcpSocketCapability) SelectSection(4);
+        }
+        else if (IsSectionWifi && !HasWifiCapability)
+        {
+            if (HasRs485Capability) SelectSection(0);
+            else if (HasMqttCapability) SelectSection(2);
+            else if (HasHttpCapability) SelectSection(3);
+            else if (HasTcpSocketCapability) SelectSection(4);
+        }
+        else if (IsSectionMqtt && !HasMqttCapability)
+        {
+            if (HasRs485Capability) SelectSection(0);
+            else if (HasWifiCapability) SelectSection(1);
+            else if (HasHttpCapability) SelectSection(3);
+            else if (HasTcpSocketCapability) SelectSection(4);
+        }
+        else if (IsSectionHttp && !HasHttpCapability)
+        {
+            if (HasRs485Capability) SelectSection(0);
+            else if (HasWifiCapability) SelectSection(1);
+            else if (HasMqttCapability) SelectSection(2);
+            else if (HasTcpSocketCapability) SelectSection(4);
+        }
+        else if (IsSectionTcp && !HasTcpSocketCapability)
+        {
+            if (HasRs485Capability) SelectSection(0);
+            else if (HasWifiCapability) SelectSection(1);
+            else if (HasMqttCapability) SelectSection(2);
+            else if (HasHttpCapability) SelectSection(3);
+            else if (HasZigbeeCapability) SelectSection(5);
+        }
+        else if (IsSectionZigbee && !HasZigbeeCapability)
+        {
+            if (HasRs485Capability) SelectSection(0);
+            else if (HasWifiCapability) SelectSection(1);
+            else if (HasMqttCapability) SelectSection(2);
+            else if (HasHttpCapability) SelectSection(3);
+            else if (HasTcpSocketCapability) SelectSection(4);
+        }
+    }
+
+    /// <summary>
+    /// ViewModel cấu hình Broker MQTT (Endpoint, TLS/mTLS, Session, LWT, Ping reachability).
+    /// </summary>
+    public MqttBrokerConfigViewModel MqttBrokerConfigVM { get; }
+
+    /// <summary>
+    /// ViewModel cấu hình mạng Wi-Fi và giám sát tín hiệu không dây.
+    /// </summary>
+    public WifiConfigViewModel WifiVM { get; }
+
+    /// <summary>
+    /// ViewModel cấu hình xuất bản dữ liệu Telemetry MQTT (Topic, QoS, Retain, No-Code JSON Key to Tag mapping).
+    /// </summary>
+    public MqttConfigDialogViewModel MqttTelemetryVM { get; }
+
+    /// <summary>
+    /// Node MQTT Publish nền tảng cung cấp dữ liệu cho MqttTelemetryVM.
+    /// </summary>
+    public MqttPublishNodeViewModel MqttTelemetryNode { get; }
+
+    /// <summary>
+    /// ViewModel cấu hình nhận lệnh Command MQTT (Topic, QoS, Queue Mode, Output Pins list, Payload Test).
+    /// </summary>
+    public MqttSubConfigDialogViewModel MqttCommandVM { get; }
+
+    /// <summary>
+    /// Node MQTT Subscribe nền tảng cung cấp dữ liệu cho MqttCommandVM.
+    /// </summary>
+    public MqttSubscribeNodeViewModel MqttCommandNode { get; }
+
+    /// <summary>
+    /// Node HTTP Client ná»n táº£ng cung cáº¥p dá»¯ liá»‡u cho HttpVM.
+    /// </summary>
+    public HttpClientNodeViewModel HttpNode { get; }
+
+    /// <summary>
+    /// ViewModel cáº¥u hÃ¬nh chuyÃªn sÃ¢u REST API HTTP Client / Webhook (URL, Method, Headers, Visual Field Builder, Live JSON Preview).
+    /// </summary>
+    public HttpClientConfigDialogViewModel HttpVM { get; }
+
+    /// <summary>
+    /// Node TCP Client ná»n táº£ng cung cáº¥p dá»¯ liá»‡u cho TcpVM.
+    /// </summary>
+    public TcpClientNodeViewModel TcpNode { get; }
+
+    /// <summary>
+    /// ViewModel cáº¥u hÃ¬nh chuyÃªn sÃ¢u Socket TCP Client / Stream Passthrough (Host, Port, Registration, Heartbeat, Hex Stream Live Preview).
+    /// </summary>
+    public TcpClientConfigDialogViewModel TcpVM { get; }
+
+    /// <summary>
+    /// ViewModel cấu hình chuyên sâu mạng truyền thông không dây Zigbee Modbus (Channel, PAN ID, Station ID, Antenna, AES-128).
+    /// </summary>
+    public ZigbeeConfigViewModel ZigbeeVM { get; }
+
+    /// <summary>
+    /// Huy hiệu hiển thị tóm tắt trạng thái Zigbee trên thanh điều hướng bên trái.
+    /// </summary>
+    public string ZigbeeSidebarBadgeText => (ZigbeeVM?.IsEnabled ?? false)
+        ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
+        : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionBroker))]
+    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionTelemetry))]
+    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionCommand))]
+    [NotifyPropertyChangedFor(nameof(IsMqttTabBroker))]
+    [NotifyPropertyChangedFor(nameof(IsMqttTabTelemetry))]
+    [NotifyPropertyChangedFor(nameof(IsMqttTabCommand))]
+    private int _mqttActiveSubSection = 0; // 0: Broker Server, 1: Telemetry Publish, 2: Command Subscribe
+
+    public bool IsMqttSubSectionBroker => MqttActiveSubSection == 0;
+    public bool IsMqttSubSectionTelemetry => MqttActiveSubSection == 1;
+    public bool IsMqttSubSectionCommand => MqttActiveSubSection == 2;
+
+    public bool IsMqttTabBroker
+    {
+        get => IsMqttSubSectionBroker;
+        set { if (value) MqttActiveSubSection = 0; }
+    }
+    public bool IsMqttTabTelemetry
+    {
+        get => IsMqttSubSectionTelemetry;
+        set { if (value) MqttActiveSubSection = 1; }
+    }
+    public bool IsMqttTabCommand
+    {
+        get => IsMqttSubSectionCommand;
+        set { if (value) MqttActiveSubSection = 2; }
+    }
+
+    [RelayCommand]
+    public void SelectMqttSubSection(string indexStr)
+    {
+        if (int.TryParse(indexStr, out int idx) && idx >= 0 && idx <= 2)
+        {
+            MqttActiveSubSection = idx;
+        }
+    }
+
+    /// <summary>
+    /// ViewModel quản lý công cụ đọc thử và chẩn đoán thiết bị thật qua cổng COM.
+    /// </summary>
+    public ModbusLiveTestInspectorViewModel LiveTestInspectorVM { get; }
+
+    private ModbusPortItemViewModel? _lastObservedPort;
+
+    private void SyncFromSelectedPort()
+    {
+        if (_lastObservedPort != null)
+        {
+            _lastObservedPort.PropertyChanged -= OnSelectedPortPropertyChanged;
+        }
+
+        var port = ModbusPortConfigVM?.SelectedPort;
+        _lastObservedPort = port;
+
+        if (port != null)
+        {
+            port.PropertyChanged += OnSelectedPortPropertyChanged;
+            PortName = port.PortName;
+            BaudRate = port.BaudRate;
+            DataBits = port.DataBits;
+            Parity = port.Parity;
+            StopBits = port.StopBits;
+            ResponseTimeoutMs = port.ResponseTimeoutMs;
+            RetryCount = port.RetryCount;
+            InterFrameDelayMs = port.InterFrameDelayMs;
+            SlaveId = port.SlaveId;
+            SerialMode = port.IsSlaveMode ? "ModbusSlave" : "ModbusMaster";
+            SelectedPortIndex = port.PortIndex;
+            LiveTestInspectorVM.IsSlaveMode = port.IsSlaveMode;
+            LiveTestInspectorVM.SlaveId = port.SlaveId;
+            LiveTestInspectorVM.BaudRate = port.BaudRate;
+            if (port.IsSlaveMode)
+            {
+                LiveTestInspectorVM.SelectedSlaveRegister = ModbusPortConfigVM?.SelectedFixedRegisterItem
+                    ?? ModbusPortConfigVM?.FilteredFixedRegisterMap?.FirstOrDefault();
+            }
+            else
+            {
+                LiveTestInspectorVM.TargetChannel = port.SelectedMasterChannel;
+            }
+        }
+        else
+        {
+            LiveTestInspectorVM.TargetChannel = null;
+            LiveTestInspectorVM.SelectedSlaveRegister = null;
+        }
+        NotifyPortRelatedProperties();
+    }
+
+    private void OnSelectedPortPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is ModbusPortItemViewModel port)
+        {
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.Role) || e.PropertyName == nameof(ModbusPortItemViewModel.IsSlaveMode) || e.PropertyName == nameof(ModbusPortItemViewModel.IsMasterMode))
+            {
+                SerialMode = port.IsSlaveMode ? "ModbusSlave" : "ModbusMaster";
+                LiveTestInspectorVM.IsSlaveMode = port.IsSlaveMode;
+                if (port.IsSlaveMode)
+                {
+                    LiveTestInspectorVM.SelectedSlaveRegister = ModbusPortConfigVM?.SelectedFixedRegisterItem
+                        ?? ModbusPortConfigVM?.FilteredFixedRegisterMap?.FirstOrDefault();
+                }
+                else
+                {
+                    LiveTestInspectorVM.TargetChannel = port.SelectedMasterChannel;
+                }
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.BaudRate))
+            {
+                BaudRate = port.BaudRate;
+                LiveTestInspectorVM.BaudRate = port.BaudRate;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.SelectedMasterChannel))
+            {
+                LiveTestInspectorVM.TargetChannel = port.SelectedMasterChannel;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.PortName))
+            {
+                PortName = port.PortName;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.SlaveId))
+            {
+                SlaveId = port.SlaveId;
+                LiveTestInspectorVM.SlaveId = port.SlaveId;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.DataBits))
+            {
+                DataBits = port.DataBits;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.Parity))
+            {
+                Parity = port.Parity;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.StopBits))
+            {
+                StopBits = port.StopBits;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.ResponseTimeoutMs))
+            {
+                ResponseTimeoutMs = port.ResponseTimeoutMs;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.RetryCount))
+            {
+                RetryCount = port.RetryCount;
+            }
+            if (e.PropertyName == nameof(ModbusPortItemViewModel.InterFrameDelayMs))
+            {
+                InterFrameDelayMs = port.InterFrameDelayMs;
+            }
+        }
+        NotifyPortRelatedProperties();
+    }
+
+    private void NotifyPortRelatedProperties()
+    {
+        OnPropertyChanged(nameof(BaudRate));
+        OnPropertyChanged(nameof(SerialBaudRate));
+        OnPropertyChanged(nameof(IsMasterMode));
+        OnPropertyChanged(nameof(IsSlaveMode));
+        OnPropertyChanged(nameof(Rs485StatusBadge));
+        OnPropertyChanged(nameof(SummaryTopologyText));
+        OnPropertyChanged(nameof(EstimatedScanCycleMs));
+        OnPropertyChanged(nameof(EstimatedBusLoadText));
+    }
+
+    public DtuGatewayStudioViewModel(ProjectMetadata metadata, TagCatalogViewModel? tagCatalog = null, LogicEditorViewModel? logicEditor = null)
     {
         _metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
+        TagCatalog = tagCatalog;
+        LogicEditor = logicEditor;
+        ModbusPortConfigVM = new ModbusPortConfigViewModel(_metadata, tagCatalog);
+        MqttBrokerConfigVM = new MqttBrokerConfigViewModel(_metadata);
+        MqttBrokerConfigVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(MqttBrokerConfigVM.IsEnabled)) { OnPropertyChanged(nameof(MqttSidebarBadgeText)); }
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.Host)) MqttHost = MqttBrokerConfigVM.Host;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.Port)) MqttPort = MqttBrokerConfigVM.Port;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientId)) MqttClientId = MqttBrokerConfigVM.ClientId;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.Username)) MqttUsername = MqttBrokerConfigVM.Username;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.Password)) MqttPassword = MqttBrokerConfigVM.Password;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.UseTls)) MqttUseTls = MqttBrokerConfigVM.UseTls;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.KeepAliveSec)) MqttKeepAlive = MqttBrokerConfigVM.KeepAliveSec;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.WillEnabled)) MqttWillEnabled = MqttBrokerConfigVM.WillEnabled;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.WillTopic)) MqttWillTopic = MqttBrokerConfigVM.WillTopic;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.WillPayload)) MqttWillPayload = MqttBrokerConfigVM.WillPayload;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.WillQos)) MqttWillQos = MqttBrokerConfigVM.WillQos;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.WillRetain)) MqttWillRetain = MqttBrokerConfigVM.WillRetain;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.CaCertPath)) MqttTlsCaCertPath = MqttBrokerConfigVM.CaCertPath;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.AllowSelfSigned)) MqttTlsAllowSelfSigned = MqttBrokerConfigVM.AllowSelfSigned;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.CaCertPem)) MqttTlsCaCertPem = MqttBrokerConfigVM.CaCertPem;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.IgnoreHostname)) MqttTlsIgnoreHostname = MqttBrokerConfigVM.IgnoreHostname;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.TlsVersionIndex)) MqttTlsProtocolVersion = MqttBrokerConfigVM.TlsVersionIndex;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.SniHostname)) MqttTlsSniHostname = MqttBrokerConfigVM.SniHostname;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.UseMtls)) MqttTlsMtlsEnabled = MqttBrokerConfigVM.UseMtls;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientCertPath)) MqttTlsClientCertPath = MqttBrokerConfigVM.ClientCertPath;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientCertPem)) MqttTlsClientCertPem = MqttBrokerConfigVM.ClientCertPem;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientKeyPath)) MqttTlsClientKeyPath = MqttBrokerConfigVM.ClientKeyPath;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientKeyPem)) MqttTlsClientKeyPem = MqttBrokerConfigVM.ClientKeyPem;
+            else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientKeyPassword)) MqttTlsClientKeyPassword = MqttBrokerConfigVM.ClientKeyPassword;
+        };
+        WifiVM = new WifiConfigViewModel(_metadata, AppServices.Instance.WifiClient);
+        WifiVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(WifiConfigViewModel.IsEnabled)) WifiEnabled = WifiVM.IsEnabled;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.AutoReconnect)) WifiAutoReconnect = WifiVM.AutoReconnect;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.Ssid)) WifiSsid = WifiVM.Ssid;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.Password)) WifiPassword = WifiVM.Password;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.IsDhcp)) WifiDhcpEnabled = WifiVM.IsDhcp;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticIp)) WifiStaticIp = WifiVM.StaticIp;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticSubnet)) WifiSubnetMask = WifiVM.StaticSubnet;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticGateway)) WifiGateway = WifiVM.StaticGateway;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticDns)) WifiDns = WifiVM.StaticDns;
+            else if (e.PropertyName == nameof(WifiConfigViewModel.RssiDbm) || e.PropertyName == nameof(WifiConfigViewModel.SignalQualityPercent))
+            {
+                OnPropertyChanged(nameof(FormattedRssi));
+                OnPropertyChanged(nameof(SignalQualityPercent));
+            }
+            OnPropertyChanged(nameof(WifiStatusBadge));
+            OnPropertyChanged(nameof(WifiSsidDisplay));
+            OnPropertyChanged(nameof(WifiIpAssignmentDisplay));
+        };
+        MqttTelemetryNode = new MqttPublishNodeViewModel();
+        MqttTelemetryVM = new MqttConfigDialogViewModel(MqttTelemetryNode, TagCatalog ?? new TagCatalogViewModel());
+        MqttCommandNode = new MqttSubscribeNodeViewModel();
+        MqttTelemetryNode.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(MqttTelemetryNode.Topic)) MqttPublishTopic = MqttTelemetryNode.Topic;
+            NotifyMqttPubSummary();
+        };
+        MqttTelemetryNode.Fields.CollectionChanged += (s, e) => NotifyMqttPubSummary();
+
+        MqttCommandNode.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(MqttCommandNode.Topic)) MqttSubscribeTopic = MqttCommandNode.Topic;
+            NotifyMqttSubSummary();
+        };
+        MqttCommandNode.Pins.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null)
+            {
+                foreach (MqttPinBindingViewModel p in e.NewItems)
+                {
+                    p.PropertyChanged += (sender, args) =>
+                    {
+                        if (args.PropertyName == nameof(p.TargetTag)) OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
+                    };
+                }
+            }
+            NotifyMqttSubSummary();
+        };
+        foreach (var p in MqttCommandNode.Pins)
+        {
+            p.PropertyChanged += (sender, args) =>
+            {
+                if (args.PropertyName == nameof(p.TargetTag)) OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
+            };
+        }
+        MqttCommandVM = new MqttSubConfigDialogViewModel(MqttCommandNode, TagCatalog ?? new TagCatalogViewModel());
+        HttpNode = new HttpClientNodeViewModel();
+        HttpVM = new HttpClientConfigDialogViewModel(HttpNode, TagCatalog ?? new TagCatalogViewModel());
+        HttpVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(HttpVM.Url)) HttpUrl = HttpVM.Url;
+            if (e.PropertyName == nameof(HttpVM.Method)) HttpMethod = HttpVM.Method;
+            if (e.PropertyName == nameof(HttpVM.CustomHeaders)) HttpHeaders = HttpVM.CustomHeaders;
+            if (e.PropertyName == nameof(HttpVM.TimeoutSec)) HttpTimeoutSec = HttpVM.TimeoutSec;
+            if (e.PropertyName == nameof(HttpVM.PeriodicIntervalSec)) HttpIntervalSec = HttpVM.PeriodicIntervalSec;
+            if (e.PropertyName == nameof(HttpVM.TriggerMode)) HttpTriggerMode = HttpVM.TriggerMode == "Cyclic" ? "Periodic" : "OnDataReceived";
+            OnPropertyChanged(nameof(HttpEndpointDisplay));
+            OnPropertyChanged(nameof(HttpMethodDisplay));
+            OnPropertyChanged(nameof(HttpTimeoutDisplay));
+            OnPropertyChanged(nameof(HttpHeadersDisplay));
+            OnPropertyChanged(nameof(HttpFieldCountDisplay));
+            OnPropertyChanged(nameof(HttpSidebarBadgeText));
+        };
+
+        TcpNode = new TcpClientNodeViewModel();
+        TcpVM = new TcpClientConfigDialogViewModel(TcpNode, TagCatalog ?? new TagCatalogViewModel());
+        TcpVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(TcpVM.RemoteHost)) TcpRemoteHost = TcpVM.RemoteHost;
+            if (e.PropertyName == nameof(TcpVM.RemotePort)) TcpRemotePort = TcpVM.RemotePort;
+            if (e.PropertyName == nameof(TcpVM.ReconnectDelaySec)) TcpReconnectDelaySec = TcpVM.ReconnectDelaySec;
+            if (e.PropertyName == nameof(TcpVM.HeartbeatIntervalSec)) TcpHeartbeatIntervalSec = TcpVM.HeartbeatIntervalSec;
+            if (e.PropertyName == nameof(TcpVM.HeartbeatPayload)) TcpHeartbeatPayload = TcpVM.HeartbeatPayload;
+            if (e.PropertyName == nameof(TcpVM.RegistrationType)) TcpRegistrationType = TcpVM.RegistrationType;
+            if (e.PropertyName == nameof(TcpVM.RegistrationPayload)) TcpRegistrationPayload = TcpVM.RegistrationPayload;
+            OnPropertyChanged(nameof(TcpServerDisplay));
+            OnPropertyChanged(nameof(TcpPortDisplay));
+            OnPropertyChanged(nameof(TcpHeartbeatDisplay));
+            OnPropertyChanged(nameof(TcpRegDisplay));
+            OnPropertyChanged(nameof(TcpSidebarBadgeText));
+        };
+
+        ZigbeeVM = new ZigbeeConfigViewModel();
+        if (_metadata.ZigbeeConfig != null)
+        {
+            ZigbeeVM.LoadFromModel(_metadata.ZigbeeConfig);
+        }
+        ZigbeeVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ZigbeeConfigViewModel.StatusSummaryBadge) ||
+                e.PropertyName == nameof(ZigbeeConfigViewModel.StationId) ||
+                e.PropertyName == nameof(ZigbeeConfigViewModel.IsEnabled))
+            {
+                OnPropertyChanged(nameof(ZigbeeSidebarBadgeText));
+            }
+        };
+        LiveTestInspectorVM = new ModbusLiveTestInspectorViewModel();
+        LiveTestInspectorVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(LiveTestInspectorVM.InspectorHeaderTitle) ||
+                e.PropertyName == nameof(LiveTestInspectorVM.InspectorHeaderSubtitle))
+            {
+                OnPropertyChanged(nameof(ActiveInspectorTitle));
+                OnPropertyChanged(nameof(ActiveInspectorSubtitle));
+            }
+        };
+        ModbusPortConfigVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ModbusPortConfigViewModel.SelectedPort))
+            {
+                SyncFromSelectedPort();
+            }
+            if (e.PropertyName == nameof(ModbusPortConfigViewModel.SelectedFixedRegisterItem))
+            {
+                if (ModbusPortConfigVM.SelectedPort?.IsSlaveMode == true)
+                {
+                    LiveTestInspectorVM.SelectedSlaveRegister = ModbusPortConfigVM.SelectedFixedRegisterItem;
+                }
+            }
+        };
+
+        // Mẫu mặc định 1 thanh ghi Modbus
+        FastRegisters.Add(new DtuFastRegisterItem(1, 40001, ModbusDataType.Real, "NhietDo_C", "Cảm biến nhiệt độ"));
+        FastRegisters.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(CanGoNext));
+            OnPropertyChanged(nameof(SummaryTopologyText));
+            UpdateSummaryAndPreview();
+        };
+
         ReloadFromMetadata();
+        SyncFromSelectedPort();
         UpdateJsonPreview();
+        UpdateSummaryAndPreview();
+
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(Rs485StatusBadge));
+        OnPropertyChanged(nameof(WifiStatusBadge));
+        OnPropertyChanged(nameof(UplinkStatusBadge));
+        OnPropertyChanged(nameof(ActiveInspectorTitle));
+        OnPropertyChanged(nameof(ActiveInspectorSubtitle));
+        OnPropertyChanged(nameof(FormattedRssi));
+        OnPropertyChanged(nameof(SignalQualityPercent));
+        OnPropertyChanged(nameof(WifiSsidDisplay));
+        OnPropertyChanged(nameof(WifiIpAssignmentDisplay));
+        OnPropertyChanged(nameof(ConnectionStateText));
+        OnPropertyChanged(nameof(MqttTlsSecurityDisplay));
+        OnPropertyChanged(nameof(MqttAuthTypeDisplay));
+        OnPropertyChanged(nameof(MqttPublishModeDisplay));
+        OnPropertyChanged(nameof(MqttPublishFieldsSummaryText));
+        OnPropertyChanged(nameof(MqttSubscribePinsSummaryText));
+        OnPropertyChanged(nameof(MqttEstimatedPayloadSizeText));
+        OnPropertyChanged(nameof(MqttSidebarBadgeText));
+        OnPropertyChanged(nameof(HttpSidebarBadgeText));
+        OnPropertyChanged(nameof(TcpSidebarBadgeText));
+        OnPropertyChanged(nameof(ZigbeeSidebarBadgeText));
     }
 
     /// <summary>
@@ -335,9 +1551,79 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     /// </summary>
     public void ReloadFromMetadata()
     {
+        ModbusPortConfigVM?.ReloadPortsFromMetadata();
+        MqttBrokerConfigVM?.ReloadFromMetadata();
+
+        // Reload Telemetry Publish
+        if (MqttTelemetryNode != null)
+        {
+            MqttTelemetryNode.Topic = string.IsNullOrEmpty(_metadata.MqttTopic) ? "synaptix/telemetry/data" : _metadata.MqttTopic;
+            MqttPublishTopic = MqttTelemetryNode.Topic;
+            MqttTelemetryNode.Qos = _metadata.MqttQos;
+            MqttTelemetryNode.Retain = _metadata.MqttRetain;
+            MqttTelemetryNode.PublishMode = string.IsNullOrEmpty(_metadata.MqttPublishMode) ? "Cyclic" : _metadata.MqttPublishMode;
+            MqttTelemetryNode.Fields.Clear();
+            if (_metadata.MqttFields != null)
+            {
+                foreach (var f in _metadata.MqttFields)
+                {
+                    var matchedTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, f.TagName, StringComparison.OrdinalIgnoreCase))
+                                     ?? (!string.IsNullOrEmpty(f.TagName) ? new TagModel { Name = f.TagName } : null);
+                    MqttTelemetryNode.Fields.Add(new MqttPayloadFieldViewModel(f.Key, matchedTag));
+                }
+            }
+        }
+
+        // Reload Command Subscribe
+        if (MqttCommandNode != null)
+        {
+            MqttCommandNode.Topic = string.IsNullOrEmpty(_metadata.MqttSubTopic) ? "factory/dtu/command" : _metadata.MqttSubTopic;
+            MqttSubscribeTopic = MqttCommandNode.Topic;
+            MqttCommandNode.Qos = _metadata.MqttSubQos;
+            MqttCommandNode.QueueMode = string.Equals(_metadata.MqttSubQueueMode, "LatestWins", StringComparison.OrdinalIgnoreCase) 
+                ? MqttQueueMode.LatestWins : MqttQueueMode.Fifo;
+            MqttCommandNode.Pins.Clear();
+            if (_metadata.MqttSubPins != null)
+            {
+                foreach (var pin in _metadata.MqttSubPins)
+                {
+                    var dt = MqttDataType.Int16;
+                    if (Enum.TryParse<MqttDataType>(pin.DataType, true, out var parsedDt)) dt = parsedDt;
+                    var pinVm = new MqttPinBindingViewModel(pin.Label, pin.JsonPath, dt);
+                    if (TagCatalog != null)
+                    {
+                        pinVm.TagProvider = pDt => TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, pDt, includeNone: true);
+                    }
+                    if (!string.IsNullOrEmpty(pin.TargetTagName) && TagCatalog != null)
+                    {
+                        pinVm.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pin.TargetTagName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else if (pin.TargetTagIndex.HasValue && TagCatalog != null)
+                    {
+                        pinVm.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == pin.TargetTagIndex.Value);
+                    }
+                    MqttCommandNode.Pins.Add(pinVm);
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(CurrentCapabilities));
+        OnPropertyChanged(nameof(HasMqttCapability));
+        NotifyMqttPubSummary();
+        NotifyMqttSubSummary();
+        OnPropertyChanged(nameof(HasMqttTlsCapability));
+        OnPropertyChanged(nameof(HasHttpCapability));
+        OnPropertyChanged(nameof(HasTcpSocketCapability));
+        OnPropertyChanged(nameof(HasRs485Capability));
+        OnPropertyChanged(nameof(HasWifiCapability));
+        OnPropertyChanged(nameof(HasEthernetCapability));
+        OnPropertyChanged(nameof(HasSdDatalogCapability));
+        OnPropertyChanged(nameof(HasSystemCapability));
+        SelectFirstAvailableSection();
         var dtu = _metadata.DtuConfig;
         SelectedPortIndex = dtu.PortIndex;
-        SerialMode = dtu.SerialMode;
+        SerialMode = string.IsNullOrEmpty(dtu.SerialMode) || dtu.SerialMode == "Transference" ? "ModbusMaster" : dtu.SerialMode;
+        if (dtu.PublishIntervalSec > 0) PublishIntervalSec = dtu.PublishIntervalSec;
         UplinkMode = dtu.UplinkMode;
         FrameTimeoutDelayMs = dtu.FrameTimeoutDelayMs > 0 ? dtu.FrameTimeoutDelayMs : (ushort)20;
         MaxPacketSize = dtu.MaxPacketSize > 0 ? dtu.MaxPacketSize : (ushort)512;
@@ -352,15 +1638,50 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         IncludeHexStream = dtu.IncludeHexStream;
         IncludePayloadLength = dtu.IncludePayloadLength;
 
+        // Wi-Fi from metadata
+        WifiEnabled = _metadata.WifiEnabled;
+        WifiAutoReconnect = _metadata.WifiAutoReconnect;
+        WifiSsid = _metadata.WifiSsid ?? string.Empty;
+        WifiPassword = _metadata.WifiPassword ?? string.Empty;
+        WifiDhcpEnabled = _metadata.WifiDhcpEnabled;
+        WifiStaticIp = string.IsNullOrWhiteSpace(_metadata.WifiStaticIp) ? "192.168.1.50" : _metadata.WifiStaticIp;
+        WifiSubnetMask = string.IsNullOrWhiteSpace(_metadata.WifiSubnetMask) ? "255.255.255.0" : _metadata.WifiSubnetMask;
+        WifiGateway = string.IsNullOrWhiteSpace(_metadata.WifiGateway) ? "192.168.1.1" : _metadata.WifiGateway;
+        WifiDns = string.IsNullOrWhiteSpace(_metadata.WifiDns) ? "8.8.8.8" : _metadata.WifiDns;
+        if (WifiVM != null)
+        {
+            WifiVM.IsEnabled = WifiEnabled;
+            WifiVM.AutoReconnect = WifiAutoReconnect;
+            WifiVM.Ssid = WifiSsid;
+            WifiVM.Password = WifiPassword;
+            WifiVM.IsDhcp = WifiDhcpEnabled;
+            WifiVM.StaticIp = WifiStaticIp;
+            WifiVM.StaticSubnet = WifiSubnetMask;
+            WifiVM.StaticGateway = WifiGateway;
+            WifiVM.StaticDns = WifiDns;
+        }
+
+        SlaveMapEntries.Clear();
+        if (_metadata.ModbusSlaveMapEntries != null)
+        {
+            foreach (var e in _metadata.ModbusSlaveMapEntries)
+            {
+                SlaveMapEntries.Add(e);
+            }
+        }
+
         // Port specifics from ModbusPorts[0]
         if (_metadata.ModbusPorts != null && _metadata.ModbusPorts.Count > 0)
         {
             var p0 = _metadata.ModbusPorts[0];
+            PortName = string.IsNullOrEmpty(p0.PortName) ? "RS-485 #1" : p0.PortName;
             BaudRate = p0.BaudRate;
             DataBits = p0.DataBits;
             Parity = p0.Parity;
             StopBits = p0.StopBits;
             ResponseTimeoutMs = p0.ResponseTimeoutMs;
+            RetryCount = p0.RetryCount > 0 ? p0.RetryCount : (ushort)1;
+            InterFrameDelayMs = p0.InterFrameDelayMs > 0 ? p0.InterFrameDelayMs : (ushort)20;
             SlaveId = p0.SlaveId;
         }
 
@@ -405,6 +1726,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         // HTTP from metadata
         if (dtu.HttpSettings != null)
         {
+            HttpEnabled = dtu.HttpSettings.Enabled || UplinkMode == "Http";
             HttpUrl = string.IsNullOrEmpty(dtu.HttpSettings.Url) ? HttpUrl : dtu.HttpSettings.Url;
             HttpMethod = string.IsNullOrEmpty(dtu.HttpSettings.Method) ? HttpMethod : dtu.HttpSettings.Method;
             HttpHeaders = string.IsNullOrEmpty(dtu.HttpSettings.Headers) ? HttpHeaders : dtu.HttpSettings.Headers;
@@ -431,6 +1753,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         // TCP from metadata
         if (dtu.TcpSettings != null)
         {
+            TcpEnabled = dtu.TcpSettings.Enabled || UplinkMode is "TcpClient" or "TcpServer";
             TcpSocketMode = string.IsNullOrEmpty(dtu.TcpSettings.SocketMode) ? TcpSocketMode : dtu.TcpSettings.SocketMode;
             TcpRemoteHost = string.IsNullOrEmpty(dtu.TcpSettings.RemoteHost) ? TcpRemoteHost : dtu.TcpSettings.RemoteHost;
             TcpRemotePort = dtu.TcpSettings.RemotePort > 0 ? dtu.TcpSettings.RemotePort : (ushort)8888;
@@ -441,14 +1764,115 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             TcpRegistrationType = string.IsNullOrEmpty(dtu.TcpSettings.RegistrationType) ? "None" : dtu.TcpSettings.RegistrationType;
             TcpRegistrationPayload = string.IsNullOrEmpty(dtu.TcpSettings.RegistrationPayload) ? "{{DEVICE_ID}}" : dtu.TcpSettings.RegistrationPayload;
         }
+
+        if (HttpVM != null)
+        {
+            HttpVM.Url = HttpUrl;
+            HttpVM.Method = HttpMethod;
+            HttpVM.CustomHeaders = HttpHeaders;
+            HttpVM.TimeoutSec = HttpTimeoutSec;
+            HttpVM.PeriodicIntervalSec = HttpIntervalSec;
+            HttpVM.TriggerMode = HttpTriggerMode == "OnDataReceived" ? "Event" : "Cyclic";
+        }
+
+        if (TcpVM != null)
+        {
+            TcpVM.RemoteHost = TcpRemoteHost;
+            TcpVM.RemotePort = TcpRemotePort;
+            TcpVM.ReconnectDelaySec = TcpReconnectDelaySec;
+            TcpVM.HeartbeatIntervalSec = TcpHeartbeatIntervalSec;
+            TcpVM.HeartbeatPayload = TcpHeartbeatPayload;
+            TcpVM.RegistrationType = TcpRegistrationType;
+            TcpVM.RegistrationPayload = TcpRegistrationPayload;
+        }
     }
 
     public void SaveToMetadata()
     {
+        if (ModbusPortConfigVM?.SelectedPort != null)
+        {
+            var sel = ModbusPortConfigVM.SelectedPort;
+            sel.PortName = PortName;
+            sel.BaudRate = BaudRate;
+            sel.DataBits = DataBits;
+            sel.Parity = Parity;
+            sel.StopBits = StopBits;
+            sel.ResponseTimeoutMs = ResponseTimeoutMs;
+            sel.RetryCount = RetryCount;
+            sel.InterFrameDelayMs = InterFrameDelayMs;
+            sel.SlaveId = SlaveId;
+            sel.Role = SerialMode == "ModbusSlave" ? "Slave" : "Master";
+        }
+        ModbusPortConfigVM?.Apply();
+        if (MqttBrokerConfigVM != null)
+        {
+            MqttBrokerConfigVM.Host = MqttHost;
+            MqttBrokerConfigVM.Port = MqttPort;
+            MqttBrokerConfigVM.ClientId = MqttClientId;
+            MqttBrokerConfigVM.Username = MqttUsername;
+            MqttBrokerConfigVM.Password = MqttPassword;
+            MqttBrokerConfigVM.UseTls = MqttUseTls;
+            MqttBrokerConfigVM.KeepAliveSec = MqttKeepAlive;
+            MqttBrokerConfigVM.WillEnabled = MqttWillEnabled;
+            MqttBrokerConfigVM.WillTopic = MqttWillTopic;
+            MqttBrokerConfigVM.WillPayload = MqttWillPayload;
+            MqttBrokerConfigVM.WillQos = (byte)MqttWillQos;
+            MqttBrokerConfigVM.WillRetain = MqttWillRetain;
+            MqttBrokerConfigVM.CaCertPath = MqttTlsCaCertPath;
+            MqttBrokerConfigVM.CaCertPem = MqttTlsCaCertPem;
+            MqttBrokerConfigVM.AllowSelfSigned = MqttTlsAllowSelfSigned;
+            MqttBrokerConfigVM.IgnoreHostname = MqttTlsIgnoreHostname;
+            MqttBrokerConfigVM.TlsVersionIndex = MqttTlsProtocolVersion;
+            MqttBrokerConfigVM.SniHostname = MqttTlsSniHostname;
+            MqttBrokerConfigVM.UseMtls = MqttTlsMtlsEnabled;
+            MqttBrokerConfigVM.ClientCertPath = MqttTlsClientCertPath;
+            MqttBrokerConfigVM.ClientCertPem = MqttTlsClientCertPem;
+            MqttBrokerConfigVM.ClientKeyPath = MqttTlsClientKeyPath;
+            MqttBrokerConfigVM.ClientKeyPem = MqttTlsClientKeyPem;
+            MqttBrokerConfigVM.ClientKeyPassword = MqttTlsClientKeyPassword;
+            MqttBrokerConfigVM.Apply();
+        }
+
+        // Save Telemetry Publish
+        if (MqttTelemetryNode != null)
+        {
+            if (!string.IsNullOrEmpty(MqttPublishTopic))
+                MqttTelemetryNode.Topic = MqttPublishTopic;
+            _metadata.MqttTopic = MqttTelemetryNode.Topic;
+            _metadata.MqttQos = MqttTelemetryNode.Qos;
+            _metadata.MqttRetain = MqttTelemetryNode.Retain;
+            _metadata.MqttPublishMode = MqttTelemetryNode.PublishMode;
+            _metadata.MqttFields = MqttTelemetryNode.Fields.Select(f => new MqttPayloadFieldData
+            {
+                Key = f.Key,
+                TagName = f.Tag?.Name ?? string.Empty,
+                Unit = string.Empty
+            }).ToList();
+        }
+
+        // Save Command Subscribe
+        if (MqttCommandNode != null)
+        {
+            if (!string.IsNullOrEmpty(MqttSubscribeTopic))
+                MqttCommandNode.Topic = MqttSubscribeTopic;
+            _metadata.MqttSubTopic = MqttCommandNode.Topic;
+            _metadata.MqttSubQos = MqttCommandNode.Qos;
+            _metadata.MqttSubQueueMode = MqttCommandNode.QueueMode.ToString();
+            _metadata.MqttSubPins = MqttCommandNode.Pins.Select(p => new MqttSubPinData
+            {
+                Id = p.Id,
+                Label = p.Label,
+                JsonPath = p.JsonPath,
+                DataType = p.DataType.ToString(),
+                TargetTagName = p.TargetTag?.Name ?? string.Empty,
+                TargetTagIndex = p.TargetTagIndex
+            }).ToList();
+        }
         var dtu = _metadata.DtuConfig;
         dtu.Enabled = true;
         dtu.PortIndex = (byte)SelectedPortIndex;
         dtu.SerialMode = SerialMode;
+        dtu.PublishIntervalSec = PublishIntervalSec;
         dtu.UplinkMode = UplinkMode;
         dtu.FrameTimeoutDelayMs = FrameTimeoutDelayMs;
         dtu.MaxPacketSize = MaxPacketSize;
@@ -461,50 +1885,112 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         dtu.IncludeHexStream = IncludeHexStream;
         dtu.IncludePayloadLength = IncludePayloadLength;
 
-        // Save RS-485
-        if (_metadata.ModbusPorts != null && _metadata.ModbusPorts.Count > 0)
+        // Save Wi-Fi
+        _metadata.WifiEnabled = WifiEnabled;
+        _metadata.WifiAutoReconnect = WifiAutoReconnect;
+        _metadata.WifiSsid = WifiSsid;
+        _metadata.WifiPassword = WifiPassword;
+        _metadata.WifiDhcpEnabled = WifiDhcpEnabled;
+        _metadata.WifiStaticIp = WifiStaticIp;
+        _metadata.WifiSubnetMask = WifiSubnetMask;
+        _metadata.WifiGateway = WifiGateway;
+        _metadata.WifiDns = WifiDns;
+
+        // Auto-register FastRegisters tags in TagCatalog
+        if (TagCatalog != null)
+        {
+            foreach (var reg in FastRegisters)
+            {
+                if (!string.IsNullOrWhiteSpace(reg.TagName) && !TagCatalog.AllTags.Any(t => string.Equals(t.Name, reg.TagName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var tagType = reg.DataType switch
+                    {
+                        ModbusDataType.Bool => SimplePLC.Domain.Enums.TagDataType.Boolean,
+                        ModbusDataType.Real => SimplePLC.Domain.Enums.TagDataType.Float32,
+                        _ => SimplePLC.Domain.Enums.TagDataType.Int32
+                    };
+                    var newTag = new TagModel
+                    {
+                        Name = reg.TagName,
+                        Kind = SimplePLC.Domain.Enums.TagKind.ModbusHolding,
+                        DataType = tagType,
+                        Alias = reg.Description
+                    };
+                    TagCatalog.RegisterTags.Add(newTag);
+                }
+            }
+        }
+
+        _metadata.ModbusSlaveMapEntries = new List<ModbusSlaveMapEntryModel>(SlaveMapEntries);
+
+        // Save RS-485 fallback when ModbusPortConfigVM is null
+        if (ModbusPortConfigVM == null && _metadata.ModbusPorts != null && _metadata.ModbusPorts.Count > 0)
         {
             var p0 = _metadata.ModbusPorts[0];
+            p0.PortName = PortName;
             p0.BaudRate = BaudRate;
             p0.DataBits = DataBits;
             p0.Parity = Parity;
             p0.StopBits = StopBits;
             p0.ResponseTimeoutMs = ResponseTimeoutMs;
+            p0.RetryCount = RetryCount;
+            p0.InterFrameDelayMs = InterFrameDelayMs;
             p0.SlaveId = SlaveId;
             p0.Role = SerialMode == "ModbusSlave" ? "Slave" : "Master";
         }
 
-        // Save MQTT
-        _metadata.MqttBrokerHost = MqttHost;
-        _metadata.MqttBrokerPort = MqttPort;
-        _metadata.MqttClientId = MqttClientId;
-        _metadata.MqttUsername = MqttUsername;
-        _metadata.MqttPassword = MqttPassword;
-        _metadata.MqttTlsEnabled = MqttUseTls;
-        _metadata.MqttKeepAliveSec = MqttKeepAlive;
-        _metadata.MqttSubTopic = MqttSubscribeTopic;
-        _metadata.MqttWillEnabled = MqttWillEnabled;
-        _metadata.MqttWillTopic = MqttWillTopic;
-        _metadata.MqttWillPayload = MqttWillPayload;
-        _metadata.MqttWillQos = (byte)MqttWillQos;
-        _metadata.MqttWillRetain = MqttWillRetain;
+        // Sync local presentation properties from _metadata (Single Source of Truth)
+        MqttHost = _metadata.MqttBrokerHost;
+        MqttPort = _metadata.MqttBrokerPort;
+        MqttClientId = _metadata.MqttClientId;
+        MqttUsername = _metadata.MqttUsername;
+        MqttPassword = _metadata.MqttPassword;
+        MqttUseTls = _metadata.MqttTlsEnabled;
+        MqttKeepAlive = _metadata.MqttKeepAliveSec;
+        MqttSubscribeTopic = _metadata.MqttSubTopic;
+        MqttWillEnabled = _metadata.MqttWillEnabled;
+        MqttWillTopic = _metadata.MqttWillTopic;
+        MqttWillPayload = _metadata.MqttWillPayload;
+        MqttWillQos = _metadata.MqttWillQos;
+        MqttWillRetain = _metadata.MqttWillRetain;
+        MqttTlsCaCertPath = _metadata.MqttTlsCaCertPath;
+        MqttTlsCaCertPem = _metadata.MqttTlsCaCertPem;
+        MqttTlsAllowSelfSigned = _metadata.MqttTlsAllowSelfSigned;
+        MqttTlsIgnoreHostname = _metadata.MqttTlsIgnoreHostname;
+        MqttTlsProtocolVersion = _metadata.MqttTlsProtocolVersion;
+        MqttTlsSniHostname = _metadata.MqttTlsSniHostname;
+        MqttTlsMtlsEnabled = _metadata.MqttTlsMtlsEnabled;
+        MqttTlsClientCertPath = _metadata.MqttTlsClientCertPath;
+        MqttTlsClientCertPem = _metadata.MqttTlsClientCertPem;
+        MqttTlsClientKeyPath = _metadata.MqttTlsClientKeyPath;
+        MqttTlsClientKeyPem = _metadata.MqttTlsClientKeyPem;
+        MqttTlsClientKeyPassword = _metadata.MqttTlsClientKeyPassword;
 
-        // Save MQTT TLS & mTLS
-        _metadata.MqttTlsCaCertPath = MqttTlsCaCertPath ?? string.Empty;
-        _metadata.MqttTlsCaCertPem = MqttTlsCaCertPem ?? string.Empty;
-        _metadata.MqttTlsAllowSelfSigned = MqttTlsAllowSelfSigned;
-        _metadata.MqttTlsIgnoreHostname = MqttTlsIgnoreHostname;
-        _metadata.MqttTlsProtocolVersion = MqttTlsProtocolVersion;
-        _metadata.MqttTlsSniHostname = MqttTlsSniHostname?.Trim() ?? string.Empty;
-        _metadata.MqttTlsMtlsEnabled = MqttTlsMtlsEnabled;
-        _metadata.MqttTlsClientCertPath = MqttTlsClientCertPath ?? string.Empty;
-        _metadata.MqttTlsClientCertPem = MqttTlsClientCertPem ?? string.Empty;
-        _metadata.MqttTlsClientKeyPath = MqttTlsClientKeyPath ?? string.Empty;
-        _metadata.MqttTlsClientKeyPem = MqttTlsClientKeyPem ?? string.Empty;
-        _metadata.MqttTlsClientKeyPassword = MqttTlsClientKeyPassword ?? string.Empty;
+        // Sync VM state before save
+        if (HttpVM != null)
+        {
+            HttpVM.Url = HttpUrl;
+            HttpVM.Method = HttpMethod;
+            HttpVM.CustomHeaders = HttpHeaders;
+            HttpVM.TimeoutSec = HttpTimeoutSec;
+            HttpVM.PeriodicIntervalSec = HttpIntervalSec;
+            HttpVM.TriggerMode = HttpTriggerMode == "Periodic" ? "Cyclic" : "Event";
+            HttpVM.Apply();
+        }
+        if (TcpVM != null)
+        {
+            TcpVM.RemoteHost = TcpRemoteHost;
+            TcpVM.RemotePort = TcpRemotePort;
+            TcpVM.ReconnectDelaySec = TcpReconnectDelaySec;
+            TcpVM.HeartbeatIntervalSec = TcpHeartbeatIntervalSec;
+            TcpVM.HeartbeatPayload = TcpHeartbeatPayload;
+            TcpVM.RegistrationType = TcpRegistrationType;
+            TcpVM.RegistrationPayload = TcpRegistrationPayload;
+            TcpVM.Apply();
+        }
 
         // Save HTTP
-        dtu.HttpSettings.Enabled = UplinkMode == "Http";
+        dtu.HttpSettings.Enabled = HttpEnabled || UplinkMode == "Http";
         dtu.HttpSettings.Url = HttpUrl;
         dtu.HttpSettings.Method = HttpMethod;
         dtu.HttpSettings.Headers = HttpHeaders;
@@ -514,7 +2000,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         dtu.HttpSettings.Fields = System.Linq.Enumerable.ToList(HttpFields);
 
         // Save TCP
-        dtu.TcpSettings.Enabled = UplinkMode is "TcpClient" or "TcpServer";
+        dtu.TcpSettings.Enabled = TcpEnabled || UplinkMode is "TcpClient" or "TcpServer";
         dtu.TcpSettings.SocketMode = TcpSocketMode;
         dtu.TcpSettings.RemoteHost = TcpRemoteHost;
         dtu.TcpSettings.RemotePort = TcpRemotePort;
@@ -525,6 +2011,8 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         dtu.TcpSettings.RegistrationType = TcpRegistrationType;
         dtu.TcpSettings.RegistrationPayload = TcpRegistrationPayload;
 
+        if (_metadata.ZigbeeConfig == null) _metadata.ZigbeeConfig = new ZigbeeConfigModel();
+        ZigbeeVM.SaveToModel(_metadata.ZigbeeConfig);
         _metadata.LastModified = DateTime.UtcNow;
     }
 
@@ -537,6 +2025,11 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         else if (!value && MqttPort == 8883)
         {
             MqttPort = 1883;
+        }
+
+        if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.UseTls != value)
+        {
+            MqttBrokerConfigVM.UseTls = value;
         }
     }
 
@@ -926,9 +2419,74 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     }
 
     [RelayCommand]
+
+    partial void OnMqttPublishTopicChanged(string value) 
+    { 
+        if (MqttTelemetryNode != null && MqttTelemetryNode.Topic != value) MqttTelemetryNode.Topic = value; 
+        OnPropertyChanged(nameof(MqttTopic));
+    }
+    partial void OnMqttSubscribeTopicChanged(string value) { if (MqttCommandNode != null && MqttCommandNode.Topic != value) MqttCommandNode.Topic = value; }
+    partial void OnMqttHostChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Host != value) MqttBrokerConfigVM.Host = value; }
+    partial void OnMqttPortChanged(int value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Port != value) MqttBrokerConfigVM.Port = value; }
+    partial void OnWifiEnabledChanged(bool value) { if (WifiVM != null && WifiVM.IsEnabled != value) WifiVM.IsEnabled = value; }
+    partial void OnWifiAutoReconnectChanged(bool value) { if (WifiVM != null && WifiVM.AutoReconnect != value) WifiVM.AutoReconnect = value; }
+    partial void OnWifiSsidChanged(string value) { if (WifiVM != null && WifiVM.Ssid != value) WifiVM.Ssid = value; }
+    partial void OnWifiPasswordChanged(string value) { if (WifiVM != null && WifiVM.Password != value) WifiVM.Password = value; }
+    partial void OnWifiDhcpEnabledChanged(bool value) { if (WifiVM != null && WifiVM.IsDhcp != value) WifiVM.IsDhcp = value; }
+    partial void OnWifiStaticIpChanged(string value) { if (WifiVM != null && WifiVM.StaticIp != value) WifiVM.StaticIp = value; }
+    partial void OnWifiSubnetMaskChanged(string value) { if (WifiVM != null && WifiVM.StaticSubnet != value) WifiVM.StaticSubnet = value; }
+    partial void OnWifiGatewayChanged(string value) { if (WifiVM != null && WifiVM.StaticGateway != value) WifiVM.StaticGateway = value; }
+    partial void OnWifiDnsChanged(string value) { if (WifiVM != null && WifiVM.StaticDns != value) WifiVM.StaticDns = value; }
+    partial void OnMqttClientIdChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientId != value) MqttBrokerConfigVM.ClientId = value; }
+    partial void OnMqttUsernameChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Username != value) MqttBrokerConfigVM.Username = value; }
+    partial void OnMqttPasswordChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Password != value) MqttBrokerConfigVM.Password = value; }
+    partial void OnMqttKeepAliveChanged(ushort value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.KeepAliveSec != value) MqttBrokerConfigVM.KeepAliveSec = value; }
+    partial void OnMqttWillEnabledChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillEnabled != value) MqttBrokerConfigVM.WillEnabled = value; }
+    partial void OnMqttWillTopicChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillTopic != value) MqttBrokerConfigVM.WillTopic = value; }
+    partial void OnMqttWillPayloadChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillPayload != value) MqttBrokerConfigVM.WillPayload = value; }
+    partial void OnMqttWillQosChanged(int value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillQos != (byte)value) MqttBrokerConfigVM.WillQos = (byte)value; }
+    partial void OnMqttWillRetainChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillRetain != value) MqttBrokerConfigVM.WillRetain = value; }
+    partial void OnMqttTlsCaCertPathChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.CaCertPath != value) MqttBrokerConfigVM.CaCertPath = value; }
+    partial void OnMqttTlsAllowSelfSignedChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.AllowSelfSigned != value) MqttBrokerConfigVM.AllowSelfSigned = value; }
+    partial void OnMqttTlsCaCertPemChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.CaCertPem != value) MqttBrokerConfigVM.CaCertPem = value; }
+    partial void OnMqttTlsIgnoreHostnameChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.IgnoreHostname != value) MqttBrokerConfigVM.IgnoreHostname = value; }
+    partial void OnMqttTlsProtocolVersionChanged(int value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.TlsVersionIndex != value) MqttBrokerConfigVM.TlsVersionIndex = value; }
+    partial void OnMqttTlsSniHostnameChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.SniHostname != value) MqttBrokerConfigVM.SniHostname = value; }
+    partial void OnMqttTlsMtlsEnabledChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.UseMtls != value) MqttBrokerConfigVM.UseMtls = value; }
+    partial void OnMqttTlsClientCertPathChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientCertPath != value) MqttBrokerConfigVM.ClientCertPath = value; }
+    partial void OnMqttTlsClientCertPemChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientCertPem != value) MqttBrokerConfigVM.ClientCertPem = value; }
+    partial void OnMqttTlsClientKeyPathChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientKeyPath != value) MqttBrokerConfigVM.ClientKeyPath = value; }
+    partial void OnMqttTlsClientKeyPemChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientKeyPem != value) MqttBrokerConfigVM.ClientKeyPem = value; }
+    partial void OnMqttTlsClientKeyPasswordChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientKeyPassword != value) MqttBrokerConfigVM.ClientKeyPassword = value; }
+
+    /// <summary>
+    /// Lưu toàn bộ cấu hình thiết bị vào ProjectMetadata (RAM), đánh dấu dự án đã thay đổi và thông báo sẵn sàng nạp thiết bị.
+    /// </summary>
+    [RelayCommand]
+    public void SaveConfiguration()
+    {
+        SaveToMetadata();
+        NotifyConfigurationCommitted?.Invoke();
+        RequestSaveProject?.Invoke();
+        string statusText = LocalizationService.Instance["DeviceConfigAppliedStatus"];
+        if (string.IsNullOrWhiteSpace(statusText))
+        {
+            statusText = LocalizationService.Instance.IsVietnamese
+                ? "Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị"
+                : "Configuration committed to project — ready to deploy";
+        }
+        DeployStatusMessage = $"● {statusText} ({DateTime.Now:HH:mm:ss})";
+    }
+
+    /// <summary>
+    /// Lưu cấu hình vào ProjectMetadata, đánh dấu dự án đã thay đổi và đóng hộp thoại nếu đang mở dưới dạng Modal Dialog.
+    /// </summary>
+    [RelayCommand]
     private void Save()
     {
         SaveToMetadata();
+        NotifyConfigurationCommitted?.Invoke();
+        RequestSaveProject?.Invoke();
         RequestClose?.Invoke();
     }
 
@@ -1083,5 +2641,323 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private void AppendLog(string message)
     {
         TerminalLog += message + "\n";
+    }
+
+    // =========================================================================
+    // MULTI-STEP WIZARD NAVIGATION & FBD SYNTHESIS COMMANDS
+    // =========================================================================
+
+    [RelayCommand]
+    public void NextStep()
+    {
+        if (CurrentStepIndex < 3 && IsCurrentStepValid)
+        {
+            CurrentStepIndex++;
+            UpdateSummaryAndPreview();
+        }
+    }
+
+    [RelayCommand]
+    public void PreviousStep()
+    {
+        if (CurrentStepIndex > 1)
+        {
+            CurrentStepIndex--;
+        }
+    }
+
+    [RelayCommand]
+    public void AddFastRegister()
+    {
+        ushort nextAddr = 40001;
+        if (FastRegisters.Count > 0)
+        {
+            nextAddr = (ushort)(FastRegisters.Max(r => r.StartAddress) + (FastRegisters.Last().DataType == ModbusDataType.Real ? 2 : 1));
+        }
+        string tag = $"VAL_{FastRegisters.Count + 1}";
+        FastRegisters.Add(new DtuFastRegisterItem(1, nextAddr, ModbusDataType.Real, tag, $"Đo lường {tag}"));
+        OnPropertyChanged(nameof(CanGoNext));
+        OnPropertyChanged(nameof(SummaryTopologyText));
+        UpdateSummaryAndPreview();
+    }
+
+    [RelayCommand]
+    public void RemoveFastRegister(DtuFastRegisterItem? item)
+    {
+        if (item != null)
+        {
+            FastRegisters.Remove(item);
+            OnPropertyChanged(nameof(CanGoNext));
+            OnPropertyChanged(nameof(SummaryTopologyText));
+            UpdateSummaryAndPreview();
+        }
+    }
+
+    [RelayCommand]
+    public void FinishWizard()
+    {
+        SaveToMetadata();
+        if (AutoGenerateFbd && LogicEditor != null)
+        {
+            GenerateFbdPipeline();
+        }
+        if (RequestCloseDialog != null)
+        {
+            RequestCloseDialog.Invoke(true);
+        }
+        else
+        {
+            RequestClose?.Invoke();
+        }
+    }
+
+    [RelayCommand]
+    public void CancelWizard()
+    {
+        if (RequestCloseDialog != null)
+        {
+            RequestCloseDialog.Invoke(false);
+        }
+        else
+        {
+            RequestClose?.Invoke();
+        }
+    }
+
+    // --- LIVE INTELLIGENCE & CONTEXT INSPECTOR COMPUTED PROPERTIES ---
+
+    /// <summary>
+    /// Ước tính chu kỳ quét 1 vòng Modbus (ms) dựa trên số lượng thanh ghi và khoảng nghỉ khung.
+    /// </summary>
+    public int ActivePolledChannelsCount => ModbusPortConfigVM?.SelectedPort != null && ModbusPortConfigVM.SelectedPort.MasterChannels.Count > 0
+        ? ModbusPortConfigVM.SelectedPort.ActivePolledChannelsCount
+        : FastRegisters.Count;
+
+    /// <summary>
+    /// Chuỗi hiển thị số lượng kênh đọc tuần hoàn (song ngữ chuẩn, không lỗi '1 Tags').
+    /// </summary>
+    public string ActivePolledChannelsText => string.Format(
+        LocalizationService.Instance["InspectorActiveChannelsFmt"],
+        ActivePolledChannelsCount
+    );
+
+    /// <summary>
+    /// Ước tính chu kỳ quét 1 vòng Modbus (ms) dựa trên số lượng thanh ghi và khoảng nghỉ khung.
+    /// </summary>
+    public int EstimatedScanCycleMs
+    {
+        get
+        {
+            if (ModbusPortConfigVM?.SelectedPort != null && ModbusPortConfigVM.SelectedPort.MasterChannels.Count > 0)
+            {
+                return ModbusPortConfigVM.SelectedPort.EstimatedScanCycleMs;
+            }
+            if (FastRegisters.Count == 0) return 0;
+            int perRegMs = Math.Max(15, (int)(InterFrameDelayMs + 20));
+            return FastRegisters.Count * perRegMs;
+        }
+    }
+
+    /// <summary>
+    /// Đánh giá tải đường truyền Bus Modbus RTU.
+    /// </summary>
+    public string EstimatedBusLoadText
+    {
+        get
+        {
+            if (FastRegisters.Count == 0)
+                return LocalizationService.Instance.IsVietnamese ? "Không tải (0%)" : "Idle (0%)";
+
+            int cycle = EstimatedScanCycleMs;
+            int interval = Math.Max(100, (int)PollingIntervalMs);
+            double ratio = (double)cycle / interval;
+
+            if (ratio < 0.25)
+                return LocalizationService.Instance.IsVietnamese ? "Rất thấp (< 25%)" : "Very Low (< 25%)";
+            if (ratio < 0.65)
+                return LocalizationService.Instance.IsVietnamese ? "Bình thường (25 - 65%)" : "Normal (25 - 65%)";
+            return LocalizationService.Instance.IsVietnamese ? "Cao (> 65%)" : "High (> 65%)";
+        }
+    }
+
+    /// <summary>
+    /// Ước tính dung lượng dữ liệu tiêu thụ hàng tháng (MB/tháng).
+    /// </summary>
+    public double EstimatedMonthlyDataMb
+    {
+        get
+        {
+            int interval = Math.Max(1, (int)PublishIntervalSec);
+            int payloadBytes = string.IsNullOrEmpty(LivePayloadPreview) 
+                ? 150 
+                : Math.Max(80, System.Text.Encoding.UTF8.GetByteCount(LivePayloadPreview));
+            
+            double packetsPerDay = 86400.0 / interval;
+            double bytesPerMonth = packetsPerDay * 30.0 * payloadBytes;
+            return Math.Round(bytesPerMonth / (1024.0 * 1024.0), 1);
+        }
+    }
+
+    [RelayCommand]
+    public void CopyMacAddress()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(HardwareMacAddress);
+            DeployStatusMessage = LocalizationService.Instance.IsVietnamese
+                ? "Đã sao chép địa chỉ MAC vào bộ nhớ tạm."
+                : "MAC address copied to clipboard.";
+        }
+        catch { }
+    }
+
+    public void UpdateSummaryAndPreview()
+    {
+        var dict = new Dictionary<string, object>
+        {
+            ["device"] = "SYNX-DTU-485",
+            ["ts"] = 1714800000
+        };
+
+        foreach (var reg in FastRegisters)
+        {
+            string key = string.IsNullOrWhiteSpace(reg.TagName) ? $"reg_{reg.StartAddress}" : reg.TagName;
+            if (reg.DataType == ModbusDataType.Real)
+                dict[key] = 25.5;
+            else if (reg.DataType == ModbusDataType.Bool)
+                dict[key] = 1;
+            else
+                dict[key] = 100;
+        }
+
+        try
+        {
+            LivePayloadPreview = System.Text.Json.JsonSerializer.Serialize(dict, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            LivePayloadPreview = "{}";
+        }
+        OnPropertyChanged(nameof(SummaryTopologyText));
+    }
+
+    /// <summary>
+    /// Tự động sinh cụm khối FBD (MB_READ -> Uplink) và nối dây trên Canvas FBD.
+    /// </summary>
+    public void GenerateFbdPipeline()
+    {
+        if (LogicEditor == null) return;
+
+        // 1. Đăng ký các Tag mới vào TagCatalog nếu chưa tồn tại
+        foreach (var reg in FastRegisters)
+        {
+            if (TagCatalog != null && !TagCatalog.AllTags.Any(t => string.Equals(t.Name, reg.TagName, StringComparison.OrdinalIgnoreCase)))
+            {
+                var tagType = reg.DataType switch
+                {
+                    ModbusDataType.Bool => TagDataType.Boolean,
+                    ModbusDataType.Real => TagDataType.Float32,
+                    _ => TagDataType.Int32
+                };
+                var newTag = new TagModel
+                {
+                    Name = reg.TagName,
+                    Kind = TagKind.ModbusHolding,
+                    DataType = tagType,
+                    Alias = reg.Description
+                };
+                TagCatalog.RegisterTags.Add(newTag);
+            }
+        }
+
+        // 2. Tạo khối MB_READ
+        System.Windows.Point spawnPos = LogicEditor.GetNextRuleSpawnPosition();
+        var mbNode = new ModbusReadNodeViewModel
+        {
+            PortIndex = (byte)SelectedPortIndex,
+            SlaveId = FastRegisters.FirstOrDefault()?.SlaveId ?? 1,
+            FunctionCode = FastRegisters.FirstOrDefault()?.FunctionCode ?? ModbusMasterFunctionCode.ReadHoldingRegisters,
+            StartAddress = FastRegisters.FirstOrDefault()?.StartAddress ?? 40001,
+            Location = spawnPos
+        };
+
+        // Gán các chân Pin
+        mbNode.Pins.Clear();
+        foreach (var reg in FastRegisters)
+        {
+            var matchedTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, reg.TagName, StringComparison.OrdinalIgnoreCase));
+            var pin = new ModbusPinBindingViewModel
+            {
+                Label = reg.TagName,
+                DataType = reg.DataType,
+                TargetTag = matchedTag
+            };
+            mbNode.Pins.Add(pin);
+        }
+
+        // 3. Tạo khối Uplink tương ứng
+        GraphNodeViewModel? uplinkNode = null;
+        System.Windows.Point uplinkPos = new System.Windows.Point(spawnPos.X + 280, spawnPos.Y);
+
+        if (UplinkMode == "Mqtt")
+        {
+            var mqttNode = new MqttPublishNodeViewModel
+            {
+                Topic = MqttPublishTopic,
+                PayloadMode = "JSON",
+                Location = uplinkPos
+            };
+            mqttNode.Fields.Clear();
+            foreach (var reg in FastRegisters)
+            {
+                var matchedTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, reg.TagName, StringComparison.OrdinalIgnoreCase));
+                mqttNode.Fields.Add(new MqttPayloadFieldViewModel(reg.TagName, matchedTag));
+            }
+            uplinkNode = mqttNode;
+        }
+        else if (UplinkMode == "Http")
+        {
+            var httpNode = new HttpClientNodeViewModel
+            {
+                Url = HttpUrl,
+                Method = HttpMethod,
+                PeriodicIntervalSec = (ushort)HttpIntervalSec,
+                Location = uplinkPos
+            };
+            httpNode.Fields.Clear();
+            foreach (var reg in FastRegisters)
+            {
+                var matchedTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, reg.TagName, StringComparison.OrdinalIgnoreCase));
+                httpNode.Fields.Add(new HttpPayloadFieldViewModel(reg.TagName, matchedTag));
+            }
+            uplinkNode = httpNode;
+        }
+        else // TcpClient
+        {
+            var tcpNode = new TcpClientNodeViewModel
+            {
+                RemoteHost = TcpRemoteHost,
+                RemotePort = TcpRemotePort,
+                ReconnectDelaySec = TcpReconnectDelaySec,
+                HeartbeatIntervalSec = TcpHeartbeatIntervalSec,
+                HeartbeatPayload = TcpHeartbeatPayload,
+                RegistrationType = TcpRegistrationType,
+                DataTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, FastRegisters.FirstOrDefault()?.TagName, StringComparison.OrdinalIgnoreCase)),
+                Location = uplinkPos
+            };
+            uplinkNode = tcpNode;
+        }
+
+        LogicEditor.Nodes.Add(mbNode);
+        LogicEditor.Nodes.Add(uplinkNode);
+
+        // Nối dây tự động giữa chân ra MB_READ và chân vào Uplink
+        if (mbNode.OutputConnectors.Count > 0 && uplinkNode.InputConnectors.Count > 0)
+        {
+            LogicEditor.CompleteConnection((mbNode.OutputConnectors[0], uplinkNode.InputConnectors[0]));
+        }
+
+        LogicEditor.SelectExclusive(uplinkNode);
+        LogicEditor.CompileAndSaveRules(true);
     }
 }

@@ -97,6 +97,19 @@ extern "C" {
 #define SPLC_LEN_HEALTH                   10
 
 #define SPLC_ADDR_RTC_CLOCK               0x0810  /* 4 regs (8 B): SPLC_RtcClock_t (FC03/FC16, RW) */
+#define SPLC_ADDR_SYSTEM_TAGS             0x0820  /* 8 regs (16 B): SPLC_SystemTagsBlock_t (FC03, RO) */
+#define SPLC_LEN_SYSTEM_TAGS              8
+
+/* Architectural System Tag Indices (1000..1007) */
+#define SPLC_SYS_TAG_BASE_INDEX           1000
+#define SPLC_SYS_TAG_FIRST_SCAN           1000
+#define SPLC_SYS_TAG_ON                   1001
+#define SPLC_SYS_TAG_OFF                  1002
+#define SPLC_SYS_TAG_CLOCK_1S             1003
+#define SPLC_SYS_TAG_CLOCK_100MS          1004
+#define SPLC_SYS_TAG_RTC_HOUR             1005
+#define SPLC_SYS_TAG_RTC_MINUTE           1006
+#define SPLC_SYS_TAG_COMM_OK              1007
 #define SPLC_LEN_RTC_CLOCK                4
 
 /* RTC Status Flags bitmask */
@@ -329,6 +342,22 @@ extern "C" {
 #define SPLC_DTU_RT_CTRL_PORT_MASK        0xFF00
 #define SPLC_DTU_RT_CTRL_PORT_SHIFT       8
 
+/* --- 2.16 Zigbee Wireless Modbus Subsystem Space (0x1700 - 0x173F, SPLC-SPEC-ZIGBEE-006) --- */
+#define SPLC_ADDR_ZIGBEE_CONFIG           0x1700  /* 64 regs (128 B): SPLC_ZigbeeConfigRecord_t (FC03/FC16, RW) */
+#define SPLC_LEN_ZIGBEE_CONFIG            64
+#define SPLC_MB_PORT_ZIGBEE_INDEX         4       /* Logical Port Index 4 for Zigbee in MB_READ/MB_WRITE */
+
+/* Zigbee Control Flags Bitmask (Offset +0 at 0x1700) */
+#define SPLC_ZIGBEE_CTRL_ENABLED_BIT         0x0001 /* Bit 0: 1 = Zigbee Radio Active */
+#define SPLC_ZIGBEE_CTRL_ROLE_SLAVE_BIT      0x0002 /* Bit 1: 0 = Master/Coordinator, 1 = Slave/Router */
+#define SPLC_ZIGBEE_CTRL_FRAMING_ASCII_BIT   0x0004 /* Bit 2: 0 = Modbus RTU, 1 = Modbus ASCII */
+#define SPLC_ZIGBEE_CTRL_SECURITY_ENABLED_BIT 0x0008 /* Bit 3: 1 = AES-128 Encryption Enabled */
+#define SPLC_ZIGBEE_CTRL_ANTENNA_EXT_BIT     0x0010 /* Bit 4: 0 = Onboard PCB, 1 = External SMA */
+#define SPLC_ZIGBEE_CTRL_PRESERVE_KEY_BIT    0x0020 /* Bit 5: 1 = Keep existing AES key on commit (do not overwrite) */
+
+/* Zigbee Status Flags Bitmask (Offset +36 at 0x1724, RO) */
+#define SPLC_ZIGBEE_STAT_KEY_SET_BIT         0x0001 /* Bit 0: 1 = Valid AES Key exists in Flash */
+
 /* Wi-Fi Command codes at 0x1340 */
 #define SPLC_WIFI_CMD_IDLE                0x0000
 #define SPLC_WIFI_CMD_START_SCAN          0x0001
@@ -515,7 +544,8 @@ typedef enum {
     SPLC_CAP_FLOAT32       = 0x0800, /* Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math */
     SPLC_CAP_HTTP_CLIENT   = 0x1000, /* Bit 12: Hỗ trợ phân hệ REST API HTTP Client (0x1600..0x163F) */
     SPLC_CAP_TRANSPARENT_STREAM = 0x2000, /* Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network */
-    SPLC_CAP_MODBUS_SLAVE  = 0x4000  /* Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500) */
+    SPLC_CAP_MODBUS_SLAVE  = 0x4000, /* Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500) */
+    SPLC_CAP_ZIGBEE        = 0x8000  /* Bit 15: Hỗ trợ phân hệ truyền thông không dây Zigbee Modbus (0x1700..0x173F) */
 } SPLC_HardwareCapabilities_t;
 
 typedef enum {
@@ -772,6 +802,21 @@ typedef struct SPLC_PACKED {
     int16_t  tz_offset_min;       /* Timezone offset in minutes (e.g. +420 for UTC+7) */
     uint16_t status_flags;        /* Bit 0: Synced, Bit 1: HW_RTC, Bit 2: Battery_Low */
 } SPLC_RtcClock_t;
+
+/**
+ * @brief System Tags & Clock Registers (8 registers = 16 bytes at 0x0820, Holding Regs 42081..42088).
+ * Autonomous system memory flags updated at the start of every scan cycle.
+ */
+typedef struct SPLC_PACKED {
+    uint16_t first_scan;   /* 0x00: Tag 1000 (1 on first cycle, 0 thereafter) */
+    uint16_t always_on;    /* 0x02: Tag 1001 (Constant 1) */
+    uint16_t always_off;   /* 0x04: Tag 1002 (Constant 0) */
+    uint16_t clock_1s;     /* 0x06: Tag 1003 (1.0 Hz square wave, 500ms ON / 500ms OFF) */
+    uint16_t clock_100ms;  /* 0x08: Tag 1004 (10.0 Hz square wave, 50ms ON / 50ms OFF) */
+    int16_t  rtc_hour;     /* 0x0A: Tag 1005 (0..23) */
+    int16_t  rtc_minute;   /* 0x0C: Tag 1006 (0..59) */
+    uint16_t comm_ok;      /* 0x0E: Tag 1007 (1 if communications healthy) */
+} SPLC_SystemTagsBlock_t;
 
 /**
  * @brief Diagnostic Block (5 registers = 10 bytes at 0x0A20).
@@ -1202,6 +1247,42 @@ typedef struct SPLC_PACKED {
     uint16_t reserved[60];                        /* +4..63: Reserved (120 bytes) */
 } SPLC_DtuRoutingConfig_t;
 
+/**
+ * @brief Zigbee Wireless Modbus Port Config & Telemetry Record (64 registers = 128 bytes at 0x1700).
+ * SPLC-SPEC-ZIGBEE-006: Modbus over Zigbee (Transparent wireless transport).
+ */
+typedef struct SPLC_PACKED {
+    uint16_t control_flags;         /* +0: Bit 0=En, 1=Role(0=M,1=S), 2=Framing(0=RTU,1=ASCII), 3=SecEn, 4=Ant(0=PCB,1=Ext), 5=PreserveKey */
+    uint16_t channel;               /* +1: RF Channel (11..26) */
+    uint16_t pan_id;                /* +2: PAN ID (0x0001..0xFFFE) */
+    uint16_t local_addr;            /* +3: Local Short Address (0x0000..0xFFFD) */
+    uint16_t dest_addr;             /* +4: Destination Short Address (0x0000..0xFFFF) */
+    uint16_t power_level;           /* +5: Transmit Power Level (0..4) */
+    uint16_t baud_rate_idx;         /* +6: Module UART Baud Index (0..7) */
+    uint16_t parity;                /* +7: Parity (0=None, 1=Even, 2=Odd) */
+    uint16_t data_bits;             /* +8: Data Bits (8) */
+    uint16_t stop_bits;             /* +9: Stop Bits (1..2) */
+    uint16_t response_timeout_ms;   /* +10: Response Timeout ms (50..5000) */
+    uint16_t inter_frame_delay_ms;  /* +11: Inter-frame Delay ms (10..500) */
+    uint16_t retry_count;           /* +12: Retries (0..5) */
+    uint16_t slave_id;              /* +13: Modbus Slave ID (1..247) */
+    uint16_t reserved1[2];          /* +14..15: Reserved (4 bytes) */
+    uint8_t  network_key[16];       /* +16..23: AES-128 Encryption Key (Write-Only, reads 0) */
+    char     network_name[16];      /* +24..31: Network Name ASCII (16 bytes) */
+    uint16_t reserved2[4];          /* +32..35: Reserved (8 bytes) */
+    /* Status Section (Read-Only) */
+    uint16_t status_flags;          /* +36: Bit 0 = KEY_SET */
+    uint16_t link_state;            /* +37: 0=Down, 1=Joining, 2=Up, 3=Error */
+    int16_t  rssi_dbm;              /* +38: Last packet RSSI in dBm */
+    uint16_t lqi;                   /* +39: Link Quality Indicator (0..255) */
+    uint16_t tx_packets;            /* +40: TX Packet Counter */
+    uint16_t rx_packets;            /* +41: RX Packet Counter */
+    uint16_t tx_errors;             /* +42: TX Error Counter */
+    uint16_t rx_errors;             /* +43: RX Error Counter */
+    uint16_t error_code;            /* +44: 0=None, 1=InitFail, 2=JoinFail, 3=Timeout, 4=SecurityFail */
+    uint16_t reserved3[19];         /* +45..63: Reserved (38 bytes) */
+} SPLC_ZigbeeConfigRecord_t;
+
 #pragma pack(pop)
 
 /* Compile-time static assertions for exact memory layout */
@@ -1210,6 +1291,7 @@ _Static_assert(sizeof(SPLC_DeviceDescriptor_t)      == 20,  "Descriptor must be 
 _Static_assert(sizeof(SPLC_DeviceResourceInfo_t)    == 20,  "ResourceInfo must be 20 bytes (10 regs)");
 _Static_assert(sizeof(SPLC_DeviceHealth_t)          == 20,  "Health must be 20 bytes (10 regs)");
 _Static_assert(sizeof(SPLC_RtcClock_t)              == 8,   "RTC must be 8 bytes (4 regs)");
+_Static_assert(sizeof(SPLC_SystemTagsBlock_t)         == 16,  "SystemTags must be 16 bytes (8 regs)");
 _Static_assert(sizeof(SPLC_DiagBlock_t)             == 10,  "DiagBlock must be 10 bytes (5 regs)");
 _Static_assert(sizeof(SPLC_FbTimerRecord_t)         == 16,  "FbTimer must be 16 bytes (8 regs)");
 _Static_assert(sizeof(SPLC_FbCounterRecord_t)       == 16,  "FbCounter must be 16 bytes (8 regs)");
@@ -1233,6 +1315,7 @@ _Static_assert(sizeof(SPLC_MqttWillConfig_t)        == 64,  "MqttWillConfig must
 _Static_assert(sizeof(SPLC_DtuHttpConfig_t)         == 128, "DtuHttpConfig must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_DtuTcpConfig_t)          == 128, "DtuTcpConfig must be 128 bytes (64 regs)");
 _Static_assert(sizeof(SPLC_DtuRoutingConfig_t)      == 128, "DtuRoutingConfig must be 128 bytes (64 regs)");
+_Static_assert(sizeof(SPLC_ZigbeeConfigRecord_t)      == 128, "ZigbeeConfigRecord must be 128 bytes (64 regs)");
 #endif
 
 /* ========================================================================= */

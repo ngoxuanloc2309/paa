@@ -24,8 +24,66 @@ public partial class MqttPinBindingViewModel : ObservableObject
     [ObservableProperty]
     private MqttDataType _dataType = MqttDataType.Int16;
 
+    partial void OnDataTypeChanged(MqttDataType oldValue, MqttDataType newValue)
+    {
+        OnPropertyChanged(nameof(AvailableTags));
+        if (TagProvider != null && TargetTag != null && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
+        {
+            var available = AvailableTags;
+            if (!available.Any(t => t == TargetTag || (t.Kind == TargetTag.Kind && t.Index == TargetTag.Index)))
+            {
+                TargetTag = available.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+            }
+        }
+    }
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTargetTag))]
+    [NotifyPropertyChangedFor(nameof(TargetTagIndex))]
+    [NotifyPropertyChangedFor(nameof(TargetTagName))]
     private TagModel? _targetTag;
+
+    private ushort? _initialTargetTagIndex;
+
+    partial void OnTargetTagChanged(TagModel? oldValue, TagModel? newValue)
+    {
+        _initialTargetTagIndex = null;
+        if (newValue != null && newValue.Kind != SimplePLC.Domain.Enums.TagKind.None)
+        {
+            if (newValue.IsDigital || newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                if (DataType != MqttDataType.Bool) DataType = MqttDataType.Bool;
+            }
+            else if (newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+            {
+                if (DataType != MqttDataType.Float) DataType = MqttDataType.Float;
+            }
+            else if (newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Int32)
+            {
+                if (DataType != MqttDataType.Int16 && DataType != MqttDataType.Int32)
+                {
+                    DataType = MqttDataType.Int32;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hàm ủy quyền cung cấp danh sách Tag tương thích dựa trên kiểu dữ liệu MQTT và vai trò WriteTarget.
+    /// </summary>
+    public Func<MqttDataType, IEnumerable<TagModel>>? TagProvider { get; set; }
+
+    /// <summary>
+    /// Danh sách các Tag có thể ghi tương thích với DataType hiện tại của Pin.
+    /// </summary>
+    public IEnumerable<TagModel> AvailableTags => TagProvider != null
+        ? TagProvider(DataType)
+        : System.Linq.Enumerable.Empty<TagModel>();
+
+    /// <summary>
+    /// Tên Tag đích phục vụ hiển thị và lưu trữ Metadata.
+    /// </summary>
+    public string TargetTagName => TargetTag?.Name ?? string.Empty;
 
     [ObservableProperty]
     private double? _minValue;
@@ -100,9 +158,11 @@ public partial class MqttPinBindingViewModel : ObservableObject
 
     public bool HasTargetTag => TargetTag != null;
 
-    public ushort? TargetTagIndex => (TargetTag != null && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None && TargetTag.Index < 65535)
-        ? (ushort)TargetTag.Index
-        : null;
+    public ushort? TargetTagIndex => (TargetTag != null)
+        ? (TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None && TargetTag.Index < 65535 ? (ushort)TargetTag.Index : null)
+        : _initialTargetTagIndex;
+
+
 
     public MqttPinBindingViewModel() { }
 
@@ -118,6 +178,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
         Label = label;
         JsonPath = jsonPath;
         DataType = dataType;
+        _initialTargetTagIndex = targetTagIndex;
         MinValue = minValue;
         MaxValue = maxValue;
         DefaultValue = defaultValue;
@@ -135,7 +196,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
         DefaultValue = DefaultValue
     };
 
-    public void LoadFromDto(MqttPinBindingDto dto)
+    public void LoadFromDto(MqttPinBindingDto dto, TagCatalogViewModel? tagCatalog = null)
     {
         Id = dto.Id;
         Label = dto.Label;
@@ -144,5 +205,10 @@ public partial class MqttPinBindingViewModel : ObservableObject
         MinValue = dto.MinValue;
         MaxValue = dto.MaxValue;
         DefaultValue = dto.DefaultValue;
+        _initialTargetTagIndex = dto.TargetTagIndex;
+        if (tagCatalog != null && dto.TargetTagIndex.HasValue)
+        {
+            TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Index == dto.TargetTagIndex.Value);
+        }
     }
 }

@@ -172,6 +172,7 @@ public class ToolboxIecNamingTests
 
         try
         {
+            loc.CurrentLanguage = "en";
             bool propertyChangedFired = false;
             loc.PropertyChanged += (s, e) =>
             {

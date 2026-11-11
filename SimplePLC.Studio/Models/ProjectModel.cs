@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using CommunityToolkit.Mvvm.ComponentModel;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Studio.Models;
 
@@ -28,7 +29,8 @@ public class ProjectMetadata
     public int RetentiveRegisters { get; set; } = 32;
     public int Counters { get; set; } = 8;
     public int MaxRules { get; set; } = 100;
-    public ushort PhysicalRs485PortCount { get; set; } = 4;
+    public ushort PhysicalRs485PortCount { get; set; } = 2;
+    public uint HardwareCapabilities { get; set; } = 0;
 
     // MQTT IIoT Broker Settings (Project Level)
     public bool MqttBrokerEnabled { get; set; } = true;
@@ -40,7 +42,17 @@ public class ProjectMetadata
     public bool MqttTlsEnabled { get; set; } = false;
     public bool MqttCleanSession { get; set; } = true;
     public ushort MqttKeepAliveSec { get; set; } = 60;
+
+    // MQTT Telemetry (Publish) Settings (Project Level)
+    public string MqttTopic { get; set; } = "synaptix/telemetry/data";
+    public int MqttQos { get; set; } = 0;
+    public bool MqttRetain { get; set; } = false;
+    public string MqttPublishMode { get; set; } = "Cyclic";
+    public List<MqttPayloadFieldData> MqttFields { get; set; } = new();
     public string MqttSubTopic { get; set; } = "factory/dtu/command";
+    public int MqttSubQos { get; set; } = 1;
+    public string MqttSubQueueMode { get; set; } = "Fifo";
+    public List<MqttSubPinData> MqttSubPins { get; set; } = new();
 
     // MQTT TLS Certificate Settings (SPLC-SPEC-MQTT-003)
     public string MqttTlsCaCertPath { get; set; } = string.Empty;
@@ -88,6 +100,9 @@ public class ProjectMetadata
 
     // DTU Gateway Configuration (SPLC-SPEC-DTU-001)
     public DtuConfigModel DtuConfig { get; set; } = new();
+
+    // Zigbee Wireless Subsystem Configuration (SPLC-SPEC-ZIGBEE-006)
+    public ZigbeeConfigModel ZigbeeConfig { get; set; } = new();
 }
 
 /// <summary>
@@ -97,10 +112,11 @@ public class DtuConfigModel
 {
     public bool Enabled { get; set; } = false;
     public byte PortIndex { get; set; } = 0;
-    public string SerialMode { get; set; } = "Transference"; // Transference, ModbusMaster, ModbusSlave
+    public string SerialMode { get; set; } = "ModbusMaster"; // ModbusMaster, ModbusSlave
     public string UplinkMode { get; set; } = "Mqtt"; // Mqtt, Http, TcpClient, TcpServer
     public ushort FrameTimeoutDelayMs { get; set; } = 20;
     public ushort MaxPacketSize { get; set; } = 512;
+    public ushort PublishIntervalSec { get; set; } = 10;
 
     /// <summary>
     /// Chế độ định dạng dữ liệu truyền lên mạng: "Standard" (chuẩn công nghiệp IEC), "Custom" (mẫu JSON tùy biến), hoặc "Raw" (dữ liệu thô không bọc JSON).
@@ -164,15 +180,52 @@ public class DtuHttpModel
 /// <summary>
 /// Đại diện cho một trường dữ liệu (Key-Value) trong HTTP Payload của DTU.
 /// </summary>
-public class DtuHttpFieldModel
+public partial class DtuHttpFieldModel : ObservableObject
 {
-    public string Key { get; set; } = "field1";
-    public string ValueSource { get; set; } = "Payload"; // Payload, DeviceId, Timestamp, Custom
-    public string CustomValue { get; set; } = string.Empty;
+    /// <summary>
+    /// Tên trường dữ liệu (JSON Key).
+    /// </summary>
+    [ObservableProperty]
+    private string _key = "field1";
+    /// <summary>
+    /// Nguồn trích xuất giá trị (Payload, DeviceId, Timestamp, Custom).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCustomValueEditable))]
+    private string _valueSource = "Payload";
+    /// <summary>
+    /// Giá trị tĩnh do người dùng cấu hình khi nguồn là Custom.
+    /// </summary>
+    [ObservableProperty]
+    private string _customValue = string.Empty;
+
+    /// <summary>
+    /// Cho biết trường CustomValue có được phép chỉnh sửa hay không (chỉ khi ValueSource == "Custom").
+    /// </summary>
+    public bool IsCustomValueEditable => string.Equals(ValueSource, "Custom", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
 /// Cấu hình kênh truyền TCP Socket Client / Server của DTU Gateway.
+/// </summary>
+/// <summary>
+/// Cấu hình phân hệ truyền thông không dây Zigbee Modbus (SPLC-SPEC-ZIGBEE-006).
+/// </summary>
+public class ZigbeeConfigModel
+{
+    public bool Enabled { get; set; } = false;
+    public string Role { get; set; } = "Slave"; // Slave | Master
+    public byte SlaveId { get; set; } = 1;
+    public string PanIdHex { get; set; } = "1A2B";
+    public ushort Channel { get; set; } = 15;
+    public string Antenna { get; set; } = "Pcb"; // Pcb | External
+    public bool SecurityEnabled { get; set; } = false;
+    public bool PreserveKeyOnDeploy { get; set; } = true;
+    public string NetworkName { get; set; } = "Zigbee_Node_1";
+}
+
+/// <summary>
+/// Cấu hình truyền thông trong suốt Socket TCP Client / Server của DTU Gateway.
 /// </summary>
 public class DtuTcpModel
 {
@@ -348,6 +401,26 @@ public class ProjectNodeData
     public string DtuUplinkMode { get; set; } = "Mqtt"; // Mqtt, Http, TcpClient, TcpServer
     public string DtuCustomJsonTemplate { get; set; } = string.Empty;
     public List<DtuHttpFieldModel> DtuHttpFields { get; set; } = new();
+
+    // HTTP Client node properties
+    public string HttpUrl { get; set; } = string.Empty;
+    public string HttpMethod { get; set; } = "POST";
+    public string HttpHeaders { get; set; } = "Content-Type: application/json";
+    public ushort HttpTimeoutSec { get; set; } = 10;
+    public string HttpTriggerMode { get; set; } = "OnDataReceived";
+    public ushort HttpIntervalSec { get; set; } = 5;
+    public string HttpPayloadMode { get; set; } = "Custom";
+    public string HttpCustomTemplate { get; set; } = string.Empty;
+
+    // TCP Client node properties
+    public string TcpRemoteHost { get; set; } = string.Empty;
+    public ushort TcpRemotePort { get; set; } = 8888;
+    public ushort TcpReconnectDelaySec { get; set; } = 5;
+    public ushort TcpHeartbeatIntervalSec { get; set; } = 30;
+    public string TcpHeartbeatPayload { get; set; } = string.Empty;
+    public string TcpRegistrationType { get; set; } = "None";
+    public string TcpRegistrationPayload { get; set; } = string.Empty;
+    public string TcpPayloadMode { get; set; } = "Raw";
 }
 
 /// <summary>
@@ -466,6 +539,11 @@ public class ModbusPortConfigModel
     public ushort InterFrameDelayMs { get; set; } = 20;
     public ushort RetryCount { get; set; } = 1;
 
+    /// <summary>
+    /// Danh s?ch c?c k?nh thu th?p d? li?u v? l?nh ?i?u khi?n khi c?ng ho?t ??ng ? ch? ?? Modbus Master.
+    /// </summary>
+    public List<ModbusMasterChannelModel> MasterChannels { get; set; } = new();
+
     public ModbusPortConfigModel Clone()
     {
         return new ModbusPortConfigModel
@@ -481,7 +559,8 @@ public class ModbusPortConfigModel
             StopBits = this.StopBits,
             ResponseTimeoutMs = this.ResponseTimeoutMs,
             InterFrameDelayMs = this.InterFrameDelayMs,
-            RetryCount = this.RetryCount
+            RetryCount = this.RetryCount,
+            MasterChannels = this.MasterChannels.Select(c => c.Clone()).ToList()
         };
     }
 
@@ -513,6 +592,7 @@ public class ModbusSlaveMapEntryModel
 {
     public ushort ModbusAddress { get; set; } = 0;
     public ushort TargetTagIndex { get; set; } = 0;
+    public string TargetTagName { get; set; } = string.Empty;
     public string AccessRight { get; set; } = "ReadOnly"; // "ReadOnly", "ReadWrite"
     public byte DataType { get; set; } = 2; // 1=BOOL, 2=INT32, 3=REAL, 4=UINT16, 5=INT16
     public byte PortMask { get; set; } = 0x0F;
@@ -524,6 +604,7 @@ public class ModbusSlaveMapEntryModel
         {
             ModbusAddress = this.ModbusAddress,
             TargetTagIndex = this.TargetTagIndex,
+            TargetTagName = this.TargetTagName,
             AccessRight = this.AccessRight,
             DataType = this.DataType,
             PortMask = this.PortMask,

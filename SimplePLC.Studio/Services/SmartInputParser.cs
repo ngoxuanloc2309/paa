@@ -171,4 +171,30 @@ public static class SmartInputParser
 
         return TryParse(text, tag.DataType, tag.IsDigital, out rawValue, out formattedDisplay);
     }
+
+    /// <summary>
+    /// Định dạng giá trị số nguyên thô (raw integer value) thành chuỗi hiển thị chuẩn theo kiểu dữ liệu của Tag.
+    /// </summary>
+    public static string FormatForTag(int rawValue, TagModel? tag)
+    {
+        if (tag == null) return rawValue.ToString();
+        if (tag.IsDigital || tag.DataType == TagDataType.Boolean)
+            return FormatBool(rawValue);
+        if (tag.DataType == TagDataType.Float32)
+            return FormatReal(BitConverter.Int32BitsToSingle(rawValue));
+        return rawValue.ToString();
+    }
+
+    /// <summary>
+    /// Định dạng giá trị double thành chuỗi hiển thị chuẩn theo kiểu dữ liệu của Tag.
+    /// </summary>
+    public static string FormatForTag(double value, TagModel? tag)
+    {
+        if (tag == null) return Math.Round(value).ToString(CultureInfo.InvariantCulture);
+        if (tag.IsDigital || tag.DataType == TagDataType.Boolean)
+            return FormatBool((int)Math.Round(value));
+        if (tag.DataType == TagDataType.Float32)
+            return FormatReal(value);
+        return ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture);
+    }
 }

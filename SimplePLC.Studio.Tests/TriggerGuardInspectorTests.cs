@@ -1,10 +1,15 @@
 using SimplePLC.Domain.Enums;
 using SimplePLC.Studio.Models;
+using SimplePLC.Studio.Services;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="TriggerNodeViewModel"/> and <see cref="GuardNodeViewModel"/>
+/// verifying separation of concerns, interval vs edge triggering, and comparison binding.
+/// </summary>
 public class TriggerGuardInspectorTests
 {
     [Fact]
@@ -96,6 +101,7 @@ public class TriggerGuardInspectorTests
     [Fact]
     public void TriggerNodeViewModel_SeparatesIntervalAndEdgeModes_CleanArchitecture()
     {
+        LocalizationService.Instance.CurrentLanguage = "en";
         var node = new TriggerNodeViewModel();
 
         // Default: ON_RISE

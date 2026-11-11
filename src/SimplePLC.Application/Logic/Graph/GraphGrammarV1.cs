@@ -2,6 +2,9 @@ namespace SimplePLC.Application.Logic.Graph;
 
 using SimplePLC.Application.Logic.Compilation;
 
+/// <summary>
+/// Bộ quy tắc ngữ pháp đồ thị FBD chuẩn IEC 61131-3 và kiểm tra tính toàn vẹn cấu trúc kết nối.
+/// </summary>
 public static class GraphGrammarV1
 {
     public const string ErrSameNode = "SPLC-GRAPH-001";
@@ -42,7 +45,7 @@ public static class GraphGrammarV1
             return false;
         }
 
-        if (sourceKind == LogicNodeKind.DtuGateway)
+        if (sourceKind is LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
         {
             if (targetKind is LogicNodeKind.Action or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.MqttPublish)
             {
@@ -56,7 +59,7 @@ public static class GraphGrammarV1
             return false;
         }
 
-        if (targetKind == LogicNodeKind.DtuGateway)
+        if (targetKind is LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
         {
             if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Comparator or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite)
             {
@@ -86,7 +89,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.MqttSubscribe)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -114,7 +117,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.ModbusRead)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttPublish or LogicNodeKind.ModbusWrite or LogicNodeKind.DirectWrite or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -142,7 +145,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.ModbusWrite)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -156,7 +159,7 @@ public static class GraphGrammarV1
 
         if (targetKind == LogicNodeKind.ModbusWrite)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -170,7 +173,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.DirectWrite)
         {
-            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway)
+            if (targetKind is LogicNodeKind.Action or LogicNodeKind.Trigger or LogicNodeKind.Guard or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.MqttPublish or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -184,7 +187,7 @@ public static class GraphGrammarV1
 
         if (targetKind == LogicNodeKind.DirectWrite)
         {
-            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway)
+            if (sourceKind is LogicNodeKind.Input or LogicNodeKind.Guard or LogicNodeKind.Trigger or LogicNodeKind.Timer or LogicNodeKind.Counter or LogicNodeKind.Scale or LogicNodeKind.Comparator or LogicNodeKind.MqttSubscribe or LogicNodeKind.ModbusRead or LogicNodeKind.DtuGateway or LogicNodeKind.HttpClient or LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -198,7 +201,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.Timer)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -212,7 +215,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.Counter)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -226,7 +229,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.Scale)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -240,7 +243,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.Comparator)
         {
-            if (targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Guard || targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway)
+            if (targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Guard || targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -372,19 +375,19 @@ public static class GraphGrammarV1
             return true;
         }
 
-        // Specific rejected transitions with helpful diagnostics
+        // Allowed transitions: Input can feed directly into Action or Guard (compiler auto-synthesizes Trigger)
         if (sourceKind == LogicNodeKind.Input && targetKind == LogicNodeKind.Action)
         {
-            errorCode = ErrInputToAction;
-            errorReason = "Input cannot connect directly to Action; an intermediate Trigger is required.";
-            return false;
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
         }
 
         if (sourceKind == LogicNodeKind.Input && targetKind == LogicNodeKind.Guard)
         {
-            errorCode = ErrInputToGuard;
-            errorReason = "Input cannot connect directly to Guard; Guard must receive signal from a Trigger.";
-            return false;
+            errorCode = string.Empty;
+            errorReason = string.Empty;
+            return true;
         }
 
         if (sourceKind == LogicNodeKind.Trigger && targetKind == LogicNodeKind.Trigger)

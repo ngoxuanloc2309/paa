@@ -194,19 +194,66 @@ public sealed class ProductDefinition
     {
     }
 
+    /// <summary>
+    /// Danh mục 8 System Tags tiêu chuẩn định danh cố định theo chuẩn quốc tế (IEC 61131-3 / TIA Portal / TwinCAT).
+    /// </summary>
+    public static readonly IReadOnlyList<TagDefinition> StandardSystemTags = new TagDefinition[]
+    {
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexFirstScan, "SYS_FIRST_SCAN", TagKind.System, TagDataType.Boolean, isReadOnly: true, "First Scan pulse (active only on cycle #1)"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOn, "SYS_ON", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always ON logical true constant"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOff, "SYS_OFF", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always OFF logical false constant"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock1S, "SYS_CLOCK_1S", TagKind.System, TagDataType.Boolean, isReadOnly: true, "1-Second Clock square pulse (1.0 Hz, 500ms ON / 500ms OFF)"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock100Ms, "SYS_CLOCK_100MS", TagKind.System, TagDataType.Boolean, isReadOnly: true, "100-Millisecond Clock square pulse (10.0 Hz, 50ms ON / 50ms OFF)"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcHour, "SYS_RTC_HOUR", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current hour (0..23)"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcMinute, "SYS_RTC_MINUTE", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current minute (0..59)"),
+        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexCommOk, "SYS_COMM_OK", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Hardware / Simulator communication health status")
+    };
+
+    /// <summary>
+    /// Tìm kiếm TagDefinition theo chỉ số TagIndex. Hỗ trợ tra cứu $O(1)$ cả User Runtime Tags lẫn System Tags (1000..1007).
+    /// </summary>
+    /// <param name="index">Chỉ số tag cần tra cứu.</param>
+    /// <returns>Đối tượng TagDefinition nếu tìm thấy, hoặc null nếu không tồn tại.</returns>
     public TagDefinition? FindTagByIndex(ushort index)
     {
+        if (index >= SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex &&
+            index < SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex + SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagCount)
+        {
+            return StandardSystemTags[index - SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex];
+        }
         return _tagsByIndex.GetValueOrDefault(index);
     }
 
+    /// <summary>
+    /// Tìm kiếm TagDefinition theo tên định danh. Hỗ trợ tra cứu cả User Runtime Tags lẫn System Tags (SYS_*).
+    /// </summary>
+    /// <param name="name">Tên định danh tag (không phân biệt chữ hoa thường).</param>
+    /// <returns>Đối tượng TagDefinition nếu tìm thấy, hoặc null nếu không tồn tại.</returns>
     public TagDefinition? FindTagByName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;
-        return _tagsByName.GetValueOrDefault(name);
+        if (_tagsByName.TryGetValue(name, out var tag)) return tag;
+        return StandardSystemTags.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
     }
 
-    public bool ContainsTag(ushort index) => _tagsByIndex.ContainsKey(index);
-    public bool ContainsTag(string name) => !string.IsNullOrWhiteSpace(name) && _tagsByName.ContainsKey(name);
+    /// <summary>
+    /// Kiểm tra xem chỉ số tag có thuộc phạm vi thiết bị hoặc System Tags hay không.
+    /// </summary>
+    /// <param name="index">Chỉ số tag cần kiểm tra.</param>
+    /// <returns>True nếu tag tồn tại trong danh mục.</returns>
+    public bool ContainsTag(ushort index) =>
+        (index >= SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex &&
+         index < SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex + SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagCount) ||
+        _tagsByIndex.ContainsKey(index);
+
+    /// <summary>
+    /// Kiểm tra xem tên định danh tag có thuộc phạm vi thiết bị hoặc System Tags hay không.
+    /// </summary>
+    /// <param name="name">Tên định danh tag cần kiểm tra.</param>
+    /// <returns>True nếu tag tồn tại trong danh mục.</returns>
+    public bool ContainsTag(string name) =>
+        !string.IsNullOrWhiteSpace(name) &&
+        (_tagsByName.ContainsKey(name) || StandardSystemTags.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Fallback helper tạo danh mục cấu hình chuẩn Remote I/O 8DI - 8DO - 4AI (124 tags)

@@ -73,6 +73,14 @@
       * Khối Ghi Chấp hành Modbus: [`docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/MB_WRITE_FUNCTION_BLOCK_USER_MANUAL.md)
       * Khối Định thời Chu kỳ: [`docs/manuals/CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/manuals/CYCLE_TIMER_FUNCTION_BLOCK_USER_MANUAL.md)
 
+  16. *Đặc Tả Thẻ Hệ Thống & Đồng Hồ Định Thời Chuẩn (SPLC-SPEC-SYSTEM-TAGS-006):* [`docs/firmware/SPLC_SPEC_SYSTEM_TAGS_006_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_SYSTEM_TAGS_006_ICD.md)
+
+  17. *Đặc Tả Cấu Hình Mạng Không Dây Zigbee Mesh (SPLC-SPEC-ZIGBEE-006):* [`docs/firmware/SPLC_SPEC_ZIGBEE_006_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_ZIGBEE_006_ICD.md)
+
+  18. *Cẩm Nang Kiến Trúc & Hướng Dẫn Phát Triển Phần Mềm (Clean Architecture & Lowering Pipeline):* [`docs/architecture/DEVELOPER_GUIDE.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/architecture/DEVELOPER_GUIDE.md)
+
+  19. *Cổng Thông Tin & Sổ Tay Vận Hành Trực Tuyến SynaptiX (International Bilingual Web Wiki):* [`docs-portal/`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/) (VitePress)
+
 ---
 
 
@@ -206,6 +214,8 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 
 | `0x0810..0x0813` | **Real-Time Clock (RTC)** | R/W | FC03/FC16 | 4 regs (8 B) | Đồng hồ thời gian thực: `epoch_utc_s` (u32), `tz_offset_min` (i16), `status_flags` (u16). |
 
+| `0x0820..0x0827` | **System Tags & Clocks** | R | FC03 | 8 regs (16 B) | 8 Thẻ Hệ thống chuẩn IEC (SPLC-SPEC-SYSTEM-TAGS-006, Index 1000..1007): SYS_FIRST_SCAN, SYS_ON, SYS_OFF, SYS_CLOCK_1S, SYS_CLOCK_100MS, SYS_RTC_HOUR, SYS_RTC_MINUTE, SYS_COMM_OK. |
+
 | `0x0900..0x09FF` | **Runtime Tag Values** | R/W | FC03/FC16 | 256 regs (128 tags)| Giá trị nhị phân 32-bit của 128 Tags. Chỉ được phép ghi khi ở trạng thái `DIAG_CONTROL`. |
 
 | `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo dưỡng: REBOOT (1), FACTORY_RESET (2), CLEAR_RULES (3), CLEAR_RETAIN (4). |
@@ -239,6 +249,8 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 | `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
 
 | `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Master/Slave vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port/Role, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName, Role, SlaveId). Host nạp xuống MCU khi deploy. |
+
+| `0x1440..0x147F` | **Zigbee Mesh Network Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình mạng không dây công nghiệp Zigbee (SPLC-SPEC-ZIGBEE-006): Role (Coordinator/Router/EndDevice), PanID (16B), Channel Mask (2.4GHz Kênh 11..26), BaudRate UART nội bộ, AES-128 Encryption Key. Host nạp xuống MCU khi deploy. |
 
 | `0x1500..0x157F` | **Reserved / Legacy Slave Map** | - | - | 128 regs (256 B) | Phân vùng dự phòng. Từ V2.12+, Modbus Slave sử dụng Bản đồ địa chỉ bộ nhớ cố định (Industrial Fixed Memory Map, SPLC-SPEC-SLAVE-001) truy xuất trực tiếp RAM $O(1)$ mà không cần nạp bảng ánh xạ trung gian. |
 | `0x1600..0x163F` | **DTU HTTP REST Client Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình HTTP REST Client (SPLC-SPEC-DTU-001): Method (POST/PUT), Timeout (s), Trigger Mode (OnDataReceived/Periodic), Periodic Interval (s), URL (64B) và Custom Headers (56B). |
@@ -399,6 +411,29 @@ typedef struct SPLC_PACKED {
   * `0x0004` (`SPLC_RTC_FLAG_BATTERY_LOW`): `1` = Pin nuôi RTC bị yếu/hết pin (< 2.0V) hoặc mất pin; `0` = Pin tốt (> 2.5V). *(Do MCU đo đạc / đọc từ thanh ghi cảnh báo của IC RTC để báo cáo cho Host PC).*
 
 * **Quy tắc Read-Before-Write**: Host PC **phải đọc FC03** tại `0x0810` trước khi kết nối để lấy thông tin phần cứng và cờ pin. Khi gửi lệnh FC16 đồng bộ, Host PC **bắt buộc phải bảo toàn** cờ `HW_PRESENT` và `BATTERY_LOW` từ MCU, chỉ cập nhật `SYNCED = 1`.
+
+### 3.4.1. `SPLC_SystemTagsBlock_t` (0x0820, 8 thanh ghi = 16 Bytes)
+
+Khối 8 Thẻ Hệ thống chuẩn công nghiệp (SPLC-SPEC-SYSTEM-TAGS-006) phục vụ lập trình logic IEC 61131-3 mà không cần cấp phát biến ảo hay timer phụ trợ. Ánh xạ kiến trúc Tag Index `1000..1007` trong struct nhị phân Rule 32-byte (`TriggerTag`, `GuardTag`, `ActionTag`).
+
+```c
+typedef struct SPLC_PACKED {
+    uint16_t first_scan;   /* 0x00: SYS_FIRST_SCAN (Tag 1000) - Mức 1 trong chu kỳ quét đầu tiên, về 0 từ chu kỳ 2 */
+    uint16_t always_on;    /* 0x02: SYS_ON (Tag 1001) - Mức 1 hằng số (Logical TRUE) */
+    uint16_t always_off;   /* 0x04: SYS_OFF (Tag 1002) - Mức 0 hằng số (Logical FALSE) */
+    uint16_t clock_1s;     /* 0x06: SYS_CLOCK_1S (Tag 1003) - Xung vuông đối xứng 1.0 Hz (500ms ON / 500ms OFF) */
+    uint16_t clock_100ms;  /* 0x08: SYS_CLOCK_100MS (Tag 1004) - Xung vuông đối xứng 10.0 Hz (50ms ON / 50ms OFF) */
+    int16_t  rtc_hour;     /* 0x0A: SYS_RTC_HOUR (Tag 1005) - Giờ hiện tại (0..23) lấy từ RTC */
+    int16_t  rtc_minute;   /* 0x0C: SYS_RTC_MINUTE (Tag 1006) - Phút hiện tại (0..59) lấy từ RTC */
+    uint16_t comm_ok;      /* 0x0E: SYS_COMM_OK (Tag 1007) - Mức 1 nếu đường truyền Modbus/Serial đang thông suốt */
+} SPLC_SystemTagsBlock_t;
+_Static_assert(sizeof(SPLC_SystemTagsBlock_t) == 16, "SPLC_SystemTagsBlock_t size must be 16 bytes");
+```
+
+* **Quy tắc Vận hành Firmware:**
+  - Vùng nhớ này có thuộc tính **Read-Only (RO)** đối với Modbus Master.
+  - MCU cập nhật lại 8 thanh ghi này ở **đầu mỗi chu kỳ quét (Scan Cycle)** trước khi thực thi bảng Rule logic.
+  - Cờ `first_scan` được khởi tạo thành `1` khi boot/reset và tự động xóa về `0` khi kết thúc chu kỳ quét thứ nhất.
 
 
 

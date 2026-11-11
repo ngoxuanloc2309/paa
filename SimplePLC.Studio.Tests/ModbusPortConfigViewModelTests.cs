@@ -12,10 +12,16 @@ namespace SimplePLC.Studio.Tests;
 public sealed class ModbusPortConfigViewModelTests
 {
     [Fact]
-    public void Constructor_InitializesFourPortsFromMetadata()
+    public void Constructor_InitializesPortsFromMetadata_RespectingPhysicalLimit()
     {
-        var meta = new ProjectMetadata();
-        var vm = new ModbusPortConfigViewModel(meta);
+        // Default metadata (2 ports)
+        var metaDefault = new ProjectMetadata();
+        var vmDefault = new ModbusPortConfigViewModel(metaDefault);
+        Assert.Equal(2, vmDefault.Ports.Count);
+
+        // 4-port hardware (DTU)
+        var meta4 = new ProjectMetadata { PhysicalRs485PortCount = 4 };
+        var vm = new ModbusPortConfigViewModel(meta4);
 
         Assert.Equal(4, vm.Ports.Count);
         Assert.NotNull(vm.SelectedPort);
@@ -35,7 +41,7 @@ public sealed class ModbusPortConfigViewModelTests
     [Fact]
     public void ApplyCommand_PersistsModificationsToMetadata()
     {
-        var meta = new ProjectMetadata();
+        var meta = new ProjectMetadata { PhysicalRs485PortCount = 4 };
         var vm = new ModbusPortConfigViewModel(meta);
 
         // Select Port 1 and change Baud to 115200, Parity to Even, StopBits to 2
@@ -162,5 +168,129 @@ public sealed class ModbusPortConfigViewModelTests
         thread.SetApartmentState(System.Threading.ApartmentState.STA);
         thread.Start();
         tcs.Task.GetAwaiter().GetResult();
+    }
+    [Fact]
+    public void MasterChannels_AddAndRemove_WorksDeterministically()
+    {
+        var meta = new ProjectMetadata();
+        var vm = new ModbusPortConfigViewModel(meta);
+        var port = vm.SelectedPort!;
+
+        Assert.Empty(port.MasterChannels);
+        Assert.False(port.HasMasterChannels);
+
+        // 1. Add first channel
+        port.AddMasterChannelCommand.Execute(null);
+        Assert.Single(port.MasterChannels);
+        Assert.True(port.HasMasterChannels);
+
+        var ch1 = port.MasterChannels[0];
+        Assert.Equal((byte)1, ch1.SlaveId);
+        Assert.Equal((byte)3, ch1.FunctionCode);
+        Assert.True(ch1.IsReadOperation);
+        Assert.False(ch1.IsWriteOperation);
+        Assert.Equal(SimplePLC.Protocol.Enums.ModbusDataType.Int16, ch1.DataType);
+        Assert.Equal(SimplePLC.Protocol.Enums.ModbusEndianness.BigEndian_ABCD, ch1.Endianness);
+        Assert.Equal(1.0, ch1.Scale);
+
+        // 2. Add second channel (address should auto-increment)
+        ch1.Address = 100;
+        port.AddMasterChannelCommand.Execute(null);
+        Assert.Equal(2, port.MasterChannels.Count);
+        var ch2 = port.MasterChannels[1];
+        Assert.Equal(101, ch2.Address);
+
+        // 3. Remove first channel
+        port.RemoveMasterChannelCommand.Execute(ch1);
+        Assert.Single(port.MasterChannels);
+        Assert.Same(ch2, port.MasterChannels[0]);
+
+        // 4. Remove second channel
+        port.RemoveMasterChannelCommand.Execute(ch2);
+        Assert.Empty(port.MasterChannels);
+        Assert.False(port.HasMasterChannels);
+    }
+
+    [Fact]
+    public void MasterChannels_Persistence_SurvivesApplyAndReload()
+    {
+        var meta = new ProjectMetadata();
+        var vm1 = new ModbusPortConfigViewModel(meta);
+        var port1 = vm1.SelectedPort!;
+
+        port1.AddMasterChannelCommand.Execute(null);
+        var ch = port1.MasterChannels[0];
+        ch.SlaveId = 5;
+        ch.FunctionCode = 6; // FC06 Write Single Register
+        ch.Address = 40010;
+        ch.DataType = SimplePLC.Protocol.Enums.ModbusDataType.Real;
+        ch.Endianness = SimplePLC.Protocol.Enums.ModbusEndianness.MidBig_CDAB;
+        ch.Scale = 0.1;
+        ch.TargetTagName = "VREG2";
+
+        vm1.ApplyCommand.Execute(null);
+
+        // Reload into a fresh ViewModel instance
+        var vm2 = new ModbusPortConfigViewModel(meta);
+        var port2 = vm2.SelectedPort!;
+
+        Assert.Single(port2.MasterChannels);
+        var reloaded = port2.MasterChannels[0];
+        Assert.Equal((byte)5, reloaded.SlaveId);
+        Assert.Equal((byte)6, reloaded.FunctionCode);
+        Assert.False(reloaded.IsReadOperation);
+        Assert.True(reloaded.IsWriteOperation);
+        Assert.Equal(40010, reloaded.Address);
+        Assert.Equal(SimplePLC.Protocol.Enums.ModbusDataType.Real, reloaded.DataType);
+        Assert.Equal(SimplePLC.Protocol.Enums.ModbusEndianness.MidBig_CDAB, reloaded.Endianness);
+        Assert.Equal(0.1, reloaded.Scale);
+        Assert.Equal("VREG2", reloaded.TargetTagName);
+    }
+
+    [Fact]
+    public void MasterChannels_ScaleNormalization_AutoRevertsOnInvalidInput()
+    {
+        var ch = new ModbusMasterChannelItemViewModel();
+        Assert.Equal(1.0, ch.Scale);
+        Assert.Equal("1", ch.ScaleText);
+
+        // Valid float with comma or dot
+        ch.ScaleText = "2,5";
+        ch.CommitScaleText();
+        Assert.Equal(2.5, ch.Scale);
+        Assert.Equal("2.5", ch.ScaleText);
+
+        // Invalid text -> Auto-Revert (Axiom 3)
+        ch.ScaleText = "abc_invalid";
+        ch.CommitScaleText();
+        Assert.Equal(2.5, ch.Scale);
+        Assert.Equal("2.5", ch.ScaleText);
+    }
+
+    [Fact]
+    public void TagDisplayName_FollowsTagFirstThenAliasSpecification()
+    {
+        var userTag = new TagModel
+        {
+            Index = 0,
+            Name = "VREG0",
+            Alias = "Nhiệt độ phòng sấy",
+            Kind = SimplePLC.Domain.Enums.TagKind.VirtualRegister
+        };
+        Assert.Equal("[VREG0] — Nhiệt độ phòng sấy", userTag.DisplayName);
+
+        var noneTag = new TagModel
+        {
+            Index = 65535,
+            Name = "NONE",
+            Kind = SimplePLC.Domain.Enums.TagKind.None
+        };
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
+        Assert.Equal("NONE", noneTag.DisplayName);
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "vi";
+        Assert.Equal("Không chọn", noneTag.DisplayName);
+
+        SimplePLC.Studio.Services.LocalizationService.Instance.CurrentLanguage = "en";
     }
 }

@@ -1,5 +1,33 @@
 # SimplePLC Platform Contract Changelog
 
+# SimplePLC Platform Contract Changelog
+
+## [2.13.0 / Studio v2.13.0] - 2026-11-10 (ZIGBEE WIRELESS MODBUS, INDEPENDENT CLOUD UPLINKS, REUSABLE CONTROLS & HARDWARE HIERARCHY - GitHub Release v2.13.0)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Tích Hợp Chuẩn Giao Tiếp Không Dây Zigbee Modbus (Wire Contract V2.0 & SPLC-SPEC-ZIGBEE-006-ICD)**:
+  - Bổ sung phân hệ Zigbee Mesh 2.4 GHz với cổng cứng `PortIndex = 4` trên các khối hàm FBD `MB_READ` và `MB_WRITE`.
+  - Tự động hiển thị và định tuyến cổng Zigbee trong dialog cấu hình kèm thông tin Kênh và PAN ID khi phân hệ được bật.
+  - Tích hợp Hardware Safety Gate chặn gán Slave ID hạn chế (236, 237) tránh xung đột chế độ lệnh AT phần cứng.
+- **2. Tách Biệt Độc Lập Các Giao Thức Cloud Uplink (MQTT Client, HTTP Client, TCP Client)**:
+  - Tách mục cấu hình Cloud Uplink thành 3 phân hệ dịch vụ độc lập: MQTT Client, HTTP Client và TCP Client hoạt động đồng thời không loại trừ lẫn nhau.
+  - Hỗ trợ Dynamic Hardware Capabilities tự động ẩn/hiện dịch vụ theo cờ năng lực phần cứng của từng mẫu thiết bị.
+- **3. Thống Nhất Kiến Trúc & Tái Sử Dụng Giao Diện (Reusable UserControls)**:
+  - Trích xuất và đồng bộ hóa 1:1 các UserControl dùng chung: `HttpClientConfigControl.xaml` và `TcpClientConfigControl.xaml` giữa Màn hình Thiết bị (`DtuGatewayStudioView`) và Hộp thoại FBD (`HttpClientConfigDialogView`, `TcpClientConfigDialogView`).
+  - Tự động khóa và làm mờ giao diện cấu hình kèm thông báo trực quan khi dịch vụ bị vô hiệu hóa.
+- **4. Trình Thanh Tra & Kiểm Tra Trực Tiếp Kênh Modbus (Modbus Live Test Inspector)**:
+  - Bổ sung `ModbusLiveTestInspectorViewModel` & `ModbusLiveTestInspectorControl` cho phép kiểm tra trực tiếp đường truyền, lọc kênh Modbus Master/Slave và đồng bộ tức thời.
+- **5. Hệ Thống System Tags Runtime & Trình Biên Dịch Kích Hoạt Đa Nguồn**:
+  - Hỗ trợ toàn diện System Tags (SYS_*) phục vụ giám sát chẩn đoán và tự động hóa mức hệ thống.
+  - Hoàn thiện trình biên dịch hỗ trợ kích hoạt Trigger từ nhiều nguồn tín hiệu.
+- **6. Cơ Chế Phòng Vệ Nhập Liệu Công Nghiệp (Industrial Form Input Defense)**:
+  - Triển khai nghiêm ngặt hành vi `LostFocus` và `Enter` với tính năng Auto-Normalize và Auto-Revert trên toàn bộ các TextBox thông số công nghiệp, đảm bảo nguyên tắc Visual Truth (Axiom 2).
+- **7. Chuẩn Hóa Phân Tầng Danh Mục Thiết Bị (Hardware Hierarchy)**:
+  - Phân tách rõ ràng 3 cấp độ định danh: Device Class (Remote I/O, Gateway, Data Logger), Target Device Model, và Hardware/Firmware Version trên `DeviceInfoDialogView` và `NewProjectDialogView`.
+- **8. Kiểm Thử Tự Động & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
+  - Toàn bộ **2,001 unit tests** trên toàn bộ giải pháp đạt 100% PASS (1,301 Studio, 242 Application, 223 Protocol, 180 Infrastructure, 55 Domain).
+  - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu Fluent 2 / IBM Carbon, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+
 ## [2.12.0 / Studio v2.12.0] - 2026-11-02 (DTU GATEWAY MULTI-PROTOCOL ROUTING STUDIO, BIDIRECTIONAL SYNC, MQTT MASTER SWITCH & COMPACT BROKER DIALOG - GitHub #10)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

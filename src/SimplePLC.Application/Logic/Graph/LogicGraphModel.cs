@@ -2,6 +2,9 @@ namespace SimplePLC.Application.Logic.Graph;
 
 using SimplePLC.Domain.Enums;
 
+/// <summary>
+/// Phân loại chủng loại khối chức năng trong đồ thị FBD.
+/// </summary>
 public enum LogicNodeKind
 {
     Input = 0,
@@ -17,9 +20,14 @@ public enum LogicNodeKind
     ModbusRead = 10,
     ModbusWrite = 11,
     DirectWrite = 12,
-    DtuGateway = 13
+    DtuGateway = 13,
+    HttpClient = 14,
+    TcpClient = 15
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối chuyển đổi tỉ lệ tương tự Linear Scaler.
+/// </summary>
 public sealed class ScaleNodeData
 {
     public ushort InTagIndex { get; set; }
@@ -33,6 +41,9 @@ public sealed class ScaleNodeData
     public string Unit { get; set; } = "bar";
 }
 
+/// <summary>
+/// Phân loại bộ định thời kỹ thuật số IEC (TON, TOF, TP, CYCLE).
+/// </summary>
 public enum TimerMacroType
 {
     Ton = 0,
@@ -41,12 +52,18 @@ public enum TimerMacroType
     Cycle = 3
 }
 
+/// <summary>
+/// Phân loại bộ đếm xung kỹ thuật số IEC (CTU, CTD).
+/// </summary>
 public enum CounterMacroType
 {
     Ctu = 0, // Count Up
     Ctd = 1  // Count Down
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối bộ đếm xung IEC.
+/// </summary>
 public sealed class CounterNodeData
 {
     public CounterMacroType Type { get; set; } = CounterMacroType.Ctu;
@@ -57,6 +74,9 @@ public sealed class CounterNodeData
     public ushort QTagIndex { get; set; }
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối bộ định thời IEC.
+/// </summary>
 public sealed class TimerNodeData
 {
     public TimerMacroType Type { get; set; } = TimerMacroType.Ton;
@@ -68,13 +88,20 @@ public sealed class TimerNodeData
     public bool StartWithOn { get; set; } = true;
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối ngõ vào tín hiệu số hoặc tương tự.
+/// </summary>
 public sealed class InputNodeData
 {
     public ushort TagIndex { get; set; }
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối kích hoạt sự kiện sườn hoặc ngưỡng.
+/// </summary>
 public sealed class TriggerNodeData
 {
+    public ushort? InputTagIndex { get; set; }
     public TriggerKind Type { get; set; } = TriggerKind.OnRise;
     public CompareOperator CompareOp { get; set; } = CompareOperator.None;
     public double ThresholdLo { get; set; }
@@ -82,12 +109,18 @@ public sealed class TriggerNodeData
     public uint ForMs { get; set; }
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối điều kiện khóa liên động an toàn.
+/// </summary>
 public sealed class GuardNodeData
 {
     public ushort TagIndex { get; set; }
     public bool Negated { get; set; }
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối so sánh quan hệ tương đối.
+/// </summary>
 public sealed class ComparatorNodeData
 {
     public ushort InTagIndex { get; set; }
@@ -96,6 +129,9 @@ public sealed class ComparatorNodeData
     public double ThresholdHi { get; set; } = 100;
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối cuộn chấp hành điều khiển ngõ ra.
+/// </summary>
 public sealed class ActionNodeData
 {
     public ushort TargetTagIndex { get; set; }
@@ -103,6 +139,9 @@ public sealed class ActionNodeData
     public int Parameter { get; set; } = 1;
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối phát hành dữ liệu đo xa qua giao thức MQTT.
+/// </summary>
 public sealed class MqttPublishNodeData
 {
     public ushort? EnTagIndex { get; set; }
@@ -122,6 +161,9 @@ public sealed class MqttPublishNodeData
     public string CustomTemplate { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối đăng ký nhận lệnh điều khiển qua MQTT.
+/// </summary>
 public sealed class MqttSubscribeNodeData
 {
     public ushort? EnTagIndex { get; set; }
@@ -135,6 +177,9 @@ public sealed class MqttSubscribeNodeData
     public List<SimplePLC.Protocol.Dto.MqttPinBindingDto> Pins { get; set; } = new();
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối đọc Modbus Master RS-485.
+/// </summary>
 public sealed class ModbusReadNodeData
 {
     public byte PortIndex { get; set; } = 0;
@@ -153,6 +198,9 @@ public sealed class ModbusReadNodeData
     public List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto> Pins { get; set; } = new();
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối ghi lệnh Modbus Master RS-485.
+/// </summary>
 public sealed class ModbusWriteNodeData
 {
     public byte PortIndex { get; set; } = 0;
@@ -175,6 +223,9 @@ public sealed class ModbusWriteNodeData
     public List<SimplePLC.Protocol.Dto.ModbusMasterPinBindingDto> Pins { get; set; } = new();
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối phát xung trực tiếp phần cứng.
+/// </summary>
 public sealed class DirectWriteNodeData
 {
     public ushort? TrigTagIndex { get; set; }
@@ -191,6 +242,9 @@ public sealed class DirectWriteNodeData
     public uint DefaultColorRgb { get; set; } = 0x00FF00;
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối cổng truyền thông DTU Gateway.
+/// </summary>
 public sealed class DtuGatewayNodeData
 {
     public ushort? EnTagIndex { get; set; }
@@ -204,6 +258,52 @@ public sealed class DtuGatewayNodeData
     public string SerialMode { get; set; } = "Transference";
 }
 
+/// <summary>
+/// Dữ liệu cấu hình cho khối REST API HTTP Client.
+/// </summary>
+public sealed class HttpClientNodeData
+{
+    public ushort? EnTagIndex { get; set; }
+    public ushort? TrigTagIndex { get; set; }
+    public ushort? DataInTagIndex { get; set; }
+    public ushort? BusyTagIndex { get; set; }
+    public ushort? DoneTagIndex { get; set; }
+    public ushort? ErrorTagIndex { get; set; }
+    public ushort? StatusCodeTagIndex { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string Method { get; set; } = "POST";
+    public string CustomHeaders { get; set; } = "Content-Type: application/json";
+    public ushort TimeoutSec { get; set; } = 10;
+    public string TriggerMode { get; set; } = "OnDataReceived";
+    public ushort PeriodicIntervalSec { get; set; } = 5;
+    public string PayloadMode { get; set; } = "Custom";
+    public string CustomTemplate { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Dữ liệu cấu hình cho khối truyền thông mạng TCP Client.
+/// </summary>
+public sealed class TcpClientNodeData
+{
+    public ushort? SendTagIndex { get; set; }
+    public ushort? DataInTagIndex { get; set; }
+    public ushort? ConnectedTagIndex { get; set; }
+    public ushort? DoneTagIndex { get; set; }
+    public ushort? ErrorTagIndex { get; set; }
+    public ushort? DataOutTagIndex { get; set; }
+    public string RemoteHost { get; set; } = string.Empty;
+    public ushort RemotePort { get; set; } = 8888;
+    public ushort ReconnectDelaySec { get; set; } = 5;
+    public ushort HeartbeatIntervalSec { get; set; } = 30;
+    public string HeartbeatPayload { get; set; } = string.Empty;
+    public string RegistrationType { get; set; } = "None";
+    public string RegistrationPayload { get; set; } = string.Empty;
+    public string PayloadMode { get; set; } = "Raw";
+}
+
+/// <summary>
+/// Đại diện cho một nút logic trong sơ đồ khối FBD.
+/// </summary>
 public sealed class LogicNode
 {
     public string Id { get; set; } = string.Empty;
@@ -225,6 +325,8 @@ public sealed class LogicNode
     public ModbusWriteNodeData? ModbusWriteData { get; set; }
     public DirectWriteNodeData? DirectWriteData { get; set; }
     public DtuGatewayNodeData? DtuGatewayData { get; set; }
+    public HttpClientNodeData? HttpClientData { get; set; }
+    public TcpClientNodeData? TcpClientData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };
@@ -236,7 +338,8 @@ public sealed class LogicNode
         double thresholdLo = 0,
         double thresholdHi = 0,
         uint forMs = 0,
-        string label = "") =>
+        string label = "",
+        ushort? inputTagIndex = null) =>
         new()
         {
             Id = id,
@@ -244,6 +347,7 @@ public sealed class LogicNode
             Label = label,
             TriggerData = new TriggerNodeData
             {
+                InputTagIndex = inputTagIndex,
                 Type = type,
                 CompareOp = compareOp,
                 ThresholdLo = thresholdLo,
@@ -631,8 +735,12 @@ public sealed class LogicNode
                 SerialMode = serialMode
             }
         };
+
 }
 
+/// <summary>
+/// Đại diện cho một dây nối logic giữa các cổng của nút trong đồ thị FBD.
+/// </summary>
 public sealed class LogicEdge
 {
     public string Id { get; set; } = string.Empty;
@@ -653,6 +761,9 @@ public sealed class LogicEdge
     }
 }
 
+/// <summary>
+/// Đồ thị logic hoàn chỉnh chứa các nút và dây liên kết.
+/// </summary>
 public sealed class LogicGraph
 {
     public List<LogicNode> Nodes { get; } = new();

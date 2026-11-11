@@ -269,6 +269,65 @@
                             </ItemsControl>
                         </StackPanel>
                     </Border>
+
+                    <!-- SECTION 4: SYSTEM TAGS & STATUS (Core-8) -->
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                        <StackPanel>
+                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                <TextBlock Text="{Binding [VirtualIoSysTitle], Source={x:Static services:LocalizationService.Instance}}"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource IndustrialPrimaryBrush}" FontFamily="Segoe UI" VerticalAlignment="Center" />
+                                <TextBlock Text="CORE-8 (RO)" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" FontFamily="Consolas"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <ItemsControl ItemsSource="{Binding VirtualSysTags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="2" Padding="6,4" CornerRadius="4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Value}" Value="1">
+                                                            <Setter Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <DockPanel LastChildFill="True">
+                                                <Ellipse Width="7" Height="7" Margin="0,0,6,0" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                                            <Setter Property="Opacity" Value="0.35" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Value}" Value="1">
+                                                                    <Setter Property="Fill" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                                                                    <Setter Property="Opacity" Value="1.0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="{Binding FormattedValue}" FontSize="9" FontWeight="Bold" FontFamily="Consolas"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" DockPanel.Dock="Right" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Name}" FontSize="9.5" FontWeight="SemiBold" FontFamily="Consolas"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 

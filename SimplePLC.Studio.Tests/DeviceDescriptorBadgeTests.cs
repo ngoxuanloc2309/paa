@@ -5,6 +5,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for device descriptor badges and device info presentation models.
+/// </summary>
 public class DeviceDescriptorBadgeTests
 {
     [Fact]
@@ -141,5 +144,76 @@ public class DeviceDescriptorBadgeTests
 
         Assert.Equal("Remote I/O (16DI / 16DO)", vm.DeviceProductBadgeText);
         Assert.Contains("16DI / 16DO", vm.DeviceProductToolTip);
+    }
+
+    [Fact]
+    public void ShowDeviceInfo_WhenOffline_SeparatesTargetModelAndHardwareVersion()
+    {
+        var vm = new MainViewModel();
+        vm.IsConnected = false;
+        vm.CurrentProjectMetadata = new Models.ProjectMetadata
+        {
+            TargetDevice = "X.Link Zigbee 44",
+            DeviceClass = (ushort)SPLC_DeviceClass.REMOTE_IO,
+            DigitalInputs = 4,
+            DigitalOutputs = 4
+        };
+
+        DeviceInfoViewModel? capturedInfo = null;
+        vm.ShowDeviceInfoDialogHandler = info => capturedInfo = info;
+
+        // Act
+        vm.ShowDeviceInfoCommand.Execute(null);
+
+        // Assert
+        Assert.NotNull(capturedInfo);
+        Assert.Equal("X.Link Zigbee 44", capturedInfo.TargetModelText);
+        Assert.Equal("X.Link Zigbee 44", capturedInfo.DeviceModel);
+        Assert.Equal("Remote I/O", capturedInfo.DeviceClassText);
+        Assert.Contains("4DI / 4DO", capturedInfo.DeviceVariantText);
+        // HW Version must NOT be the device model name!
+        Assert.NotEqual("X.Link Zigbee 44", capturedInfo.HwVersion);
+        Assert.Contains("v1.0", capturedInfo.HwVersion);
+        Assert.False(capturedInfo.IsOnline);
+    }
+
+    [Fact]
+    public void ShowDeviceInfo_WhenOnline_HardwareVersionFromDescriptor()
+    {
+        var vm = new MainViewModel();
+        vm.IsConnected = true;
+        vm.CurrentProjectMetadata = new Models.ProjectMetadata
+        {
+            TargetDevice = "SynaptiX SYNX-RIO-884",
+            DeviceClass = (ushort)SPLC_DeviceClass.REMOTE_IO
+        };
+
+        var descriptor = new DeviceDescriptorDto
+        {
+            DeviceClass = SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant = 1,
+            HwVersionMajor = 2,
+            HwVersionMinor = 1,
+            HwVersionPatch = 0,
+            FwVersionMajor = 1,
+            FwVersionMinor = 7,
+            FwVersionPatch = 0,
+            ProtocolVersion = 2,
+            RuleFormatVersion = 2
+        };
+        vm.UpdateDeviceProductInfo(descriptor);
+
+        DeviceInfoViewModel? capturedInfo = null;
+        vm.ShowDeviceInfoDialogHandler = info => capturedInfo = info;
+
+        // Act
+        vm.ShowDeviceInfoCommand.Execute(null);
+
+        // Assert
+        Assert.NotNull(capturedInfo);
+        Assert.Equal("SynaptiX SYNX-RIO-884", capturedInfo.TargetModelText);
+        Assert.Equal("v2.1.0", capturedInfo.HwVersion);
+        Assert.Equal("v1.7.0", capturedInfo.FwVersion);
+        Assert.True(capturedInfo.IsOnline);
     }
 }

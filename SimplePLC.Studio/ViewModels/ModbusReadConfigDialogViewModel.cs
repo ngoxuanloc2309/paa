@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
@@ -26,13 +27,30 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
     [NotifyPropertyChangedFor(nameof(PortSelectorTooltip))]
+    [NotifyPropertyChangedFor(nameof(HasRestrictedIdError))]
+    [NotifyPropertyChangedFor(nameof(RestrictedIdErrorMessage))]
     private byte _portIndex;
 
     public ObservableCollection<OptionItem<byte>> AvailablePorts { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasRestrictedIdError))]
+    [NotifyPropertyChangedFor(nameof(RestrictedIdErrorMessage))]
     private byte _slaveId;
+
+    /// <summary>
+    /// Cho biết có lỗi chọn Slave ID cấm (236 hoặc 237) khi trỏ tới cổng vô tuyến Zigbee hay không.
+    /// </summary>
+    public bool HasRestrictedIdError => PortIndex == 4 && (SlaveId == 236 || SlaveId == 237);
+
+    /// <summary>
+    /// Thông báo cảnh báo lỗi khi nhập Slave ID 236/237 trên cổng Zigbee.
+    /// </summary>
+    public string RestrictedIdErrorMessage => LocalizationService.Tr("ModbusZigbeeRestrictedIdError")
+        ?? (LocalizationService.Instance.IsVietnamese
+            ? "Cấm sử dụng Slave ID 236 (0xEC) và 237 (0xED) trên cổng Zigbee vì trùng mã lệnh cấu hình module RF."
+            : "Slave IDs 236 (0xEC) and 237 (0xED) are restricted on Zigbee port due to RF module AT commands.");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -62,7 +80,14 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 
     public ObservableCollection<OptionItem<ModbusReadMode>> AvailableReadModes { get; } = new();
 
-    public string SummaryBadgeText => $"{(LocalizationService.Instance.IsVietnamese ? "Cá»•ng " : "Port ")}{PortIndex + 1} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+    public string SummaryBadgeText
+    {
+        get
+        {
+            string portText = PortIndex == 4 ? "Zigbee" : $"{(LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ")}{PortIndex + 1}";
+            return $"{portText} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)";
+        }
+    }
 
     public bool HasPins => Node.Pins.Count > 0;
     public bool HasNoPins => Node.Pins.Count == 0;
@@ -100,6 +125,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     };
 
     private IReadOnlyList<SimplePLC.Studio.Models.ModbusPortConfigModel>? _modbusPorts;
+    private SimplePLC.Studio.Models.ZigbeeConfigModel? _zigbeeConfig;
 
     public Action? OnOpenDevicePortSettings { get; set; }
 
@@ -109,20 +135,25 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         OnOpenDevicePortSettings?.Invoke();
     }
 
-    public void RefreshAvailablePorts(IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts)
+    public void RefreshAvailablePorts(
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? newPorts,
+        SimplePLC.Studio.Models.ZigbeeConfigModel? zigbeeConfig = null)
     {
         _modbusPorts = newPorts?.ToList();
+        if (zigbeeConfig != null) _zigbeeConfig = zigbeeConfig;
         UpdatePortOptions();
     }
 
     public ModbusReadConfigDialogViewModel(
         ModbusReadNodeViewModel node, 
         TagCatalogViewModel tagCatalog,
-        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null)
+        IEnumerable<SimplePLC.Studio.Models.ModbusPortConfigModel>? availablePorts = null,
+        SimplePLC.Studio.Models.ZigbeeConfigModel? zigbeeConfig = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
         TagCatalog = tagCatalog;
         _modbusPorts = availablePorts?.ToList();
+        _zigbeeConfig = zigbeeConfig;
 
         _portIndex = node.PortIndex;
         _slaveId = node.SlaveId;
@@ -135,7 +166,27 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
 
         foreach (var pin in node.Pins)
         {
-            if (pin.TargetTag == null && tagCatalog != null)
+            ConfigurePinTagProvider(pin);
+            // Dọn dẹp nếu pin đang có tag không tương thích với DataType ban đầu
+            if (pin.TargetTag != null && pin.TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
+            {
+                bool isTagBool = pin.TargetTag.IsDigital || pin.TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean;
+                bool isTagReal = pin.TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32;
+                bool isTagInt = !isTagBool && !isTagReal;
+
+                bool isCompatible = pin.DataType switch
+                {
+                    ModbusDataType.Bool => isTagBool,
+                    ModbusDataType.Real => isTagReal,
+                    _ => isTagInt
+                };
+
+                if (!isCompatible)
+                {
+                    pin.TargetTag = tagCatalog?.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+                }
+            }
+            else if (pin.TargetTag == null && tagCatalog != null)
             {
                 pin.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
             }
@@ -205,6 +256,22 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
             {
                 targetList.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
             }
+        }
+
+        // Bổ sung cổng Zigbee Wireless (PortIndex = 4) nếu được kích hoạt hoặc nếu nốt đang dùng cổng này
+        if (_zigbeeConfig != null && _zigbeeConfig.Enabled)
+        {
+            string zigbeeLabel = isVi
+                ? $"🌐 Zigbee Wireless (Kênh {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})"
+                : $"🌐 Zigbee Wireless (Ch {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})";
+            targetList.Add(new OptionItem<byte>(4, zigbeeLabel));
+        }
+        else if (curPort == 4)
+        {
+            string disabledLabel = isVi
+                ? "🌐 Zigbee Wireless [ĐÃ TẮT TRÊN THIẾT BỊ]"
+                : "🌐 Zigbee Wireless [DISABLED ON DEVICE]";
+            targetList.Add(new OptionItem<byte>(4, disabledLabel));
         }
 
         SyncOptions(AvailablePorts, targetList);
@@ -284,6 +351,18 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
                     ?? (isVi ? "Chưa có cổng RS-485 nào được kích hoạt trên thiết bị. Vui lòng vào Cài đặt > Cấu hình Cổng RS-485 để kích hoạt ít nhất 1 cổng." : "No RS-485 ports are currently enabled. Please open Settings > RS-485 Modbus Master Ports to enable at least one port.");
             }
 
+            if (PortIndex == 4)
+            {
+                if (_zigbeeConfig != null && !_zigbeeConfig.Enabled)
+                {
+                    return isVi
+                        ? "Phân hệ vô tuyến Zigbee đang bị VÔ HIỆU HÓA trong cấu hình thiết bị. Vui lòng vào Cấu hình Thiết bị > Zigbee Wireless để kích hoạt."
+                        : "Zigbee wireless subsystem is DISABLED in device settings. Please open Device Configuration > Zigbee Wireless to enable.";
+                }
+                return LocalizationService.Tr("ModbusPortZigbeeTooltip")
+                    ?? (isVi ? "Truyền nhận dữ liệu qua sóng vô tuyến Zigbee Mesh 2.4 GHz (IEEE 802.15.4) thay cho cáp RS-485 vật lý." : "Transmit and receive data over 2.4 GHz IEEE 802.15.4 Zigbee wireless mesh instead of RS-485 cable.");
+            }
+
             if (_modbusPorts != null && _modbusPorts.Count > 0)
             {
                 var curPortObj = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
@@ -321,6 +400,22 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Cấu hình hàm cung cấp Tag tương thích cho một chân Pin dựa trên TagCatalog.
+    /// </summary>
+    public void ConfigurePinTagProvider(ModbusPinBindingViewModel pin)
+    {
+        pin.TagProvider = GetCompatibleTagsForDataType;
+    }
+
+    /// <summary>
+    /// Lấy danh sách các Tag tương thích theo kiểu dữ liệu Modbus từ TagCatalog với vai trò WriteTarget (Loại bỏ DI, AI).
+    /// </summary>
+    public IEnumerable<TagModel> GetCompatibleTagsForDataType(ModbusDataType dataType)
+    {
+        return TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dataType, includeNone: true);
+    }
+
     [RelayCommand]
     public void AddPin()
     {
@@ -343,6 +438,7 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
             Multiplier = 1.0f,
             TargetTag = TagCatalog?.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None)
         };
+        ConfigurePinTagProvider(newPin);
         newPin.PropertyChanged += OnPinPropertyChanged;
         Node.Pins.Add(newPin);
         UpdateRegCountFromPins();
@@ -577,6 +673,10 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void Apply()
     {
+        if (HasRestrictedIdError)
+        {
+            SlaveId = 1;
+        }
         UpdateRegCountFromPins();
         Node.PortIndex = PortIndex;
         Node.SlaveId = Math.Clamp(SlaveId, (byte)1, (byte)247);

@@ -5,6 +5,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests verifying execution fidelity, dwell timers, guard conditions,
+/// and causality tracking of the SimplePLC RuntimeEngine.
+/// </summary>
 public class RuntimeEngineFidelityTests
 {
     [Fact]
@@ -174,7 +178,8 @@ public class RuntimeEngineFidelityTests
         Assert.Equal(RuleEvaluationStatus.BlockedByGuard, eval.Status);
         Assert.Equal(0, do0.Value);
         Assert.Null(eval.ActionDelta);
-        Assert.Contains("Blocked", eval.GuardSummary ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.True((eval.GuardSummary ?? string.Empty).Contains("Blocked", StringComparison.OrdinalIgnoreCase) ||
+                    (eval.GuardSummary ?? string.Empty).Contains("Bị khóa", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

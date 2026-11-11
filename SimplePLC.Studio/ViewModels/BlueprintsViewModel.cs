@@ -925,6 +925,7 @@ public partial class BlueprintsViewModel : ObservableObject
         else if (bp.Id == "float_temp_alarm")
         {
             var ai0 = tags.FirstOrDefault(t => t.Name == "AI0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? tags[0];
+            ai0.DataType = TagDataType.Float32;
             var do0 = tags.FirstOrDefault(t => t.Name == "DO0") ?? tags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput) ?? tags[0];
 
             var inp = new InputNodeViewModel(ai0) { Location = new Point(80, 120) };

@@ -18,6 +18,28 @@ using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// Vai trò truy cập Tag trong các hàm truyền thông và điều khiển công nghiệp.
+/// </summary>
+public enum TagAccessRole
+{
+    /// <summary>
+    /// Ghi đích (Write Target): Chỉ cho phép các Tag ghi được (!IsReadOnly: DO, VFLAG, VREG, VREG_RETAIN, COUNTER).
+    /// Loại trừ hoàn toàn đầu vào chỉ đọc (DI, AI) và biến hệ thống (SYS_*).
+    /// </summary>
+    WriteTarget,
+
+    /// <summary>
+    /// Đọc nguồn (Read Source): Cho phép đọc từ mọi Tag trong PLC.
+    /// </summary>
+    ReadSource,
+
+    /// <summary>
+    /// Bất kỳ Tag nào.
+    /// </summary>
+    Any
+}
+
 public partial class TagCatalogViewModel : ObservableObject
 {
     private ProductResourceProfile? _currentResources;
@@ -28,7 +50,7 @@ public partial class TagCatalogViewModel : ObservableObject
 
     public ProductDefinition BuildProductFromCurrentTags()
     {
-        var tags = AllTags.Where(t => t.Kind != TagKind.None).Select(t => new TagDefinition(
+        var tags = AllTags.Where(t => t.Kind != TagKind.None && t.Kind != TagKind.System).Select(t => new TagDefinition(
             (ushort)t.Index,
             t.Name,
             t.Kind,
@@ -126,6 +148,34 @@ public partial class TagCatalogViewModel : ObservableObject
         OnPropertyChanged(nameof(BannerToggleText));
         UpdateGroupButtons();
         CurrentGroupInfo = GetGroupInfo(SelectedGroup);
+        UpdateSystemTagAliases();
+    }
+
+    private void UpdateSystemTagAliases()
+    {
+        foreach (var tag in AllTags)
+        {
+            if (tag.Kind == TagKind.None)
+            {
+                tag.Alias = LocalizationService.Tr("TagNoneAlias");
+                tag.NotifyLanguageChanged();
+                continue;
+            }
+            if (tag.Kind != TagKind.System) continue;
+            tag.Alias = tag.Name switch
+            {
+                "SYS_FIRST_SCAN" => LocalizationService.Tr("SysFirstScanAlias"),
+                "SYS_ON" => LocalizationService.Tr("SysAlwaysOnAlias"),
+                "SYS_OFF" => LocalizationService.Tr("SysAlwaysOffAlias"),
+                "SYS_CLOCK_1S" => LocalizationService.Tr("SysClock1SAlias"),
+                "SYS_CLOCK_100MS" => LocalizationService.Tr("SysClock100MsAlias"),
+                "SYS_RTC_HOUR" => LocalizationService.Tr("SysRtcHourAlias"),
+                "SYS_RTC_MINUTE" => LocalizationService.Tr("SysRtcMinuteAlias"),
+                "SYS_COMM_OK" => LocalizationService.Tr("SysCommOkAlias"),
+                _ => tag.Alias
+            };
+            tag.NotifyLanguageChanged();
+        }
     }
 
     [RelayCommand]
@@ -202,7 +252,7 @@ public partial class TagCatalogViewModel : ObservableObject
     private void InitializeTagsFromLayout(TagLayoutMap layout)
     {
         AllTags.Clear();
-        AllTags.Add(new TagModel { Index = 65535, Kind = TagKind.None, Name = "NONE", Alias = "— Không chọn —", Group = "SYSTEM" });
+        AllTags.Add(new TagModel { Index = 65535, Kind = TagKind.None, Name = "NONE", Alias = LocalizationService.Tr("TagNoneAlias"), Group = "SYSTEM" });
 
         for (int i = 0; i < layout.DiCount; i++)
             AllTags.Add(new TagModel { Index = (ushort)(layout.DiBase + i), Kind = TagKind.DiscreteInput, Name = $"DI{i}", Channel = i + 1, Group = "DI", Value = 0 });
@@ -224,6 +274,15 @@ public partial class TagCatalogViewModel : ObservableObject
 
         for (int i = 0; i < layout.CounterCount; i++)
             AllTags.Add(new TagModel { Index = (ushort)(layout.CounterBase + i), Kind = TagKind.Counter, Name = $"COUNTER{i}", Channel = i + 1, Group = "COUNTER", Value = 0 });
+
+        AllTags.Add(new TagModel { Index = 1000, Kind = TagKind.System, Name = "SYS_FIRST_SCAN", DataType = TagDataType.Boolean, Channel = 1, Group = "SYSTEM", Alias = LocalizationService.Tr("SysFirstScanAlias") });
+        AllTags.Add(new TagModel { Index = 1001, Kind = TagKind.System, Name = "SYS_ON", DataType = TagDataType.Boolean, Channel = 2, Group = "SYSTEM", Alias = LocalizationService.Tr("SysAlwaysOnAlias") });
+        AllTags.Add(new TagModel { Index = 1002, Kind = TagKind.System, Name = "SYS_OFF", DataType = TagDataType.Boolean, Channel = 3, Group = "SYSTEM", Alias = LocalizationService.Tr("SysAlwaysOffAlias") });
+        AllTags.Add(new TagModel { Index = 1003, Kind = TagKind.System, Name = "SYS_CLOCK_1S", DataType = TagDataType.Boolean, Channel = 4, Group = "SYSTEM", Alias = LocalizationService.Tr("SysClock1SAlias") });
+        AllTags.Add(new TagModel { Index = 1004, Kind = TagKind.System, Name = "SYS_CLOCK_100MS", DataType = TagDataType.Boolean, Channel = 5, Group = "SYSTEM", Alias = LocalizationService.Tr("SysClock100MsAlias") });
+        AllTags.Add(new TagModel { Index = 1005, Kind = TagKind.System, Name = "SYS_RTC_HOUR", DataType = TagDataType.Int32, Channel = 6, Group = "SYSTEM", Alias = LocalizationService.Tr("SysRtcHourAlias") });
+        AllTags.Add(new TagModel { Index = 1006, Kind = TagKind.System, Name = "SYS_RTC_MINUTE", DataType = TagDataType.Int32, Channel = 7, Group = "SYSTEM", Alias = LocalizationService.Tr("SysRtcMinuteAlias") });
+        AllTags.Add(new TagModel { Index = 1007, Kind = TagKind.System, Name = "SYS_COMM_OK", DataType = TagDataType.Boolean, Channel = 8, Group = "SYSTEM", Alias = LocalizationService.Tr("SysCommOkAlias") });
 
         RebuildDerivedCollections();
         _currentProduct = BuildProductFromCurrentTags();
@@ -264,7 +323,8 @@ public partial class TagCatalogViewModel : ObservableObject
         {
             if (tag.Kind == TagKind.None)
             {
-                tag.Alias = "— Không chọn —";
+                tag.Alias = LocalizationService.Tr("TagNoneAlias");
+    
             }
             else
             {
@@ -337,6 +397,8 @@ public partial class TagCatalogViewModel : ObservableObject
         if (vregCount > 0) list.Add(new() { Key = "VREG", Label = $"VREG ({vregCount})" });
         if (vregRetainCount > 0) list.Add(new() { Key = "VREG_R", Label = $"VREG_R ({vregRetainCount})" });
         if (counterCount > 0) list.Add(new() { Key = "COUNTER", Label = $"COUNTER ({counterCount})" });
+        int sysCount = AllTags.Count(t => t.Kind == TagKind.System);
+        if (sysCount > 0) list.Add(new() { Key = "SYSTEM", Label = $"SYSTEM ({sysCount})" });
 
         // Nếu nhóm đang chọn không còn tồn tại trên phần cứng (ví dụ AI = 0), tự động reset về "ALL"
         if (SelectedGroup != "ALL" && SelectedGroup != "TẤT CẢ" && !list.Any(g => g.Key == SelectedGroup))
@@ -366,7 +428,11 @@ public partial class TagCatalogViewModel : ObservableObject
 
         _currentResources = product.Resources;
 
-        var existingMap = AllTags.ToDictionary(t => t.Index);
+        var existingMap = new Dictionary<int, TagModel>();
+        foreach (var t in AllTags)
+        {
+            existingMap[t.Index] = t;
+        }
         var syncedTags = new List<TagModel>();
 
         // 1. Tag NONE (Index 65535) luôn luôn được giữ lại cho các ComboBox chọn Tag
@@ -377,9 +443,10 @@ public partial class TagCatalogViewModel : ObservableObject
                 Index = 65535,
                 Kind = TagKind.None,
                 Name = "NONE",
-                Alias = "— Không chọn —",
+                Alias = LocalizationService.Tr("TagNoneAlias"),
                 Group = "SYSTEM"
             };
+
         }
         syncedTags.Add(noneTag);
 
@@ -393,7 +460,7 @@ public partial class TagCatalogViewModel : ObservableObject
             product.Resources.Counters);
 
         // 2. Duyệt qua từng TagDefinition được sinh từ phần cứng MCU
-        foreach (var def in product.Tags)
+        foreach (var def in product.Tags.Where(d => d.Kind != TagKind.System))
         {
             string group = MapGroup(def.Kind);
             int channel = CalculateChannel(def.Kind, def.TagIndex, layout);
@@ -419,6 +486,15 @@ public partial class TagCatalogViewModel : ObservableObject
                     Alias = string.Empty,
                     Value = 0
                 });
+            }
+        }
+
+        // 2.5. Bảo toàn các System Tags chuẩn (Index 1000..1007)
+        foreach (var sys in existingMap.Values.Where(t => t.Kind == TagKind.System).OrderBy(t => t.Index))
+        {
+            if (!syncedTags.Any(t => t.Index == sys.Index))
+            {
+                syncedTags.Add(sys);
             }
         }
 
@@ -670,7 +746,15 @@ public partial class TagCatalogViewModel : ObservableObject
             var existing = AllTags.FirstOrDefault(t => t.Index == pTag.Index || string.Equals(t.Name, pTag.Name, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
-                existing.Alias = pTag.Alias;
+                if (existing.Kind == TagKind.None)
+                {
+                    existing.Alias = LocalizationService.Tr("TagNoneAlias");
+                    existing.NotifyLanguageChanged();
+                }
+                else
+                {
+                    existing.Alias = pTag.Alias;
+                }
                 existing.Group = pTag.Group;
                 existing.Channel = pTag.Channel;
                 existing.Value = pTag.Value;
@@ -686,7 +770,7 @@ public partial class TagCatalogViewModel : ObservableObject
                 {
                     Index = pTag.Index,
                     Name = pTag.Name,
-                    Alias = pTag.Alias,
+                    Alias = pTag.Kind == TagKind.None ? LocalizationService.Tr("TagNoneAlias") : pTag.Alias,
                     Kind = pTag.Kind,
                     Channel = pTag.Channel,
                     Group = pTag.Group,
@@ -702,6 +786,84 @@ public partial class TagCatalogViewModel : ObservableObject
         OnPropertyChanged(nameof(TitleText));
         UpdateGroupButtons();
     }
+
+    /// <summary>
+    /// Lấy danh sách Tag lọc theo vai trò truy cập và kiểu dữ liệu MQTT.
+    /// </summary>
+    public IEnumerable<TagModel> GetFilteredTags(TagAccessRole role, MqttDataType dataType, bool includeNone = true)
+    {
+        var list = new List<TagModel>();
+        if (includeNone)
+        {
+            var noneTag = AllTags.FirstOrDefault(t => t.Kind == TagKind.None)
+                          ?? new TagModel { Name = "NONE", Kind = TagKind.None, Alias = LocalizationService.Tr("TagNoneAlias") };
+            list.Add(noneTag);
+        }
+
+        var query = AllTags.Where(t => t.Kind != TagKind.None);
+
+        if (role == TagAccessRole.WriteTarget)
+        {
+            query = query.Where(t => t.IsWritable);
+        }
+
+        switch (dataType)
+        {
+            case MqttDataType.Bool:
+                query = query.Where(t => t.IsDigital || t.DataType == TagDataType.Boolean);
+                break;
+            case MqttDataType.Float:
+                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Float32);
+                break;
+            case MqttDataType.Int16:
+            case MqttDataType.Int32:
+                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Int32);
+                break;
+            case MqttDataType.String:
+                // Chuỗi ký tự không lưu trực tiếp vào thanh ghi số 16-bit của PLC
+                return list;
+        }
+
+        list.AddRange(query);
+        return list;
+    }
+
+    /// <summary>
+    /// Lấy danh sách Tag lọc theo vai trò truy cập và kiểu dữ liệu Modbus.
+    /// </summary>
+    public IEnumerable<TagModel> GetFilteredTags(TagAccessRole role, ModbusDataType dataType, bool includeNone = true)
+    {
+        var list = new List<TagModel>();
+        if (includeNone)
+        {
+            var noneTag = AllTags.FirstOrDefault(t => t.Kind == TagKind.None)
+                          ?? new TagModel { Name = "NONE", Kind = TagKind.None, Alias = LocalizationService.Tr("TagNoneAlias") };
+            list.Add(noneTag);
+        }
+
+        var query = AllTags.Where(t => t.Kind != TagKind.None);
+
+        if (role == TagAccessRole.WriteTarget)
+        {
+            query = query.Where(t => t.IsWritable);
+        }
+
+        switch (dataType)
+        {
+            case ModbusDataType.Bool:
+                query = query.Where(t => t.IsDigital || t.DataType == TagDataType.Boolean);
+                break;
+            case ModbusDataType.Real:
+                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Float32);
+                break;
+            default: // Int16, UInt16, Int32, UInt32
+                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Int32);
+                break;
+        }
+
+        list.AddRange(query);
+        return list;
+    }
 }
 
 public partial class GroupFilterItem : ObservableObject
@@ -715,6 +877,9 @@ public partial class GroupFilterItem : ObservableObject
     private bool _isSelected;
 }
 
+/// <summary>
+/// Chứa thông tin mô tả chi tiết, hướng dẫn kỹ thuật và ví dụ ứng dụng của từng nhóm Tag trong bảng Catalog.
+/// </summary>
 public class TagGroupInfo
 {
     public string GroupCode { get; set; } = string.Empty;

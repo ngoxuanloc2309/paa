@@ -98,11 +98,12 @@ public class AiContextAggregator
         var allTags = (_tagsProvider() ?? Enumerable.Empty<TagModel>()).ToList();
         var prioritizedTags = allTags
             .Where(t =>
-                usedTagNames.Contains(t.Name) ||
-                (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "— Không chọn —") ||
-                CoreDefaultTagNames.Contains(t.Name))
+                t.Kind != TagKind.None && (
+                    usedTagNames.Contains(t.Name) ||
+                    (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ||
+                    CoreDefaultTagNames.Contains(t.Name)))
             .OrderBy(t => usedTagNames.Contains(t.Name) ? 0 :
-                          (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "— Không chọn —") ? 1 : 2)
+                          (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ? 1 : 2)
             .ThenBy(t => t.Index)
             .ToList();
 

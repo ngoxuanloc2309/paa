@@ -38,10 +38,16 @@ Write-Host "=================================================================" -
 # 1. Determine Version
 if ([string]::IsNullOrWhiteSpace($Version)) {
     # Try git tag
-    $gitTag = & git describe --tags --exact-match 2>$null
-    if ($LASTEXITCODE -eq 0 -and $gitTag -match '^v?(\d+\.\d+(\.\d+)?)') {
-        $Version = $matches[1]
-    } else {
+    try {
+        $gitTag = (git tag --points-at HEAD 2>$null | Select-Object -First 1)
+        if ($gitTag -and $gitTag -match '^v?(\d+\.\d+(\.\d+)?)') {
+            $Version = $matches[1]
+        }
+    } catch {
+        # Ignore git tag lookup failure
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Version)) {
         # Read from csproj
         [xml]$proj = Get-Content "$RootDir\SimplePLC.Studio\SimplePLC.Studio.csproj"
         $Version = $proj.Project.PropertyGroup.Version
@@ -154,20 +160,21 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp ()
-- **Studio Định Tuyến & Cổng Chuyển Tiếp Dữ Liệu DTU Gateway (0x1600..0x16BF, SPLC-SPEC-DTU-001)**: Hỗ trợ đa giao thức HTTP REST Client, TCP Socket, MQTT Uplink và RS-485 Downlink với 3 chế độ định dạng dữ liệu (Standard IEC JSON, Custom Template, Raw Passthrough).
-- **Đồng Bộ Hai Chiều & Vòng Đời Tự Động DTU Gateway**: Tự động phản chiếu và lưu trữ hai chiều giữa DTU Studio và các hộp thoại cấu hình toàn cục (Global Modbus Master Ports & Global MQTT Broker Settings).
-- **Tối Ưu Hóa Hộp Thoại MQTT Broker & Tự Động Đổi Cổng (Auto-Switching 1883/8883)**: Bố cục 1 cột tinh gọn chuẩn Fluent 2 Desktop; tự động chuyển đổi cổng 1883 (TCP) và 8883 (TLS); tích hợp Master Switch làm mờ và khóa cấu hình khi tắt dịch vụ MQTT.
-- **Tinh Gọn Không Gian Lập Trình Canvas FBD**: Loại bỏ hoàn toàn khối DTU trên Canvas, chuyển sang Studio DTU chuyên dụng.
-- **Chuẩn Hóa Thuật Ngữ Giao Diện Công Nghiệp**: Thống nhất 100% sử dụng 'thiết bị' / 'device', loại bỏ hoàn toàn các thuật ngữ 'vi điều khiển', 'MCU', 'PLC' trên UI.
-- **Hoàn Thiện Chỉ Mục Tham Chiếu Master Specification (SPLC-DOC-SPEC-V20-MASTER)**: Bổ sung đầy đủ 15 liên kết tới toàn bộ Subsystem Wire ICDs, Conformance Spec và 5 Sổ tay khối hàm FBD.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 1,697 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML.
+## 🚀 Tính năng nổi bật & Nâng cấp (v2.13.0)
+- **Tích hợp Chuẩn Giao tiếp Không dây Zigbee Modbus (Wire Contract V2.0 & SPLC-SPEC-ZIGBEE-006)**: Hỗ trợ mạng Zigbee Mesh 2.4 GHz với ``PortIndex = 4`` trên các khối FBD ``MB_READ`` và ``MB_WRITE``. Tích hợp Hardware Safety Gate chặn các địa chỉ Slave ID hạn chế (236, 237) tránh xung đột lệnh cấu hình RF.
+- **Tách biệt Độc lập các Giao thức Cloud Uplink (MQTT, HTTP Client, TCP Client)**: Nâng cấp DTU Gateway với 3 dịch vụ truyền tin chạy song song không loại trừ lẫn nhau, hỗ trợ Dynamic Hardware Capabilities lọc theo năng lực thực tế của phần cứng.
+- **Thống nhất Kiến trúc & Tái sử dụng UserControl (Reusable Controls)**: Đồng bộ hóa 1:1 các UserControl cấu hình (``HttpClientConfigControl``, ``TcpClientConfigControl``, ``ModbusPortConfigControl``, ``MqttBrokerConfigControl``) giữa màn hình Studio Thiết bị và Hộp thoại khối hàm FBD.
+- **Trình Thanh tra & Kiểm tra Trực tiếp Modbus (Modbus Live Test Inspector)**: Bổ sung công cụ kiểm tra trực tiếp kênh Modbus Master/Slave với bộ lọc thời gian thực và đồng bộ hai chiều.
+- **Hệ thống System Tags Runtime & Trình Biên dịch Kích hoạt Đa nguồn**: Bổ sung hỗ trợ System Tags (SYS_*) thời gian thực và biên dịch kích hoạt trigger đa nguồn linh hoạt.
+- **Cơ chế Bảo vệ Dữ liệu Công nghiệp (Industrial Form Input Defense)**: Thực thi nghiêm ngặt vòng đời LostFocus/Enter với tính năng Auto-Normalize và Auto-Revert trên toàn bộ các ViewModel nhập liệu.
+- **Chuẩn hóa Phân tầng Định danh Phần cứng (Hardware Hierarchy)**: Phân định rõ ràng 3 cấp độ: Device Class, Target Device Model, và Hardware/Firmware Version trên toàn bộ hộp thoại thông tin và New Project Wizard.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,001 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |
 | :--- | :--- | :--- |
-| `SynaptixIDE.exe` | Portable single-file x64 standalone executable | `$hash` |
-| `$ZipName` | Toàn bộ gói ứng dụng nén zip | `$zipHash` |
+| ``SynaptixIDE.exe`` | Portable single-file x64 standalone executable | $hash |
+| ``$ZipName`` | Toàn bộ gói ứng dụng nén zip | $zipHash |
 
 *Yêu cầu hệ điều hành: Windows 10 / Windows 11 (64-bit). Không cần cài đặt thêm .NET Runtime.*
 "@

@@ -7,6 +7,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử hợp đồng ràng buộc dây nối tự động và cơ chế lan truyền phản ứng (Reactive Wire Binding)
+/// trên đồ thị Logic FBD Canvas tuân thủ chuẩn IEC 61131-3 và Beckhoff ADS Reactive Model.
+/// </summary>
 public class CanvasWireAutoBindingTests
 {
     private readonly TagCatalogViewModel _tagCatalog;
@@ -230,6 +234,7 @@ public class CanvasWireAutoBindingTests
         // Disconnect Assert
         Assert.Null(pin.TargetTag);
     }
+
     [Fact]
     public void Reactive_InputNode_Tag_Change_Immediately_Propagates_To_Connected_TriggerNode()
     {
@@ -439,4 +444,85 @@ public class CanvasWireAutoBindingTests
         Assert.True(sw.ElapsedMilliseconds < 500, "BFS propagation must terminate quickly even with cycles.");
         Assert.Equal(ai1, scaleNode.InputTag);
     }
+
+    [Fact]
+    public void Reactive_ModbusRead_PinTargetTag_Change_Immediately_Propagates_To_Connected_TriggerNode()
+    {
+        // Arrange
+        var vflag0 = _tagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG0") ?? _tagCatalog.AllTags.First(t => t.Name == "DI0");
+        var vflag1 = _tagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG1") ?? _tagCatalog.AllTags.First(t => t.Name == "DI1");
+
+        var mbRead = new ModbusReadNodeViewModel { SlaveId = 1 };
+        var pin = new ModbusPinBindingViewModel { Label = "Pin_1", TargetTag = vflag0 };
+        mbRead.Pins.Add(pin);
+
+        var trigNode = new TriggerNodeViewModel();
+
+        _vm.Nodes.Add(mbRead);
+        _vm.Nodes.Add(trigNode);
+
+        // Initial connect: wire immediately binds vflag0
+        _vm.Connect(pin.Connector!, trigNode.InputConnectors[0]);
+        Assert.Equal(vflag0, trigNode.InputTag);
+        Assert.StartsWith($"{vflag0.Name}:", trigNode.TriggerActionText);
+
+        // Act: User changes Pin_1 TargetTag to VFLAG1 in config dialog or inspector without reconnecting wire
+        pin.TargetTag = vflag1;
+
+        // Assert: TriggerNode immediately receives VFLAG1 reactively along the wire!
+        Assert.Equal(vflag1, trigNode.InputTag);
+        Assert.StartsWith($"{vflag1.Name}:", trigNode.TriggerActionText);
+        Assert.Equal($"🔗 Connected: {vflag1.Name}", trigNode.InputConnectionBadge);
+    }
+
+    [Fact]
+    public void Reactive_ModbusRead_PinTargetTag_Cleared_Resets_Connected_TriggerNode()
+    {
+        // Arrange
+        var vflag0 = _tagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG0") ?? _tagCatalog.AllTags.First(t => t.Name == "DI0");
+        var mbRead = new ModbusReadNodeViewModel { SlaveId = 1 };
+        var pin = new ModbusPinBindingViewModel { Label = "Pin_1", TargetTag = vflag0 };
+        mbRead.Pins.Add(pin);
+
+        var trigNode = new TriggerNodeViewModel();
+        _vm.Nodes.Add(mbRead);
+        _vm.Nodes.Add(trigNode);
+
+        _vm.Connect(pin.Connector!, trigNode.InputConnectors[0]);
+        Assert.Equal(vflag0, trigNode.InputTag);
+
+        // Act: Clear pin's target tag
+        pin.TargetTag = null;
+
+        // Assert: Connected TriggerNode input tag is cleared gracefully
+        Assert.Null(trigNode.InputTag);
+        Assert.Empty(trigNode.InputConnectionBadge);
+    }
+
+    [Fact]
+    public void Reactive_MqttSubscribe_PinTargetTag_Change_Immediately_Propagates_To_Connected_TriggerNode()
+    {
+        // Arrange
+        var vflag0 = _tagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG0") ?? _tagCatalog.AllTags.First(t => t.Name == "DI0");
+        var vflag1 = _tagCatalog.AllTags.FirstOrDefault(t => t.Name == "VFLAG1") ?? _tagCatalog.AllTags.First(t => t.Name == "DI1");
+
+        var mqttSub = new MqttSubscribeNodeViewModel();
+        var pin = new MqttPinBindingViewModel { Label = "Pin_1", TargetTag = vflag0 };
+        mqttSub.Pins.Add(pin);
+
+        var trigNode = new TriggerNodeViewModel();
+        _vm.Nodes.Add(mqttSub);
+        _vm.Nodes.Add(trigNode);
+
+        _vm.Connect(pin.Connector!, trigNode.InputConnectors[0]);
+        Assert.Equal(vflag0, trigNode.InputTag);
+
+        // Act: User changes Pin_1 TargetTag to VFLAG1
+        pin.TargetTag = vflag1;
+
+        // Assert: TriggerNode immediately receives VFLAG1 reactively
+        Assert.Equal(vflag1, trigNode.InputTag);
+        Assert.StartsWith($"{vflag1.Name}:", trigNode.TriggerActionText);
+    }
+
 }

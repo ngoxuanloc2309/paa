@@ -26,6 +26,7 @@ public sealed class HardwareDevicePreset
     public ushort RetentiveRegisters { get; init; } = 32;
     public ushort Counters { get; init; } = 8;
     public ushort MaxRules { get; init; } = 100;
+    public ushort PhysicalRs485PortCount { get; init; } = 2;
     public SPLC_HardwareCapabilities HardwareCapabilities { get; init; } = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE;
 
     public int TotalTags => DigitalInputs + DigitalOutputs + AnalogInputs + VirtualFlags + VirtualRegisters + RetentiveRegisters + Counters;
@@ -50,7 +51,8 @@ public sealed class HardwareDevicePreset
             maxRules: MaxRules,
             runtimeTagCount: (ushort)resources.TotalTags,
             resources: resources,
-            hardwareCapabilities: HardwareCapabilities);
+            hardwareCapabilities: HardwareCapabilities,
+            physicalRs485PortCount: PhysicalRs485PortCount);
     }
 
     /// <summary>
@@ -62,7 +64,7 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "REMOTE_IO_8DI_8DO_4AI",
-            DisplayName = "SynaptiX Remote I/O",
+            DisplayName = "SynaptiX SYNX-RIO-884 (Remote I/O · 8DI / 8DO / 4AI)",
             DescriptionKey = "PresetRemoteIo8Di8Do4AiDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
@@ -78,11 +80,11 @@ public sealed class HardwareDevicePreset
             HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
         },
 
-        // 2. REMOTE_IO - Compact 4DI / 4DO
+        // 2. REMOTE_IO - 4DI / 4DO
         new()
         {
             Id = "REMOTE_IO_4DI_4DO",
-            DisplayName = "SynaptiX Compact I/O",
+            DisplayName = "SynaptiX SYNX-RIO-440 (Remote I/O · 4DI / 4DO)",
             DescriptionKey = "PresetRemoteIo4Di4DoDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = 3,
@@ -98,11 +100,11 @@ public sealed class HardwareDevicePreset
             HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
         },
 
-        // 3. REMOTE_IO - Discrete 8DI / 8DO
+        // 3. REMOTE_IO - Discrete 8DI / 8DO Relay
         new()
         {
             Id = "REMOTE_IO_8DI_8DO",
-            DisplayName = "SynaptiX Relay Unit",
+            DisplayName = "SynaptiX SYNX-RIO-880 (Remote I/O · 8DI / 8DO Relay)",
             DescriptionKey = "PresetRemoteIo8Di8DoDesc",
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
             DeviceVariant = 4,
@@ -122,7 +124,7 @@ public sealed class HardwareDevicePreset
         new()
         {
             Id = "DATALOGGER_4DI_2DO_4AI",
-            DisplayName = "SynaptiX Data Logger",
+            DisplayName = "SynaptiX SYNX-DL-424 (Data Logger · 4DI / 2DO / 4AI)",
             DescriptionKey = "PresetDataloggerDesc",
             DeviceClass = SPLC_DeviceClass.DATALOGGER,
             DeviceVariant = (ushort)SPLC_DataloggerVariant.VARIANT_8AI,
@@ -135,14 +137,22 @@ public sealed class HardwareDevicePreset
             RetentiveRegisters = 32,
             Counters = 4,
             MaxRules = 50,
-            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.SD_DATALOG
+            PhysicalRs485PortCount = 2,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC |
+                                   SPLC_HardwareCapabilities.RETENTIVE |
+                                   SPLC_HardwareCapabilities.RTC |
+                                   SPLC_HardwareCapabilities.SD_DATALOG |
+                                   SPLC_HardwareCapabilities.MODBUS_MASTER |
+                                   SPLC_HardwareCapabilities.WIFI |
+                                   SPLC_HardwareCapabilities.MQTT_PUB |
+                                   SPLC_HardwareCapabilities.MQTT_SUB
         },
 
         // 5. GATEWAY - RS485 / Ethernet
         new()
         {
             Id = "GATEWAY_RS485_ETH",
-            DisplayName = "SynaptiX Gateway",
+            DisplayName = "SynaptiX SYNX-GW-220 (Protocol Gateway · RS-485 / Net)",
             DescriptionKey = "PresetGatewayDesc",
             DeviceClass = SPLC_DeviceClass.GATEWAY,
             DeviceVariant = (ushort)SPLC_GatewayVariant.VARIANT_RS485_ETH,
@@ -155,34 +165,24 @@ public sealed class HardwareDevicePreset
             RetentiveRegisters = 32,
             Counters = 4,
             MaxRules = 50,
-            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_TCP
+            PhysicalRs485PortCount = 2,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC |
+                                   SPLC_HardwareCapabilities.RETENTIVE |
+                                   SPLC_HardwareCapabilities.ETHERNET |
+                                   SPLC_HardwareCapabilities.WIFI |
+                                   SPLC_HardwareCapabilities.MQTT_PUB |
+                                   SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.MODBUS_MASTER |
+                                   SPLC_HardwareCapabilities.MODBUS_TCP |
+                                   SPLC_HardwareCapabilities.HTTP_CLIENT |
+                                   SPLC_HardwareCapabilities.TRANSPARENT_STREAM
         },
 
-        // 6. CONTROLLER - Programmable Controller
-        new()
-        {
-            Id = "CONTROLLER_STANDALONE",
-            DisplayName = "SynaptiX Controller",
-            DescriptionKey = "PresetControllerDesc",
-            DeviceClass = SPLC_DeviceClass.CONTROLLER,
-            DeviceVariant = 1,
-            McuTarget = "SynaptiX SYNX-PLC-884",
-            DigitalInputs = 8,
-            DigitalOutputs = 8,
-            AnalogInputs = 4,
-            VirtualFlags = 32,
-            VirtualRegisters = 32,
-            RetentiveRegisters = 32,
-            Counters = 8,
-            MaxRules = 100,
-            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.SD_DATALOG
-        },
-
-        // 7. DTU - Industrial RS-485 Gateway & Data Transfer Unit (TCP / MQTT / HTTP)
+        // 6. DTU - Industrial RS-485 Gateway & Data Transfer Unit (TCP / MQTT / HTTP)
         new()
         {
             Id = "DTU_RS485_NET",
-            DisplayName = "SynaptiX DTU",
+            DisplayName = "SynaptiX SYNX-DTU-485 (Industrial DTU · 4x RS-485 / Net)",
             DescriptionKey = "PresetDtuDesc",
             DeviceClass = SPLC_DeviceClass.DTU,
             DeviceVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
@@ -195,6 +195,7 @@ public sealed class HardwareDevicePreset
             RetentiveRegisters = 32,
             Counters = 4,
             MaxRules = 50,
+            PhysicalRs485PortCount = 4,
             HardwareCapabilities = SPLC_HardwareCapabilities.ETHERNET |
                                    SPLC_HardwareCapabilities.WIFI |
                                    SPLC_HardwareCapabilities.MQTT_PUB |
@@ -203,6 +204,30 @@ public sealed class HardwareDevicePreset
                                    SPLC_HardwareCapabilities.MODBUS_TCP |
                                    SPLC_HardwareCapabilities.HTTP_CLIENT |
                                    SPLC_HardwareCapabilities.TRANSPARENT_STREAM
+        },
+
+        // 7. XLINK_ZIGBEE_44 - Wireless Zigbee I/O (4DI / 4DO)
+        new()
+        {
+            Id = "XLINK_ZIGBEE_44",
+            DisplayName = "SynaptiX XLINK-ZB-44 (Zigbee Wireless I/O · 4DI / 4DO)",
+            DescriptionKey = "PresetXLinkZigbee44Desc",
+            DeviceClass = SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant = 5,
+            McuTarget = "SynaptiX XLINK-ZB-44",
+            DigitalInputs = 4,
+            DigitalOutputs = 4,
+            AnalogInputs = 0,
+            VirtualFlags = 16,
+            VirtualRegisters = 32,
+            RetentiveRegisters = 16,
+            Counters = 4,
+            MaxRules = 50,
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC |
+                                   SPLC_HardwareCapabilities.RETENTIVE |
+                                   SPLC_HardwareCapabilities.MODBUS_SLAVE |
+                                   SPLC_HardwareCapabilities.MODBUS_MASTER |
+                                   SPLC_HardwareCapabilities.ZIGBEE
         }
     };
 }

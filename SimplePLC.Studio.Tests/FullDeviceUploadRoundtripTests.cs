@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Infrastructure.Simulator;
@@ -38,6 +39,10 @@ public class FullDeviceUploadRoundtripTests
         mainVM.SelectedPort = "SIMULATOR (VIRTUAL)";
 
         mainVM.NewProject();
+        if (AppServices.Instance.LifecycleManager.CurrentState != ConnectionLifecycleState.Disconnected)
+        {
+            await AppServices.Instance.LifecycleManager.DisconnectAsync();
+        }
         await mainVM.ToggleConnect();
         Assert.True(mainVM.IsConnected, "MainViewModel must be connected to virtual simulator.");
 
@@ -78,7 +83,7 @@ public class FullDeviceUploadRoundtripTests
             await mainVM.UploadFromDeviceAsync();
 
             // Đảm bảo giữ nguyên tại màn hình Rule Table (tab 2), không bị chuyển hướng sang Logic Canvas (tab 0)
-            Assert.Equal(2, mainVM.SelectedTabIndex);
+            Assert.Equal(AppTabIndices.RuleTable, mainVM.SelectedTabIndex);
 
             // 6. Kiểm tra Bảng Rule đã phục hồi đủ 2 rules
             Assert.Equal(2, mainVM.RuleTableVM.Rules.Count);

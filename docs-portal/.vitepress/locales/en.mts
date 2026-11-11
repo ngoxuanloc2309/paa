@@ -102,6 +102,7 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           { text: 'RS-485 Config & SCADA Slave Map', link: '/tools/rs485-and-scada-slave' },
           { text: 'MQTT TLS & Wi-Fi Provisioning', link: '/tools/mqtt-and-wifi-config' },
+          { text: 'Industrial Zigbee Mesh', link: '/tools/zigbee-mesh-config' },
           { text: 'DTU Gateway Studio', link: '/tools/dtu-gateway-studio' },
           { text: 'Simulator & Online Live Debug', link: '/tools/simulator-and-live-debug' },
           { text: 'SynaptiX AI Copilot', link: '/tools/ai-copilot' },

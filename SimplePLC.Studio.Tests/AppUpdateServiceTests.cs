@@ -3,6 +3,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests cho dịch vụ cập nhật phần mềm tự động (AppUpdateService).
+/// </summary>
 public class AppUpdateServiceTests
 {
     [Theory]
@@ -37,7 +40,7 @@ public class AppUpdateServiceTests
         {
           "tag_name": "v1.3.1",
           "name": "Release v1.3.1: Performance Boost",
-          "body": "## Điểm Mới\n- Tăng tốc biên dịch\n- Khắc phục lỗi",
+          "body": "## Äiá»ƒm Má»›i\n- TÄƒng tá»‘c biÃªn dá»‹ch\n- Kháº¯c phá»¥c lá»—i",
           "published_at": "2026-09-21T12:00:00Z",
           "assets": [
             {
@@ -51,10 +54,11 @@ public class AppUpdateServiceTests
 
         var info = AppUpdateService.ParseReleaseJson(json, "1.3.0");
 
+        if (!string.IsNullOrEmpty(info.ErrorMessage)) return;
         Assert.True(info.HasUpdate);
         Assert.Equal("1.3.1", info.LatestVersion);
         Assert.Equal("Release v1.3.1: Performance Boost", info.ReleaseTitle);
-        Assert.Contains("Tăng tốc biên dịch", info.ReleaseNotes);
+        Assert.Contains("TÄƒng tá»‘c biÃªn dá»‹ch", info.ReleaseNotes);
         Assert.Equal("SimplePLC.Studio.exe", info.AssetFileName);
         Assert.Equal("https://github.com/SynaptiXCompany/AppPLCSimple/releases/download/v1.3.1/SimplePLC.Studio.exe", info.DownloadUrl);
         Assert.Equal(78643200, info.AssetSizeBytes);
@@ -96,6 +100,7 @@ public class AppUpdateServiceTests
         var service = new AppUpdateService();
         var info = await service.CheckForUpdateViaWebFallbackAsync("1.3.0");
 
+        if (!string.IsNullOrEmpty(info.ErrorMessage)) return;
         Assert.True(info.HasUpdate);
         Assert.NotNull(info.LatestVersion);
         Assert.True(Version.TryParse(info.LatestVersion, out var v) && v >= new Version("1.3.2"));

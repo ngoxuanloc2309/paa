@@ -44,6 +44,8 @@ public sealed class McuReferenceSimulator
     private bool _hasHardwareRtc = false;
     private bool _batteryLow = false;
     private uint _rtcAccumulatorMs = 0;
+    private ulong _totalScanPasses = 0;
+    private ulong _totalElapsedMs = 0;
     private readonly int[] _lastTriggeredMinute = new int[ModbusRegisterMap.MaxRules];
     private readonly int[] _prevTagValues = new int[ModbusRegisterMap.MaxRuntimeTags];
     private readonly uint[] _ruleDwellElapsedMs = new uint[ModbusRegisterMap.MaxRules];
@@ -210,6 +212,7 @@ public sealed class McuReferenceSimulator
 
         // Phân vùng RTC Clock (0x0810..0x0813)
         UpdateRtcRegisters();
+        UpdateSystemRegisters();
         Array.Fill(_lastTriggeredMinute, -1);
         Array.Clear(_prevTagValues, 0, _prevTagValues.Length);
         Array.Clear(_ruleDwellElapsedMs, 0, _ruleDwellElapsedMs.Length);
@@ -232,6 +235,34 @@ public sealed class McuReferenceSimulator
         {
             _memory.InternalWrite((ushort)(ModbusRegisterMap.RtcClockAddress + i), rtcBuf[i]);
         }
+    }
+
+    /// <summary>
+    /// Cập nhật 8 thanh ghi hệ thống System Tags (0x0820..0x0827, RO).
+    /// </summary>
+    private void UpdateSystemRegisters()
+    {
+        long localSec = (long)_epochUtcSeconds + ((long)_tzOffsetMinutes * 60);
+        uint secInDay = (uint)((localSec % 86400 + 86400) % 86400);
+        int currentHour = (int)(secInDay / 3600);
+        int currentMinute = (int)((secInDay % 3600) / 60);
+
+        // 0x0820: SYS_FIRST_SCAN (1 nếu scanPasses == 1)
+        _memory.InternalWrite(ModbusRegisterMap.SystemRegistersBaseAddress, (ushort)(_totalScanPasses == 1 ? 1 : 0));
+        // 0x0821: SYS_ON (luôn bằng 1)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 1), 1);
+        // 0x0822: SYS_OFF (luôn bằng 0)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 2), 0);
+        // 0x0823: SYS_CLOCK_1S (1.0 Hz, 500ms ON / 500ms OFF)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 3), (ushort)((_totalElapsedMs / 500) % 2 == 0 ? 1 : 0));
+        // 0x0824: SYS_CLOCK_100MS (10.0 Hz, 50ms ON / 50ms OFF)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 4), (ushort)((_totalElapsedMs / 50) % 2 == 0 ? 1 : 0));
+        // 0x0825: SYS_RTC_HOUR (0..23)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 5), (ushort)currentHour);
+        // 0x0826: SYS_RTC_MINUTE (0..59)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 6), (ushort)currentMinute);
+        // 0x0827: SYS_COMM_OK (1)
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 7), 1);
     }
 
     internal void SetHardwareRtcState(bool hasHardwareRtc, bool batteryLow)
@@ -278,6 +309,9 @@ public sealed class McuReferenceSimulator
     public void ExecuteScanPass(uint deltaMs = 10)
     {
         EnsureOnline();
+        _totalScanPasses++;
+        _totalElapsedMs += deltaMs;
+        UpdateSystemRegisters();
 
         var diagState = (SPLC_DiagState)_memory.InternalRead(ModbusRegisterMap.DiagStateAddress);
         bool isDiagMode = diagState == SPLC_DiagState.DIAG_CONTROL;
@@ -808,6 +842,13 @@ public sealed class McuReferenceSimulator
             startAddress + count > ModbusRegisterMap.RtcClockAddress)
         {
             UpdateRtcRegisters();
+        }
+
+        // Cập nhật System Registers trước khi đọc nếu đọc vùng 0x0820..0x0827
+        if (startAddress <= ModbusRegisterMap.SystemRegistersBaseAddress + ModbusRegisterMap.SystemRegistersLength - 1 &&
+            startAddress + count > ModbusRegisterMap.SystemRegistersBaseAddress)
+        {
+            UpdateSystemRegisters();
         }
 
         // Đọc từ bộ nhớ thanh ghi với kiểm tra phạm vi hợp lệ

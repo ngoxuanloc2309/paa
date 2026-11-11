@@ -6,8 +6,8 @@
         xmlns:viewmodels="clr-namespace:SimplePLC.Studio.ViewModels"
         xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
         Title="{Binding [NewProjectDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
-        Width="880" Height="560"
-        MinWidth="840" MinHeight="520"
+        Width="900" Height="610"
+        MinWidth="860" MinHeight="540"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         controls:WindowChromeHelper.EnableIndependentMinimize="True"
@@ -83,73 +83,89 @@
             </Grid.ColumnDefinitions>
 
             <!-- LEFT COLUMN: Project Information & Target Hardware Selection -->
-            <Grid Grid.Column="0" Margin="0,0,14,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,14,0">
+                <StackPanel>
+                    <!-- SECTION 1: PROJECT INFORMATION -->
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [NewProjectSectionInfo], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,8" />
 
-                <!-- SECTION 1: PROJECT INFORMATION -->
-                <Border Grid.Row="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="{Binding [NewProjectSectionInfo], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,8" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="120" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
+                                <!-- Row 0: Project Name -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [NewProjectName], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}" 
+                                         Height="30" Padding="8,2" FontSize="12" FontWeight="SemiBold" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" VerticalContentAlignment="Center" />
 
-                            <!-- Row 0: Project Name -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding [NewProjectName], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="30" Padding="8,2" FontSize="12" FontWeight="SemiBold" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" VerticalContentAlignment="Center" />
+                                <!-- Row 1: Save Location -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [NewProjectLocation], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
+                                <Grid Grid.Row="1" Grid.Column="1" Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding ProjectLocation, UpdateSourceTrigger=PropertyChanged}" 
+                                             ToolTip="{Binding ProjectLocation}"
+                                             Height="30" Padding="8,2" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" VerticalContentAlignment="Center" />
+                                    <Button Grid.Column="1" Content="{Binding [NewProjectBrowse], Source={x:Static services:LocalizationService.Instance}}" 
+                                            Command="{Binding BrowseLocationCommand}" 
+                                            Margin="6,0,0,0" Padding="14,0" Height="30" Style="{StaticResource BtnSecondary}" />
+                                </Grid>
 
-                            <!-- Row 1: Save Location -->
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding [NewProjectLocation], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
-                            <Grid Grid.Row="1" Grid.Column="1" Margin="0,3">
+                                <!-- Row 2: Author -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [NewProjectAuthor], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Author, UpdateSourceTrigger=PropertyChanged}" 
+                                         Height="30" Padding="8,2" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" VerticalContentAlignment="Center" />
+
+                                <!-- Row 3: Description -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding [NewProjectDescription], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" 
+                                         Height="40" Padding="8,4" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SECTION 2: TARGET HARDWARE -->
+                    <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12">
+                        <StackPanel>
+                            <!-- Header with Title & Detect Button -->
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding ProjectLocation, UpdateSourceTrigger=PropertyChanged}" 
-                                         ToolTip="{Binding ProjectLocation}"
-                                         Height="30" Padding="8,2" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" VerticalContentAlignment="Center" />
-                                <Button Grid.Column="1" Content="{Binding [NewProjectBrowse], Source={x:Static services:LocalizationService.Instance}}" 
-                                        Command="{Binding BrowseLocationCommand}" 
-                                        Margin="6,0,0,0" Padding="14,0" Height="30" Style="{StaticResource BtnSecondary}" />
+                                <TextBlock Grid.Column="0" Text="{Binding [NewProjectSectionHw], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Command="{Binding DetectFromConnectedDeviceCommand}" 
+                                        Style="{StaticResource BtnSecondary}"
+                                        Height="26" Padding="9,0" Cursor="Hand"
+                                        ToolTip="{Binding [NewProjectDetectConnectedTooltip], Source={x:Static services:LocalizationService.Instance}}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" 
+                                              Data="{StaticResource IconSysSearch}" 
+                                              Width="12" Height="12" 
+                                              Stroke="{DynamicResource PrimaryBrush}" 
+                                              Margin="0,0,6,0" />
+                                        <TextBlock Text="{Binding [NewProjectDetectConnected], Source={x:Static services:LocalizationService.Instance}}" 
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </Grid>
-
-                            <!-- Row 2: Author -->
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding [NewProjectAuthor], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3" />
-                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Author, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="30" Padding="8,2" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" VerticalContentAlignment="Center" />
-
-                            <!-- Row 3: Description -->
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding [NewProjectDescription], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Top" Margin="0,6,0,0" />
-                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="40" Padding="8,4" FontSize="11.5" BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,3" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- SECTION 2: TARGET HARDWARE -->
-                <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12">
-                    <DockPanel LastChildFill="True">
-                        <StackPanel DockPanel.Dock="Top">
-                            <TextBlock Text="{Binding [NewProjectSectionHw], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,8" />
 
                             <!-- Preset Selection -->
                             <TextBlock Text="{Binding [NewProjectPresetMode], Source={x:Static services:LocalizationService.Instance}}" 
@@ -165,44 +181,33 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Target Microcontroller:" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding [NewProjectHardwareSeries], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding SelectedPreset.McuTarget}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                        <TextBlock Text="Device Family:" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding [NewProjectDeviceClass], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding SelectedPreset.DeviceClass}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,1,0,0" />
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <!-- Detect from Connected MCU Button -->
-                            <Button Command="{Binding DetectFromConnectedDeviceCommand}" 
-                                    Style="{StaticResource BtnSecondary}"
-                                    Height="32" Padding="12,0" HorizontalAlignment="Stretch" Cursor="Hand" Margin="0,0,0,4">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Path Data="{StaticResource IconIecTimerCycle}" Width="13" Height="13" Stroke="{DynamicResource PrimaryBrush}" StrokeThickness="1.8" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [NewProjectDetectConnected], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
+                            <!-- Status Feedback Text -->
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
-
-                        <!-- Status Feedback Text -->
-                        <TextBlock Text="{Binding StatusMessage}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0" VerticalAlignment="Top">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </DockPanel>
-                </Border>
-            </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
 
             <!-- RIGHT COLUMN: Hardware Specification Preview Card -->
             <Border Grid.Column="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12">

@@ -37,6 +37,25 @@ Standard virtual tags (`VFLAG0..31` and `VREG0..31`) reside in volatile SRAM and
 
 In the [Tag Catalog](/workspaces/tag-catalog-tab) (`Ctrl+3`), every tag supports a human-readable **Alias** (for example, assigning `TankTemp` to `AI0` and `SafetyDoorOk` to `DI0`). Once defined, all dropdown selectors, node headers on the [Logic Graph Canvas](/workspaces/logic-graph-tab), and trace legends in [Live Watch](/workspaces/live-watch-tab) display the combined identifier `[AI0] — TankTemp` so hardware terminal wiring and process meaning remain visible simultaneously.
 
+### Built-in Industrial System Tags
+
+In addition to 128 user-definable tags, **SynaptiX IDE** provides **8 standardized system tags** (conforming to industrial PLC conventions like Siemens TIA Portal and CODESYS) for common operational patterns without consuming user timers or flags:
+
+| System Tag | Data Type | Value & Operational Semantics | Typical Field Use Case |
+| :--- | :---: | :--- | :--- |
+| **`SYS_FIRST_SCAN`** | `BOOL` | Pulses `1` strictly during **scan cycle #1** upon cold boot or deploy; returns to `0` thereafter. | Machine homing sequence, restoring default actuator setpoints. |
+| **`SYS_ON`** | `BOOL` | Constant `1` (Permanent logical TRUE). | Permanent enable signal for always-active subroutines. |
+| **`SYS_OFF`** | `BOOL` | Constant `0` (Permanent logical FALSE). | Temporarily inhibiting logic branches or interlocking. |
+| **`SYS_CLOCK_1S`** | `BOOL` | Symmetric `1.0 second` square wave (`500 ms` ON / `500 ms` OFF, `1.0 Hz`). | Flashing stack lights (Tower Light), pulsing fault horns. |
+| **`SYS_CLOCK_100MS`**| `BOOL` | Symmetric `100 ms` square wave (`50 ms` ON / `50 ms` OFF, `10.0 Hz`). | High-rate sampling triggers, fast LED busy blinking. |
+| **`SYS_RTC_HOUR`** | `INT32` | Real-time hour (`0 .. 23`) read directly from hardware RTC clock. | Facility lighting schedules, shift-based pump activation. |
+| **`SYS_RTC_MINUTE`** | `INT32` | Real-time minute (`0 .. 59`) read directly from hardware RTC clock. | Minute-precision scheduled maintenance intervals. |
+| **`SYS_COMM_OK`** | `BOOL` | High (`1`) when external serial/bus communication links are healthy. | Safety fail-safe interlock on communication loss. |
+
+::: tip Quick Selection Across All FBD Nodes
+In the Tag Selector dropdown of any `INPUT`, `TRIGGER`, `GUARD`, or `COMPARATOR` node, System Tags appear grouped under an intuitive gear icon, instantly distinguishable from physical terminal tags.
+:::
+
 ---
 
 ## Strict Physical Data Types

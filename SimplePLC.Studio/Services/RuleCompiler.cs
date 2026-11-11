@@ -133,6 +133,24 @@ public sealed class RuleCompiler : IRuleCompiler
                             NodeId: node.Id));
                     }
                 }
+                else if (node is HttpClientNodeViewModel && !targetProduct.SupportsHttpClient)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ HTTP Client."
+                            : "Target device '{0}' hardware profile does not support HTTP Client.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
+                else if (node is TcpClientNodeViewModel && !targetProduct.SupportsTransparentStream)
+                {
+                    studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                        SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                        string.Format(LocalizationService.Instance.IsVietnamese
+                            ? "Thiết bị mục tiêu '{0}' không có cấu hình phần cứng hỗ trợ TCP Client / Socket Stream."
+                            : "Target device '{0}' hardware profile does not support TCP Client / Socket Stream.", targetProduct.ProductName),
+                        NodeId: node.Id));
+                }
             }
         }
 
@@ -148,6 +166,10 @@ public sealed class RuleCompiler : IRuleCompiler
                     break;
 
                 case TriggerNodeViewModel trig:
+                    ushort? trigTagIdx = trig.InputTag != null && trig.InputTag.Kind != TagKind.None
+                        ? ResolveTagIndex(trig.InputTag, targetProduct)
+                        : null;
+
                     graph.Nodes.Add(LogicNode.CreateTrigger(
                         trig.Id,
                         (TriggerKind)trig.TriggerType,
@@ -155,7 +177,8 @@ public sealed class RuleCompiler : IRuleCompiler
                         trig.ThresholdLo,
                         trig.ThresholdHi,
                         trig.ForMs,
-                        trig.DisplayTitle));
+                        trig.DisplayTitle,
+                        inputTagIndex: trigTagIdx));
                     break;
 
                 case GuardNodeViewModel grd:
@@ -904,7 +927,48 @@ public sealed class RuleCompiler : IRuleCompiler
                         executionOrder: actionOrder++,
                         label: dw.DisplayTitle));
                     break;
-default:
+
+                case HttpClientNodeViewModel http:
+                    graph.Nodes.Add(new LogicNode
+                    {
+                        Id = http.Id,
+                        Kind = LogicNodeKind.HttpClient,
+                        Label = http.DisplayTitle,
+                        HttpClientData = new HttpClientNodeData
+                        {
+                            Url = http.Url,
+                            Method = http.Method,
+                            CustomHeaders = http.CustomHeaders,
+                            TimeoutSec = http.TimeoutSec,
+                            TriggerMode = http.TriggerMode,
+                            PeriodicIntervalSec = http.PeriodicIntervalSec,
+                            PayloadMode = http.PayloadMode,
+                            CustomTemplate = http.CustomTemplate
+                        }
+                    });
+                    break;
+
+                case TcpClientNodeViewModel tcp:
+                    graph.Nodes.Add(new LogicNode
+                    {
+                        Id = tcp.Id,
+                        Kind = LogicNodeKind.TcpClient,
+                        Label = tcp.DisplayTitle,
+                        TcpClientData = new TcpClientNodeData
+                        {
+                            RemoteHost = tcp.RemoteHost,
+                            RemotePort = tcp.RemotePort,
+                            ReconnectDelaySec = tcp.ReconnectDelaySec,
+                            HeartbeatIntervalSec = tcp.HeartbeatIntervalSec,
+                            HeartbeatPayload = tcp.HeartbeatPayload,
+                            RegistrationType = tcp.RegistrationType,
+                            RegistrationPayload = tcp.RegistrationPayload,
+                            PayloadMode = tcp.PayloadMode
+                        }
+                    });
+                    break;
+
+                default:
                     studioDiagnostics.Add(new(SimplePLC.Studio.Models.DiagnosticSeverity.Error, LocalizationService.Tr("DiagUnsupportedNode"), NodeId: node.Id));
                     break;
             }

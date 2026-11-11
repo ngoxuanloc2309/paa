@@ -4,6 +4,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="ModbusReadNodeViewModel"/> verifying port assignment, trigger modes, and UI summaries.
+/// </summary>
 public class ModbusReadNodeViewModelTests
 {
     [Fact]
@@ -259,6 +262,29 @@ public class ModbusReadNodeViewModelTests
         Assert.Equal("Energy_Total", pin.DisplayTitle);
         Assert.Equal("Energy_Total", pin.Connector?.Title);
     }
+
+    [Fact]
+    public void ModbusReadNodeViewModel_WhenPortIsZigbee_UpdatesDisplayPropertiesAndSummary()
+    {
+        var node = new ModbusReadNodeViewModel
+        {
+            PortIndex = 4,
+            SlaveId = 10,
+            FunctionCode = ModbusMasterFunctionCode.ReadHoldingRegisters
+        };
+
+        Assert.True(node.IsZigbeePort);
+        Assert.Equal("Zigbee Wireless", node.PortDisplayName);
+        Assert.Contains("🌐 Zigbee", node.NodeInfoSummary);
+        Assert.Contains("ID:10", node.NodeInfoSummary);
+        Assert.Contains("FC03", node.NodeInfoSummary);
+        Assert.Contains("[Zigbee|ID:10|FC03|", node.SummaryText);
+
+        // Switch to RS-485 port 0
+        node.PortIndex = 0;
+        Assert.False(node.IsZigbeePort);
+        Assert.Equal("RS-485 #1", node.PortDisplayName);
+        Assert.DoesNotContain("🌐 Zigbee", node.NodeInfoSummary);
+        Assert.DoesNotContain("[Zigbee|", node.SummaryText);
+    }
 }
-
-

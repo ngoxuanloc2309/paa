@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Application.Enums;
 using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
@@ -17,13 +18,24 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 {
     public ushort? BoundTagIndex => (InputTag != null && InputTag.Kind != TagKind.None && InputTag.Index < 65535) ? (ushort)InputTag.Index : null;
 
+    private bool _isFormattingText;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(FormulaExpression))]
     [NotifyPropertyChangedFor(nameof(BoundTagIndex))]
     [NotifyPropertyChangedFor(nameof(InputConnectionBadge))]
     [NotifyPropertyChangedFor(nameof(HasWireConnection))]
+    [NotifyPropertyChangedFor(nameof(IsInputReal))]
+    [NotifyPropertyChangedFor(nameof(IsInputBoolean))]
+    [NotifyPropertyChangedFor(nameof(IsInputInteger))]
+    [NotifyPropertyChangedFor(nameof(InputTagDataTypeText))]
     private TagModel? _inputTag;
+
+    public bool IsInputReal => InputTag != null && InputTag.DataType == TagDataType.Float32;
+    public bool IsInputBoolean => InputTag != null && !IsInputReal && (InputTag.IsDigital || InputTag.DataType == TagDataType.Boolean);
+    public bool IsInputInteger => InputTag != null && !IsInputBoolean && !IsInputReal;
+    public string InputTagDataTypeText => InputTag?.DataTypeText ?? (InputTag != null ? (IsInputReal ? "REAL" : (IsInputBoolean ? "BOOL" : "INT32")) : "INT32");
 
     public string InputConnectionBadge => InputTag != null
         ? $"🔗 Connected: {InputTag.Name}"
@@ -45,20 +57,47 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(InputConnectionBadge));
         OnPropertyChanged(nameof(HasWireConnection));
-        if (newValue?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+        OnPropertyChanged(nameof(IsInputReal));
+        OnPropertyChanged(nameof(IsInputBoolean));
+        OnPropertyChanged(nameof(IsInputInteger));
+        OnPropertyChanged(nameof(InputTagDataTypeText));
+
+        _isFormattingText = true;
+        try
         {
-            ThresholdLoText = SmartInputParser.FormatReal(ThresholdLo);
-            ThresholdHiText = SmartInputParser.FormatReal(ThresholdHi);
+            if (IsInputReal)
+            {
+                ThresholdLoText = SmartInputParser.FormatReal(ThresholdLo);
+                ThresholdHiText = SmartInputParser.FormatReal(ThresholdHi);
+            }
+            else if (IsInputBoolean)
+            {
+                ThresholdLoText = (int)ThresholdLo != 0 ? "1" : "0";
+                ThresholdHiText = (int)ThresholdHi != 0 ? "1" : "0";
+            }
+            else
+            {
+                ThresholdLoText = ((long)Math.Round(ThresholdLo)).ToString();
+                ThresholdHiText = ((long)Math.Round(ThresholdHi)).ToString();
+            }
+        }
+        finally
+        {
+            _isFormattingText = false;
         }
     }
 
     private void OnTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias))
+        if (e.PropertyName == nameof(TagModel.Name) || e.PropertyName == nameof(TagModel.DisplayName) || e.PropertyName == nameof(TagModel.Alias) || e.PropertyName == nameof(TagModel.DataType) || e.PropertyName == nameof(TagModel.IsDigital))
         {
             OnPropertyChanged(nameof(FormulaExpression));
             OnPropertyChanged(nameof(SummaryText));
             OnPropertyChanged(nameof(InputConnectionBadge));
+            OnPropertyChanged(nameof(IsInputReal));
+            OnPropertyChanged(nameof(IsInputBoolean));
+            OnPropertyChanged(nameof(IsInputInteger));
+            OnPropertyChanged(nameof(InputTagDataTypeText));
         }
     }
 
@@ -96,40 +135,239 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 
     partial void OnThresholdLoTextChanged(string value)
     {
-        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        if (_isFormattingText) return;
+
+        if (IsInputReal)
         {
-            if (Math.Abs(ThresholdLo - parsed) > 1e-9)
+            if (SmartInputParser.TryParseFlexibleDouble(value, out double parsed))
+            {
+                if (Math.Abs(ThresholdLo - parsed) > 1e-9)
+                {
+                    ThresholdLo = parsed;
+                }
+            }
+        }
+        else if (IsInputBoolean)
+        {
+            if (SmartInputParser.TryParseBool(value, out int parsed))
+            {
+                ThresholdLo = parsed != 0 ? 1 : 0;
+            }
+        }
+        else if (IsInputInteger)
+        {
+            if (SmartInputParser.TryParseInt(value, out int parsed))
             {
                 ThresholdLo = parsed;
+            }
+        }
+        else // unattached
+        {
+            if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+            {
+                if (Math.Abs(ThresholdLo - parsed) > 1e-9)
+                {
+                    ThresholdLo = parsed;
+                }
             }
         }
     }
 
     partial void OnThresholdLoChanged(double value)
     {
-        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdLoText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        string expected = IsInputReal
+            ? SmartInputParser.FormatReal(value)
+            : (IsInputBoolean ? ((int)value != 0 ? "1" : "0") : (IsInputInteger ? ((long)Math.Round(value)).ToString() : NumericInputHelper.FormatDouble(value)));
+
+        if (ThresholdLoText != expected)
         {
-            ThresholdLoText = NumericInputHelper.FormatDouble(value);
+            _isFormattingText = true;
+            try
+            {
+                ThresholdLoText = expected;
+            }
+            finally
+            {
+                _isFormattingText = false;
+            }
         }
     }
 
     partial void OnThresholdHiTextChanged(string value)
     {
-        if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+        if (_isFormattingText) return;
+
+        if (IsInputReal)
         {
-            if (Math.Abs(ThresholdHi - parsed) > 1e-9)
+            if (SmartInputParser.TryParseFlexibleDouble(value, out double parsed))
+            {
+                if (Math.Abs(ThresholdHi - parsed) > 1e-9)
+                {
+                    ThresholdHi = parsed;
+                }
+            }
+        }
+        else if (IsInputBoolean)
+        {
+            if (SmartInputParser.TryParseBool(value, out int parsed))
+            {
+                ThresholdHi = parsed != 0 ? 1 : 0;
+            }
+        }
+        else if (IsInputInteger)
+        {
+            if (SmartInputParser.TryParseInt(value, out int parsed))
             {
                 ThresholdHi = parsed;
+            }
+        }
+        else // unattached
+        {
+            if (NumericInputHelper.TryParseFlexibleDouble(value, out double parsed))
+            {
+                if (Math.Abs(ThresholdHi - parsed) > 1e-9)
+                {
+                    ThresholdHi = parsed;
+                }
             }
         }
     }
 
     partial void OnThresholdHiChanged(double value)
     {
-        if (!NumericInputHelper.TryParseFlexibleDouble(ThresholdHiText, out double cur) || Math.Abs(cur - value) > 1e-9)
+        string expected = IsInputReal
+            ? SmartInputParser.FormatReal(value)
+            : (IsInputBoolean ? ((int)value != 0 ? "1" : "0") : (IsInputInteger ? ((long)Math.Round(value)).ToString() : NumericInputHelper.FormatDouble(value)));
+
+        if (ThresholdHiText != expected)
         {
-            ThresholdHiText = NumericInputHelper.FormatDouble(value);
+            _isFormattingText = true;
+            try
+            {
+                ThresholdHiText = expected;
+            }
+            finally
+            {
+                _isFormattingText = false;
+            }
         }
+    }
+
+    [RelayCommand]
+    public void CommitThresholdLo()
+    {
+        if (IsInputReal)
+        {
+            if (SmartInputParser.TryParseFlexibleDouble(ThresholdLoText, out double parsed))
+            {
+                ThresholdLo = parsed;
+                ThresholdLoText = SmartInputParser.FormatReal(parsed);
+            }
+            else
+            {
+                ThresholdLoText = SmartInputParser.FormatReal(ThresholdLo);
+            }
+        }
+        else if (IsInputBoolean)
+        {
+            if (SmartInputParser.TryParseBool(ThresholdLoText, out int parsed))
+            {
+                ThresholdLo = parsed != 0 ? 1 : 0;
+                ThresholdLoText = ((int)ThresholdLo).ToString();
+            }
+            else
+            {
+                ThresholdLoText = ((int)ThresholdLo).ToString();
+            }
+        }
+        else if (IsInputInteger)
+        {
+            if (SmartInputParser.TryParseInt(ThresholdLoText, out int parsed))
+            {
+                ThresholdLo = parsed;
+                ThresholdLoText = parsed.ToString();
+            }
+            else
+            {
+                ThresholdLoText = ((long)Math.Round(ThresholdLo)).ToString();
+            }
+        }
+        else // unattached
+        {
+            if (NumericInputHelper.TryParseFlexibleDouble(ThresholdLoText, out double parsed))
+            {
+                ThresholdLo = parsed;
+                ThresholdLoText = NumericInputHelper.FormatDouble(parsed);
+            }
+            else
+            {
+                ThresholdLoText = NumericInputHelper.FormatDouble(ThresholdLo);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void CommitThresholdHi()
+    {
+        if (IsInputReal)
+        {
+            if (SmartInputParser.TryParseFlexibleDouble(ThresholdHiText, out double parsed))
+            {
+                ThresholdHi = parsed;
+                ThresholdHiText = SmartInputParser.FormatReal(parsed);
+            }
+            else
+            {
+                ThresholdHiText = SmartInputParser.FormatReal(ThresholdHi);
+            }
+        }
+        else if (IsInputBoolean)
+        {
+            if (SmartInputParser.TryParseBool(ThresholdHiText, out int parsed))
+            {
+                ThresholdHi = parsed != 0 ? 1 : 0;
+                ThresholdHiText = ((int)ThresholdHi).ToString();
+            }
+            else
+            {
+                ThresholdHiText = ((int)ThresholdHi).ToString();
+            }
+        }
+        else if (IsInputInteger)
+        {
+            if (SmartInputParser.TryParseInt(ThresholdHiText, out int parsed))
+            {
+                ThresholdHi = parsed;
+                ThresholdHiText = parsed.ToString();
+            }
+            else
+            {
+                ThresholdHiText = ((long)Math.Round(ThresholdHi)).ToString();
+            }
+        }
+        else // unattached
+        {
+            if (NumericInputHelper.TryParseFlexibleDouble(ThresholdHiText, out double parsed))
+            {
+                ThresholdHi = parsed;
+                ThresholdHiText = NumericInputHelper.FormatDouble(parsed);
+            }
+            else
+            {
+                ThresholdHiText = NumericInputHelper.FormatDouble(ThresholdHi);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void SetThresholdBool(object? param)
+    {
+        int val = 1;
+        if (param is int i) val = i;
+        else if (param is string s && SmartInputParser.TryParseBool(s, out int parsed)) val = parsed;
+
+        ThresholdLo = val != 0 ? 1 : 0;
+        ThresholdLoText = ((int)ThresholdLo).ToString();
     }
 
     [ObservableProperty]
@@ -161,13 +399,12 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
             string tagName = (InputTag != null && InputTag.Kind != TagKind.None && !string.IsNullOrWhiteSpace(InputTag.Name))
                 ? InputTag.Name
                 : "IN";
-            bool isFloat = InputTag != null && InputTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32;
-            string loStr = isFloat 
+            string loStr = IsInputReal 
                 ? SmartInputParser.FormatReal(ThresholdLo) 
-                : (InputTag?.IsDigital == true ? ((int)ThresholdLo != 0 ? "1" : "0") : ThresholdLo.ToString("0.##"));
-            string hiStr = isFloat 
+                : (IsInputBoolean ? ((int)ThresholdLo != 0 ? "1" : "0") : ((long)Math.Round(ThresholdLo)).ToString());
+            string hiStr = IsInputReal 
                 ? SmartInputParser.FormatReal(ThresholdHi) 
-                : ThresholdHi.ToString("0.##");
+                : (IsInputBoolean ? ((int)ThresholdHi != 0 ? "1" : "0") : ((long)Math.Round(ThresholdHi)).ToString());
             return CompareOp switch
             {
                 CompareOp.EQ => $"{tagName} == {loStr}",
@@ -256,11 +493,7 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
 
     public bool Evaluate(int rawValue)
     {
-        bool isFloat = (InputTag != null && InputTag.DataType == TagDataType.Float32) ||
-                       Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
-                       Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
-
-        if (isFloat)
+        if (IsInputReal || Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 || Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6)
         {
             float valFloat = BitConverter.Int32BitsToSingle(rawValue);
             float lo = (float)ThresholdLo;
@@ -275,6 +508,17 @@ public partial class ComparatorNodeViewModel : GraphNodeViewModel, ILiveTagBound
                 CompareOp.LTE => valFloat <= lo,
                 CompareOp.BETWEEN => valFloat >= lo && valFloat <= hi,
                 _ => valFloat > lo
+            };
+        }
+
+        if (IsInputBoolean)
+        {
+            int target = (int)ThresholdLo != 0 ? 1 : 0;
+            return CompareOp switch
+            {
+                CompareOp.EQ => rawValue == target,
+                CompareOp.NEQ => rawValue != target,
+                _ => rawValue == target
             };
         }
 

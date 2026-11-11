@@ -173,6 +173,43 @@
         </Setter>
     </Style>
 
+    <!-- Industrial Tactile Toolbar CheckBox / ToggleButton Style (Fluent 2 Desktop) -->
+    <Style x:Key="TactileToolbarCheckBoxStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="7,3" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="BtnBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                            <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Industrial Danger Outline Button (Muted Desktop Rest State, Soft Danger Hover) -->
     <Style x:Key="BtnDangerOutline" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
@@ -208,6 +245,51 @@
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
                             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                             <Setter Property="Opacity" Value="0.65" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Siemens TIA Portal Flat Tactile RadioButton (Segmented button pill with checked highlight) -->
+    <Style x:Key="TiaTactileRadioStyle" TargetType="RadioButton">
+        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Padding" Value="12,5" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionInactiveBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                            <Setter Property="Opacity" Value="0.65" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -259,12 +341,13 @@
     </Style>
 
     <!-- Table Row Delete Button (Soft Red, Perfectly Centered Vector X with Symmetric Round Caps) -->
+    <!-- Table Row Delete Button (Ghost Button: Muted by default, Soft Red on Hover per ISA-101) -->
     <Style x:Key="TableRowDeleteBtnStyle" TargetType="Button">
         <Setter Property="Width" Value="25" />
         <Setter Property="Height" Value="25" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DangerLightBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="VerticalAlignment" Value="Center" />
@@ -280,7 +363,7 @@
                             <Canvas Width="16" Height="16">
                                 <Path x:Name="iconPath"
                                       Data="M 3,3 L 13,13 M 13,3 L 3,13"
-                                      Stroke="{DynamicResource DangerBrush}"
+                                      Stroke="{DynamicResource TextMutedBrush}"
                                       StrokeThickness="2.2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round" />
@@ -291,7 +374,7 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource DangerLightBrush}" />
                             <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
-                            <Setter TargetName="iconPath" Property="Stroke" Value="{DynamicResource DangerHoverBrush}" />
+                            <Setter TargetName="iconPath" Property="Stroke" Value="{DynamicResource DangerBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource DangerBrush}" />
@@ -299,7 +382,7 @@
                             <Setter TargetName="iconPath" Property="Stroke" Value="{DynamicResource BgPanelBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="border" Property="Opacity" Value="0.4" />
+                            <Setter TargetName="border" Property="Opacity" Value="0.3" />
                             <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>

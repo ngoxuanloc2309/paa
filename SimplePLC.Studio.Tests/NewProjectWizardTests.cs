@@ -12,6 +12,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử hành vi của wizard tạo dự án mới và đồng bộ phần cứng.
+/// </summary>
+[Collection("AppServicesDeployTests")]
 public class NewProjectWizardTests : IDisposable
 {
     [Fact]
@@ -156,7 +160,7 @@ public class NewProjectWizardTests : IDisposable
         Assert.Equal(4, diTags.Count);
         Assert.Equal(4, doTags.Count);
         Assert.Empty(aiTags);
-        Assert.Equal(60, mainVM.TagCatalogVM.TotalTagCount);
+        Assert.Equal(68, mainVM.TagCatalogVM.TotalTagCount); // 60 user tags + 8 system tags
     }
 
     [Fact]
@@ -213,6 +217,284 @@ public class NewProjectWizardTests : IDisposable
         {
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
+    }
+
+    [Fact]
+    public void MainViewModel_NewProject_WithDtuPreset_SelectsSystemTabAndInitializesAllHardwareParameters()
+    {
+        // Arrange
+        var mainVM = new MainViewModel();
+        mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
+        {
+            wizardVm.ProjectName = "DTU_Station_01";
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            wizardVm.SelectStandardPreset(dtuPreset);
+            return true;
+        };
+
+        // Act
+        mainVM.NewProject();
+
+        // Assert
+        Assert.Equal("DTU_Station_01", mainVM.CurrentProjectName);
+        Assert.True(mainVM.IsDtuProject);
+        Assert.True(mainVM.HasSystemTab);
+        Assert.Equal(0, mainVM.SelectedTabIndex); // Tab 0 (System) must be active for DTU
+        Assert.Equal(4, mainVM.CurrentProjectMetadata.PhysicalRs485PortCount);
+        Assert.NotEqual(0u, mainVM.CurrentProjectMetadata.HardwareCapabilities);
+        Assert.True(mainVM.CurrentProjectMetadata.DtuConfig.Enabled);
+
+        // Capabilities on DtuGatewayStudioVM
+        Assert.NotNull(mainVM.DtuGatewayStudioVM);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasRs485Capability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasWifiCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasMqttCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasHttpCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasTcpSocketCapability);
+        Assert.Equal(4, mainVM.DtuGatewayStudioVM.ModbusPortConfigVM.Ports.Count);
+
+        // Badge Text
+        Assert.Contains("DTU Gateway", mainVM.DeviceProductBadgeText);
+        Assert.Contains("4x RS-485", mainVM.DeviceProductBadgeText);
+    }
+
+    [Fact]
+    public void SaveAndReloadProject_WithDtuHardware_RestoresFullHardwareCapabilitiesAndSystemTab()
+    {
+        // Arrange
+        var mainVM = new MainViewModel();
+        mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
+        {
+            wizardVm.ProjectName = "DTU_Persist_Test";
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            wizardVm.SelectStandardPreset(dtuPreset);
+            return true;
+        };
+        mainVM.NewProject();
+
+        string tempPath = Path.Combine(Path.GetTempPath(), $"test_dtu_proj_{Guid.NewGuid():N}.synx");
+        try
+        {
+            // Act 1: Save
+            var method = typeof(MainViewModel).GetMethod("SaveProjectInternal", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(method);
+            method.Invoke(mainVM, new object[] { tempPath });
+
+            Assert.True(File.Exists(tempPath));
+
+            // Act 2: Create a fresh MainViewModel and load
+            var freshVM = new MainViewModel();
+            freshVM.LoadProjectFile(tempPath);
+
+            // Assert
+            Assert.Equal("DTU_Persist_Test", freshVM.CurrentProjectName);
+            Assert.True(freshVM.IsDtuProject);
+            Assert.True(freshVM.HasSystemTab);
+            Assert.Equal(0, freshVM.SelectedTabIndex);
+            Assert.Equal(4, freshVM.CurrentProjectMetadata.PhysicalRs485PortCount);
+            Assert.NotEqual(0u, freshVM.CurrentProjectMetadata.HardwareCapabilities);
+            Assert.True(freshVM.CurrentProjectMetadata.DtuConfig.Enabled);
+            Assert.Contains("DTU Gateway", freshVM.DeviceProductBadgeText);
+            Assert.Contains("4x RS-485", freshVM.DeviceProductBadgeText);
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public void MainViewModel_NewProject_WithGatewayPreset_HasWifiMqttRs485_AndSystemTab()
+    {
+        // Arrange
+        var mainVM = new MainViewModel();
+        mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
+        {
+            wizardVm.ProjectName = "Gateway_Station_01";
+            var gw = wizardVm.Presets.First(p => p.Id == "GATEWAY_RS485_ETH");
+            wizardVm.SelectStandardPreset(gw);
+            return true;
+        };
+
+        // Act
+        mainVM.NewProject();
+
+        // Assert
+        Assert.Equal("Gateway_Station_01", mainVM.CurrentProjectName);
+        Assert.True(mainVM.HasSystemTab);
+        Assert.Equal(2, mainVM.CurrentProjectMetadata.PhysicalRs485PortCount);
+        Assert.Equal(2, mainVM.DtuGatewayStudioVM.ModbusPortConfigVM.Ports.Count);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasWifiCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasMqttCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasRs485Capability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasHttpCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasTcpSocketCapability);
+    }
+
+    [Fact]
+    public void MainViewModel_NewProject_WithDataloggerPreset_HasWifiMqttRs485_AndSystemTab()
+    {
+        // Arrange
+        var mainVM = new MainViewModel();
+        mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
+        {
+            wizardVm.ProjectName = "DL_Station_01";
+            var dl = wizardVm.Presets.First(p => p.Id == "DATALOGGER_4DI_2DO_4AI");
+            wizardVm.SelectStandardPreset(dl);
+            return true;
+        };
+
+        // Act
+        mainVM.NewProject();
+
+        // Assert
+        Assert.Equal("DL_Station_01", mainVM.CurrentProjectName);
+        Assert.True(mainVM.HasSystemTab);
+        Assert.Equal(0, mainVM.SelectedTabIndex);
+        Assert.Same(mainVM.DtuGatewayStudioVM, mainVM.CurrentView);
+        Assert.Equal(2, mainVM.CurrentProjectMetadata.PhysicalRs485PortCount);
+        Assert.Equal(2, mainVM.DtuGatewayStudioVM.ModbusPortConfigVM.Ports.Count);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasWifiCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasMqttCapability);
+        Assert.True(mainVM.DtuGatewayStudioVM.HasRs485Capability);
+        Assert.False(mainVM.DtuGatewayStudioVM.HasHttpCapability);
+        Assert.False(mainVM.DtuGatewayStudioVM.HasTcpSocketCapability);
+    }
+
+    [Fact]
+    public void NewProjectViewModel_DetectFromConnectedDevice_WhenNoActiveSession_SetsWarning()
+    {
+        // Arrange
+        var wizardVm = new NewProjectViewModel();
+
+        // Act
+        wizardVm.DetectFromConnectedDevice();
+
+        // Assert
+        Assert.False(wizardVm.IsStatusSuccess);
+        Assert.False(string.IsNullOrWhiteSpace(wizardVm.StatusMessage));
+        Assert.Contains(LocalizationService.Tr("NewProjectNoDeviceConnected"), wizardVm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task NewProjectViewModel_DetectFromConnectedDevice_WithActiveSession_AutoSelectsPreset()
+    {
+        // Arrange
+        var dtuPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "DTU_RS485_NET");
+        var testProduct = dtuPreset.BuildProductDefinition();
+        var fakeSession = new FakeTestSession(testProduct);
+        await AppServices.Instance.SessionManager.SetCurrentSessionAsync(fakeSession);
+
+        try
+        {
+            var wizardVm = new NewProjectViewModel();
+            var initialPreset = wizardVm.Presets.First(p => p.Id == "REMOTE_IO_8DI_8DO_4AI");
+            wizardVm.SelectStandardPreset(initialPreset);
+
+            // Act
+            wizardVm.DetectFromConnectedDevice();
+
+            // Assert
+            Assert.True(wizardVm.IsStatusSuccess);
+            Assert.Equal("DTU_RS485_NET", wizardVm.SelectedPreset.Id);
+            Assert.Contains("SYNX-DTU-485", wizardVm.SelectedPreset.DisplayName);
+            Assert.Contains(LocalizationService.Tr("NewProjectDeviceDetectedSuccess"), wizardVm.StatusMessage);
+        }
+        finally
+        {
+            await AppServices.Instance.SessionManager.CloseCurrentSessionAsync();
+        }
+    }
+
+    [Fact]
+    public void MainViewModel_PromptStartupNewProject_WhenAccepted_AppliesSelectedPreset()
+    {
+        // Arrange
+        var mainVm = new MainViewModel();
+        mainVm.ShowNewProjectDialogHandler = wizardVm =>
+        {
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            wizardVm.SelectStandardPreset(dtuPreset);
+            wizardVm.ProjectName = "StartupDtuProject";
+            return true;
+        };
+
+        // Act
+        mainVm.PromptStartupNewProject();
+
+        // Assert
+        Assert.NotNull(mainVm.CurrentProjectMetadata);
+        Assert.Equal("StartupDtuProject", mainVm.CurrentProjectMetadata.ProjectName);
+        Assert.Equal((ushort)SPLC_DeviceClass.DTU, mainVm.CurrentProjectMetadata.DeviceClass);
+        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+        Assert.True(mainVm.IsDtuProject);
+    }
+
+    [Fact]
+    public void MainViewModel_PromptStartupNewProject_WhenCancelled_KeepsOriginalProject()
+    {
+        // Arrange
+        var mainVm = new MainViewModel();
+        var initialName = mainVm.CurrentProjectMetadata?.ProjectName;
+        var initialDeviceClass = mainVm.CurrentProjectMetadata?.DeviceClass;
+        mainVm.ShowNewProjectDialogHandler = wizardVm =>
+        {
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            wizardVm.SelectStandardPreset(dtuPreset);
+            wizardVm.ProjectName = "StartupDtuProject";
+            return false;
+        };
+
+        // Act
+        mainVm.PromptStartupNewProject();
+
+        // Assert
+        Assert.Equal(initialName, mainVm.CurrentProjectMetadata?.ProjectName);
+        Assert.Equal(initialDeviceClass, mainVm.CurrentProjectMetadata?.DeviceClass);
+    }
+
+    private sealed class FakeTestSession : SimplePLC.Application.Abstractions.IDeviceSession
+    {
+        public FakeTestSession(ProductDefinition product)
+        {
+            Product = product;
+        }
+
+        public SimplePLC.Application.Models.DeviceEndpoint Endpoint => new SimplePLC.Application.Models.UsbCdcEndpoint("COM99");
+        public SimplePLC.Protocol.Dto.DeviceDescriptorDto Descriptor => new()
+        {
+            DeviceClass = (SimplePLC.Protocol.Enums.SPLC_DeviceClass)Product.DeviceClass,
+            DeviceVariant = Product.ProductVariant,
+            HwVersionMajor = 1,
+            HwVersionMinor = 0,
+            FwVersionMajor = 2,
+            FwVersionMinor = 0
+        };
+        public SimplePLC.Protocol.Dto.DeviceResourceInfoDto ResourceInfo => new()
+        {
+            DigitalInputCount = (ushort)Product.Resources.DigitalInputs,
+            DigitalOutputCount = (ushort)Product.Resources.DigitalOutputs,
+            AnalogInputCount = (ushort)Product.Resources.AnalogInputs,
+            VirtualFlagCount = (ushort)Product.Resources.VirtualFlags,
+            VirtualRegisterCount = (ushort)Product.Resources.VirtualRegisters,
+            RetentiveRegisterCount = (ushort)Product.Resources.RetentiveRegisters,
+            CounterCount = (ushort)Product.Resources.Counters,
+            MaxRules = Product.MaxRules,
+            RuntimeTagCount = 128,
+            WireProfile = 2
+        };
+        public ProductDefinition Product { get; }
+        public byte SlaveId => 1;
+        public SimplePLC.Application.Abstractions.IRuleTableGateway Rules => new SimplePLC.Infrastructure.Gateways.RuleTableGateway(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IRuntimeTagReader RuntimeTags => new SimplePLC.Infrastructure.Devices.RuntimeTagReader(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IDeviceHealthReader Health => new SimplePLC.Infrastructure.Devices.DeviceHealthReader(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.ISystemCommandClient Commands => new SimplePLC.Infrastructure.Devices.SystemCommandClient(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IFunctionBlockGateway FunctionBlocks => new SimplePLC.Infrastructure.Gateways.FunctionBlockGateway(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IDiagnosticGateway Diagnostics => new SimplePLC.Infrastructure.Devices.DiagnosticGateway(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IRtcClockClient RtcClock => new SimplePLC.Infrastructure.Devices.RtcClockClient(AppServices.Instance.ModbusClient);
+        public SimplePLC.Application.Abstractions.IWifiClient Wifi => new SimplePLC.Infrastructure.Devices.WifiClient(AppServices.Instance.ModbusClient);
+        public bool IsActive => true;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     public void Dispose()

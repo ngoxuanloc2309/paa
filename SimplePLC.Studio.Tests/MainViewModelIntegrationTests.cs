@@ -6,6 +6,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử tích hợp MainViewModel: kết nối simulator và cập nhật thông tin thiết bị.
+/// </summary>
+[Collection("AppServicesDeployTests")]
 public class MainViewModelIntegrationTests
 {
     [Fact]

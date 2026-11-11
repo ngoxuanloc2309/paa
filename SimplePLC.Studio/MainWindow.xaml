@@ -40,19 +40,21 @@
         <KeyBinding Key="V" Modifiers="Alt+Shift" Command="{Binding DistributeNodesVerticallyCommand}" />
         <KeyBinding Key="G" Modifiers="Alt" Command="{Binding SnapAllNodesToGridCommand}" />
 
-        <!-- Workspace Tabs Shortcuts (Ctrl+1 to Ctrl+6) -->
+        <!-- Workspace Tabs Shortcuts (Ctrl+1 to Ctrl+7) -->
         <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="0" />
         <KeyBinding Key="D2" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="1" />
         <KeyBinding Key="D3" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="2" />
         <KeyBinding Key="D4" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="3" />
         <KeyBinding Key="D5" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="4" />
         <KeyBinding Key="D6" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+        <KeyBinding Key="D7" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="6" />
         <KeyBinding Key="NumPad1" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="0" />
         <KeyBinding Key="NumPad2" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="1" />
         <KeyBinding Key="NumPad3" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="2" />
         <KeyBinding Key="NumPad4" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="3" />
         <KeyBinding Key="NumPad5" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="4" />
         <KeyBinding Key="NumPad6" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+        <KeyBinding Key="NumPad7" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="6" />
 
         <!-- Function Keys -->
         <KeyBinding Key="F4" Command="{Binding ToggleConnectCommand}" />
@@ -65,7 +67,6 @@
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
         <KeyBinding Key="W" Modifiers="Ctrl+Shift" Command="{Binding OpenWifiConfigCommand}" />
         <KeyBinding Key="B" Modifiers="Ctrl+Shift" Command="{Binding OpenModbusPortConfigCommand}" />
-        <KeyBinding Key="D" Modifiers="Ctrl+Shift" Command="{Binding OpenDtuGatewayCommand}" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
     </Window.InputBindings>
     
@@ -186,12 +187,13 @@
             <!-- 3. HIỂN THỊ (VIEW) -->
             <MenuItem Header="{Binding Loc[MenuView]}">
                 <MenuItem Header="{Binding Loc[MenuWorkspaces]}">
-                    <MenuItem Header="{Binding Loc[MenuViewLogicGraph]}" Command="{Binding SelectTabCommand}" CommandParameter="0" InputGestureText="Ctrl+1" />
-                    <MenuItem Header="{Binding Loc[MenuViewTagCatalog]}" Command="{Binding SelectTabCommand}" CommandParameter="1" InputGestureText="Ctrl+2" />
-                    <MenuItem Header="{Binding Loc[MenuViewRuleTable]}" Command="{Binding SelectTabCommand}" CommandParameter="2" InputGestureText="Ctrl+3" />
-                    <MenuItem Header="{Binding Loc[MenuViewBlueprints]}" Command="{Binding SelectTabCommand}" CommandParameter="3" InputGestureText="Ctrl+4" />
-                    <MenuItem Header="{Binding Loc[MenuViewDeploy]}" Command="{Binding SelectTabCommand}" CommandParameter="4" InputGestureText="Ctrl+5" />
-                    <MenuItem Header="{Binding Loc[MenuViewLiveWatch]}" Command="{Binding SelectTabCommand}" CommandParameter="5" InputGestureText="Ctrl+6" />
+                    <MenuItem Header="{Binding Loc[MenuViewDevice]}" Command="{Binding SelectTabCommand}" CommandParameter="0" InputGestureText="Ctrl+1" />
+                    <MenuItem Header="{Binding Loc[MenuViewLogicGraph]}" Command="{Binding SelectTabCommand}" CommandParameter="1" InputGestureText="Ctrl+2" />
+                    <MenuItem Header="{Binding Loc[MenuViewTagCatalog]}" Command="{Binding SelectTabCommand}" CommandParameter="2" InputGestureText="Ctrl+3" />
+                    <MenuItem Header="{Binding Loc[MenuViewRuleTable]}" Command="{Binding SelectTabCommand}" CommandParameter="3" InputGestureText="Ctrl+4" />
+                    <MenuItem Header="{Binding Loc[MenuViewBlueprints]}" Command="{Binding SelectTabCommand}" CommandParameter="4" InputGestureText="Ctrl+5" />
+                    <MenuItem Header="{Binding Loc[MenuViewDeploy]}" Command="{Binding SelectTabCommand}" CommandParameter="5" InputGestureText="Ctrl+6" />
+                    <MenuItem Header="{Binding Loc[MenuViewLiveWatch]}" Command="{Binding SelectTabCommand}" CommandParameter="6" InputGestureText="Ctrl+7" />
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuToggleSimulation]}" Command="{Binding ToggleSimulationCommand}" InputGestureText="F5" />
@@ -221,12 +223,11 @@
                 <MenuItem Header="{Binding Loc[MenuUploadFromDevice]}" Command="{Binding UploadFromDeviceCommand}" InputGestureText="F6" />
                 <MenuItem Header="{Binding Loc[MenuCommit]}" Command="{Binding DeployToDeviceCommand}" InputGestureText="Ctrl+F5" />
                 <Separator />
-                <MenuItem Header="{Binding Loc[MenuMqttBrokerConfig]}" Command="{Binding OpenMqttBrokerConfigCommand}" InputGestureText="Ctrl+Shift+M"  />
-                <MenuItem Header="{Binding Loc[MenuWifiConfig]}" Command="{Binding OpenWifiConfigCommand}" InputGestureText="Ctrl+Shift+W"  />
-                <MenuItem Header="{Binding Loc[MenuModbusPortConfig]}" Command="{Binding OpenModbusPortConfigCommand}" InputGestureText="Ctrl+Shift+B"  />
-                <MenuItem Header="{Binding Loc[MenuConfigureDtu]}" Command="{Binding OpenDtuGatewayCommand}" InputGestureText="Ctrl+Shift+D"  />
+                <MenuItem Header="{Binding Loc[MenuMqttBrokerConfig]}" Command="{Binding OpenMqttBrokerConfigCommand}" InputGestureText="Ctrl+Shift+M" IsEnabled="{Binding IsMqttSupported}" />
+                <MenuItem Header="{Binding Loc[MenuWifiConfig]}" Command="{Binding OpenWifiConfigCommand}" InputGestureText="Ctrl+Shift+W" IsEnabled="{Binding IsWifiSupported}" />
+                <MenuItem Header="{Binding Loc[MenuModbusPortConfig]}" Command="{Binding OpenModbusPortConfigCommand}" InputGestureText="Ctrl+Shift+B" IsEnabled="{Binding IsRs485Supported}" />
                 <Separator />
-                <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}"  />
+                <MenuItem Header="{Binding Loc[BtnSyncMcuClock]}" Command="{Binding SyncMcuClockCommand}" IsEnabled="{Binding IsRtcClockSupported}" />
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuRebootDevice]}" Command="{Binding RebootDeviceCommand}" />
                 <MenuItem Header="{Binding Loc[MenuFactoryResetDevice]}" Command="{Binding FactoryResetDeviceCommand}" Foreground="{DynamicResource DangerBrush}" />
@@ -257,37 +258,28 @@
             <DockPanel LastChildFill="False">
                 <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="2" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Content="{Binding Loc[TabDevice]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=0}"
-                                     Command="{Binding SelectTabCommand}" CommandParameter="0">
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="{Binding Loc[TabLogicGraph]}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsDtuProject}" Value="True">
-                                                <Setter Property="Text" Value="{Binding Loc[TabDtuGateway]}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </RadioButton>
-                        <RadioButton Content="{Binding Loc[TabTagCatalog]}" Style="{StaticResource ToolStripTabBtn}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="0"
+                                     Visibility="{Binding HasSystemTab, Converter={StaticResource BoolToVis}}" />
+                        <RadioButton Content="{Binding Loc[TabLogicGraph]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=1}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="1" />
-                        <RadioButton Content="{Binding Loc[TabRuleTable]}" Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Content="{Binding Loc[TabTagCatalog]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=2}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="2" />
-                        <RadioButton Content="{Binding Loc[TabBlueprints]}" Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Content="{Binding Loc[TabRuleTable]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=3}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="3" />
-                        <RadioButton Content="{Binding Loc[TabDeploy]}" Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Content="{Binding Loc[TabBlueprints]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=4}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="4" />
-                        <RadioButton Content="{Binding Loc[TabLiveWatch]}" Style="{StaticResource ToolStripTabBtn}"
+                        <RadioButton Content="{Binding Loc[TabDeploy]}" Style="{StaticResource ToolStripTabBtn}"
                                      IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=5}"
                                      Command="{Binding SelectTabCommand}" CommandParameter="5" />
+                        <RadioButton Content="{Binding Loc[TabLiveWatch]}" Style="{StaticResource ToolStripTabBtn}"
+                                     IsChecked="{Binding SelectedTabIndex, Converter={StaticResource CompareConverter}, ConverterParameter=6}"
+                                     Command="{Binding SelectTabCommand}" CommandParameter="6" />
                     </StackPanel>
                 </Border>
 
@@ -486,13 +478,7 @@
                             <Style TargetType="StackPanel">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="2">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="3">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="4">
@@ -517,7 +503,7 @@
                             <Style TargetType="StackPanel">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -745,7 +731,7 @@
                                                 <Style.Triggers>
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="1" />
                                                             <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter Property="Visibility" Value="Visible" />
@@ -793,7 +779,7 @@
                                                 <Style.Triggers>
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                                            <Condition Binding="{Binding SelectedTabIndex}" Value="1" />
                                                             <Condition Binding="{Binding LogicEditorVM.IsSimulationMode}" Value="False" />
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter Property="Visibility" Value="Visible" />
@@ -907,6 +893,122 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                    </StackPanel>
+                    <!-- Device & Modbus Configuration Context (When ON Tab 0: Thiết Bị) -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <!-- Hardware Port & Model Badge -->
+                        <Border BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                                ToolTip="{Binding ConnectionInfo}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding ConnectionBadgeText}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Device Status Indicator -->
+                        <TextBlock Text="{Binding DiagnosticsSummary}" FontSize="11" FontWeight="SemiBold"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding DiagnosticsSummary}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                        <!-- Vertical Separator -->
+                        <Rectangle Width="1" Height="14" Fill="{DynamicResource BorderLightBrush}" Margin="2,0,8,0" VerticalAlignment="Center" />
+
+                        <!-- Device Action Buttons (Fluent 2 Segmented Toolbar) -->
+                        <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="3" Padding="2,1" Margin="0,0,4,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- 1. Lưu dự án (Save Project - Ctrl+S) -->
+                                <Button Command="{Binding SaveProjectCommand}"
+                                        Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                        ToolTip="{Binding Loc[MenuSaveProject]}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Canvas Width="16" Height="16">
+                                                        <Path Data="M2.5,2 H11.5 L14,4.5 V14 H2.5 Z" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                        <Path Data="M5,2 V5.5 H10 V2" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.1" />
+                                                        <Path Data="M5,8.5 H11.5 V14 H5 Z" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.1" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="BtnBdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="BtnBdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <!-- 2. Nạp cấu hình xuống thiết bị (Deploy / Flash to MCU - Ctrl+F5) -->
+                                <Button Command="{Binding DeployToDeviceCommand}"
+                                        Width="26" Height="22" Margin="1,0,0,0" Cursor="Hand"
+                                        ToolTip="{Binding Loc[DeviceSubToolbarDeployTip]}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBdr" Background="Transparent" CornerRadius="2">
+                                                <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Canvas Width="16" Height="16">
+                                                        <!-- Mũi tên nạp đi xuống -->
+                                                        <Path Data="M8,1.5 V9.5 M5,6.5 L8,9.5 L11,6.5" Stroke="{DynamicResource SuccessBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                                        <!-- Đế chip/thiết bị PLC -->
+                                                        <Path Data="M2.5,9.5 V13.5 H13.5 V9.5" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                                        <!-- Chân pin chip IC -->
+                                                        <Path Data="M5,13.5 V15 M8,13.5 V15 M11,13.5 V15" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="BtnBdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="BtnBdr" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </StackPanel>
 

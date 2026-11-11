@@ -19,7 +19,8 @@ public enum TagKind : byte
     ModbusHolding = 7,          // TAG_MB_HOLDING: holding register trên thiết bị Modbus khác (remote)
 
     VirtualRegisterRetain = 8,  // TAG_VREG_RETAIN: thanh ghi lưu giữ sau mất nguồn (int32, non-volatile)
-    Counter = 9                 // TAG_COUNTER: bộ đếm nội bộ (int32)
+    Counter = 9,                // TAG_COUNTER: bộ đếm nội bộ (int32)
+    System = 10                 // TAG_SYS: cờ / thanh ghi hệ thống chỉ đọc (SYS_FIRST_SCAN, SYS_ON, SYS_CLOCK_1S...)
 }
 
 /// <summary>

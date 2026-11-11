@@ -58,7 +58,8 @@ public sealed class SimulatorRegisterMemory : IDisposable
 
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttWillConfigBaseAddress, ModbusRegisterMap.MqttWillConfigRegisters) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters + ModbusRegisterMap.MqttWillConfigRegisters) ||
-                IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192);
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters);
     }
 
     /// <summary>
@@ -94,7 +95,8 @@ public sealed class SimulatorRegisterMemory : IDisposable
 
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttWillConfigBaseAddress, ModbusRegisterMap.MqttWillConfigRegisters) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters + ModbusRegisterMap.MqttWillConfigRegisters) ||
-               IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192);
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters);
     }
 
     private static bool IsWithin(int start, int end, int rangeStart, int rangeLength)

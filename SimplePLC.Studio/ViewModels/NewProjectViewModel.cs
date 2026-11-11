@@ -242,25 +242,44 @@ public partial class NewProjectViewModel : ObservableObject
     public void DetectFromConnectedDevice()
     {
         var session = AppServices.Instance.SessionManager.CurrentSession;
-        if (session == null || !session.IsActive || session.Descriptor == null || session.ResourceInfo == null)
+        if (session == null || !session.IsActive)
         {
             StatusMessage = LocalizationService.Tr("NewProjectNoDeviceConnected");
             IsStatusSuccess = false;
             return;
         }
 
-        if (DeviceProfileMapper.TryBuildProductDefinition(session.Descriptor, session.ResourceInfo, out var product, out var error))
+        ProductDefinition? product = session.Product;
+        string? error = null;
+
+        if (product == null && session.Descriptor != null && session.ResourceInfo != null)
+        {
+            DeviceProfileMapper.TryBuildProductDefinition(session.Descriptor, session.ResourceInfo, out product, out error);
+        }
+
+        if (product != null)
         {
             _detectedProduct = product;
-            _detectedMcuName = $"SynaptiX Controller (HW {session.Descriptor.HwVersionMajor}.{session.Descriptor.HwVersionMinor}, FW {session.Descriptor.FwVersionMajor}.{session.Descriptor.FwVersionMinor})";
+            _detectedMcuName = session.Descriptor != null
+                ? $"SynaptiX Controller (HW {session.Descriptor.HwVersionMajor}.{session.Descriptor.HwVersionMinor}, FW {session.Descriptor.FwVersionMajor}.{session.Descriptor.FwVersionMinor})"
+                : product.ProductName;
             IsCustomMode = false;
+
+            // Đồng bộ hoá Preset tương ứng trên ComboBox nếu tìm thấy mẫu khớp
+            var matchingPreset = Presets.FirstOrDefault(p => (ushort)p.DeviceClass == product.DeviceClass && p.DeviceVariant == product.ProductVariant)
+                ?? Presets.FirstOrDefault(p => (ushort)p.DeviceClass == product.DeviceClass);
+            if (matchingPreset != null)
+            {
+                SelectedPreset = matchingPreset;
+            }
+
             StatusMessage = LocalizationService.Tr("NewProjectDeviceDetectedSuccess");
             IsStatusSuccess = true;
             UpdatePreviewProperties();
         }
         else
         {
-            StatusMessage = error ?? "Failed to read device hardware profile.";
+            StatusMessage = error ?? LocalizationService.Tr("NewProjectNoDeviceConnected");
             IsStatusSuccess = false;
         }
     }

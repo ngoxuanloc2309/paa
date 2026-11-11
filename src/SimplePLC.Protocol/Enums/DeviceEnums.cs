@@ -1,4 +1,4 @@
-namespace SimplePLC.Protocol.Enums;
+﻿namespace SimplePLC.Protocol.Enums;
 
 /// <summary>
 /// Device class: family cấp cao của sản phẩm SimplePLC.
@@ -96,7 +96,8 @@ public enum SPLC_HardwareCapabilities : uint
     FLOAT32       = 0x0800, // Bit 11: Hỗ trợ tính toán phần cứng số thực Float32 / REAL
     HTTP_CLIENT   = 0x1000, // Bit 12: Hỗ trợ phân hệ xuất bản dữ liệu REST API HTTP/HTTPS Client (0x1600)
     TRANSPARENT_STREAM = 0x2000, // Bit 13: Hỗ trợ truyền trong suốt Serial-to-Network Passthrough
-    MODBUS_SLAVE  = 0x4000  // Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500)
+    MODBUS_SLAVE  = 0x4000, // Bit 14: Hỗ trợ phân hệ RS-485 Modbus RTU Slave & Sandbox (0x1500)
+    ZIGBEE        = 0x8000  // Bit 15: Hỗ trợ phân hệ truyền thông không dây Zigbee Modbus (0x1700..0x173F)
 }
 
 /// <summary>

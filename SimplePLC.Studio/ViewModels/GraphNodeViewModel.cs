@@ -11,6 +11,9 @@ using SimplePLC.Domain.Enums;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// Trạng thái trực quan giám sát thời gian thực của các node đồ họa trên Logic Graph.
+/// </summary>
 public enum NodeLiveVisualState
 {
     Offline,
@@ -367,6 +370,31 @@ public partial class InputNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             }
             OnPropertyChanged(nameof(ValueBadgeText));
             OnPropertyChanged(nameof(SimButtonContent));
+        }
+    }
+
+    [RelayCommand]
+    public void CommitTagValue()
+    {
+        if (Tag == null) return;
+        if (SmartInputParser.TryParseForTag(TagValueText, Tag, out int rawVal, out string formattedDisplay))
+        {
+            _isUpdatingTagFromText = true;
+            try
+            {
+                Tag.Value = rawVal;
+            }
+            finally
+            {
+                _isUpdatingTagFromText = false;
+            }
+            TagValueText = formattedDisplay;
+            OnPropertyChanged(nameof(ValueBadgeText));
+            OnPropertyChanged(nameof(SimButtonContent));
+        }
+        else
+        {
+            TagValueText = SmartInputParser.FormatForTag(Tag.Value, Tag);
         }
     }
 
@@ -1214,7 +1242,30 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [NotifyPropertyChangedFor(nameof(ActionTypeBadgeText))]
     [NotifyPropertyChangedFor(nameof(CompactBadgeText))]
     [NotifyPropertyChangedFor(nameof(ActionExpression))]
+    [NotifyPropertyChangedFor(nameof(IsCoilAction))]
+    [NotifyPropertyChangedFor(nameof(IsCounterAction))]
     private ActionType _actionType = ActionType.SET_TAG;
+
+    public bool IsCoilAction => ActionType == ActionType.TOGGLE_TAG;
+    public bool IsCounterAction => ActionType == ActionType.INC_COUNTER;
+
+    partial void OnActionTypeChanged(ActionType value)
+    {
+        OnPropertyChanged(nameof(IsCoilAction));
+        OnPropertyChanged(nameof(IsCounterAction));
+
+        if (TargetTag != null && TargetTag.Kind != TagKind.None)
+        {
+            if (value == ActionType.TOGGLE_TAG && !TargetTag.IsDigital && TargetTag.DataType != TagDataType.Boolean)
+            {
+                TargetTag = null;
+            }
+            else if (value == ActionType.INC_COUNTER && (TargetTag.IsDigital || TargetTag.DataType == TagDataType.Boolean))
+            {
+                TargetTag = null;
+            }
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -1225,7 +1276,7 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [ObservableProperty]
     private string _actionParamText = "1";
 
-    public bool IsTargetBoolean => TargetTag == null || TargetTag.IsDigital || TargetTag.DataType == TagDataType.Boolean;
+    public bool IsTargetBoolean => !IsTargetReal && (TargetTag == null || TargetTag.IsDigital || TargetTag.DataType == TagDataType.Boolean);
     public bool IsTargetReal => TargetTag != null && TargetTag.DataType == TagDataType.Float32;
     public bool IsTargetInteger => TargetTag != null && !TargetTag.IsDigital && TargetTag.DataType != TagDataType.Float32;
 
@@ -1262,6 +1313,28 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
             {
                 _isUpdatingFromText = false;
             }
+        }
+    }
+
+    [RelayCommand]
+    public void CommitActionParam()
+    {
+        if (SmartInputParser.TryParseForTag(ActionParamText, TargetTag, out int rawVal, out string formattedDisplay))
+        {
+            _isUpdatingFromText = true;
+            try
+            {
+                ActionParam = IsTargetBoolean ? (rawVal != 0 ? 1 : 0) : rawVal;
+            }
+            finally
+            {
+                _isUpdatingFromText = false;
+            }
+            ActionParamText = formattedDisplay;
+        }
+        else
+        {
+            ActionParamText = SmartInputParser.FormatForTag(ActionParam, TargetTag);
         }
     }
 
@@ -1450,9 +1523,14 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
         get
         {
             string tag = TargetTag?.Name ?? "TAG";
+            string valStr = IsTargetBoolean 
+                ? SmartInputParser.FormatBool(ActionParam)
+                : (IsTargetReal 
+                    ? SmartInputParser.FormatReal(BitConverter.Int32BitsToSingle(ActionParam))
+                    : ActionParam.ToString());
             return ActionType switch
             {
-                ActionType.SET_TAG => IsTargetBoolean ? $"{tag} = {SmartInputParser.FormatBool(ActionParam)}" : $"{tag} = {ActionParam}", 
+                ActionType.SET_TAG => $"{tag} = {valStr}", 
                 ActionType.TOGGLE_TAG => $"TOGGLE {tag}",
                 ActionType.INC_COUNTER => $"{tag} += {ActionParam}",
                 ActionType.WRITE_REMOTE => $"MODBUS {ActionParam}",
@@ -1549,6 +1627,9 @@ public partial class ActionNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     }
 }
 
+/// <summary>
+/// Tùy chọn đơn vị thời gian (ms, s, min, h) cho các khối hẹn giờ Timer.
+/// </summary>
 public class TimeUnitOption : System.ComponentModel.INotifyPropertyChanged
 {
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -2340,8 +2421,17 @@ public partial class CounterNodeViewModel : GraphNodeViewModel, ILiveTagBoundNod
     }
 }
 
+/// <summary>
+/// Model ánh xạ giá trị Enum hiển thị trên ComboBox của Inspector.
+/// </summary>
+/// <typeparam name="T">Kiểu enum tương ứng.</typeparam>
+/// <param name="Value">Giá trị enum.</param>
+/// <param name="DisplayName">Tên hiển thị tương ứng.</param>
 public record EnumOption<T>(T Value, string DisplayName);
 
+/// <summary>
+/// Danh mục các tùy chọn cấu hình cố định cho Rule và Graph Node.
+/// </summary>
 public static class RuleOptions
 {
     public static ObservableCollection<EnumOption<CompareOp>> CompareOps { get; } = new();

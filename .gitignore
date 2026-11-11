@@ -39,3 +39,10 @@ $RECYCLE.BIN/
 !.agents/skills/
 temp_doc_render/
 scratch/
+
+
+# Documentation Portal (VitePress)
+node_modules/
+docs-portal/node_modules/
+docs-portal/.vitepress/cache/
+docs-portal/.vitepress/dist/

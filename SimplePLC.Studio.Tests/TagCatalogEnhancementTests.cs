@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows;
@@ -12,15 +12,18 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử các tính năng nâng cao của Tag Catalog (tìm kiếm, song ngữ, lọc nhóm).
+/// </summary>
 public class TagCatalogEnhancementTests
 {
     [Fact]
-    public void TagCatalog_DynamicCountAndTitle_Matches124Tags()
+    public void TagCatalog_DynamicCountAndTitle_Matches132Tags()
     {
         var vm = new TagCatalogViewModel();
 
-        Assert.Equal(124, vm.TotalTagCount);
-        Assert.Contains("124 TAGS", vm.TitleText);
+        Assert.Equal(132, vm.TotalTagCount);
+        Assert.Contains("132 TAGS", vm.TitleText);
     }
 
     [Fact]
@@ -31,7 +34,7 @@ public class TagCatalogEnhancementTests
         // 1. Vietnamese
         LocalizationService.Instance.CurrentLanguage = "vi";
         Assert.Contains("DANH MỤC TAG I/O", vm.TitleText);
-        Assert.Contains("124 TAGS", vm.TitleText);
+        Assert.Contains("132 TAGS", vm.TitleText);
         Assert.Equal("Mở rộng giải thích", vm.BannerToggleText);
         Assert.Contains("Không Gian Tag Hệ Thống", vm.CurrentGroupInfo.GroupName);
 
@@ -41,7 +44,7 @@ public class TagCatalogEnhancementTests
         // 2. English
         LocalizationService.Instance.CurrentLanguage = "en";
         Assert.Contains("TAG I/O & INTERNAL REGISTERS CATALOG", vm.TitleText);
-        Assert.Contains("124 TAGS", vm.TitleText);
+        Assert.Contains("132 TAGS", vm.TitleText);
         Assert.Equal("Expand Info", vm.BannerToggleText);
         Assert.Contains("Opto-Isolated", vm.CurrentGroupInfo.GroupName);
 
@@ -102,11 +105,11 @@ public class TagCatalogEnhancementTests
 
         // Match by Data Type
         vm.SearchFilter = "BOOL";
-        Assert.Equal(48, vm.FilteredTags.Count); // 8 DI + 8 DO + 32 VFLAG
+        Assert.Equal(54, vm.FilteredTags.Count); // 8 DI + 8 DO + 32 VFLAG + 6 System Tags
 
         // Clear search
         vm.ClearSearch();
-        Assert.Equal(124, vm.FilteredTags.Count);
+        Assert.Equal(132, vm.FilteredTags.Count);
         Assert.Equal(string.Empty, vm.SearchFilter);
     }
 
@@ -157,7 +160,7 @@ public class TagCatalogEnhancementTests
         Assert.Equal(8, vm.FilteredTags.Count);
 
         vm.FilterByGroup("ALL");
-        Assert.Equal(124, vm.FilteredTags.Count);
+        Assert.Equal(132, vm.FilteredTags.Count);
     }
 
     [Fact]
@@ -196,5 +199,79 @@ public class TagCatalogEnhancementTests
         Assert.True(ai0.IsDataTypeEditable);
         Assert.True(vr0.IsDataTypeEditable);
         Assert.True(vrr0.IsDataTypeEditable);
+    }
+
+    [Fact]
+    public void GetFilteredTags_WriteTarget_Bool_ContainsOnlyDO_And_VFLAG_And_None()
+    {
+        var vm = new TagCatalogViewModel();
+        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Protocol.Enums.MqttDataType.Bool).ToList();
+
+        Assert.NotEmpty(tags);
+        Assert.Contains(tags, t => t.Kind == TagKind.None);
+        Assert.All(tags, t =>
+        {
+            Assert.True(t.Kind is TagKind.None or TagKind.DiscreteOutput or TagKind.VirtualFlag,
+                $"Unexpected tag kind for WriteTarget BOOL: {t.Name} ({t.Kind})");
+            Assert.False(t.Kind == TagKind.DiscreteInput, $"DiscreteInput {t.Name} must NOT be in WriteTarget!");
+            Assert.False(t.Kind == TagKind.AnalogInput, $"AnalogInput {t.Name} must NOT be in WriteTarget!");
+            Assert.False(t.Kind == TagKind.System, $"System tag {t.Name} must NOT be in WriteTarget!");
+        });
+    }
+
+    [Fact]
+    public void GetFilteredTags_WriteTarget_Float_ContainsOnlyFloat32_And_None()
+    {
+        var vm = new TagCatalogViewModel();
+        // Set VREG0 to Float32
+        var vr0 = vm.AllTags.First(t => t.Name == "VREG0");
+        vr0.DataType = TagDataType.Float32;
+
+        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Protocol.Enums.MqttDataType.Float).ToList();
+
+        Assert.NotEmpty(tags);
+        Assert.Contains(tags, t => t.Kind == TagKind.None);
+        Assert.Contains(tags, t => t.Name == "VREG0");
+        Assert.All(tags, t =>
+        {
+            if (t.Kind != TagKind.None)
+            {
+                Assert.Equal(TagDataType.Float32, t.DataType);
+                Assert.True(t.IsWritable);
+            }
+        });
+    }
+
+    [Fact]
+    public void GetFilteredTags_ReadSource_AllowsDI_And_AI()
+    {
+        var vm = new TagCatalogViewModel();
+        var tags = vm.GetFilteredTags(TagAccessRole.ReadSource, SimplePLC.Protocol.Enums.MqttDataType.Bool).ToList();
+
+        Assert.Contains(tags, t => t.Kind == TagKind.DiscreteInput);
+        Assert.Contains(tags, t => t.Kind == TagKind.DiscreteOutput);
+        Assert.Contains(tags, t => t.Kind == TagKind.VirtualFlag);
+    }
+
+    [Fact]
+    public void TagModel_DropdownDisplayName_FormatsRoleAndType()
+    {
+        var do0 = new SimplePLC.Studio.Models.TagModel
+        {
+            Name = "DO0",
+            Alias = "FeedPump",
+            Kind = TagKind.DiscreteOutput,
+            DataType = TagDataType.Boolean
+        };
+        Assert.Equal("[DO0] FeedPump (BOOL · R/W)", do0.DropdownDisplayName);
+
+        var di0 = new SimplePLC.Studio.Models.TagModel
+        {
+            Name = "DI0",
+            Alias = "SensorProx",
+            Kind = TagKind.DiscreteInput,
+            DataType = TagDataType.Boolean
+        };
+        Assert.Equal("[DI0] SensorProx (BOOL · R/O)", di0.DropdownDisplayName);
     }
 }

@@ -76,6 +76,17 @@ When a port is set to **Modbus RTU Master**, the dialog displays an interactive 
 4. **Signal Reference (`GND` / `SG`):** Always connect the isolated RS-485 signal reference (`GND`/`SG`) across transceivers to keep common-mode voltage within `-7 V .. +12 V`.
 :::
 
+### 1.5. Modbus Live Test Inspector (On-Wire Probe & Diagnostic Tool)
+
+During panel commissioning, verifying sensor power, terminal polarity (A vs B), and manufacturer register offsets is a critical field necessity. The configuration dialog provides an embedded **Modbus Live Test Inspector**:
+
+- **Instant Probe Frame Dispatch:** Select the target `Slave ID`, function code (`FC01..FC04` read or `FC05/06/16` write), register address, and quantity, then click **Send Test Probe**.
+- **Real-Time Multi-Format Inspection:** Inbound sensor response frames are parsed and displayed simultaneously across three views:
+  - **Raw Hex Stream:** Exact wire bytes returned from the bus, including verified CRC-16 checksums.
+  - **Engineering Decimals (Signed / Unsigned / Real):** Decoded values formatted according to standard word-order (Word Swap / Big-Endian).
+  - **Binary Bit Flags:** Live bit indicators showing discrete coil and status flag states.
+- **Fast Troubleshooting Without FBD Logic:** If a sensor fails to respond within the configured timeout, the UI flags a `[TIMEOUT]` error, allowing the technician to test reversing the A/B pair or tweaking baud rates on the fly **without authoring FBD logic or deploying bytecode**.
+
 ---
 
 ## Part 2: Public SCADA / HMI Fixed Modbus Slave Register Map

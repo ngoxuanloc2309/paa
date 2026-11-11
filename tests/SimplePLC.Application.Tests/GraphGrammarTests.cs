@@ -39,7 +39,7 @@ public class GraphGrammarTests
     }
 
     [Fact]
-    public void Input_Direct_To_Action_IsRejected()
+    public void Input_Direct_To_Action_IsAllowed()
     {
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateInput("IN1", 0));
@@ -47,11 +47,12 @@ public class GraphGrammarTests
         graph.Edges.Add(new LogicEdge("IN1", "ACT1"));
 
         var diagnostics = GraphGrammarV1.ValidateStructure(graph);
-        Assert.Contains(diagnostics, d => d.Code == GraphGrammarV1.ErrInputToAction);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Input, LogicNodeKind.Action));
     }
 
     [Fact]
-    public void Input_Direct_To_Guard_IsRejected()
+    public void Input_Direct_To_Guard_IsAllowed()
     {
         var graph = new LogicGraph();
         graph.Nodes.Add(LogicNode.CreateInput("IN1", 0));
@@ -59,7 +60,8 @@ public class GraphGrammarTests
         graph.Edges.Add(new LogicEdge("IN1", "GRD1"));
 
         var diagnostics = GraphGrammarV1.ValidateStructure(graph);
-        Assert.Contains(diagnostics, d => d.Code == GraphGrammarV1.ErrInputToGuard);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.True(GraphGrammarV1.CanConnect(LogicNodeKind.Input, LogicNodeKind.Guard));
     }
 
     [Fact]

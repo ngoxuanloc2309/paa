@@ -6,6 +6,10 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests cho <see cref="ModbusReadConfigDialogViewModel"/> kiểm thử cấu hình kênh đọc Modbus Master,
+/// tính toán số thanh ghi, lọc Tag theo loại dữ liệu và chuyển đổi ngôn ngữ.
+/// </summary>
 public class ModbusReadConfigDialogViewModelTests
 {
     [Fact]
@@ -357,5 +361,87 @@ public class ModbusReadConfigDialogViewModelTests
         pin1.TargetTag = vregTag;
 
         Assert.Equal((ushort)vregTag.Index, pin1.ToDto().TargetTagIndex);
+    }
+
+    [Fact]
+    public void GetCompatibleTagsForDataType_ExcludesHardwareInputs()
+    {
+        var node = new ModbusReadNodeViewModel();
+        var tagCatalog = new TagCatalogViewModel();
+        var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog);
+
+        var boolTags = vm.GetCompatibleTagsForDataType(ModbusDataType.Bool);
+        Assert.NotEmpty(boolTags);
+        Assert.All(boolTags, t =>
+        {
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.DiscreteInput, "DiscreteInput must NOT be a Modbus Read TargetTag");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.AnalogInput, "AnalogInput must NOT be a Modbus Read TargetTag");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.System, "System tag must NOT be a Modbus Read TargetTag");
+        });
+
+        var intTags = vm.GetCompatibleTagsForDataType(ModbusDataType.Int16);
+        Assert.NotEmpty(intTags);
+        Assert.All(intTags, t =>
+        {
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.DiscreteInput, "DiscreteInput must NOT be a Modbus Read TargetTag");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.AnalogInput, "AnalogInput must NOT be a Modbus Read TargetTag");
+            Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.System, "System tag must NOT be a Modbus Read TargetTag");
+        });
+    }
+
+    [Fact]
+    public void ModbusReadConfigDialogViewModel_WhenZigbeeEnabled_IncludesZigbeePortInDropdown()
+    {
+        // Arrange
+        var node = new ModbusReadNodeViewModel();
+        var tagCatalog = new TagCatalogViewModel();
+        var ports = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "Port 1", Enabled = true }
+        };
+        var zigbee = new Models.ZigbeeConfigModel
+        {
+            Enabled = true,
+            Channel = 15,
+            PanIdHex = "1A2B"
+        };
+
+        // Act
+        var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog, ports, zigbee);
+
+        // Assert
+        Assert.Contains(vm.AvailablePorts, p => p.Value == 4 && p.DisplayName.Contains("Zigbee") && p.DisplayName.Contains("1A2B"));
+
+        // Select Zigbee port
+        vm.PortIndex = 4;
+        Assert.Contains("Zigbee", vm.PortSelectorTooltip);
+        Assert.Contains("Zigbee", vm.SummaryBadgeText);
+    }
+
+    [Theory]
+    [InlineData((byte)236)]
+    [InlineData((byte)237)]
+    public void ModbusReadConfigDialogViewModel_SafetyGate_WhenZigbeePortAndRestrictedId_SetsErrorFlagAndRevertsOnApply(byte restrictedId)
+    {
+        // Arrange
+        var node = new ModbusReadNodeViewModel();
+        var tagCatalog = new TagCatalogViewModel();
+        var zigbee = new Models.ZigbeeConfigModel { Enabled = true };
+        var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog, null, zigbee);
+
+        // Act 1: Normal RS-485 port does not restrict 236/237
+        vm.PortIndex = 0;
+        vm.SlaveId = restrictedId;
+        Assert.False(vm.HasRestrictedIdError);
+
+        // Act 2: Zigbee port activates Safety Gate
+        vm.PortIndex = 4;
+        Assert.True(vm.HasRestrictedIdError);
+        Assert.False(string.IsNullOrWhiteSpace(vm.RestrictedIdErrorMessage));
+
+        // Act 3: Apply automatically prevents saving restricted ID to node
+        vm.Apply();
+        Assert.NotEqual(restrictedId, node.SlaveId);
+        Assert.Equal((byte)1, node.SlaveId);
     }
 }

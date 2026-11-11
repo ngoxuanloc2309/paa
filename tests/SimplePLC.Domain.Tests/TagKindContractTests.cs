@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using SimplePLC.Domain.Enums;
 using Xunit;
@@ -5,8 +6,8 @@ using Xunit;
 namespace SimplePLC.Domain.Tests;
 
 /// <summary>
-/// Khóa ch?t h?p d?ng s? (Platform TagKind Contract V1) theo dúng d?c t? ban d?u (Spec 3.2).
-/// Ngan ch?n numeric drift ho?c tái c?u trúc enum vô tình làm thay d?i giá tr? s?.
+/// Khoa chat hop dong so (Platform TagKind Contract V1) theo dung dac ta ban dau (Spec 3.2).
+/// Ngan chan numeric drift hoac tai cau truc enum vo tinh lam thay doi gia tri so.
 /// </summary>
 public class TagKindContractTests
 {
@@ -21,6 +22,7 @@ public class TagKindContractTests
     [InlineData(TagKind.ModbusHolding, 7)]
     [InlineData(TagKind.VirtualRegisterRetain, 8)]
     [InlineData(TagKind.Counter, 9)]
+    [InlineData(TagKind.System, 10)]
     public void TagKind_NumericValue_MatchesPlatformContractV1(TagKind kind, byte expectedValue)
     {
         Assert.Equal(expectedValue, (byte)kind);
@@ -33,10 +35,10 @@ public class TagKindContractTests
     }
 
     [Fact]
-    public void TagKind_AllValues_AreUniqueAndTotal10()
+    public void TagKind_AllValues_AreUniqueAndTotal11()
     {
         var values = Enum.GetValues<TagKind>();
-        Assert.Equal(10, values.Length);
-        Assert.Equal(10, values.Distinct().Count());
+        Assert.Equal(11, values.Length);
+        Assert.Equal(11, values.Distinct().Count());
     }
 }

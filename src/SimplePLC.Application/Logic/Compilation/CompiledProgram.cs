@@ -9,6 +9,10 @@ using System.Text;
 using SimplePLC.Domain.Models;
 using SimplePLC.Protocol.Dto;
 
+/// <summary>
+/// Đại diện cho chương trình logic đã được biên dịch hoàn chỉnh từ sơ đồ FBD,
+/// bao gồm tập luật PLC, các cấu hình Function Block (Timer, Counter), MQTT, Modbus và DTU Gateway (HTTP/TCP).
+/// </summary>
 public sealed class CompiledProgram
 {
     public string ProgramId { get; }
@@ -24,6 +28,9 @@ public sealed class CompiledProgram
     public IReadOnlyList<ModbusMasterWriteConfigDto> ModbusMasterWriteConfigs { get; }
     public IReadOnlyList<DirectWriteConfigDto> DirectWriteConfigs { get; }
     public IReadOnlyList<ModbusSlaveMapEntryDto> ModbusSlaveMapConfigs { get; }
+    public DtuHttpConfigDto? DtuHttpConfig { get; }
+    public DtuTcpConfigDto? DtuTcpConfig { get; }
+    public DtuConfigDto? DtuConfig { get; }
 
     public CompiledProgram(
         string programId,
@@ -37,7 +44,10 @@ public sealed class CompiledProgram
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs = null,
         IReadOnlyList<ModbusMasterWriteConfigDto>? modbusMasterWriteConfigs = null,
         IReadOnlyList<DirectWriteConfigDto>? directWriteConfigs = null,
-        IReadOnlyList<ModbusSlaveMapEntryDto>? modbusSlaveMapConfigs = null)
+        IReadOnlyList<ModbusSlaveMapEntryDto>? modbusSlaveMapConfigs = null,
+        DtuHttpConfigDto? dtuHttpConfig = null,
+        DtuTcpConfigDto? dtuTcpConfig = null,
+        DtuConfigDto? dtuConfig = null)
     {
         ProgramId = programId ?? Guid.NewGuid().ToString("N");
         Rules = rules ?? Array.Empty<Rule>();
@@ -51,6 +61,9 @@ public sealed class CompiledProgram
         ModbusMasterWriteConfigs = modbusMasterWriteConfigs ?? Array.Empty<ModbusMasterWriteConfigDto>();
         DirectWriteConfigs = directWriteConfigs ?? Array.Empty<DirectWriteConfigDto>();
         ModbusSlaveMapConfigs = modbusSlaveMapConfigs ?? Array.Empty<ModbusSlaveMapEntryDto>();
+        DtuHttpConfig = dtuHttpConfig;
+        DtuTcpConfig = dtuTcpConfig;
+        DtuConfig = dtuConfig;
     }
 
     public RuleTable ToRuleTable()
@@ -267,6 +280,9 @@ public sealed class CompiledProgram
     }
 }
 
+/// <summary>
+/// Kết quả biên dịch sơ đồ FBD logic, chứa thông tin chương trình đã biên dịch và danh sách chẩn đoán/cảnh báo.
+/// </summary>
 public sealed class CompileResult
 {
     public CompiledProgram? Program { get; }

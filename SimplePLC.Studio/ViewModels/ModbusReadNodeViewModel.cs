@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.ObjectModel;
@@ -21,9 +21,19 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(PortDisplayName))]
+    [NotifyPropertyChangedFor(nameof(IsZigbeePort))]
+    [NotifyPropertyChangedFor(nameof(NodeInfoSummary))]
     private byte _portIndex = 0;
 
-    public string PortDisplayName => $"RS-485 #{PortIndex + 1}";
+    /// <summary>
+    /// Cho biết khối đọc Modbus này có đang trỏ tới cổng vô tuyến Zigbee (PortIndex = 4) hay không.
+    /// </summary>
+    public bool IsZigbeePort => PortIndex == 4;
+
+    /// <summary>
+    /// Tên hiển thị của cổng truyền thông (RS-485 #1..#4 hoặc Zigbee Wireless).
+    /// </summary>
+    public string PortDisplayName => IsZigbeePort ? "Zigbee Wireless" : $"RS-485 #{PortIndex + 1}";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -88,8 +98,10 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
         ? (LocalizationService.Tr("ModbusWriteTrigEdgeShort") ?? "On Trig")
         : $"Cyclic ({PollIntervalMs}ms)";
 
-    // Chuỗi tóm tắt thông số truyền thông trên Canvas (ví dụ: ID:1 | FC03)
-    public string NodeInfoSummary => $"ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
+    // Chuỗi tóm tắt thông số truyền thông trên Canvas (ví dụ: ID:1 | FC03 hoặc 🌐 Zigbee | ID:1 | FC03)
+    public string NodeInfoSummary => IsZigbeePort
+        ? $"🌐 Zigbee | ID:{SlaveId} | FC{(byte)FunctionCode:D2}"
+        : $"ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
 
     public string FunctionCodeBadge => $"FC {(byte)FunctionCode:D2}";
 
@@ -139,9 +151,18 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
     public ConnectorViewModel ErrorConnector { get; }
     public ConnectorViewModel ErrCodeConnector { get; }
 
-    public override string SummaryText => string.IsNullOrWhiteSpace(CustomLabel)
-        ? $"MB_READ [Port {PortIndex + 1}|ID:{SlaveId}|FC{(byte)FunctionCode:D2}|Addr:{StartAddress}] ({Pins.Count} Pins)"
-        : $"{CustomLabel} [ID:{SlaveId} | FC{(byte)FunctionCode:D2}] ({Pins.Count} Pins)";
+    public override string SummaryText
+    {
+        get
+        {
+            string portText = IsZigbeePort ? "Zigbee" : $"Port {PortIndex + 1}";
+            return string.IsNullOrWhiteSpace(CustomLabel)
+                ? (IsTriggerMode
+                    ? $"MB_READ [{portText}|ID:{SlaveId}|FC{(byte)FunctionCode:D2}|Addr:{StartAddress}] ({Pins.Count} Pins)"
+                    : $"MB_READ [{portText}|ID:{SlaveId}|FC{(byte)FunctionCode:D2}|Addr:{StartAddress}|{PollIntervalMs}ms] ({Pins.Count} Pins)")
+                : $"{CustomLabel} [{portText}|ID:{SlaveId}|FC{(byte)FunctionCode:D2}] ({Pins.Count} Pins)";
+        }
+    }
 
     public string StatusPillText
     {
@@ -238,11 +259,24 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (sender is ModbusPinBindingViewModel pin && e.PropertyName == nameof(ModbusPinBindingViewModel.Label))
+        if (sender is ModbusPinBindingViewModel pin)
         {
-            if (pin.Connector != null)
+            if (e.PropertyName == nameof(ModbusPinBindingViewModel.Label))
             {
-                pin.Connector.Title = pin.DisplayTitle;
+                if (pin.Connector != null)
+                {
+                    pin.Connector.Title = pin.DisplayTitle;
+                }
+            }
+            else if (e.PropertyName == nameof(ModbusPinBindingViewModel.TargetTag))
+            {
+                if (pin.Connector != null)
+                {
+                    pin.Connector.SetBilingualDescription(
+                        $"Giá trị thanh ghi Modbus offset +{pin.RegOffset} ({pin.DataType}, x{pin.Multiplier}) -> {pin.TargetTag?.Name ?? "VREG"}",
+                        $"Modbus register offset +{pin.RegOffset} ({pin.DataType}, x{pin.Multiplier}) -> {pin.TargetTag?.Name ?? "VREG"}");
+                }
+                OnPropertyChanged("PinTargetTag");
             }
         }
     }

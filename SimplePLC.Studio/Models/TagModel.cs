@@ -12,16 +12,23 @@ public partial class TagModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsDigital))]
     [NotifyPropertyChangedFor(nameof(IsOutput))]
     [NotifyPropertyChangedFor(nameof(IsReadOnly))]
+    [NotifyPropertyChangedFor(nameof(IsWritable))]
+    [NotifyPropertyChangedFor(nameof(RoleBadgeText))]
     [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(DropdownDisplayName))]
     [NotifyPropertyChangedFor(nameof(IsDataTypeEditable))]
     [NotifyPropertyChangedFor(nameof(ModbusAddressText))]
     private TagKind _kind;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(DropdownDisplayName))]
+    [NotifyPropertyChangedFor(nameof(DropdownDisplayName))]
     private string _name = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(DropdownDisplayName))]
     private string _alias = string.Empty;
 
     [ObservableProperty]
@@ -49,6 +56,7 @@ public partial class TagModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(DropdownDisplayName))]
     [NotifyPropertyChangedFor(nameof(FormattedValue))]
     private TagDataType _dataType = TagDataType.Int32;
 
@@ -97,19 +105,41 @@ public partial class TagModel : ObservableObject
         }
     }
 
-    public string DisplayName => string.IsNullOrWhiteSpace(Alias) ? Name : $"{Alias} ({Name})";
+    public string DisplayName => (Kind == TagKind.None && (string.IsNullOrWhiteSpace(Name) || Name == "NONE"))
+        ? (Services.LocalizationService.Instance.IsVietnamese ? "Không chọn" : "NONE")
+        : (Kind == TagKind.System
+            ? (string.IsNullOrWhiteSpace(Alias) ? Name : $"{Alias} ({Name})")
+            : (string.IsNullOrWhiteSpace(Alias) ? Name : $"[{Name}] — {Alias}"));
 
-    public bool IsDigital => Kind is TagKind.DiscreteInput or TagKind.DiscreteOutput or TagKind.VirtualFlag or TagKind.ModbusCoil;
+    public void NotifyLanguageChanged()
+    {
+        OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(DropdownDisplayName));
+    }
+
+    public bool IsDigital => (Kind is TagKind.DiscreteInput or TagKind.DiscreteOutput or TagKind.VirtualFlag or TagKind.ModbusCoil) ||
+                             (Kind == TagKind.System && Index != 1005 && Index != 1006);
     public bool IsOutput => Kind is TagKind.DiscreteOutput or TagKind.ModbusCoil;
-    public bool IsReadOnly => Kind is TagKind.DiscreteInput or TagKind.AnalogInput;
+    public bool IsReadOnly => Kind is TagKind.DiscreteInput or TagKind.AnalogInput or TagKind.System;
+    public bool IsWritable => !IsReadOnly;
+    public string RoleBadgeText => IsReadOnly ? "R/O" : "R/W";
+
+    public string DropdownDisplayName => (Kind == TagKind.None && (string.IsNullOrWhiteSpace(Name) || Name == "NONE"))
+        ? DisplayName
+        : (string.IsNullOrWhiteSpace(Alias)
+            ? $"[{Name}] ({DataTypeText} · {RoleBadgeText})"
+            : $"[{Name}] {Alias} ({DataTypeText} · {RoleBadgeText})");
+    public bool IsAliasEditable => Kind != TagKind.System && Kind != TagKind.None;
     public bool IsDataTypeEditable => Kind is TagKind.AnalogInput or TagKind.VirtualRegister or TagKind.VirtualRegisterRetain or TagKind.ModbusHolding;
 
-    public string DataTypeText => DataType switch
-    {
-        TagDataType.Boolean => "BOOL",
-        TagDataType.Float32 => "REAL",
-        _ => "INT32"
-    };
+    public string DataTypeText => (Kind == TagKind.System && (Index == 1005 || Index == 1006))
+        ? "INT16"
+        : DataType switch
+        {
+            TagDataType.Boolean => "BOOL",
+            TagDataType.Float32 => "REAL",
+            _ => "INT32"
+        };
 
     public string AccessModeText => IsReadOnly ? "Read-Only" : "Read/Write";
 
@@ -122,6 +152,7 @@ public partial class TagModel : ObservableObject
         TagKind.VirtualRegister => $"400{Index + 1} (0x{Index:X4})",
         TagKind.VirtualRegisterRetain => $"400{Index + 1} (0x{Index:X4})",
         TagKind.Counter => $"40{Index + 1} (0x{Index:X4})",
+        TagKind.System => $"4208{Index - 1000 + 1} (0x{0x0820 + (Index - 1000):X4})",
         _ => $"0x{Index:X4}"
     };
 }

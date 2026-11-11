@@ -22,9 +22,19 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(PortDisplayName))]
+    [NotifyPropertyChangedFor(nameof(IsZigbeePort))]
+    [NotifyPropertyChangedFor(nameof(NodeInfoSummary))]
     private byte _portIndex = 0;
 
-    public string PortDisplayName => $"RS-485 #{PortIndex + 1}";
+    /// <summary>
+    /// Cho biết khối ghi Modbus này có đang trỏ tới cổng vô tuyến Zigbee (PortIndex = 4) hay không.
+    /// </summary>
+    public bool IsZigbeePort => PortIndex == 4;
+
+    /// <summary>
+    /// Tên hiển thị của cổng truyền thông (RS-485 #1..#4 hoặc Zigbee Wireless).
+    /// </summary>
+    public string PortDisplayName => IsZigbeePort ? "Zigbee Wireless" : $"RS-485 #{PortIndex + 1}";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
@@ -136,9 +146,16 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
         ? $"CH [1..{ChannelCount}]"
         : $"FC{(byte)FunctionCode:D2} · Addr: {StartAddress}";
 
-    public string NodeInfoSummary => WriteMode == ModbusWriteMode.ChannelIndexed
-        ? $"ID:{SlaveId} | CH:{ChannelCount}"
-        : $"ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
+    public string NodeInfoSummary
+    {
+        get
+        {
+            string prefix = IsZigbeePort ? "🌐 Zigbee | " : string.Empty;
+            return WriteMode == ModbusWriteMode.ChannelIndexed
+                ? $"{prefix}ID:{SlaveId} | CH:{ChannelCount}"
+                : $"{prefix}ID:{SlaveId} | FC{(byte)FunctionCode:D2}";
+        }
+    }
 
     public string FunctionCodeBadge => $"FC {(byte)FunctionCode:D2}";
 
@@ -221,15 +238,21 @@ public partial class ModbusWriteNodeViewModel : GraphNodeViewModel
     public ConnectorViewModel CommandConnector { get; }
     public ConnectorViewModel ParamConnector { get; }
 
-    public override string SummaryText => string.IsNullOrWhiteSpace(CustomLabel)
-        ? (WriteMode == ModbusWriteMode.ChannelIndexed
-            ? (LocalizationService.Instance.IsVietnamese
-                ? $"MB_WRITE [Thiết bị: {SlaveId} | {ChannelCount} kênh | {(IsExclusiveChannel ? "Độc quyền" : "Độc lập")}]"
-                : $"MB_WRITE [Dev: {SlaveId} | CH:{ChannelCount} | {(IsExclusiveChannel ? "Exclusive" : "Independent")}]")
-            : (LocalizationService.Instance.IsVietnamese
-                ? $"MB_WRITE [Thiết bị: {SlaveId} | FC{(byte)FunctionCode:D2} | Địa chỉ: {StartAddress}] ({Pins.Count} chân)"
-                : $"MB_WRITE [Dev: {SlaveId} | FC{(byte)FunctionCode:D2} | Addr:{StartAddress}] ({Pins.Count} Pins)"))
-        : CustomLabel;
+    public override string SummaryText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(CustomLabel)) return CustomLabel;
+            string portText = IsZigbeePort ? "Zigbee" : $"Port {PortIndex + 1}";
+            return WriteMode == ModbusWriteMode.ChannelIndexed
+                ? (LocalizationService.Instance.IsVietnamese
+                    ? $"MB_WRITE [{portText} | Thiết bị: {SlaveId} | {ChannelCount} kênh | {(IsExclusiveChannel ? "Độc quyền" : "Độc lập")}]"
+                    : $"MB_WRITE [{portText} | Dev: {SlaveId} | CH:{ChannelCount} | {(IsExclusiveChannel ? "Exclusive" : "Independent")}]")
+                : (LocalizationService.Instance.IsVietnamese
+                    ? $"MB_WRITE [{portText} | Thiết bị: {SlaveId} | FC{(byte)FunctionCode:D2} | Địa chỉ: {StartAddress}] ({Pins.Count} chân)"
+                    : $"MB_WRITE [{portText} | Dev: {SlaveId} | FC{(byte)FunctionCode:D2} | Addr:{StartAddress}] ({Pins.Count} Pins)");
+        }
+    }
 
     public string StatusPillText
     {

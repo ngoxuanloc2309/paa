@@ -6,8 +6,16 @@ using SimplePLC.Studio.Services.Ai;
 
 namespace SimplePLC.Studio.Services;
 
+/// <summary>
+/// Trình tạo chỉ dẫn hệ thống (System Prompt) và ngữ cảnh chuyên biệt cho SynaptiX AI Copilot.
+/// </summary>
 public static class AiPromptBuilder
 {
+    /// <summary>
+    /// Tạo chỉ dẫn hệ thống phù hợp với ý định người dùng (Tư vấn, Chẩn đoán, hoặc Tổng hợp sơ đồ logic FBD).
+    /// </summary>
+    /// <param name="intent">Ý định xử lý của người dùng (AiUserIntent).</param>
+    /// <returns>Chuỗi chỉ dẫn chuyên sâu cho AI LLM.</returns>
     public static string BuildSystemInstruction(AiUserIntent intent = AiUserIntent.FbdSynthesis)
     {
         return intent switch
@@ -283,7 +291,7 @@ Quy tắc giá trị trường JSON:
         if (tags != null)
         {
             var userConfiguredTags = tags
-                .Where(t => t.Kind != TagKind.None && !string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "— Không chọn —")
+                .Where(t => t.Kind != TagKind.None && !string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —")
                 .Take(40)
                 .ToList();
 

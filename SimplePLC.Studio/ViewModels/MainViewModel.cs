@@ -15,6 +15,21 @@ using System.IO.Ports;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// Bảng chỉ mục Tab tập trung của SynaptiX IDE (Single Source of Truth).
+/// </summary>
+public static class AppTabIndices
+{
+    public const int Device = 0;
+    public const int LogicGraph = 1;
+    public const int TagCatalog = 2;
+    public const int RuleTable = 3;
+    public const int Blueprints = 4;
+    public const int Deploy = 5;
+    public const int LiveWatch = 6;
+    public const int Simulator = 7;
+}
+
 public partial class MainViewModel : ObservableObject
 {
     public LocalizationService Loc => LocalizationService.Instance;
@@ -27,9 +42,37 @@ public partial class MainViewModel : ObservableObject
     public SimulatorViewModel SimulatorVM { get; }
     public LiveWatchViewModel LiveWatchVM { get; }
     public AiChatViewModel AiChatVM { get; }
-    public DtuGatewayStudioViewModel DtuGatewayStudioVM { get; private set; }
+    [ObservableProperty]
+    private DtuGatewayStudioViewModel _dtuGatewayStudioVM;
 
     public bool IsDtuProject => CurrentProjectMetadata?.DeviceClass == (ushort)SimplePLC.Protocol.Enums.SPLC_DeviceClass.DTU;
+
+
+    public bool HasSystemTab => DtuGatewayStudioVM?.HasSystemCapability ?? false;
+
+    public bool IsMqttSupported => (AppServices.Instance.CurrentProduct?.SupportsMqttPublish ?? false) || 
+                                   (AppServices.Instance.CurrentProduct?.SupportsMqttSubscribe ?? false) ||
+                                   (DtuGatewayStudioVM?.HasMqttCapability ?? false);
+
+    public bool IsWifiSupported => (AppServices.Instance.CurrentProduct?.SupportsWifi ?? false) || 
+                                   (DtuGatewayStudioVM?.HasWifiCapability ?? false);
+
+    public bool IsRs485Supported => (AppServices.Instance.CurrentProduct?.PhysicalRs485PortCount ?? 0) > 0 || 
+                                    (AppServices.Instance.CurrentProduct?.SupportsModbusMaster ?? false) || 
+                                    (AppServices.Instance.CurrentProduct?.SupportsModbusSlave ?? false) ||
+                                    (DtuGatewayStudioVM?.HasRs485Capability ?? false);
+
+    public bool IsRtcClockSupported => (AppServices.Instance.CurrentProduct?.SupportsRtcClock ?? false) || 
+                                       (DtuGatewayStudioVM?.CurrentCapabilities.HasFlag(SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.RTC) ?? false);
+
+    public void NotifyHardwareCapabilities()
+    {
+        OnPropertyChanged(nameof(HasSystemTab));
+        OnPropertyChanged(nameof(IsMqttSupported));
+        OnPropertyChanged(nameof(IsWifiSupported));
+        OnPropertyChanged(nameof(IsRs485Supported));
+        OnPropertyChanged(nameof(IsRtcClockSupported));
+    }
 
     public ObservableCollection<string> AvailablePorts { get; } = new();
     public ObservableCollection<PortOption> PortOptions { get; } = new();
@@ -203,6 +246,11 @@ public partial class MainViewModel : ObservableObject
 
     public Func<NewProjectViewModel, bool?>? ShowNewProjectDialogHandler { get; set; }
 
+    /// <summary>
+    /// Delegate hook to intercept Device Info dialog in headless tests.
+    /// </summary>
+    public Action<DeviceInfoViewModel>? ShowDeviceInfoDialogHandler { get; set; }
+
     public string WindowTitle
     {
         get
@@ -255,7 +303,7 @@ public partial class MainViewModel : ObservableObject
             ProjectAliasProvider = tagIndex =>
             {
                 var tag = TagCatalogVM.AllTags.FirstOrDefault(t => t.Index == tagIndex);
-                return (tag != null && !string.IsNullOrWhiteSpace(tag.Alias) && tag.Alias != "— Không chọn —") ? tag.Alias : null;
+                return (tag != null && tag.Kind != TagKind.None && !string.IsNullOrWhiteSpace(tag.Alias) && tag.Alias != "Không chọn" && tag.Alias != "NONE" && tag.Alias != "— Không chọn —") ? tag.Alias : null;
             },
             ProjectDataTypeProvider = tagIndex =>
             {
@@ -267,12 +315,12 @@ public partial class MainViewModel : ObservableObject
             () => TagCatalogVM?.AllTags,
             () => RuleTableVM?.Rules,
             () => LogicEditorVM);
-        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
-        DtuGatewayStudioVM.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
+        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(CurrentProjectMetadata, TagCatalogVM, LogicEditorVM);
+        WireDtuGatewayStudioVM(DtuGatewayStudioVM);
         AiChatVM.OnApplyRulesRequested = (specs, msg) => ApplyAiRulesToTable(specs, msg);
         AiChatVM.OnNavigateToTab = (tabIndex) => SelectTab(tabIndex);
 
-        _currentView = LogicEditorVM;
+        _currentView = DtuGatewayStudioVM;
 
         RefreshPorts();
         RefreshRecentProjects();
@@ -376,7 +424,7 @@ public partial class MainViewModel : ObservableObject
 
     public void UpdateTagPollingState()
     {
-        bool needPolling = (SelectedTabIndex == 5) || (SelectedTabIndex == 0 && LogicEditorVM.IsLiveDebugActive);
+        bool needPolling = (CurrentView == LiveWatchVM) || (CurrentView == LogicEditorVM && LogicEditorVM.IsLiveDebugActive);
         if (AppServices.Instance.MonitorService != null)
         {
             AppServices.Instance.MonitorService.IsTagPollingEnabled = needPolling;
@@ -495,6 +543,7 @@ public partial class MainViewModel : ObservableObject
             LogicEditorVM.ClearSimVisuals();
             UpdateConnectionStatus();
             NotifyAllDeviceCommands();
+        DtuGatewayStudioVM?.UpdateHardwareConnectionState(IsConnected, SelectedPort, DeviceProductBadgeText);
             // Khôi phục profile tự do (Sandbox Design Mode) để người dùng mở khóa toàn bộ các khối khi ngoại tuyến
             TagCatalogVM.SyncWithProductDefinition(TagCatalogVM.BuildProductFromCurrentTags());
             return;
@@ -505,7 +554,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (string.IsNullOrWhiteSpace(TcpHost))
             {
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     Loc.IsVietnamese ? "Vui lòng nhập địa chỉ IP hoặc Host Modbus TCP." : "Please enter a valid Modbus TCP IP or Host.",
                     Loc.IsVietnamese ? "Chưa nhập địa chỉ IP" : "Host Required",
                     System.Windows.MessageBoxButton.OK,
@@ -519,7 +568,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (string.IsNullOrWhiteSpace(SelectedPort))
             {
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     Loc.IsVietnamese ? "Vui lòng chọn cổng COM trước khi kết nối." : "Please select a COM port before connecting.",
                     Loc.IsVietnamese ? "Chưa chọn cổng" : "Port Required",
                     System.Windows.MessageBoxButton.OK,
@@ -659,7 +708,7 @@ public partial class MainViewModel : ObservableObject
                     }
                 }
 
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     msg,
                     Loc.IsVietnamese ? "Lỗi kết nối" : "Connection Error",
                     System.Windows.MessageBoxButton.OK,
@@ -670,7 +719,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (lifecycle.CurrentState != ConnectionLifecycleState.Connected)
             {
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     Loc.IsVietnamese
                         ? $"Hết thời gian chờ phản hồi từ thiết bị tại {SelectedPort} (Timeout).\n\n" +
                           "💡 Mẹo:\n" +
@@ -693,7 +742,7 @@ public partial class MainViewModel : ObservableObject
                     : ex.Message)
                 : ex.Message;
 
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 (Loc.IsVietnamese ? "Lỗi kết nối: " : "Connection error: ") + cleanEx,
                 Loc.IsVietnamese ? "Lỗi kết nối" : "Connection Error",
                 System.Windows.MessageBoxButton.OK,
@@ -1058,11 +1107,16 @@ public partial class MainViewModel : ObservableObject
                 SPLC_DeviceClass.GATEWAY => "Gateway",
                 SPLC_DeviceClass.DATALOGGER => "Datalogger",
                 SPLC_DeviceClass.CONTROLLER => isVi ? "Bộ điều khiển" : "Controller",
+                SPLC_DeviceClass.DTU => "DTU Gateway",
                 _ => isVi ? "Thiết bị" : "Device"
             };
 
             string ioSummary;
-            if (_lastResourceInfo != null)
+            if (d.DeviceClass == SPLC_DeviceClass.DTU)
+            {
+                ioSummary = "RS-485 / Net";
+            }
+            else if (_lastResourceInfo != null)
             {
                 var r = _lastResourceInfo;
                 var parts = new List<string>(3);
@@ -1078,6 +1132,7 @@ public partial class MainViewModel : ObservableObject
                     SPLC_DeviceClass.REMOTE_IO => d.DeviceVariant == 2 ? "16DI / 16DO" : "8DI / 8DO / 4AI",
                     SPLC_DeviceClass.GATEWAY => "RS485 / Ethernet",
                     SPLC_DeviceClass.DATALOGGER => "4DI / 2DO / 4AI",
+                    SPLC_DeviceClass.DTU => "RS-485 / Net",
                     _ => $"Variant #{d.DeviceVariant}"
                 };
             }
@@ -1096,14 +1151,23 @@ public partial class MainViewModel : ObservableObject
                 SPLC_DeviceClass.GATEWAY => "Gateway",
                 SPLC_DeviceClass.DATALOGGER => "Datalogger",
                 SPLC_DeviceClass.CONTROLLER => isVi ? "Bộ điều khiển" : "Controller",
+                SPLC_DeviceClass.DTU => "DTU Gateway",
                 _ => isVi ? "Thiết bị" : "Device"
             };
 
-            var ioParts = new List<string>(3);
-            if (meta.DigitalInputs > 0) ioParts.Add($"{meta.DigitalInputs}DI");
-            if (meta.DigitalOutputs > 0) ioParts.Add($"{meta.DigitalOutputs}DO");
-            if (meta.AnalogInputs > 0) ioParts.Add($"{meta.AnalogInputs}AI");
-            string ioSummary = ioParts.Count > 0 ? string.Join(" / ", ioParts) : "0 I/O";
+            string ioSummary;
+            if ((SPLC_DeviceClass)meta.DeviceClass == SPLC_DeviceClass.DTU)
+            {
+                ioSummary = meta.PhysicalRs485PortCount > 0 ? $"{meta.PhysicalRs485PortCount}x RS-485" : "RS-485 / Net";
+            }
+            else
+            {
+                var ioParts = new List<string>(3);
+                if (meta.DigitalInputs > 0) ioParts.Add($"{meta.DigitalInputs}DI");
+                if (meta.DigitalOutputs > 0) ioParts.Add($"{meta.DigitalOutputs}DO");
+                if (meta.AnalogInputs > 0) ioParts.Add($"{meta.AnalogInputs}AI");
+                ioSummary = ioParts.Count > 0 ? string.Join(" / ", ioParts) : "0 I/O";
+            }
 
             DeviceProductBadgeText = $"{className} ({ioSummary})";
             DeviceProductToolTip = isVi
@@ -1133,18 +1197,32 @@ public partial class MainViewModel : ObservableObject
                 SPLC_DeviceClass.GATEWAY => "Gateway",
                 SPLC_DeviceClass.DATALOGGER => "Datalogger",
                 SPLC_DeviceClass.CONTROLLER => isVi ? "Bộ điều khiển" : "Controller",
+                SPLC_DeviceClass.DTU => "DTU Gateway",
                 _ => isVi ? "Thiết bị" : "Device"
             };
 
-            var ioParts = new List<string>(3);
-            if (r.DigitalInputCount > 0) ioParts.Add($"{r.DigitalInputCount}DI");
-            if (r.DigitalOutputCount > 0) ioParts.Add($"{r.DigitalOutputCount}DO");
-            if (r.AnalogInputCount > 0) ioParts.Add($"{r.AnalogInputCount}AI");
-            string variantText = ioParts.Count > 0 ? string.Join(" / ", ioParts) : $"Variant #{d.DeviceVariant}";
+            string variantText;
+            if (d.DeviceClass == SPLC_DeviceClass.DTU)
+            {
+                variantText = "RS-485 / Net";
+            }
+            else
+            {
+                var ioParts = new List<string>(3);
+                if (r.DigitalInputCount > 0) ioParts.Add($"{r.DigitalInputCount}DI");
+                if (r.DigitalOutputCount > 0) ioParts.Add($"{r.DigitalOutputCount}DO");
+                if (r.AnalogInputCount > 0) ioParts.Add($"{r.AnalogInputCount}AI");
+                variantText = ioParts.Count > 0 ? string.Join(" / ", ioParts) : $"Variant #{d.DeviceVariant}";
+            }
+
+            string targetModelName = !string.IsNullOrWhiteSpace(CurrentProjectMetadata?.TargetDevice)
+                ? CurrentProjectMetadata.TargetDevice
+                : $"SynaptiX {className}";
 
             vm = new DeviceInfoViewModel
             {
-                DeviceModel = $"SynaptiX {className}",
+                DeviceModel = targetModelName,
+                TargetModelText = targetModelName,
                 DeviceClassText = className,
                 DeviceVariantText = variantText,
                 HwVersion = $"v{d.HwVersionString}",
@@ -1175,25 +1253,36 @@ public partial class MainViewModel : ObservableObject
                 SPLC_DeviceClass.GATEWAY => "Gateway",
                 SPLC_DeviceClass.DATALOGGER => "Datalogger",
                 SPLC_DeviceClass.CONTROLLER => isVi ? "Bộ điều khiển" : "Controller",
+                SPLC_DeviceClass.DTU => "DTU Gateway",
                 _ => isVi ? "Thiết bị" : "Device"
             };
 
-            var ioParts = new List<string>(3);
-            if (meta.DigitalInputs > 0) ioParts.Add($"{meta.DigitalInputs}DI");
-            if (meta.DigitalOutputs > 0) ioParts.Add($"{meta.DigitalOutputs}DO");
-            if (meta.AnalogInputs > 0) ioParts.Add($"{meta.AnalogInputs}AI");
-            string variantText = ioParts.Count > 0 ? string.Join(" / ", ioParts) : (meta.ProductVariant == 255 ? (isVi ? "Tùy chỉnh" : "Custom") : $"Variant #{meta.ProductVariant}");
+            string variantText;
+            if ((SPLC_DeviceClass)meta.DeviceClass == SPLC_DeviceClass.DTU)
+            {
+                variantText = meta.PhysicalRs485PortCount > 0 ? $"{meta.PhysicalRs485PortCount}x RS-485 / Net" : "RS-485 / Net";
+            }
+            else
+            {
+                var ioParts = new List<string>(3);
+                if (meta.DigitalInputs > 0) ioParts.Add($"{meta.DigitalInputs}DI");
+                if (meta.DigitalOutputs > 0) ioParts.Add($"{meta.DigitalOutputs}DO");
+                if (meta.AnalogInputs > 0) ioParts.Add($"{meta.AnalogInputs}AI");
+                variantText = ioParts.Count > 0 ? string.Join(" / ", ioParts) : (meta.ProductVariant == 255 ? (isVi ? "Tùy chỉnh" : "Custom") : $"Variant #{meta.ProductVariant}");
+            }
 
-            string hwTarget = !string.IsNullOrWhiteSpace(meta.TargetDevice) ? meta.TargetDevice : (isVi ? "Mô phỏng (Virtual)" : "Simulator (Virtual)");
+            string targetModelName = !string.IsNullOrWhiteSpace(meta.TargetDevice) ? meta.TargetDevice : (isVi ? "Mô phỏng (Virtual)" : "Simulator (Virtual)");
+            string hwVersionStr = isVi ? "v1.0 (Mặc định)" : "v1.0 (Standard)";
             string fwStatus = isVi ? "Chưa kết nối" : "Offline";
             string portText = !string.IsNullOrWhiteSpace(SelectedPort) ? SelectedPort : (isVi ? "Chưa chọn cổng" : "None");
 
             vm = new DeviceInfoViewModel
             {
-                DeviceModel = $"SynaptiX {className}",
+                DeviceModel = targetModelName,
+                TargetModelText = targetModelName,
                 DeviceClassText = className,
                 DeviceVariantText = variantText,
-                HwVersion = hwTarget,
+                HwVersion = hwVersionStr,
                 FwVersion = fwStatus,
                 WireProfileText = "Wire Profile V2 (Standard)",
                 RuleFormatText = "v2.0",
@@ -1211,6 +1300,12 @@ public partial class MainViewModel : ObservableObject
                 ProtocolText = "Modbus RTU",
                 IsOnline = false
             };
+        }
+
+        if (ShowDeviceInfoDialogHandler != null)
+        {
+            ShowDeviceInfoDialogHandler(vm);
+            return;
         }
 
         var dialog = new Views.DeviceInfoDialogView(vm);
@@ -1231,38 +1326,63 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentProjectMetadataChanged(ProjectMetadata value)
     {
-        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(value);
-        DtuGatewayStudioVM.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
+        DtuGatewayStudioVM = new DtuGatewayStudioViewModel(value, TagCatalogVM, LogicEditorVM);
+        WireDtuGatewayStudioVM(DtuGatewayStudioVM);
+        OnPropertyChanged(nameof(DtuGatewayStudioVM));
         OnPropertyChanged(nameof(IsDtuProject));
-        if (SelectedTabIndex == 0)
+        NotifyHardwareCapabilities();
+        if (IsDtuProject && HasSystemTab)
         {
-            CurrentView = IsDtuProject ? DtuGatewayStudioVM : LogicEditorVM;
+            SelectTab(0);
+        }
+        else if (!HasSystemTab && SelectedTabIndex == 0)
+        {
+            SelectTab(AppTabIndices.LogicGraph);
+        }
+        else if (SelectedTabIndex == 0)
+        {
+            CurrentView = DtuGatewayStudioVM;
         }
     }
 
-    [RelayCommand]
-    private void OpenDtuGateway()
+    private void WireDtuGatewayStudioVM(DtuGatewayStudioViewModel vm)
     {
-        var vm = new DtuGatewayStudioViewModel(CurrentProjectMetadata);
         vm.OpenMqttBrokerConfigRequested = () => OpenMqttBrokerConfig();
+        vm.UploadFromDeviceRequested = () => UploadFromDeviceAsync();
+        vm.OpenQuickWizardRequested = () => OpenQuickWizard();
+        vm.NotifyConfigurationCommitted = () =>
+        {
+            IsProjectDirty = true;
+        };
+        vm.UpdateHardwareConnectionState(IsConnected, SelectedPort, DeviceProductBadgeText);
+    }
+
+    [RelayCommand]
+    public void OpenQuickWizard()
+    {
+        var vm = DtuGatewayStudioVM ?? new DtuGatewayStudioViewModel(CurrentProjectMetadata, TagCatalogVM, LogicEditorVM);
+        if (DtuGatewayStudioVM == null)
+        {
+            WireDtuGatewayStudioVM(vm);
+        }
         var dialog = new Views.DtuGatewayConfigDialogView(vm)
         {
             Owner = System.Windows.Application.Current?.MainWindow
         };
-        dialog.ShowDialog();
-        IsProjectDirty = true;
+        if (dialog.ShowDialog() == true)
+        {
+            IsProjectDirty = true;
+            vm.ReloadFromMetadata();
+        }
     }
+
 
     [RelayCommand]
     private void OpenModbusPortConfig()
     {
-        var vm = new ModbusPortConfigViewModel(CurrentProjectMetadata, TagCatalogVM);
-        var dialog = new Views.ModbusPortConfigDialogView(vm);
-        if (dialog.ShowDialog() == true)
-        {
-            IsProjectDirty = true;
-            DtuGatewayStudioVM?.ReloadFromMetadata();
-        }
+        // ?i?u h??ng tr?c ti?p t?i Tab 0: Thi?t b? -> Ph?n v?ng RS-485 Modbus (Single Source of Truth)
+        SelectTab(0);
+        DtuGatewayStudioVM?.SelectSection(0);
     }
 
     [RelayCommand]
@@ -1355,17 +1475,18 @@ public partial class MainViewModel : ObservableObject
         SelectedTabIndex = index;
         CurrentView = index switch
         {
-            0 => IsDtuProject ? DtuGatewayStudioVM : LogicEditorVM,
-            1 => TagCatalogVM,
-            2 => RuleTableVM,
-            3 => BlueprintsVM,
-            4 => DeployVM,
-            5 => LiveWatchVM,
-            6 => SimulatorVM,
-            _ => LogicEditorVM
+            AppTabIndices.Device => DtuGatewayStudioVM,
+            AppTabIndices.LogicGraph => LogicEditorVM,
+            AppTabIndices.TagCatalog => TagCatalogVM,
+            AppTabIndices.RuleTable => RuleTableVM,
+            AppTabIndices.Blueprints => BlueprintsVM,
+            AppTabIndices.Deploy => DeployVM,
+            AppTabIndices.LiveWatch => LiveWatchVM,
+            AppTabIndices.Simulator => SimulatorVM,
+            _ => DtuGatewayStudioVM
         };
 
-        if (index == 5)
+        if (index == AppTabIndices.LiveWatch)
         {
             LiveWatchVM.SyncProjectAliases();
         }
@@ -1474,7 +1595,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(ex.Message, "Error Saving Project", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            ShowNotification(ex.Message, "Error Saving Project", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
@@ -1529,11 +1650,43 @@ public partial class MainViewModel : ObservableObject
         ApplyNewProject(wizardVm);
     }
 
+    /// <summary>
+    /// Hiển thị hộp thoại cấu hình dự án mới khi ứng dụng khởi động mà chưa mở file dự án (.synx).
+    /// Cho phép kỹ sư chọn nhanh dòng phần cứng mục tiêu hoặc nhận diện tự động từ PLC đang kết nối.
+    /// </summary>
+    public void PromptStartupNewProject()
+    {
+        var wizardVm = new NewProjectViewModel();
+        bool shouldApply = false;
+
+        if (ShowNewProjectDialogHandler != null)
+        {
+            shouldApply = ShowNewProjectDialogHandler(wizardVm) == true;
+        }
+        else if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            var dialog = new Views.NewProjectDialogView(wizardVm)
+            {
+                Owner = System.Windows.Application.Current.MainWindow
+            };
+            shouldApply = dialog.ShowDialog() == true;
+        }
+
+        if (shouldApply)
+        {
+            ApplyNewProject(wizardVm);
+        }
+    }
+
     public void ApplyNewProject(NewProjectViewModel wizardVm)
     {
         ArgumentNullException.ThrowIfNull(wizardVm);
 
         var product = wizardVm.BuildProductDefinition();
+        ushort devClass = (ushort)(wizardVm.IsCustomMode ? 1 : (ushort)wizardVm.SelectedPreset.DeviceClass);
+        bool isDtu = devClass == (ushort)SimplePLC.Protocol.Enums.SPLC_DeviceClass.DTU;
+
+        AppServices.Instance.CurrentProduct = product;
 
         CurrentProjectMetadata = new ProjectMetadata
         {
@@ -1541,7 +1694,7 @@ public partial class MainViewModel : ObservableObject
             Author = wizardVm.Author,
             Description = wizardVm.Description,
             TargetDevice = wizardVm.PreviewDeviceName,
-            DeviceClass = (ushort)(wizardVm.IsCustomMode ? 1 : (ushort)wizardVm.SelectedPreset.DeviceClass),
+            DeviceClass = devClass,
             ProductVariant = (ushort)(wizardVm.IsCustomMode ? 255 : wizardVm.SelectedPreset.DeviceVariant),
             DigitalInputs = product.Resources.DigitalInputs,
             DigitalOutputs = product.Resources.DigitalOutputs,
@@ -1551,14 +1704,15 @@ public partial class MainViewModel : ObservableObject
             RetentiveRegisters = product.Resources.RetentiveRegisters,
             Counters = product.Resources.Counters,
             MaxRules = product.MaxRules,
+            PhysicalRs485PortCount = product.PhysicalRs485PortCount,
+            HardwareCapabilities = (uint)product.HardwareCapabilities,
+            DtuConfig = new DtuConfigModel { Enabled = isDtu },
             CreatedAt = DateTime.UtcNow,
             LastModified = DateTime.UtcNow
         };
 
         CurrentProjectName = wizardVm.ProjectName;
         CurrentProjectPath = System.IO.Path.Combine(wizardVm.ProjectLocation, wizardVm.ProjectName + ProjectFileService.ProjectExtension);
-
-        AppServices.Instance.CurrentProduct = product;
         TagCatalogVM.SyncWithProductDefinition(product);
         TagCatalogVM.ResetAllAliases();
 
@@ -1620,14 +1774,19 @@ public partial class MainViewModel : ObservableObject
                 runtimeTagCount: (ushort)resources.TotalTags,
                 resources: resources,
                 out var product,
-                out _) && product != null)
+                out _,
+                hardwareCapabilities: (SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities)CurrentProjectMetadata.HardwareCapabilities,
+                physicalRs485PortCount: CurrentProjectMetadata.PhysicalRs485PortCount) && product != null)
             {
                 AppServices.Instance.CurrentProduct = product;
                 TagCatalogVM.SyncWithProductDefinition(product);
             }
 
             TagCatalogVM.LoadFromProjectData(project.Tags);
-            AppServices.Instance.CurrentProduct = TagCatalogVM.CurrentProduct;
+            if (product != null)
+            {
+                AppServices.Instance.CurrentProduct = product;
+            }
 
             // Reset filters in RuleTableVM so loaded rules are immediately visible
             RuleTableVM.SearchFilter = string.Empty;
@@ -1684,7 +1843,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(ex.Message, "Error Loading Project", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            ShowNotification(ex.Message, "Error Loading Project", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
@@ -1733,7 +1892,7 @@ public partial class MainViewModel : ObservableObject
         if (!System.IO.File.Exists(filePath))
         {
             bool isVi = Loc.IsVietnamese;
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 isVi ? $"Tệp dự án không còn tồn tại:\n{filePath}" : $"Project file no longer exists:\n{filePath}",
                 isVi ? "Không tìm thấy tệp" : "File Not Found",
                 System.Windows.MessageBoxButton.OK,
@@ -1759,7 +1918,7 @@ public partial class MainViewModel : ObservableObject
         bool isVi = Loc.IsVietnamese;
         if (LogicEditorVM.CompileState == CompileState.Valid)
         {
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 isVi 
                     ? $"Đồ thị logic hoàn toàn hợp lệ!\n\nĐã kiểm tra và biên dịch thành công {LogicEditorVM.ValidRuleCount} quy tắc nhị phân 32-Byte (V1.7) sẵn sàng nạp xuống thiết bị." 
                     : $"Logic graph is completely valid!\n\nSuccessfully verified and compiled {LogicEditorVM.ValidRuleCount} 32-Byte binary rules (V1.7) ready for device deployment.",
@@ -1769,7 +1928,7 @@ public partial class MainViewModel : ObservableObject
         }
         else
         {
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 isVi 
                     ? $"Phát hiện vấn đề trong cấu hình logic:\n\n{LogicEditorVM.Diagnostics}" 
                     : $"Logic configuration issues detected:\n\n{LogicEditorVM.Diagnostics}",
@@ -1799,7 +1958,7 @@ public partial class MainViewModel : ObservableObject
                 System.IO.File.WriteAllBytes(sfd.FileName, bytes);
 
                 bool isVi = Loc.IsVietnamese;
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     isVi 
                         ? $"Đã xuất thành công {RuleTableVM.Rules.Count} quy tắc ({bytes.Length} bytes) chuẩn Modbus 32-Byte (Contract V1.7).\n\nĐộ toàn vẹn CRC-16/MODBUS: 0x{crc:X4}\nĐường dẫn: {sfd.FileName}" 
                         : $"Successfully exported {RuleTableVM.Rules.Count} rules ({bytes.Length} bytes) in 32-byte Modbus format (Contract V1.7).\n\nIntegrity CRC-16/MODBUS: 0x{crc:X4}\nPath: {sfd.FileName}",
@@ -1809,7 +1968,7 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Error Exporting Binary", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ShowNotification(ex.Message, "Error Exporting Binary", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
     }
@@ -1833,10 +1992,10 @@ public partial class MainViewModel : ObservableObject
                 RuleTableVM.ReplaceRules(decodedRules);
 
                 IsProjectDirty = true;
-                SelectTab(2); // View Rule Table
+                SelectTab(AppTabIndices.RuleTable); // View Rule Table
 
                 bool isVi = Loc.IsVietnamese;
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     isVi
                         ? $"Đã giải mã và nạp thành công {decodedRules.Count} quy tắc ({bytes.Length} bytes) từ tệp nhị phân!\n\nMã kiểm tra: {crcInfo}"
                         : $"Successfully decoded and imported {decodedRules.Count} rules ({bytes.Length} bytes) from binary file!\n\nChecksum: {crcInfo}",
@@ -1846,7 +2005,7 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Error Importing Binary", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ShowNotification(ex.Message, "Error Importing Binary", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
     }
@@ -1866,7 +2025,7 @@ public partial class MainViewModel : ObservableObject
             {
                 TagCsvService.ExportCsv(sfd.FileName, TagCatalogVM.AllTags);
                 bool isVi = Loc.IsVietnamese;
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     isVi 
                         ? $"Đã xuất thành công {TagCatalogVM.AllTags.Count} Tag I/O ra tệp CSV:\n{sfd.FileName}" 
                         : $"Successfully exported {TagCatalogVM.AllTags.Count} I/O Tags to CSV:\n{sfd.FileName}",
@@ -1876,7 +2035,7 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Error Exporting Tags CSV", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ShowNotification(ex.Message, "Error Exporting Tags CSV", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
     }
@@ -1895,11 +2054,11 @@ public partial class MainViewModel : ObservableObject
             {
                 var (updated, added, errors) = TagCsvService.ImportCsv(ofd.FileName, TagCatalogVM);
                 IsProjectDirty = true;
-                SelectTab(1); // View Tag Catalog
+                SelectTab(AppTabIndices.TagCatalog); // View Tag Catalog
 
                 bool isVi = Loc.IsVietnamese;
                 string errStr = errors.Count > 0 ? $"\n\nLưu ý ({errors.Count} lỗi):\n" + string.Join("\n", errors.Take(3)) : "";
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     isVi
                         ? $"Đã nhập bảng Tag thành công!\n- Cập nhật: {updated} Tags\n- Thêm mới: {added} Tags{errStr}"
                         : $"Successfully imported Tag table!\n- Updated: {updated} Tags\n- Added: {added} Tags{errStr}",
@@ -1909,12 +2068,12 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Error Importing Tags CSV", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ShowNotification(ex.Message, "Error Importing Tags CSV", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
     }
 
-    [RelayCommand]
+        [RelayCommand]
     public async Task DeployToDeviceAsync()
     {
         // 1. Tự động đồng bộ / biên dịch canvas nếu có chỉnh sửa đang dở
@@ -1923,10 +2082,15 @@ public partial class MainViewModel : ObservableObject
             LogicEditorVM.CompileNow();
         }
 
-        // 2. Nếu chưa kết nối phần cứng, chuyển sang tab Deploy để xem hướng dẫn & cảnh báo
+        // 2. Nếu chưa kết nối phần cứng, giữ nguyên tab và hiển thị thông báo trạng thái trực quan
         if (!IsConnected && !DeployVM.IsDeviceConnected)
         {
-            SelectTab(4);
+            string notConnectedTip = Loc["DeviceDeployNotConnectedTip"];
+            LogicEditorVM.SaveStatusMessage = notConnectedTip;
+            if (DtuGatewayStudioVM != null)
+            {
+                DtuGatewayStudioVM.DeployStatusMessage = notConnectedTip;
+            }
             return;
         }
 
@@ -1935,17 +2099,26 @@ public partial class MainViewModel : ObservableObject
         if (DeployVM.CanDeploy)
         {
             var previousMessage = LogicEditorVM.SaveStatusMessage;
-            LogicEditorVM.SaveStatusMessage = Loc.IsVietnamese 
+            string deployingText = Loc.IsVietnamese 
                 ? "⚡ Đang nạp..." 
                 : "⚡ Deploying...";
+            LogicEditorVM.SaveStatusMessage = deployingText;
+            if (DtuGatewayStudioVM != null)
+            {
+                DtuGatewayStudioVM.DeployStatusMessage = deployingText;
+            }
 
             await DeployVM.StartDeployAsync();
             if (DeployVM.IsSuccess)
             {
                 string successText = Loc.IsVietnamese 
-                    ? "⚡ Đã nạp thành công!" 
-                    : "⚡ Flashed successfully!";
+                    ? "⚡ Nạp cấu hình thành công!" 
+                    : "⚡ Configuration flashed successfully!";
                 LogicEditorVM.SaveStatusMessage = successText;
+                if (DtuGatewayStudioVM != null)
+                {
+                    DtuGatewayStudioVM.DeployStatusMessage = successText;
+                }
 
                 // Tự động biến mất sau 3 giây và khôi phục trạng thái bình thường
                 _ = Task.Run(async () =>
@@ -1968,12 +2141,22 @@ public partial class MainViewModel : ObservableObject
             else
             {
                 LogicEditorVM.SaveStatusMessage = previousMessage;
-                SelectTab(4);
+                SelectTab(AppTabIndices.Deploy);
             }
         }
         else
         {
-            SelectTab(4);
+            if (SelectedTabIndex == AppTabIndices.Device || SelectedTabIndex == AppTabIndices.LogicGraph)
+            {
+                string blockedMsg = DeployVM.PreflightSummary;
+                LogicEditorVM.SaveStatusMessage = blockedMsg;
+                if (DtuGatewayStudioVM != null)
+                {
+                    DtuGatewayStudioVM.DeployStatusMessage = blockedMsg;
+                }
+                return;
+            }
+            SelectTab(AppTabIndices.Deploy);
         }
     }
 
@@ -2131,7 +2314,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                SelectTab(2); // Giữ nguyên màn hình Bảng quy tắc (Rule Table) cho PLC Controller
+                SelectTab(AppTabIndices.RuleTable); // Giữ nguyên màn hình Bảng quy tắc (Rule Table) cho PLC Controller
             }
 
             ShowNotification(
@@ -2403,7 +2586,7 @@ public partial class MainViewModel : ObservableObject
             }
             else if (!string.IsNullOrEmpty(info.ErrorMessage))
             {
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     Loc.IsVietnamese
                         ? $"Thông tin cập nhật:\n\n{info.ErrorMessage}"
                         : $"Update notification:\n\n{info.ErrorMessage}",
@@ -2413,7 +2596,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                System.Windows.MessageBox.Show(
+                ShowNotification(
                     string.Format(Loc.IsVietnamese
                         ? "Bạn đang sử dụng phiên bản mới nhất (SynaptiX IDE v{0}).\nHệ thống đã sẵn sàng với chuẩn điều khiển SynaptiX & Tiêu chuẩn an toàn SPLC-AF-003."
                         : "You are using the latest version (SynaptiX IDE v{0}).\nSystem is ready with SynaptiX standard & SPLC-AF-003 safety standard.", UpdateService.CurrentVersion),
@@ -2424,7 +2607,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 ex.Message,
                 Loc["UpdateTitle"],
                 System.Windows.MessageBoxButton.OK,
@@ -2438,7 +2621,7 @@ public partial class MainViewModel : ObservableObject
         string currentVer = AppUpdateService.GetCurrentAppVersion();
         string message = string.Format(Loc["AboutMessage"], currentVer);
 
-        System.Windows.MessageBox.Show(
+        ShowNotification(
             message,
             Loc["AboutTitle"],
             System.Windows.MessageBoxButton.OK,
@@ -2483,9 +2666,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void ToggleSimulation()
     {
-        if (SelectedTabIndex != 0)
+        if (SelectedTabIndex != 1)
         {
-            SelectTab(0);
+            SelectTab(1);
         }
         LogicEditorVM.ToggleSimPlayPauseCommand.Execute(null);
     }
@@ -2603,7 +2786,7 @@ public partial class MainViewModel : ObservableObject
             message.IsApplied = true;
 
             // Chuyển sang Tab Bảng Rule để kỹ sư xem ngay
-            SelectTab(2);
+            SelectTab(AppTabIndices.RuleTable);
 
             string toast = LocalizationService.Instance.IsVietnamese
                 ? $"✨ Đã nạp thành công {addedCount} Rule từ AI vào Bảng Rule!"
@@ -2709,7 +2892,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(
+            ShowNotification(
                 (Loc.IsVietnamese ? "Lỗi đồng bộ thời gian thực: " : "Failed to sync real-time clock: ") + ex.Message,
                 Loc.IsVietnamese ? "Đồng bộ thời gian" : "Time Sync",
                 System.Windows.MessageBoxButton.OK,

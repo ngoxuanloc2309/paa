@@ -9,13 +9,16 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử tính năng đồng bộ danh mục Tag với cấu hình phần cứng thiết bị (ProductDefinition).
+/// </summary>
 public class TagCatalogSyncWithProductTests
 {
     [Fact]
     public void SyncWithProductDefinition_SparseZigbeeProfile_RemovesAiAndTruncatesIo()
     {
         var vm = new TagCatalogViewModel();
-        Assert.Equal(124, vm.TotalTagCount);
+        Assert.Equal(132, vm.TotalTagCount);
 
         // Đặt Alias trước khi sync
         var di0 = vm.AllTags.First(t => t.Name == "DI0");
@@ -44,7 +47,7 @@ public class TagCatalogSyncWithProductTests
         vm.SyncWithProductDefinition(product);
 
         // Assert 1: Tổng số tag = 2 + 2 + 0 + 32 + 32 + 32 + 8 = 108 (không tính tag NONE)
-        Assert.Equal(108, vm.TotalTagCount);
+        Assert.Equal(116, vm.TotalTagCount); // 108 user tags + 8 system tags
 
         // Assert 2: Không còn bất kỳ AI nào
         Assert.DoesNotContain(vm.AllTags, t => t.Kind == TagKind.AnalogInput);
@@ -137,7 +140,7 @@ public class TagCatalogSyncWithProductTests
         // #define ZIGBEE_IO_DI_NUM 4
         // #define ZIGBEE_IO_DO_NUM 4
         var vm = new TagCatalogViewModel();
-        Assert.Equal(124, vm.TotalTagCount);
+        Assert.Equal(132, vm.TotalTagCount);
 
         var resources = new ProductResourceProfile(
             DigitalInputs: 4,
@@ -161,7 +164,7 @@ public class TagCatalogSyncWithProductTests
         vm.SyncWithProductDefinition(product);
 
         // Assert
-        Assert.Equal(112, vm.TotalTagCount);
+        Assert.Equal(120, vm.TotalTagCount); // 112 user tags + 8 system tags
 
         // AI bị loại bỏ sạch
         Assert.DoesNotContain(vm.AllTags, t => t.Kind == TagKind.AnalogInput);

@@ -37,6 +37,25 @@ Các biến ảo thông thường (`VFLAG0..31` và `VREG0..31`) nằm trên vù
 
 Trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) (`Ctrl+3`), mỗi Tag đều cho phép đặt **Tên gợi nhớ (Alias)** sát với quy trình công nghệ (ví dụ gán `TankTemp` cho `AI0` và `SafetyDoorOk` cho `DI0`). Ngay sau khi đặt tên, toàn bộ danh sách chọn biến, tiêu đề khối trên [Sơ đồ Logic](/vi/workspaces/logic-graph-tab) và bảng đồ thị [Live Watch](/vi/workspaces/live-watch-tab) sẽ hiển thị đồng thời dạng `[AI0] — TankTemp`, giúp kỹ sư vừa nắm rõ ý nghĩa công nghệ vừa đối chiếu ngay được chân đấu dây vật lý.
 
+### Nhóm Thẻ Hệ Thống Định Sẵn (Industrial System Tags)
+
+Bên cạnh 128 Tag người dùng thông thường, **SynaptiX IDE** tích hợp sẵn **8 Thẻ Hệ thống chuẩn công nghiệp** (tương tự như trong Siemens TIA Portal hay CODESYS) giúp kỹ sư lập trình các yêu cầu vận hành phổ biến mà không cần tạo thêm cờ nhớ hay khối Timer phụ trợ:
+
+| Tên Thẻ Hệ Thống | Kiểu Dữ liệu | Giá trị & Ý nghĩa Vận hành | Ứng dụng Thực tế Điển hình |
+| :--- | :---: | :--- | :--- |
+| **`SYS_FIRST_SCAN`** | `BOOL` | Tự động lên mức `1` trong **chu kỳ quét đầu tiên** ngay sau khi cấp nguồn/nạp chương trình, sau đó tự về `0`. | Kích hoạt chu trình thiết lập gốc máy (Homing), nạp giá trị mặc định cho van/động cơ. |
+| **`SYS_ON`** | `BOOL` | Luôn giữ mức `1` (Hằng số TRUE vĩnh viễn). | Cung cấp tín hiệu kích hoạt liên tục cho các khối cần chạy thường trực. |
+| **`SYS_OFF`** | `BOOL` | Luôn giữ mức `0` (Hằng số FALSE vĩnh viễn). | Ngắt tạm thời một nhánh logic hoặc khóa an toàn. |
+| **`SYS_CLOCK_1S`** | `BOOL` | Xung vuông chu kỳ `1.0 giây` (`500 ms` Bật / `500 ms` Tắt, tần số `1.0 Hz`). | Chớp đèn tháp báo lỗi (Tower Light), nháy còi cảnh báo không cần thêm khối TON. |
+| **`SYS_CLOCK_100MS`**| `BOOL` | Xung vuông chu kỳ `100 mili-giây` (`50 ms` Bật / `50 ms` Tắt, tần số `10.0 Hz`). | Nhịp lấy mẫu dữ liệu tốc độ cao, chớp đèn LED báo bận. |
+| **`SYS_RTC_HOUR`** | `INT32` | Giờ thực tế (`0 .. 23`) lấy trực tiếp từ chip đồng hồ RTC phần cứng. | Hẹn giờ bật đèn nhà xưởng, kích hoạt hệ thống tưới theo ca làm việc. |
+| **`SYS_RTC_MINUTE`** | `INT32` | Phút thực tế (`0 .. 59`) lấy trực tiếp từ chip đồng hồ RTC phần cứng. | Hẹn giờ chính xác theo phút trong ngày. |
+| **`SYS_COMM_OK`** | `BOOL` | Bật mức `1` khi đường truyền kết nối truyền thông ngoại vi thông suốt. | Khóa liên động an toàn khi thiết bị ngoại vi mất kết nối. |
+
+::: tip Dễ Dàng Chọn Thẻ Hệ Thống Trên Mọi Khối FBD
+Trong danh sách thả xuống chọn biến (Tag Selector) của các khối `INPUT`, `TRIGGER`, `GUARD` hay `COMPARATOR`, nhóm Thẻ Hệ thống được nhóm riêng với biểu tượng bánh răng đặc trưng, giúp bạn chọn ngay lập tức mà không sợ nhầm lẫn với các chân I/O vật lý.
+:::
+
 ---
 
 ## Hệ thống Kiểu Dữ liệu Vật lý Nghiêm ngặt

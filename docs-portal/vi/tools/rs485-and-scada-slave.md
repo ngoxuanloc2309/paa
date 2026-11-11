@@ -76,6 +76,17 @@ Khi cổng ở chế độ **Modbus RTU Master**, hộp thoại cung cấp **B�
 4. **Dây Tham chiếu Tín hiệu (`GND` / `SG`):** Luôn đấu chung chân mass tín hiệu cách ly `GND`/`SG` giữa các trạm để giữ điện áp đồng pha nằm trong ngưỡng an toàn `-7 V .. +12 V`.
 :::
 
+### 1.5. Công Cụ Thăm Dò & Kiểm Tra Trực Tiếp Modbus (Modbus Live Test Inspector)
+
+Khi lắp đặt tủ điện hiện trường, việc kiểm tra xem cảm biến đã cấp nguồn chưa, có đấu nhầm cực tính dây A/B không, hay địa chỉ thanh ghi có khớp với tài liệu nhà sản xuất không là nhu cầu cấp thiết. Hộp thoại cấu hình tích hợp sẵn ngăn **Modbus Live Test Inspector**:
+
+- **Phát Frame Thử Nghiệm Ngay Lập Tức:** Chỉ cần chọn `Slave ID`, mã hàm (`FC01..FC04` để đọc hoặc `FC05/06/16` để ghi), địa chỉ thanh ghi và số lượng, sau đó nhấn nút **Gửi Thử Nghiệm (Test Probe)**.
+- **Quan Sát Phản Hồi Trực Tiếp Đa Chế Độ:** Kết quả phản hồi từ cảm biến được phân tích hiển thị song song ở 3 định dạng:
+  - **Mã Hex Thô:** Chuỗi byte thực tế nhận về từ bus nối tiếp kèm xác thực mã CRC-16.
+  - **Giá trị Thập phân (Decimal / Signed / Unsigned):** Giá trị số nguyên hoặc số thực đã giải mã theo thứ tự từ (Word Swap / Big-Endian).
+  - **Trạng thái Bit (Binary Flags):** Các bit nhị phân bật/tắt trực quan.
+- **Chẩn Đoán Lỗi Nhanh Không Cần Viết Code:** Nếu cảm biến không phản hồi sau thời gian Timeout, giao diện sẽ cảnh báo lỗi đường truyền `[TIMEOUT]`, giúp kỹ sư đảo thử đầu dây A/B hoặc chỉnh lại tốc độ Baud ngay lập tức mà **hoàn toàn không cần phải tạo biến hay nạp chương trình logic FBD**.
+
 ---
 
 ## Phần 2: Bản đồ Thanh ghi Modbus Slave Cố định cho SCADA / HMI

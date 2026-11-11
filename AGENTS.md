@@ -5,6 +5,36 @@ All AI agents modifying code in this repository MUST adhere strictly to the foll
 
 ---
 
+## 🧭 0. The First Principles Engineering Doctrine (Mandatory for ALL Actions)
+
+Every engineering decision, architecture design, UI/UX control, and unit test in this repository MUST be derived from fundamental physical and technical axioms rather than reasoning by analogy or superficial patchwork:
+
+### 0.1. Axiom 1 — Hardware Ground Truth (IEC 61131-3)
+- Microcontrollers (STM32/MCU) and PLCs operate strictly on physical memory structures:
+  - **Bit / Coil:** 1-bit boolean ($0$ or $1$).
+  - **Integer Registers (INT16 / INT32):** Signed 2's complement integers. **A fractional decimal value like `25.5` does NOT physically exist in an integer register.**
+  - **Real Registers (REAL / Float32):** 32-bit IEEE 754 floating point numbers.
+- **Doctrine:** Data types are NOT merely C# cosmetic labels; they are **physical memory contracts**. Never allow malformed, fractional, or type-violating values to penetrate the IDE presentation layer into the runtime domain or hardware registers.
+
+### 0.2. Axiom 2 — The Visual Truth (Single Source of Truth)
+- An industrial IDE / HMI is a **faithful 1:1 reflection of the machine's internal memory state**.
+- **STRICT PROHIBITION:** The interface must NEVER lie to the operator. If a TextBox displays `"25.5"` while the underlying system stores integer `25`, that is a critical industrial defect. Discrepancies between what an operator sees and what the PLC executes cause industrial accidents, equipment damage, and plant downtime.
+
+### 0.3. Axiom 3 — Input State Machine (Drafting vs. Committed)
+- A text input field is a finite state machine (FSM) with two distinct phases:
+  - **Phase A — Drafting State (In-flight typing):** The operator is actively editing. Transient incomplete characters (`"-"`, `"25."`) may exist temporarily.
+  - **Phase B — Committed State (LostFocus / Enter):** The resolution event MUST deterministically resolve the input:
+    - *Valid input:* **Auto-Normalize** (`"100.0"` $\rightarrow$ `"100"` for INT; `"25"` $\rightarrow$ `"25.0"` for REAL).
+    - *Invalid / Type-mismatched input:* **Auto-Revert** to the last valid committed state with visual feedback (tooltip/highlight). **Never leave unparsed or invalid drafting text lingering in the committed UI.**
+
+### 0.4. Axiom 4 — End-to-End Invariant & Anti-"Test Myopia"
+- A feature is NEVER complete simply because an isolated utility function (`SmartInputParser.TryParse`) passes a unit test.
+- A feature is only complete when the entire chain of custody:
+  $$\text{User Keystroke} \longrightarrow \text{WPF Control} \longrightarrow \text{Binding Engine} \longrightarrow \text{ViewModel} \longrightarrow \text{Domain Model} \longrightarrow \text{Firmware Bytecode}$$
+  is thoroughly verified and proven consistent under both nominal and adversarial inputs.
+
+---
+
 ## 🎨 1. Frontend & UI/UX Doctrine (Mandatory for ALL XAML Changes)
 
 Whenever creating, modifying, styling, or refactoring ANY XAML view, dialog, template, or style in `SimplePLC.Studio/`:
@@ -42,6 +72,16 @@ Whenever creating, modifying, styling, or refactoring ANY XAML view, dialog, tem
 ### 1.5. Crisp Vector Icons (No Text Emojis)
 - NEVER use raw Unicode emojis (e.g., `⏸`, `▶`, `↺`) for interactive buttons. Windows renders emoji characters with colored boxes that break industrial aesthetics.
 - ALWAYS use vector SVG `<StreamGeometry>` from [`SimplePLC.Studio/Styles/Icons.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Styles/Icons.xaml) via `<Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSys...}" />`.
+
+### 1.6. Industrial Form Input & Bad-Data Defense Doctrine
+- **Visual Truth Guarantee:** Every bound TextBox must guarantee that what is displayed on screen matches the committed value in memory.
+- **LostFocus & Enter Lifecycle:** All numeric input fields must implement a committed resolution lifecycle:
+  - **Auto-Revert:** If an operator types an invalid or type-mismatched string (e.g. typing `"25.5"` or `"abc"` into an integer input), upon `LostFocus` or `Enter`, the field MUST revert to the last valid committed integer value.
+  - **Auto-Normalize:** Valid but unformatted inputs MUST automatically reformat upon `LostFocus`:
+    - INT32: `"100.0"` or `"100,0"` $\rightarrow$ `"100"`.
+    - REAL: `"25"` or `"25,0"` $\rightarrow$ `"25.0"`.
+    - BOOL: `"true"`, `"on"`, `"bật"` $\rightarrow$ `"1"`; `"false"`, `"off"`, `"tắt"` $\rightarrow$ `"0"`.
+- **Type-Safe Control Selection for Booleans:** For all digital tags (BOOL), the UI must provide binary toggle buttons `[ 0 ]` `[ 1 ]` or industrial toggle switches rather than unconstrained free-text fields.
 
 ---
 
@@ -96,6 +136,17 @@ Every service or algorithmic logic must be tested across three axes:
 - Modbus wire contract changes in `SimplePLC.Protocol` MUST immediately update register mapping documentation.
 - Every atomic change MUST update `walkthrough.md`.
 
+### 3.5. ViewModel Integration Contract & Negative Testing Rule
+- Testing static utility parsers in isolation is insufficient. All interactive input logic MUST have unit tests executed directly against the target ViewModel (`ActionNodeViewModel`, `ComparatorNodeViewModel`, `InputNodeViewModel`, `LiveWatchViewModel`).
+- Every input property must be tested against three lifecycle cases:
+  1. **Nominal Input:** Valid type entry commits correctly to both text and underlying value.
+  2. **Tolerant Normalization:** Permissible variants (e.g. `"100.0"` for INT, `"25"` for REAL) normalize upon resolution.
+  3. **Adversarial / Negative Input:** Invalid type entry (e.g. `"25.5"` or `"abc"` for INT) is rejected, does NOT corrupt the underlying model, and reverts the displayed text upon resolution.
+
+### 3.6. Full Scope Traceability Matrix
+- Before declaring ANY multi-node or cross-cutting feature complete, the agent MUST assemble an explicit Traceability Matrix covering 100% of the nodes and views defined in the specification scope.
+- If even a single node in scope (e.g. `ComparatorNode` or `SimulatorView`) is left unverified, the task MUST NOT be closed.
+
 ---
 
 ## ⚡ 4. Mandatory Post-Edit Validation Commands
@@ -121,19 +172,12 @@ powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-qa-tdd/scripts/
 ```
 Must output `[PASS]` with **0 violations** and **100% test pass rate**.
 
-### 3.1. Frontend XAML Validation
-After modifying ANY file ending in `.xaml` within `SimplePLC.Studio/`:
+### 4.4. Technical Documentation & Web Wiki Validation
+After modifying ANY documentation in `docs/` or `docs-portal/`:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Path/To/ModifiedFile.xaml"
+powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-docs-techwriter/scripts/validate-docs.ps1
 ```
-Must output `[PASS]` with **0 violations**.
-
-### 3.2. Backend Architecture Validation
-After modifying ANY C# file in `src/` or `SimplePLC.Studio/Services/`:
-```powershell
-powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-backend-arch/scripts/validate-backend-arch.ps1
-```
-Must output `[PASS]` with **0 architecture violations**.
+Must output `[PASS]` with **0 violations** and clean VitePress build.
 
 ---
 
@@ -161,3 +205,4 @@ Before proposing or finalizing any pull request or merge:
 - **Frontend UI/UX Skill:** [`g:\HoaNV\Projects\SimplePLC\.agents\skills\synaptix-ui-ux\SKILL.md`](file:///g:/HoaNV/Projects/SimplePLC/.agents/skills/synaptix-ui-ux/SKILL.md)
 - **Backend Architecture Skill:** [`g:\HoaNV\Projects\SimplePLC\.agents\skills\synaptix-backend-arch\SKILL.md`](file:///g:/HoaNV/Projects/SimplePLC/.agents/skills/synaptix-backend-arch/SKILL.md)
 - **QA, TDD & Living Docs Skill:** [`g:\HoaNV\Projects\SimplePLC\.agents\skills\synaptix-qa-tdd\SKILL.md`](file:///g:/HoaNV/Projects/SimplePLC/.agents/skills/synaptix-qa-tdd/SKILL.md)
+- **Technical Documentation & Web Wiki Skill:** [`g:\HoaNV\Projects\SimplePLC\.agents\skills\synaptix-docs-techwriter\SKILL.md`](file:///g:/HoaNV/Projects/SimplePLC/.agents/skills/synaptix-docs-techwriter/SKILL.md)

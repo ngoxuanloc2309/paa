@@ -1691,6 +1691,204 @@
         </nodify:Node>
     </DataTemplate>
 
+    <!-- 14. HTTP Client Node Template (REST API & Webhook Egress Block) -->
+    <DataTemplate DataType="{x:Type vm:HttpClientNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="220"
+                     HeaderBrush="{StaticResource NodeMqttBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconIecHttpClient}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding MethodBadge}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding TooltipText}"
+                                       Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <TextBlock Text="{Binding Url}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding Url}" />
+                <TextBlock Text="{Binding TriggerModeName}" FontWeight="SemiBold" FontSize="10.5" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+
+                <!-- Status Pill -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusyActive}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDoneActive}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
+    <!-- 15. TCP Client Node Template (Socket Stream & Transparent Egress Block) -->
+    <DataTemplate DataType="{x:Type vm:TcpClientNodeViewModel}">
+        <nodify:Node Style="{StaticResource IndustrialDynamicNodeStyle}"
+                     Width="220"
+                     HeaderBrush="{StaticResource NodeMqttBrush}"
+                     Input="{Binding InputConnectors}"
+                     Output="{Binding OutputConnectors}">
+            <nodify:Node.Header>
+                <DockPanel LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Path Style="{StaticResource NodeHeaderIconStyle}" Data="{StaticResource IconIecTcpClient}"/>
+                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="125" />
+                    </StackPanel>
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="4,1" HorizontalAlignment="Right">
+                        <TextBlock Text="TCP" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource PrimaryBrush}" />
+                    </Border>
+                </DockPanel>
+            </nodify:Node.Header>
+            <nodify:Node.InputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                       IsConnected="{Binding IsConnected}"
+                                       Header="{Binding Title}"
+                                       ToolTip="{Binding TooltipText}"
+                                       Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.InputConnectorTemplate>
+            <nodify:Node.OutputConnectorTemplate>
+                <DataTemplate>
+                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                        IsConnected="{Binding IsConnected}"
+                                        Header="{Binding Title}"
+                                        ToolTip="{Binding TooltipText}"
+                                        Margin="0,1" />
+                </DataTemplate>
+            </nodify:Node.OutputConnectorTemplate>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,0">
+                <TextBlock Text="{Binding NodeInfoSummary}" FontWeight="Bold" FontSize="11" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,1" ToolTip="{Binding NodeInfoSummary}" />
+                <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" FontSize="10" FontFamily="Consolas" TextAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="160" Margin="0,0,0,4" />
+
+                <!-- Status Pill -->
+                <Border CornerRadius="2" Padding="6,2" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource DangerLightBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsConnectedActive}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource BgCanvasBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsConnectedActive}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusPillText}" FontSize="9.5" FontWeight="Bold" FontFamily="Consolas">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsErrorActive}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsConnectedActive}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </nodify:Node>
+    </DataTemplate>
+
     <!-- Connection Line Template: Straight or Orthogonal PLC Ladder Wire from Pin to Pin -->
     <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
         <Grid Background="Transparent">

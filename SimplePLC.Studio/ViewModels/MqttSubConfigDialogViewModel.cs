@@ -9,6 +9,9 @@ using SimplePLC.Studio.ViewModels;
 
 namespace SimplePLC.Studio.ViewModels;
 
+/// <summary>
+/// Đại diện cho một mục lựa chọn chung kèm giá trị và tên hiển thị trong ComboBox.
+/// </summary>
 public record OptionItem<T>(T Value, string DisplayName);
 
 /// <summary>
@@ -60,10 +63,22 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         new(MqttFailSafeAction.ResetToDefault, LocalizationService.Tr("MqttSubFailSafeReset"))
     };
 
+    /// <summary>
+    /// Cấu hình hàm cung cấp Tag có thể ghi (WriteTarget) tương thích với kiểu dữ liệu cho Pin.
+    /// </summary>
+    public void ConfigurePinTagProvider(MqttPinBindingViewModel pin)
+    {
+        pin.TagProvider = dt => TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dt, includeNone: true);
+    }
+
     public MqttSubConfigDialogViewModel(MqttSubscribeNodeViewModel node, TagCatalogViewModel tagCatalog)
     {
         Node = node;
         TagCatalog = tagCatalog;
+        foreach (var pin in Node.Pins)
+        {
+            ConfigurePinTagProvider(pin);
+        }
         _simulationInput = GenerateSamplePayload();
     }
 
@@ -112,6 +127,7 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         };
 
         var newPin = new MqttPinBindingViewModel(defaultName, defaultName, MqttDataType.Int16);
+        ConfigurePinTagProvider(newPin);
         Node.Pins.Add(newPin);
 
         // Giữ nguyên chuỗi payload người dùng đã nhập, chỉ tạo mẫu mặc định nếu ô nhập hoàn toàn trống

@@ -80,6 +80,7 @@ public partial class LogicEditorViewModel : ObservableObject
         dialogVm.OnOpenDeviceBrokerSettings = () => OpenDeviceMqttBrokerConfig?.Invoke();
         var dialog = new Views.MqttSubConfigDialogView(dialogVm);
         dialog.ShowDialog();
+        PropagateNodeTagChange(targetNode);
         NotifyGraphModified();
     }
 
@@ -89,16 +90,19 @@ public partial class LogicEditorViewModel : ObservableObject
         var targetNode = node ?? SelectedModbusReadNode;
         if (targetNode == null) return;
 
-        var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
-        var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog, ports);
+        var metadata = GetProjectMetadata?.Invoke();
+        var ports = metadata?.ModbusPorts;
+        var zigbeeConfig = metadata?.ZigbeeConfig;
+        var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog, ports, zigbeeConfig);
         dialogVm.OnOpenDevicePortSettings = () =>
         {
             OpenDeviceModbusPortConfig?.Invoke();
-            var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
-            dialogVm.RefreshAvailablePorts(refreshedPorts);
+            var refreshedMeta = GetProjectMetadata?.Invoke();
+            dialogVm.RefreshAvailablePorts(refreshedMeta?.ModbusPorts, refreshedMeta?.ZigbeeConfig);
         };
         var dialog = new Views.ModbusReadConfigDialogView(dialogVm);
         dialog.ShowDialog();
+        PropagateNodeTagChange(targetNode);
         NotifyGraphModified();
     }
 
@@ -108,16 +112,19 @@ public partial class LogicEditorViewModel : ObservableObject
         var targetNode = node ?? SelectedModbusWriteNode;
         if (targetNode == null) return;
 
-        var ports = GetProjectMetadata?.Invoke()?.ModbusPorts;
-        var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog, ports);
+        var metadata = GetProjectMetadata?.Invoke();
+        var ports = metadata?.ModbusPorts;
+        var zigbeeConfig = metadata?.ZigbeeConfig;
+        var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog, ports, zigbeeConfig);
         dialogVm.OnOpenDevicePortSettings = () =>
         {
             OpenDeviceModbusPortConfig?.Invoke();
-            var refreshedPorts = GetProjectMetadata?.Invoke()?.ModbusPorts;
-            dialogVm.RefreshAvailablePorts(refreshedPorts);
+            var refreshedMeta = GetProjectMetadata?.Invoke();
+            dialogVm.RefreshAvailablePorts(refreshedMeta?.ModbusPorts, refreshedMeta?.ZigbeeConfig);
         };
         var dialog = new Views.ModbusWriteConfigDialogView(dialogVm);
         dialog.ShowDialog();
+        PropagateNodeTagChange(targetNode);
         NotifyGraphModified();
     }
 
@@ -137,34 +144,62 @@ public partial class LogicEditorViewModel : ObservableObject
         NotifyGraphModified();
     }
 
+    [RelayCommand]
+    public void OpenHttpClientConfig(HttpClientNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedHttpClientNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new HttpClientConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.HttpClientConfigDialogView(dialogVm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dialog.Owner = System.Windows.Application.Current.MainWindow;
+        }
+        if (dialog.ShowDialog() == true)
+        {
+            NotifyGraphModified();
+        }
+    }
+
+    [RelayCommand]
+    public void OpenTcpClientConfig(TcpClientNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedTcpClientNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new TcpClientConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.TcpClientConfigDialogView(dialogVm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dialog.Owner = System.Windows.Application.Current.MainWindow;
+        }
+        if (dialog.ShowDialog() == true)
+        {
+            NotifyGraphModified();
+        }
+    }
+
     public bool IsMqttPublishSupported => (TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsMqttSubscribeSupported => (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsModbusMasterSupported => TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false;
     public string MqttPublishDisabledTooltip => IsMqttPublishSupported
         ? LocalizationService.Tr("ToolboxMqttDesc")
-        : (LocalizationService.Instance.IsVietnamese
-            ? "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Publish."
-            : "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Publish capability.");
+        : LocalizationService.Tr("ToolboxMqttPublishReqHardware");
 
     public string MqttSubscribeDisabledTooltip => IsMqttSubscribeSupported
         ? LocalizationService.Tr("ToolboxMqttSubDesc")
-        : (LocalizationService.Instance.IsVietnamese
-            ? "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Subscribe."
-            : "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Subscribe capability.");
+        : LocalizationService.Tr("ToolboxMqttSubscribeReqHardware");
 
     public string ModbusReadDisabledTooltip => IsModbusMasterSupported
         ? LocalizationService.Tr("ToolboxModbusReadDesc")
-        : (LocalizationService.Instance.IsVietnamese
-            ? "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
-            : "Requires hardware Modbus Master Poller capability.");
+        : LocalizationService.Tr("ToolboxModbusMasterReqHardware");
 
     public string ModbusDisabledTooltip => ModbusReadDisabledTooltip;
 
     public string ModbusWriteDisabledTooltip => IsModbusMasterSupported
         ? LocalizationService.Tr("ToolboxModbusWriteDesc")
-        : (LocalizationService.Instance.IsVietnamese
-            ? "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
-            : "Requires hardware Modbus Master Poller capability.");
+        : LocalizationService.Tr("ToolboxModbusMasterReqHardware");
 
     // Issue #17: Category-level dynamic visibility based on hardware connectivity
     public bool IsModbusCategoryVisible => 
@@ -172,9 +207,24 @@ public partial class LogicEditorViewModel : ObservableObject
         (TagCatalog?.CurrentProduct.SupportsModbusSlave ?? false) || 
         (TagCatalog?.CurrentProduct.PhysicalRs485PortCount ?? 0) > 0;
 
+    public bool IsHttpClientSupported => (TagCatalog?.CurrentProduct.SupportsHttpClient ?? false);
+    public bool IsTcpClientSupported => (TagCatalog?.CurrentProduct.SupportsTransparentStream ?? false);
+
+    public string HttpClientDisabledTooltip => IsHttpClientSupported
+        ? LocalizationService.Tr("ToolboxHttpClientDesc")
+        : LocalizationService.Tr("ToolboxHttpClientReqHardware");
+
+    public string TcpClientDisabledTooltip => IsTcpClientSupported
+        ? LocalizationService.Tr("ToolboxTcpClientDesc")
+        : LocalizationService.Tr("ToolboxTcpClientReqHardware");
+
     public bool IsMqttCategoryVisible => 
         (TagCatalog?.CurrentProduct.SupportsNetwork ?? false) && 
         ((TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) || (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false));
+
+    public bool IsGatewayCategoryVisible => 
+        (TagCatalog?.CurrentProduct.SupportsHttpClient ?? false) || 
+        (TagCatalog?.CurrentProduct.SupportsTransparentStream ?? false);
 
     private void OnTagCatalogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -182,13 +232,18 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(IsMqttPublishSupported));
             OnPropertyChanged(nameof(IsMqttSubscribeSupported));
+            OnPropertyChanged(nameof(IsHttpClientSupported));
+            OnPropertyChanged(nameof(IsTcpClientSupported));
             OnPropertyChanged(nameof(IsModbusMasterSupported));
             OnPropertyChanged(nameof(MqttPublishDisabledTooltip));
             OnPropertyChanged(nameof(MqttSubscribeDisabledTooltip));
+            OnPropertyChanged(nameof(HttpClientDisabledTooltip));
+            OnPropertyChanged(nameof(TcpClientDisabledTooltip));
             OnPropertyChanged(nameof(ModbusReadDisabledTooltip));
             OnPropertyChanged(nameof(ModbusWriteDisabledTooltip));
             OnPropertyChanged(nameof(IsModbusCategoryVisible));
             OnPropertyChanged(nameof(IsMqttCategoryVisible));
+            OnPropertyChanged(nameof(IsGatewayCategoryVisible));
         }
     }
 
@@ -211,6 +266,8 @@ public partial class LogicEditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedModbusReadNode))]
     [NotifyPropertyChangedFor(nameof(SelectedModbusWriteNode))]
     [NotifyPropertyChangedFor(nameof(SelectedDirectWriteNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedHttpClientNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedTcpClientNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
@@ -228,6 +285,8 @@ public partial class LogicEditorViewModel : ObservableObject
     public ModbusReadNodeViewModel? SelectedModbusReadNode => SelectedNode as ModbusReadNodeViewModel;
     public ModbusWriteNodeViewModel? SelectedModbusWriteNode => SelectedNode as ModbusWriteNodeViewModel;
     public DirectWriteNodeViewModel? SelectedDirectWriteNode => SelectedNode as DirectWriteNodeViewModel;
+    public HttpClientNodeViewModel? SelectedHttpClientNode => SelectedNode as HttpClientNodeViewModel;
+    public TcpClientNodeViewModel? SelectedTcpClientNode => SelectedNode as TcpClientNodeViewModel;
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -668,13 +727,19 @@ public partial class LogicEditorViewModel : ObservableObject
 
     public bool IsEditingExistingRule => !string.IsNullOrEmpty(EditingRuleId);
 
+    /// <summary>
+    /// Tiêu đề chế độ chỉnh sửa hiện tại trên thanh công cụ (Đang sửa hoặc Tạo Rule Mới).
+    /// </summary>
     public string EditorModeTitle => IsEditingExistingRule
-        ? string.Format(LocalizationService.Instance.IsVietnamese ? "Đang sửa: {0}" : "Editing: {0}", EditingRuleId)
-        : (LocalizationService.Instance.IsVietnamese ? "Tạo Rule Mới" : "New Rule");
+        ? string.Format(LocalizationService.Tr("EditorModeEditing"), EditingRuleId)
+        : LocalizationService.Tr("EditorModeNew");
 
+    /// <summary>
+    /// Huy hiệu hiển thị mã rule đang chỉnh sửa hoặc nhãn rule mới.
+    /// </summary>
     public string EditorModeBadge => IsEditingExistingRule
         ? $"{EditingRuleId}"
-        : (LocalizationService.Instance.IsVietnamese ? "Mới" : "New");
+        : LocalizationService.Tr("EditorModeBadgeNew");
 
     partial void OnEditingRuleIdChanged(string? value)
     {
@@ -820,6 +885,7 @@ public partial class LogicEditorViewModel : ObservableObject
     public IEnumerable<TagModel> VirtualDiTags => TagCatalog.AllTags.Where(t => t.Kind == TagKind.DiscreteInput);
     public IEnumerable<TagModel> VirtualDoTags => TagCatalog.AllTags.Where(t => t.Kind == TagKind.DiscreteOutput);
     public IEnumerable<TagModel> VirtualAiTags => TagCatalog.AllTags.Where(t => t.Kind == TagKind.AnalogInput);
+    public IEnumerable<TagModel> VirtualSysTags => TagCatalog.AllTags.Where(t => t.Kind == TagKind.System);
 
     [RelayCommand]
     public void ToggleVirtualDi(TagModel? tag)
@@ -1107,6 +1173,8 @@ public partial class LogicEditorViewModel : ObservableObject
             OnPropertyChanged(nameof(CompileStateDisplay));
             OnPropertyChanged(nameof(SimRunStatusText));
             OnPropertyChanged(nameof(SimPlayPauseButtonText));
+            OnPropertyChanged(nameof(EditorModeTitle));
+            OnPropertyChanged(nameof(EditorModeBadge));
             CompileNow();
         };
 
@@ -1140,8 +1208,8 @@ public partial class LogicEditorViewModel : ObservableObject
     public bool IsDeviceConnected => _stateStore?.CurrentSnapshot?.ConnectionStatus == ConnectionStatus.Connected;
 
     public string LiveDebugStatusText => IsLiveDebugActive
-        ? (LocalizationService.Instance.IsVietnamese ? "Đang giám sát trực tiếp" : "Live Monitoring Active")
-        : (LocalizationService.Instance.IsVietnamese ? "Chế độ giám sát tắt" : "Live Monitor Inactive");
+        ? LocalizationService.Tr("LiveDebugStatusActive")
+        : LocalizationService.Tr("LiveDebugStatusInactive");
 
     public string LiveDebugTooltip => IsLiveDebugActive
         ? LocalizationService.Tr("LiveDebugActiveTooltip")
@@ -2059,7 +2127,8 @@ public partial class LogicEditorViewModel : ObservableObject
                      or nameof(GuardNodeViewModel.GuardTag)
                      or nameof(TimerNodeViewModel.OutputTag)
                      or nameof(CounterNodeViewModel.CvTag)
-                     or nameof(CounterNodeViewModel.OutputTag))
+                     or nameof(CounterNodeViewModel.OutputTag)
+                     or "PinTargetTag")
             {
                 RebuildTagToNodesIndex();
                 if (_stateStore?.CurrentSnapshot != null)
@@ -2069,14 +2138,15 @@ public partial class LogicEditorViewModel : ObservableObject
             }
 
             if (sender is GraphNodeViewModel graphNode &&
-                e.PropertyName is nameof(InputNodeViewModel.Tag)
+                (e.PropertyName is nameof(InputNodeViewModel.Tag)
                                or nameof(ScaleNodeViewModel.InputTag)
                                or nameof(ScaleNodeViewModel.OutputTag)
                                or nameof(ComparatorNodeViewModel.InputTag)
                                or nameof(TriggerNodeViewModel.InputTag)
                                or nameof(TimerNodeViewModel.OutputTag)
                                or nameof(CounterNodeViewModel.OutputTag)
-                               or nameof(GuardNodeViewModel.GuardTag))
+                               or nameof(GuardNodeViewModel.GuardTag)
+                               or "PinTargetTag"))
             {
                 PropagateNodeTagChange(graphNode);
             }
@@ -2153,7 +2223,18 @@ public partial class LogicEditorViewModel : ObservableObject
         nameof(MqttSubscribeNodeViewModel.IgnoreRetained),
         nameof(MqttSubscribeNodeViewModel.FailSafeAction),
         nameof(MqttSubscribeNodeViewModel.FailSafeTimeoutMs),
-        nameof(GraphNodeViewModel.CustomLabel)
+        nameof(GraphNodeViewModel.CustomLabel),
+        "PinTargetTag",
+        nameof(ModbusReadNodeViewModel.PortIndex),
+        nameof(ModbusReadNodeViewModel.SlaveId),
+        nameof(ModbusReadNodeViewModel.StartAddress),
+        nameof(ModbusReadNodeViewModel.RegCount),
+        nameof(ModbusReadNodeViewModel.PollIntervalMs),
+        nameof(ModbusReadNodeViewModel.ReadMode),
+        nameof(ModbusWriteNodeViewModel.PortIndex),
+        nameof(ModbusWriteNodeViewModel.SlaveId),
+        nameof(ModbusWriteNodeViewModel.StartAddress),
+        nameof(ModbusWriteNodeViewModel.WriteMode)
     };
 
     private void OnConnectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -2260,7 +2341,12 @@ public partial class LogicEditorViewModel : ObservableObject
         SyncWireBinding(source, target);
     }
 
-    internal static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
+    /// <summary>
+    /// Maps a UI graph node view model to its corresponding application logic node kind.
+    /// </summary>
+    /// <param name="node">The graph node view model.</param>
+    /// <returns>The corresponding <see cref="SimplePLC.Application.Logic.Graph.LogicNodeKind"/> or null if unknown.</returns>
+    public static SimplePLC.Application.Logic.Graph.LogicNodeKind? GetNodeKind(GraphNodeViewModel? node) => node switch
     {
         InputNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Input,
         TriggerNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Trigger,
@@ -2275,6 +2361,8 @@ public partial class LogicEditorViewModel : ObservableObject
         CounterNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Counter,
         ScaleNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Scale,
         ComparatorNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Comparator,
+        HttpClientNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.HttpClient,
+        TcpClientNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.TcpClient,
         _ => null
     };
 
@@ -2429,6 +2517,7 @@ public partial class LogicEditorViewModel : ObservableObject
         TagModel? sourceTag = source.Node switch
         {
             InputNodeViewModel inVm => inVm.Tag,
+            TriggerNodeViewModel trgVm => trgVm.InputTag,
             ScaleNodeViewModel sclVm => sclVm.OutputTag ?? sclVm.InputTag,
             ComparatorNodeViewModel cmpVm => cmpVm.InputTag,
             CounterNodeViewModel cntVm => cntVm.OutputTag,
@@ -2742,6 +2831,8 @@ public partial class LogicEditorViewModel : ObservableObject
                 CompareOp.GT,
                 50,
                 100),
+            "HTTP_CLIENT" or "HttpClient" or "HTTP" or "Http" or "REST" or "Webhook" => new HttpClientNodeViewModel(),
+            "TCP_CLIENT" or "TcpClient" or "TCP" or "Tcp" or "TcpSocket" => new TcpClientNodeViewModel(),
             _ => null
         };
     }
@@ -3625,6 +3716,32 @@ public partial class LogicEditorViewModel : ObservableObject
             pNode.DirectWriteTimeoutMs = dw.TimeoutMs;
             pNode.DirectWriteDefaultColorRgb = dw.DefaultColorRgb;
         }
+        else if (node is HttpClientNodeViewModel http)
+        {
+            pNode.Type = "HttpClient";
+            pNode.HttpUrl = http.Url;
+            pNode.HttpMethod = http.Method;
+            pNode.HttpHeaders = http.CustomHeaders;
+            pNode.HttpTimeoutSec = http.TimeoutSec;
+            pNode.HttpTriggerMode = http.TriggerMode;
+            pNode.HttpIntervalSec = http.PeriodicIntervalSec;
+            pNode.HttpPayloadMode = http.PayloadMode;
+            pNode.HttpCustomTemplate = http.CustomTemplate;
+            pNode.TagName = http.DataTag?.Name ?? string.Empty;
+        }
+        else if (node is TcpClientNodeViewModel tcp)
+        {
+            pNode.Type = "TcpClient";
+            pNode.TcpRemoteHost = tcp.RemoteHost;
+            pNode.TcpRemotePort = tcp.RemotePort;
+            pNode.TcpReconnectDelaySec = tcp.ReconnectDelaySec;
+            pNode.TcpHeartbeatIntervalSec = tcp.HeartbeatIntervalSec;
+            pNode.TcpHeartbeatPayload = tcp.HeartbeatPayload;
+            pNode.TcpRegistrationType = tcp.RegistrationType;
+            pNode.TcpRegistrationPayload = tcp.RegistrationPayload;
+            pNode.TcpPayloadMode = tcp.PayloadMode;
+            pNode.TagName = tcp.DataTag?.Name ?? string.Empty;
+        }
 
         return pNode;
     }
@@ -3932,6 +4049,48 @@ public partial class LogicEditorViewModel : ObservableObject
 
             dw.SynchronizeConnectors();
             node = dw;
+        }
+        else if (string.Equals(type, "HttpClient", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "HTTP_CLIENT", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "HTTP", StringComparison.OrdinalIgnoreCase))
+        {
+            var http = new HttpClientNodeViewModel(
+                string.IsNullOrWhiteSpace(pNode.HttpUrl) ? "http://api.myserver.com/telemetry" : pNode.HttpUrl,
+                string.IsNullOrWhiteSpace(pNode.HttpMethod) ? "POST" : pNode.HttpMethod)
+            {
+                CustomHeaders = string.IsNullOrWhiteSpace(pNode.HttpHeaders) ? "Content-Type: application/json" : pNode.HttpHeaders,
+                TimeoutSec = pNode.HttpTimeoutSec == 0 ? (ushort)10 : pNode.HttpTimeoutSec,
+                TriggerMode = string.IsNullOrWhiteSpace(pNode.HttpTriggerMode) ? "OnDataReceived" : pNode.HttpTriggerMode,
+                PeriodicIntervalSec = pNode.HttpIntervalSec == 0 ? (ushort)5 : pNode.HttpIntervalSec,
+                PayloadMode = string.IsNullOrWhiteSpace(pNode.HttpPayloadMode) ? "Custom" : pNode.HttpPayloadMode,
+                CustomTemplate = string.IsNullOrWhiteSpace(pNode.HttpCustomTemplate) ? "{\n  \"device\": \"{device}\",\n  \"ts\": {ts},\n  \"val\": {val}\n}" : pNode.HttpCustomTemplate
+            };
+            if (!string.IsNullOrEmpty(pNode.TagName))
+            {
+                http.DataTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
+            }
+            node = http;
+        }
+        else if (string.Equals(type, "TcpClient", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "TCP_CLIENT", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "TCP", StringComparison.OrdinalIgnoreCase))
+        {
+            var tcp = new TcpClientNodeViewModel(
+                string.IsNullOrWhiteSpace(pNode.TcpRemoteHost) ? "192.168.1.100" : pNode.TcpRemoteHost,
+                pNode.TcpRemotePort == 0 ? (ushort)8888 : pNode.TcpRemotePort)
+            {
+                ReconnectDelaySec = pNode.TcpReconnectDelaySec == 0 ? (ushort)5 : pNode.TcpReconnectDelaySec,
+                HeartbeatIntervalSec = pNode.TcpHeartbeatIntervalSec == 0 ? (ushort)30 : pNode.TcpHeartbeatIntervalSec,
+                HeartbeatPayload = pNode.TcpHeartbeatPayload ?? string.Empty,
+                RegistrationType = string.IsNullOrWhiteSpace(pNode.TcpRegistrationType) ? "None" : pNode.TcpRegistrationType,
+                RegistrationPayload = pNode.TcpRegistrationPayload ?? string.Empty,
+                PayloadMode = string.IsNullOrWhiteSpace(pNode.TcpPayloadMode) ? "Raw" : pNode.TcpPayloadMode
+            };
+            if (!string.IsNullOrEmpty(pNode.TagName))
+            {
+                tcp.DataTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
+            }
+            node = tcp;
         }
 
         if (node != null)
@@ -4992,9 +5151,7 @@ public partial class LogicEditorViewModel : ObservableObject
                 IsSaved = true;
                 SaveStatusMessage = result.Rules.Count > 0
                     ? string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count)
-                    : (LocalizationService.Instance.IsVietnamese 
-                        ? $"{totalDeployable} khối chức năng (FBs/MQTT) sẵn sàng nạp" 
-                        : $"{totalDeployable} function/MQTT blocks ready");
+                    : string.Format(LocalizationService.Tr("EditorStatusFbsReady"), totalDeployable);
                 return;
             }
 
@@ -5065,9 +5222,7 @@ public partial class LogicEditorViewModel : ObservableObject
             CurrentProgram = null;
             ValidRuleCount = 0;
             IsSaved = false;
-            SaveStatusMessage = LocalizationService.Instance.IsVietnamese
-                ? $"{errCount} lỗi biên dịch"
-                : $"{errCount} compile errors";
+            SaveStatusMessage = string.Format(LocalizationService.Tr("EditorStatusErrors"), errCount);
 
             return;
         }
@@ -5125,9 +5280,7 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (!isAutoSync && result.Rules.Count > 0)
         {
-            SaveToastMessage = LocalizationService.Instance.IsVietnamese
-                ? $"Đã lưu kịch bản vào Bảng Rule ({EditingRuleId ?? "R1"})"
-                : $"Saved rule into Rule Table ({EditingRuleId ?? "R1"})";
+            SaveToastMessage = string.Format(LocalizationService.Tr("EditorToastSaved"), EditingRuleId ?? "R1");
             ShowSaveToast = true;
 
             _toastCts?.Cancel();
@@ -5723,7 +5876,10 @@ public partial class LogicEditorViewModel : ObservableObject
             if (rule == null || string.IsNullOrEmpty(rule.ActionNodeId)) continue;
 
             var actionNode = Nodes.OfType<ActionNodeViewModel>().FirstOrDefault(n => n.Id == rule.ActionNodeId);
-            if (actionNode == null) continue;
+            if (actionNode == null)
+            {
+                continue;
+            }
 
             var actionConn = Connections.FirstOrDefault(c => c.Target?.Node == actionNode);
             if (actionConn == null) continue;
@@ -5878,7 +6034,10 @@ public partial class LogicEditorViewModel : ObservableObject
             if (rule == null || string.IsNullOrEmpty(rule.ActionNodeId)) continue;
 
             var actionNode = Nodes.OfType<ActionNodeViewModel>().FirstOrDefault(n => n.Id == rule.ActionNodeId);
-            if (actionNode == null) continue;
+            if (actionNode == null)
+            {
+                continue;
+            }
 
             var actionConn = Connections.FirstOrDefault(c => c.Target?.Node == actionNode);
             if (actionConn == null) continue;
@@ -5914,7 +6073,10 @@ public partial class LogicEditorViewModel : ObservableObject
             if (rule == null || string.IsNullOrEmpty(rule.ActionNodeId)) continue;
 
             var actionNode = Nodes.OfType<ActionNodeViewModel>().FirstOrDefault(n => n.Id == rule.ActionNodeId);
-            if (actionNode == null) continue;
+            if (actionNode == null)
+            {
+                continue;
+            }
 
             var actionConn = Connections.FirstOrDefault(c => c.Target?.Node == actionNode);
             if (actionConn == null) continue;

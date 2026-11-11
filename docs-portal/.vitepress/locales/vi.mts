@@ -102,6 +102,7 @@ export const viConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           { text: 'Cấu hình RS-485 & Bản đồ SCADA Slave', link: '/vi/tools/rs485-and-scada-slave' },
           { text: 'Cấu hình MQTT TLS & Mạng Wi-Fi', link: '/vi/tools/mqtt-and-wifi-config' },
+          { text: 'Mạng Không dây Zigbee Mesh', link: '/vi/tools/zigbee-mesh-config' },
           { text: 'Không gian DTU Gateway Studio', link: '/vi/tools/dtu-gateway-studio' },
           { text: 'Mô phỏng Offline & Gỡ lỗi Trực tuyến', link: '/vi/tools/simulator-and-live-debug' },
           { text: 'Trợ lý Kỹ thuật SynaptiX AI Copilot', link: '/vi/tools/ai-copilot' },

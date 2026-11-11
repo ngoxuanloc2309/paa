@@ -23,6 +23,8 @@ public readonly struct TagLayoutMap
     public ushort CounterBase { get; }
     public ushort CounterCount { get; }
     public ushort TotalTags { get; }
+    public ushort SystemTagBase => SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex;
+    public ushort SystemTagCount => SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagCount;
 
     public TagLayoutMap(
         ushort diCount,

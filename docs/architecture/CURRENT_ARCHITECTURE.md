@@ -310,3 +310,22 @@ graph TD
    * `E2E_RebootReconnect_PreservesRulesAndRuntime`: Gửi lệnh REBOOT, kiểm tra quy trình ngắt kết nối chủ động và kết nối lại với phiên làm việc hoàn toàn mới.
    * `E2E_PortMigration_ReconnectsToNewEndpoint`: Tự động nhận diện thiết bị khi đổi cắm sang cổng USB/COM khác.
 3. **McuEmulator Validation**: Công cụ giả lập vi điều khiển độc lập chạy trên nền tảng .NET 8 cho phép kiểm thử toàn bộ hệ thống khép kín trước khi chuyển giao cho kỹ sư phần cứng nạp lên chip STM32 vật lý.
+
+---
+
+## 7. Phân Hệ Điện Toán Biên IIoT & Mở Rộng Truyền Thông Mạng (Platform V2.8+)
+
+### 7.1. Khối Truyền Thông Socket Khách: TCP_CLIENT & HTTP_CLIENT
+* **`TCP_CLIENT` (Persistent Raw Socket):** Duy trì kết nối TCP socket liên tục tới máy chủ điều khiển hoặc trạm DTU, tự động kết nối lại (`ReconnectDelaySec`), gắn gói tin báo danh (`OnConnect` / `PrependToEveryPacket`) và phát nhịp tim NAT (`HeartbeatIntervalSec`) để duy trì kênh truyền không bị ngắt bởi tường lửa.
+* **`HTTP_CLIENT` (REST Webhook Client):** Tự động đóng gói dữ liệu cảm biến thành bản tin JSON đẩy lên REST API endpoint theo phương thức POST/PUT với cơ chế Timeout và Retry chuẩn công nghiệp.
+
+### 7.2. Không Gian DTU Gateway Studio (No-Code RS-485 to Cloud Bridge)
+* Cung cấp giao diện hướng dẫn 4 bước cấu hình cầu nối không cần lập trình: Khai báo cổng RS-485 $\rightarrow$ Kết nối Wi-Fi $\rightarrow$ Giao thức Uplink (MQTT/HTTP/TCP) $\rightarrow$ Định dạng gói tin JSON.
+* Biên dịch tự động cấu hình thành phân vùng thanh ghi DTU (`0x1600..0x16BF`) trên vi điều khiển.
+
+### 7.3. Dịch Vụ Thăm Dò & Chẩn Đoán Sống (Modbus Live Probe Service)
+* Dịch vụ `ModbusLiveProbeService` và `ModbusLiveTestInspectorViewModel` cho phép kỹ sư hiện trường đọc/ghi kiểm tra các thanh ghi ngoại vi trực tiếp trên bus RS-485 thời gian thực mà không cần nạp logic FBD.
+
+### 7.4. Động Cơ Phòng Vệ Dữ Liệu Đầu Vào (Bad-Data Defense Engine)
+* Tuân thủ triết lý First Principles (Axiom 1, 2, 3), phân tách nghiêm ngặt giữa trạng thái Drafting (đang gõ) và Committed (kết thúc nhập).
+* Sử dụng `SmartInputParser` để ngăn chặn triệt để số lẻ thập phân lọt vào thanh ghi số nguyên `INT32`, tự động chuẩn hóa (`"100.0"` $\rightarrow$ `100`), và tự động hoàn nguyên về giá trị an toàn khi người dùng nhập sai định dạng.

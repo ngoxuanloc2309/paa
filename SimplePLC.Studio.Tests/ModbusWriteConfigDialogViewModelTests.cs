@@ -4,6 +4,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="ModbusWriteConfigDialogViewModel"/> verifying write configurations, port options, and safety gates.
+/// </summary>
 public class ModbusWriteConfigDialogViewModelTests
 {
     [Fact]
@@ -437,5 +440,61 @@ public class ModbusWriteConfigDialogViewModelTests
         Assert.Equal(4, vm.AvailableFunctionCodes.Count);
         Assert.Equal(3, vm.AvailableTriggerModes.Count);
         Assert.Contains(vm.AvailablePorts, p => p.Value == 1 && p.DisplayName.Contains("RS485-B"));
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_WhenZigbeeEnabled_IncludesZigbeePortInDropdown()
+    {
+        // Arrange
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0, SlaveId = 1 };
+        var tagCatalog = new TagCatalogViewModel();
+        var ports = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "Port 1", Enabled = true }
+        };
+        var zigbee = new Models.ZigbeeConfigModel
+        {
+            Enabled = true,
+            Channel = 20,
+            PanIdHex = "ABCD"
+        };
+
+        // Act
+        var vm = new ModbusWriteConfigDialogViewModel(node, tagCatalog, ports, zigbee);
+
+        // Assert
+        Assert.Contains(vm.AvailablePorts, p => p.Value == 4 && p.DisplayName.Contains("Zigbee") && p.DisplayName.Contains("ABCD"));
+
+        // Select Zigbee port
+        vm.PortIndex = 4;
+        Assert.Contains("Zigbee", vm.PortSelectorTooltip);
+        Assert.Contains("Zigbee", vm.SummaryBadgeText);
+    }
+
+    [Theory]
+    [InlineData((byte)236)]
+    [InlineData((byte)237)]
+    public void ModbusWriteConfigDialogViewModel_SafetyGate_WhenZigbeePortAndRestrictedId_SetsErrorFlagAndRevertsOnApply(byte restrictedId)
+    {
+        // Arrange
+        var node = new ModbusWriteNodeViewModel();
+        var tagCatalog = new TagCatalogViewModel();
+        var zigbee = new Models.ZigbeeConfigModel { Enabled = true };
+        var vm = new ModbusWriteConfigDialogViewModel(node, tagCatalog, null, zigbee);
+
+        // Act 1: Normal RS-485 port does not restrict 236/237
+        vm.PortIndex = 0;
+        vm.SlaveId = restrictedId;
+        Assert.False(vm.HasRestrictedIdError);
+
+        // Act 2: Zigbee port activates Safety Gate
+        vm.PortIndex = 4;
+        Assert.True(vm.HasRestrictedIdError);
+        Assert.False(string.IsNullOrWhiteSpace(vm.RestrictedIdErrorMessage));
+
+        // Act 3: Apply automatically prevents saving restricted ID to node
+        vm.Apply();
+        Assert.NotEqual(restrictedId, node.SlaveId);
+        Assert.Equal((byte)1, node.SlaveId);
     }
 }

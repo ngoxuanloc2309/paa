@@ -2,6 +2,9 @@ using SimplePLC.Studio.Models;
 
 namespace SimplePLC.Studio.Services;
 
+/// <summary>
+/// Đồng hồ mô phỏng xác định phục vụ chu kỳ quét logic không chặn luồng (IEC 61508-3).
+/// </summary>
 public sealed class SimulatedClock : ISimulatedClock
 {
     public long NowMs { get; private set; }
@@ -9,6 +12,9 @@ public sealed class SimulatedClock : ISimulatedClock
     public void Advance(long milliseconds) => NowMs += Math.Max(0, milliseconds);
 }
 
+/// <summary>
+/// Giao diện đồng hồ mô phỏng đơn vị mili-giây (Monotonic Clock).
+/// </summary>
 public interface ISimulatedClock
 {
     long NowMs { get; }
@@ -16,6 +22,9 @@ public interface ISimulatedClock
     void Advance(long milliseconds);
 }
 
+/// <summary>
+/// Máy ảo thực thi chu kỳ quét PLC (Scan Engine) xử lý logic và tính toán System Tags xác định.
+/// </summary>
 public sealed class RuntimeEngine : IRuntimeEngine
 {
     private readonly IReadOnlyList<TagModel> _tags;
@@ -33,7 +42,65 @@ public sealed class RuntimeEngine : IRuntimeEngine
     {
         _tags = tags;
         foreach (var tag in tags)
-            _previous[tag.Index] = tag.Value;
+        {
+            if (tag.Kind == TagKind.System)
+            {
+                if (tag.Index == SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOn ||
+                    tag.Index == SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexCommOk)
+                {
+                    tag.Value = 1;
+                }
+                else
+                {
+                    tag.Value = 0;
+                }
+                _previous[tag.Index] = 0;
+            }
+            else
+            {
+                _previous[tag.Index] = tag.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật giá trị 8 System Tags chuẩn xác định theo tickMs và scanCount (IEC 61131-3).
+    /// </summary>
+    private void UpdateSystemTags(long tickMs)
+    {
+        var now = CurrentTime;
+        foreach (var tag in _tags)
+        {
+            if (tag.Kind != TagKind.System) continue;
+
+            switch (tag.Index)
+            {
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexFirstScan:
+                    tag.Value = _scanCount == 1 ? 1 : 0;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOn:
+                    tag.Value = 1;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOff:
+                    tag.Value = 0;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock1S:
+                    tag.Value = (tickMs / 500) % 2 == 0 ? 1 : 0;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock100Ms:
+                    tag.Value = (tickMs / 50) % 2 == 0 ? 1 : 0;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcHour:
+                    tag.Value = now.Hour;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcMinute:
+                    tag.Value = now.Minute;
+                    break;
+                case SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexCommOk:
+                    tag.Value = 1;
+                    break;
+            }
+        }
     }
 
     public RuntimeSnapshot Scan(SimplePLC.Application.Logic.Compilation.CompiledProgram program, long tickMs) =>
@@ -42,6 +109,7 @@ public sealed class RuntimeEngine : IRuntimeEngine
     public RuntimeSnapshot Scan(IReadOnlyList<SimplePLC.Domain.Models.Rule> rules, long tickMs)
     {
         _scanCount++;
+        UpdateSystemTags(tickMs);
         _events.Clear();
         var pending = new Dictionary<int, long>();
         var evaluations = new List<RuleEvaluationRecord>();
@@ -250,6 +318,7 @@ public sealed class RuntimeEngine : IRuntimeEngine
     public RuntimeSnapshot Scan(IReadOnlyList<RuleItemModel> rules, long tickMs)
     {
         _scanCount++;
+        UpdateSystemTags(tickMs);
         _events.Clear();
         var pending = new Dictionary<int, long>();
         var evaluations = new List<RuleEvaluationRecord>();
@@ -686,7 +755,25 @@ public sealed class RuntimeEngine : IRuntimeEngine
         _scanCount = 0;
         _previous.Clear();
         foreach (var tag in _tags)
-            _previous[tag.Index] = tag.Value;
+        {
+            if (tag.Kind == TagKind.System)
+            {
+                if (tag.Index == SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOn ||
+                    tag.Index == SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexCommOk)
+                {
+                    tag.Value = 1;
+                }
+                else
+                {
+                    tag.Value = 0;
+                }
+                _previous[tag.Index] = 0;
+            }
+            else
+            {
+                _previous[tag.Index] = tag.Value;
+            }
+        }
         _dwellStarted.Clear();
         _lastInterval.Clear();
         _events.Clear();
@@ -734,6 +821,9 @@ public sealed class RuntimeEngine : IRuntimeEngine
     }
 }
 
+/// <summary>
+/// Hợp đồng dịch vụ máy ảo thực thi chu kỳ quét SimplePLC.
+/// </summary>
 public interface IRuntimeEngine
 {
     Func<DateTime>? TimeProvider { get; set; }

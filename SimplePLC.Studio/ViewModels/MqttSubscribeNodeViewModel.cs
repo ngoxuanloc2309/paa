@@ -227,11 +227,24 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (sender is MqttPinBindingViewModel pin && e.PropertyName == nameof(MqttPinBindingViewModel.Label))
+        if (sender is MqttPinBindingViewModel pin)
         {
-            if (pin.Connector != null)
+            if (e.PropertyName == nameof(MqttPinBindingViewModel.Label))
             {
-                pin.Connector.Title = pin.Label;
+                if (pin.Connector != null)
+                {
+                    pin.Connector.Title = pin.Label;
+                }
+            }
+            else if (e.PropertyName == nameof(MqttPinBindingViewModel.TargetTag))
+            {
+                if (pin.Connector != null)
+                {
+                    pin.Connector.SetBilingualDescription(
+                        $"Trích xuất trường JSON '{pin.JsonPath}' ({pin.DataType}) từ bản tin MQTT -> {pin.TargetTag?.Name ?? "VREG"}",
+                        $"Extract JSON field '{pin.JsonPath}' ({pin.DataType}) from MQTT message -> {pin.TargetTag?.Name ?? "VREG"}");
+                }
+                OnPropertyChanged("PinTargetTag");
             }
         }
     }

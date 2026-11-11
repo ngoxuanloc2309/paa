@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using SimplePLC.Studio.ViewModels;
 
@@ -11,10 +12,30 @@ public partial class DtuGatewayConfigDialogView : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.RequestCloseDialog = (success) =>
+        {
+            try
+            {
+                DialogResult = success;
+            }
+            catch (InvalidOperationException)
+            {
+                Close();
+            }
+        };
         viewModel.RequestClose += () =>
         {
-            DialogResult = true;
-            Close();
+            try
+            {
+                if (DialogResult == null)
+                {
+                    DialogResult = true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                Close();
+            }
         };
     }
 }

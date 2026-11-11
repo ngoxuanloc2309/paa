@@ -5,6 +5,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="ModbusWriteNodeViewModel"/> verifying port assignment, write modes, deadbands, and UI summaries.
+/// </summary>
 public class ModbusWriteNodeViewModelTests
 {
     [Fact]
@@ -213,5 +216,31 @@ public class ModbusWriteNodeViewModelTests
         node.Deadband = 1.25f;
         Assert.Equal("Δ1.25", node.TriggerModeSummaryText);
     }
-}
 
+    [Fact]
+    public void ModbusWriteNodeViewModel_WhenPortIsZigbee_UpdatesDisplayPropertiesAndSummary()
+    {
+        var node = new ModbusWriteNodeViewModel
+        {
+            PortIndex = 4,
+            SlaveId = 12,
+            WriteMode = ModbusWriteMode.DirectRegisters,
+            FunctionCode = ModbusMasterWriteFunctionCode.WriteSingleRegister
+        };
+
+        Assert.True(node.IsZigbeePort);
+        Assert.Equal("Zigbee Wireless", node.PortDisplayName);
+        Assert.Contains("🌐 Zigbee", node.NodeInfoSummary);
+        Assert.Contains("ID:12", node.NodeInfoSummary);
+        Assert.Contains("FC06", node.NodeInfoSummary);
+        Assert.Contains("[Zigbee |", node.SummaryText);
+        Assert.Contains("FC06", node.SummaryText);
+
+        // Switch to RS-485 port 1
+        node.PortIndex = 1;
+        Assert.False(node.IsZigbeePort);
+        Assert.Equal("RS-485 #2", node.PortDisplayName);
+        Assert.DoesNotContain("🌐 Zigbee", node.NodeInfoSummary);
+        Assert.DoesNotContain("[Zigbee |", node.SummaryText);
+    }
+}

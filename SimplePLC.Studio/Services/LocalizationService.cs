@@ -1,104 +1,204 @@
 using System.ComponentModel;
+
 using System.Runtime.CompilerServices;
+
+
 
 namespace SimplePLC.Studio.Services;
 
+
+
 /// <summary>
+
 /// Đại diện cho một ngôn ngữ hỗ trợ trong ứng dụng SynaptiX Studio.
+
 /// </summary>
+
 /// <param name="Code">Mã định danh ngôn ngữ (ví dụ: vi, en).</param>
+
 /// <param name="NativeName">Tên hiển thị bản ngữ.</param>
+
 public record LanguageItem(string Code, string NativeName);
 
+
+
 /// <summary>
+
 /// Dịch vụ quản lý đa ngôn ngữ (Localization) cho toàn bộ ứng dụng SynaptiX Studio.
+
 /// </summary>
+
 public class LocalizationService : INotifyPropertyChanged
+
 {
+
     public static LocalizationService Instance { get; } = new();
 
+
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
     public event Action? LanguageChanged;
+
+
 
     private string _currentLanguage = "en"; // Default to English
 
+
+
     public string CurrentLanguage
+
     {
+
         get => _currentLanguage;
+
         set
+
         {
-            if (_currentLanguage != value && (value == "vi" || value == "en"))
+
+            string normalized = (value != null && value.StartsWith("vi", StringComparison.OrdinalIgnoreCase)) ? "vi" : "en";
+
+            if (_currentLanguage != normalized)
+
             {
-                _currentLanguage = value;
+
+                _currentLanguage = normalized;
+
                 OnPropertyChanged(nameof(CurrentLanguage));
+
                 OnPropertyChanged(nameof(IsVietnamese));
+
                 OnPropertyChanged(nameof(IsEnglish));
+
                 OnPropertyChanged(nameof(CurrentLanguageName));
+
                 OnPropertyChanged("Item[]");
+
                 LanguageChanged?.Invoke();
+
             }
+
         }
+
     }
+
+
 
     public bool IsVietnamese
+
     {
+
         get => CurrentLanguage == "vi";
+
         set { if (value) CurrentLanguage = "vi"; }
+
     }
+
+
 
     public bool IsEnglish
+
     {
+
         get => CurrentLanguage == "en";
+
         set { if (value) CurrentLanguage = "en"; }
+
     }
+
     public string CurrentLanguageName => IsVietnamese ? "Tiếng Việt" : "English";
 
+
+
     public IReadOnlyList<LanguageItem> AvailableLanguages { get; } = new List<LanguageItem>
+
     {
+
         new("vi", " Tiếng Việt"),
+
         new("en", " English")
+
     };
+
+
 
     public string this[string key] => Get(key);
 
+
+
     public string Get(string key)
+
     {
+
         if (IsVietnamese)
+
         {
+
             if (_viStrings.TryGetValue(key, out var viVal)) return viVal;
+
         }
+
         else
+
         {
+
             if (_enStrings.TryGetValue(key, out var enVal)) return enVal;
+
         }
+
+
 
         // Fallback to Vietnamese, then key itself
+
         if (_viStrings.TryGetValue(key, out var fallback)) return fallback;
+
         return key;
+
     }
+
+
 
     public string GetVi(string key) => _viStrings.TryGetValue(key, out var val) ? val : key;
+
     public string GetEn(string key) => _enStrings.TryGetValue(key, out var val) ? val : key;
+
     public static (string Vi, string En) GetBilingual(string key) => (Instance.GetVi(key), Instance.GetEn(key));
 
+
+
     public static string Tr(string key) => Instance.Get(key);
+
     public static string Tr(string key, string fallback)
+
     {
+
         var val = Instance.Get(key);
+
         return val != key ? val : fallback;
+
     }
+
+
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+
     {
+
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
     }
 
-    private readonly Dictionary<string, string> _viStrings = new()
-    {
-        // Window Title
-        ["AppTitle"] = "SynaptiX IDE — Cấu Hình & Lập Trình Thiết Bị",
 
+
+    private readonly Dictionary<string, string> _viStrings = new()
+
+    {
+
+        // Window Title
+
+        ["AppTitle"] = "SynaptiX IDE — Cấu Hình & Lập Trình Thiết Bị",
         // Menu Bar
+
         ["MenuFile"] = "Tệp",
         ["MenuNewProject"] = "Dự án mới",
         ["MenuSaveProject"] = "Lưu dự án",
@@ -246,7 +346,117 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusMasterInfoTitle"] = "CHẾ ĐỘ MODBUS RTU MASTER",
         ["ModbusMasterInfoLine1"] = "• Cổng này đóng vai trò Modbus Master chủ động gửi lệnh Đọc/Ghi tới các trạm Slave (ID: 1..247) qua các khối MB_READ và MB_WRITE trong sơ đồ Logic.",
         ["ModbusMasterInfoLine2"] = "• Thông số Timeout, Số lần thử lại và Độ trễ khung truyền ở trên được áp dụng tự động cho mọi giao thức trên cổng này.",
-        ["ModbusSlaveExportTooltip"] = "Xuất bảng địa chỉ Modbus Slave ra file CSV hoặc Markdown để tích hợp SCADA / HMI.",
+        ["ModbusMasterTableTitle"] = "BẢNG KÊNH MASTER I/O (MODBUS MASTER CHANNELS)",
+        ["ModbusMasterTableSubtitle"] = "Quét đọc cảm biến định kỳ và phát lệnh ghi điều khiển theo biến Tag",
+        ["ModbusBtnAddMasterChannel"] = "Thêm kênh Modbus",
+        ["ModbusColSlaveIdHeader"] = "Slave ID",
+        ["ModbusColSlaveIdTooltip"] = "Địa chỉ trạm ngoại vi Modbus RTU Slave (1 đến 247).",
+        ["ModbusColFunctionCodeHeader"] = "Mã hàm (FC)",
+        ["ModbusColFunctionCodeTooltip"] = "Mã hàm Modbus: FC01-04 (Đọc tuần hoàn), FC05-16 (Ghi khi đổi giá trị).",
+        ["ModbusColAddressHeader"] = "Địa chỉ",
+        ["ModbusColAddressTooltip"] = "Địa chỉ thanh ghi Modbus (1-based: 40001, 30001, 00001...).",
+        ["ModbusColDataTypeHeader"] = "Kiểu dữ liệu",
+        ["ModbusColDataTypeTooltip"] = "Định dạng giải mã kiểu dữ liệu nhị phân: INT16, REAL, BOOL, INT32...",
+        ["ModbusColEndiannessHeader"] = "Thứ tự byte",
+        ["ModbusColEndiannessTooltip"] = "Thứ tự sắp xếp byte và word (ABCD, CDAB, BADC, DCBA).",
+        ["ModbusColScaleHeader"] = "Hệ số (x)",
+        ["ModbusColScaleTooltip"] = "Hệ số nhân chuyển đổi đơn vị thực tế (ví dụ 0.1 để chia 10).",
+        ["ModbusColTargetTagHeader"] = "Tag Thiết Bị",
+        ["ModbusColTargetTagTooltip"] = "Tag trên thiết bị SynaptiX nhận dữ liệu đọc hoặc cung cấp dữ liệu để ghi.",
+        ["ModbusColAliasHeader"] = "Tên gợi nhớ (Alias)",
+        ["ModbusColAliasTooltip"] = "Tên gợi nhớ của biến Tag thiết bị (tự động đồng bộ với Tag Catalog).",
+        ["InspectorChannelDetailsTitle"] = "Chẩn Đoán Kênh Đang Chọn",
+        ["InspectorChannelDetailsDesc"] = "Phân tích bản tin byte truyền thông thực tế và quy chuẩn thanh ghi",
+        ["InspectorNoChannelSelected"] = "Chưa có kênh Modbus nào được chọn hoặc danh sách trống.",
+        ["InspectorWireFrameTitle"] = "Bản Tin Modbus RTU Thực Tế (Wire Frame)",
+        ["InspectorWireTxLabel"] = "TX (Gửi đi):",
+        ["InspectorWireRxLabel"] = "RX (Phản hồi dự kiến):",
+        ["InspectorRegSpanLabel"] = "Dải thanh ghi IEC:",
+        ["InspectorByteSizeLabel"] = "Kích thước dữ liệu:",
+        ["InspectorScalingFormulaLabel"] = "Công thức quy đổi:",
+        ["InspectorActiveChannelsFmt"] = "{0} Kênh đọc định kỳ",
+        ["InspectorBtnViewRawHex"] = "Chi tiết khung truyền Modbus Hex",
+        ["InspectorBtnHideRawHex"] = "Thu gọn khung truyền Hex",
+        ["InspectorWireFrameHint"] = "Bấm để xem phân tách từng byte Hex và kiểm tra mã CRC-16",
+        ["ModbusColEndiannessNotApplicable"] = "Chỉ áp dụng cho dữ liệu 32-bit (Real, Int32, UInt32) chiếm từ 2 thanh ghi trở lên",
+        ["LiveTestTitle"] = "Giám sát & Chẩn đoán Kênh Modbus",
+        ["LiveTestSubtitle"] = "Giá trị thực tế cảm biến do thiết bị SynaptiX đọc về qua RS-485",
+        ["LiveTestBtnReadOnce"] = "Đọc thử 1 lần",
+        ["LiveTestBtnContinuous"] = "Quét trực tiếp (1s)",
+        ["LiveTestNoPortSelected"] = "Chưa kết nối thiết bị",
+        ["LiveTestPortConnected"] = "Thiết bị trực tuyến",
+        ["LiveTestPortDisconnected"] = "Ngoại tuyến",
+        ["LiveTestOpenPort"] = "Kết nối",
+        ["LiveTestClosePort"] = "Ngắt kết nối",
+        ["LiveTestSelectPortTip"] = "Cổng kết nối với thiết bị SynaptiX",
+        ["LiveTestLatencyFmt"] = "{0} ms",
+        ["LiveTestRawFmt"] = "Raw: {0} ({1})",
+        ["LiveTestStatusGood"] = "Đang nhận dữ liệu tốt",
+        ["LiveTestStatusIdle"] = "Chờ thiết bị nạp cấu hình",
+        ["LiveTestErrorTimeout"] = "Cảm biến không phản hồi (Sensor Timeout)",
+        ["LiveTestErrorTimeoutHint"] = "Thiết bị SynaptiX không nhận được phản hồi trên dây RS-485. Kiểm tra cáp A+/B-, địa chỉ Slave ID và nguồn cảm biến.",
+        ["LiveTestErrorCrc"] = "Lỗi kiểm tra mã CRC (Nhiễu RS-485)",
+        ["LiveTestErrorCrcHint"] = "Kiểm tra lại Baud rate/Parity, điện trở 120Ω hoặc dây bọc kim chống nhiễu.",
+        ["LiveTestTargetChannel"] = "Kênh đang chọn:",
+        ["LiveTestNoChannelSelected"] = "Chọn một kênh trong bảng để xem chẩn đoán",
+        ["LiveTestWiringGuideTitle"] = "Sơ đồ chân RS-485",
+        ["LiveTestWiringGuideTip"] = "Bật trở đầu cuối 120Ω nếu khoảng cách dây kéo dài trên 50m",
+        ["DeviceSubToolbarSaveTip"] = "Lưu dự án hiện tại vào tệp [Ctrl+S]",
+        ["DeviceSubToolbarDeployTip"] = "Nạp cấu hình thiết bị và kênh Modbus xuống thiết bị SynaptiX [Ctrl+F5]",
+        ["InspectorDeviceTagLabel"] = "Tag Thiết Bị:",
+        ["InspectorDeviceTagTip"] = "Tag trên thiết bị SynaptiX nhận giá trị từ kênh Modbus này",
+        ["InspectorTagAliasLabel"] = "Bí danh (Alias):",
+        ["InspectorTagAliasTip"] = "Tên gợi nhớ của Tag trong Tag Catalog",
+        ["InspectorDataTypeLabel"] = "Kiểu dữ liệu:",
+        ["InspectorDataTypeTip"] = "Kiểu dữ liệu và thứ tự byte Modbus (Endianness)",
+        ["InspectorScaleLabel"] = "Hệ số quy đổi:",
+        ["InspectorScaleTip"] = "Hệ số nhân chuyển đổi giá trị thanh ghi thô sang đơn vị vật lý",
+        ["InspectorScaledValueTitle"] = "GIÁ TRỊ CẢM BIẾN",
+        ["InspectorScaledValueTip"] = "Giá trị cảm biến thực tế đo được qua cổng RS-485 của thiết bị SynaptiX",
+        ["InspectorBtnReadOnceTip"] = "Gửi lệnh thăm dò Modbus 1 lần để kiểm tra phản hồi từ cảm biến",
+        ["InspectorBtnContinuousTip"] = "Bật/Tắt chu kỳ tự động đọc liên tục mỗi 1 giây để theo dõi cảm biến",
+        ["InspectorHardwareStatusTip"] = "Trạng thái kết nối hiện tại giữa máy tính và thiết bị SynaptiX",
+        ["DeviceSubToolbarSyncOk"] = "Đã đồng bộ phần cứng",
+        ["DeviceSubToolbarSyncPending"] = "Cấu hình chưa nạp",
+        ["InspectorSensorStatusGood"] = "Đang nhận dữ liệu tốt",
+        ["InspectorSensorStatusTimeout"] = "Cảm biến không phản hồi (Timeout)",
+        ["InspectorSensorTimeoutHint"] = "Kiểm tra lại dây tín hiệu A+/B-, địa chỉ Slave ID và nguồn cảm biến.",
+        ["InspectorSensorStatusPendingDeploy"] = "Chờ nạp cấu hình",
+        ["InspectorSensorPendingDeployHint"] = "Bấm nút [Nạp xuống thiết bị (Ctrl+F5)] trên thanh công cụ để kích hoạt quét kênh.",
+        ["InspectorSensorStatusOffline"] = "Thiết bị ngoại tuyến",
+        ["InspectorSensorOfflineHint"] = "Kết nối thiết bị SynaptiX để bắt đầu nhận dữ liệu cảm biến.",
+        ["InspectorChannelProps"] = "Thông số Kênh Đang Chọn",
+        ["InspectorLiveTelemetry"] = "Dữ liệu Cảm biến Thời Gian Thực",
+        ["InspectorToggleCollapseTip"] = "Thu gọn bảng Inspector để mở rộng tối đa vùng làm việc",
+        ["InspectorToggleExpandTip"] = "Mở rộng bảng Inspector để xem chẩn đoán chi tiết",
+        ["InspectorBtnCollapse"] = "Thu gọn",
+        ["InspectorBtnExpand"] = "Inspector",
+        ["ModbusBtnDeleteMasterChannel"] = "Xóa kênh này khỏi bảng Modbus Master",
+        ["ModbusMasterTableEmptyTitle"] = "Chưa có kênh Modbus nào được cấu hình",
+        ["ModbusMasterTableEmptyHint"] = "Nhấn 'Thêm kênh Modbus' ở góc trên để thêm thanh ghi cần đọc hoặc lệnh ghi.",
+        ["ModbusMasterFooterNotice"] = "FC01-04 tự động quét tuần hoàn; FC05-16 tự động phát lệnh khi giá trị Tag thay đổi. Dữ liệu liên kết trực tiếp với Tag Catalog.",
+        ["ModbusMasterIoSectionTitle"] = "BẢNG THU THẬP & ĐIỀU KHIỂN MODBUS MASTER",
+        ["ModbusMasterIoSectionDesc"] = "Khai báo các kênh đọc cảm biến định kỳ và lệnh ghi điều khiển theo biến Tag",
+        ["ModbusMasterAddChannelBtn"] = "Thêm kênh Modbus",
+        ["ModbusMasterAddChannelTip"] = "Thêm một kênh đọc cảm biến hoặc lệnh ghi điều khiển mới",
+        ["ModbusMasterColSlaveId"] = "Trạm Slave",
+        ["ModbusMasterColSlaveIdTip"] = "Địa chỉ trạm ngoại vi Modbus RTU (1 đến 247)",
+        ["ModbusMasterColFc"] = "Mã hàm FC",
+        ["ModbusMasterColFcTip"] = "Mã hàm Modbus: FC01-04 (Đọc tuần hoàn), FC05-16 (Ghi khi đổi giá trị)",
+        ["ModbusMasterColAddr"] = "Địa chỉ",
+        ["ModbusMasterColAddrTip"] = "Địa chỉ thanh ghi Modbus (1-based, ví dụ 40001, 30001, 00001)",
+        ["ModbusMasterColType"] = "Kiểu dữ liệu",
+        ["ModbusMasterColTypeTip"] = "Định dạng giải mã dữ liệu nhị phân: INT16, REAL, BOOL...",
+        ["ModbusMasterColEndian"] = "Thứ tự byte",
+        ["ModbusMasterColEndianTip"] = "Thứ tự sắp xếp byte và word (ABCD, CDAB-WordSwap, BADC, DCBA)",
+        ["ModbusMasterColScale"] = "Hệ số tỷ lệ",
+        ["ModbusMasterColScaleTip"] = "Hệ số nhân chuyển đổi đơn vị thực tế (ví dụ 0.1 để chia 10)",
+        ["ModbusMasterColTag"] = "Biến Tag liên kết",
+        ["ModbusMasterColTagTip"] = "Biến Tag trong Tag Catalog nhận dữ liệu đọc hoặc cấp dữ liệu để ghi",
+        ["ModbusMasterColAction"] = "Thao tác",
+        ["ModbusMasterDeleteChannelTip"] = "Xóa kênh này khỏi bảng Modbus Master",
+        ["ModbusMasterNoChannelsMessage"] = "Chưa có kênh Modbus Master nào được cấu hình cho cổng này. Nhấn '+ Thêm kênh Modbus' để bắt đầu.",
+["ModbusSlaveExportTooltip"] = "Xuất bảng địa chỉ Modbus Slave ra file CSV hoặc Markdown để tích hợp SCADA / HMI.",
         ["ModbusSlaveExportNotice"] = "Đã xuất tài liệu bảng địa chỉ Modbus Slave thành công: {0}",
         ["WifiDialogTitle"] = "CẤU HÌNH WI-FI",
         ["WifiDialogSubtitle"] = "Quét mạng, thiết lập thông tin xác thực và giám sát tín hiệu không dây",
@@ -372,8 +582,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["MenuCheckUpdates"] = "Kiểm tra bản cập nhật...",
         ["MenuDocSpec"] = "Tài liệu đặc tả kỹ thuật SynaptiX IDE...",
         ["MenuAbout"] = "Giới thiệu SynaptiX IDE...",
-
         // Toolbar
+
         ["ToolNew"] = "Dự Án Mới",
         ["ToolNewTip"] = "Tạo dự án mới / Làm trống khung vẽ (Ctrl+N)",
         ["ToolOpen"] = "Mở Dự Án",
@@ -409,8 +619,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolDelete"] = "Xóa Khối (Del)",
         ["ToolDeleteTip"] = "Xóa khối đang chọn trên khung vẽ (Phím Delete)",
         ["ToolLanguage"] = "Ngôn ngữ:",
-
         // Navigation Tabs
+
         ["TabLogicGraph"] = "Đồ Thị Logic",
         ["TabTagCatalog"] = "Tag I/O",
         ["TabRuleTable"] = "Bảng Rule",
@@ -418,16 +628,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["TabDeploy"] = "Nạp Thiết Bị",
         ["TabSimulator"] = "Mô Phỏng",
         ["TabLiveWatch"] = "Giám Sát Sống",
-
         // Hardware Status
+
         ["StatusConnected"] = "Đã kết nối",
         ["StatusDisconnected"] = "Chưa kết nối",
         ["StatusMcuInfo"] = "SynaptiX Controller (Contract V2.0)",
         ["DeviceDefaultBadge"] = "Remote I/O",
         ["DeviceDefaultToolTip"] = "SynaptiX Remote I/O (8DI/8DO/4AI) · Cấu hình phần cứng mặc định",
         ["StatusScanLoop"] = "Vòng quét chu kỳ: 10 ms · Watchdog: OK · RS485 Modbus RTU",
-
         // Device Properties Dialog
+
         ["DeviceInfoTitle"] = "THÔNG TIN THIẾT BỊ",
         ["DeviceInfoSubtitle"] = "Chi tiết cấu hình phần cứng, tài nguyên I/O và firmware thiết bị",
         ["DeviceInfoGroupOverview"] = "1. NHẬN DẠNG THIẾT BỊ",
@@ -457,8 +667,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeviceInfoClickHint"] = "Bấm để xem thông tin chi tiết thiết bị",
         ["DeviceInfoStatusOnline"] = "TRỰC TUYẾN (ONLINE)",
         ["DeviceInfoStatusOffline"] = "NGOẠI TUYẾN (OFFLINE)",
-
         // New Project Wizard
+
         ["NewProjectDialogTitle"] = "Khởi tạo Dự án Mới",
         ["NewProjectDialogSubtitle"] = "Cấu hình thông tin dự án và phần cứng mục tiêu",
         ["NewProjectSectionInfo"] = "THÔNG TIN DỰ ÁN",
@@ -468,9 +678,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["NewProjectAuthor"] = "Kỹ sư / Tác giả:",
         ["NewProjectDescription"] = "Mô tả dự án:",
         ["NewProjectSectionHw"] = "CẤU HÌNH PHẦN CỨNG MỤC TIÊU",
-        ["NewProjectPresetMode"] = "Cấu hình mẫu chuẩn (Presets):",
-        ["NewProjectDetectConnected"] = "Nhận diện từ thiết bị đang kết nối",
-        ["NewProjectDetectConnectedTooltip"] = "Đọc tự động thông số thiết bị SynaptiX thực tế đang kết nối qua cổng nối tiếp",
+        ["NewProjectPresetMode"] = "Mẫu thiết bị phần cứng mục tiêu:",
+        ["NewProjectHardwareSeries"] = "Dòng phần cứng:",
+        ["NewProjectDeviceClass"] = "Lớp thiết bị (Class):",
+        ["NewProjectDetectConnected"] = "Nhận diện thiết bị",
+        ["NewProjectDetectConnectedTooltip"] = "Đọc tự động thông số phần cứng từ thiết bị SynaptiX đang kết nối",
         ["NewProjectCustomHw"] = "Tùy chỉnh thông số phần cứng (Custom Specification)",
         ["NewProjectCustomDi"] = "Ngõ vào số (DI):",
         ["NewProjectCustomDo"] = "Ngõ ra số (DO):",
@@ -491,8 +703,288 @@ public class LocalizationService : INotifyPropertyChanged
         ["PresetDataloggerDesc"] = "Cấu hình bộ thu thập & giám sát dữ liệu môi trường: 4DI, 2DO, 4AI, 94 Tags, 50 Rules.",
         ["PresetGatewayDesc"] = "Cấu hình Gateway chuyển đổi giao thức RS485/Ethernet: 2DI, 2DO, 104 Tags, 50 Rules.",
         ["PresetDtuDesc"] = "Cấu hình bộ truyền dữ liệu DTU công nghiệp: Chuyển đổi RS-485 lên Internet qua TCP/MQTT/HTTP, 100 Tags, 50 Rules.",
+        ["PresetXLinkZigbee44Desc"] = "Bộ I/O mở rộng không dây X.Link Zigbee: 4DI, 4DO Rơ-le, Modbus RTU Slave/Master, 68 Tags, 50 Rules.",
         ["TabDtuGateway"] = "DTU Gateway",
+        ["TabDevice"] = "Hệ thống",
+        ["MenuViewDevice"] = "Hệ thống (System)",
         ["MenuConfigureDtu"] = "Cấu hình DTU Gateway (RS-485 to Internet)...",
+                ["DtuWizardTitle_Old"] = "Trình Cấu Hình Nhanh DTU Gateway",
+        ["DtuWizardSubtitle"] = "Cấu hình Modbus RS-485 và tự động kết nối đẩy dữ liệu lên IoT Cloud",
+        ["DeviceNavRs485"] = "RS-485 Modbus",
+        ["DeviceNavRs485Desc"] = "Cổng nối tiếp & bảng thanh ghi cảm biến",
+        ["DeviceNavWifi"] = "Mạng Wi-Fi",
+        ["DeviceNavWifiDesc"] = "Tên mạng, mật khẩu & cấu hình IP",
+        ["DeviceNavMqtt"] = "MQTT Client",
+        ["DeviceNavMqttDesc"] = "Máy chủ Broker, đẩy tin & nhận lệnh",
+        ["DeviceNavHttp"] = "HTTP Client",
+        ["DeviceNavHttpDesc"] = "Đẩy dữ liệu qua Webhook POST/PUT",
+        ["DeviceNavTcp"] = "TCP Client",
+        ["DeviceNavTcpDesc"] = "Truyền thô dữ liệu qua mạng TCP",
+        ["DeviceNavUplink"] = "Cloud Uplink",
+        ["DeviceNavUplinkDesc"] = "MQTT, HTTP REST hoặc TCP Socket",
+        ["DeviceNavTiming"] = "Chu kỳ & Timing",
+        ["DeviceNavTimingDesc"] = "Tần suất gửi tin & xem trước dữ liệu",
+        ["ColFunctionCode"] = "Mã hàm (FC)",
+        ["DeviceRs485Subtitle"] = "Cấu hình thông số vật lý cổng UART RS-485 và bảng thanh ghi thu thập",
+        ["DeviceWifiSubtitle"] = "Thiết lập kết nối mạng không dây Wi-Fi và thông số địa chỉ IP",
+        ["DeviceUplinkSubtitle"] = "Cấu hình giao thức truyền dữ liệu lên máy chủ IoT Cloud (MQTT / HTTP / TCP)",
+        ["DeviceTimingSubtitle"] = "Thiết lập chu kỳ quét cảm biến, tần suất phát dữ liệu và xem trước Payload",
+        ["CardUartSettings"] = "Tham Số Cổng Nối Tiếp RS-485",
+        ["LblPortName"] = "Tên cổng",
+        ["LblBaudRate"] = "Tốc độ truyền (Baud)",
+        ["LblParity"] = "Kiểm tra chẵn lẻ",
+        ["LblDataBits"] = "Bit dữ liệu",
+        ["LblStopBits"] = "Bit dừng",
+        ["LblTimeout"] = "Thời gian chờ (ms)",
+        ["LblRetries"] = "Số lần thử lại",
+        ["LblInterFrameDelay"] = "Khoảng nghỉ khung (ms)",
+        ["CardOperationRole"] = "Vai Trò Hoạt Động RS-485",
+        ["CardOperationRoleDesc"] = "Thiết lập cách thức cổng RS-485 giao tiếp với mạng công nghiệp",
+        ["RoleMaster"] = "Modbus RTU Master (Thu thập cảm biến)",
+        ["RoleSlave"] = "Modbus RTU Slave (Phản hồi SCADA / PLC)",
+        ["CardMasterPollerDesc"] = "Tự động quét chu kỳ từ trạm Slave ngoại vi và liên kết vào bảng Tag",
+        ["CardSlaveMap"] = "Bản Đồ Vùng Nhớ Modbus Slave",
+        ["CardSlaveMapDesc"] = "Khai báo vùng nhớ để thiết bị SCADA hoặc PLC cấp trên đọc/ghi",
+        ["BtnAddRegister"] = "+ Thêm thanh ghi",
+        ["BtnAddMapping"] = "+ Thêm ánh xạ",
+        ["ColSlaveId"] = "Trạm Slave",
+        ["ColAddress"] = "Địa chỉ",
+        ["ColDataType"] = "Kiểu dữ liệu",
+        ["ColTagName"] = "Tên biến Tag",
+        ["ColDescription"] = "Diễn giải / Ghi chú",
+        ["ColStartAddress"] = "Địa chỉ bắt đầu",
+        ["ColQuantity"] = "Số lượng",
+        ["ColMappedTag"] = "Tag liên kết",
+        ["PinDataNonInverting"] = "Tín hiệu dương (Không đảo)",
+        ["PinDataInverting"] = "Tín hiệu âm (Đảo)",
+        ["PinShieldGnd"] = "Dây bọc kim / Tiếp địa chống nhiễu",
+        ["PinoutTermHint"] = "Gợi ý kỹ thuật: Đóng Jumper trở đầu cuối 120Ω nếu khoảng cách cáp dài hơn 50m để chống phản xạ sóng.",
+        ["InspectorTagCountLbl"] = "Số lượng Tag đang quét:",
+        ["InspectorBaudRateLbl"] = "Tốc độ truyền thông:",
+        ["InspectorEstScanTimeLbl"] = "Chu kỳ quét ước tính:",
+        ["InspectorBusLoadLbl"] = "Tải đường truyền Bus:",
+        ["InspectorTimeoutSafety"] = "Thời gian chờ phản hồi (Timeout) được thiết lập an toàn so với chu kỳ quét bus.",
+        ["InspectorSlaveGuideTitle"] = "Hướng Dẫn Kết Nối SCADA / PLC",
+        ["InspectorSlaveGuideDesc"] = "Quy tắc địa chỉ hóa khi SCADA đọc dữ liệu từ thiết bị",
+        ["InspectorSlaveBaseAddr"] = "Địa chỉ cơ sở Holding Register:",
+        ["InspectorSlaveSupportedFc"] = "Mã hàm hỗ trợ:",
+        ["InspectorSlaveFcList"] = "FC03 (Đọc), FC06 (Ghi đơn), FC16 (Ghi khối)",
+        ["InspectorSlaveRespTime"] = "Thời gian phản hồi tiêu chuẩn:",
+        ["InspectorSlaveRespVal"] = "< 5 ms (Bộ đệm RAM Direct DMA)",
+        ["InspectorSlaveHint"] = "Gợi ý: SCADA đọc tuần tự các thanh ghi ánh xạ bắt đầu từ địa chỉ đã khai báo.",
+        ["WifiHardwareStatus"] = "Trạng thái phần cứng Wi-Fi",
+        ["WifiMacAddress"] = "Địa chỉ MAC vật lý:",
+        ["WifiIpAddress"] = "Địa chỉ IP hiện tại:",
+        ["WifiSignalLevel"] = "Cường độ tín hiệu (RSSI):",
+        ["WifiReconnectPolicy"] = "Chính sách tự động kết nối lại:",
+        ["WifiReconnectVal"] = "Thử lại sau 5s khi rớt mạng",
+        ["InspectorIdentityTitle"] = "Danh Tính & Địa Chỉ Mạng Thiết Bị",
+        ["InspectorIdentityDesc"] = "Thông tin nhận diện phần cứng trên mạng cục bộ LAN",
+        ["InspectorCloudStateTitle"] = "Trạng Thái & Cấu Trúc Đám Mây",
+        ["InspectorCloudStateDesc"] = "Topo kết nối từ gateway tới máy chủ MQTT Broker",
+        ["InspectorBrokerHost"] = "Máy chủ Broker:",
+        ["InspectorTransportProto"] = "Giao thức truyền vận:",
+        ["InspectorTlsSecurity"] = "Mã hóa bảo mật:",
+        ["InspectorTlsEnabled"] = "Kích hoạt TLS v1.2 / v1.3",
+        ["InspectorTlsDisabled"] = "Không mã hóa (TCP thô)",
+        ["InspectorPublishRate"] = "Chu kỳ gửi tin:",
+        ["InspectorMsgsPerDay"] = "Số gói tin phát / ngày:",
+        ["InspectorEstMonthlyUsage"] = "Dung lượng ước tính:",
+        ["InspectorQuotaSimHint"] = "Gợi ý kỹ thuật: Gói cước SIM IoT tối thiểu khuyến nghị: 100 MB / tháng để vận hành ổn định.",
+        ["InspectorLiveJsonTitle"] = "Bản Tin JSON Thời Gian Thực",
+        ["InspectorLiveJsonDesc"] = "Xem trước gói tin được đóng gói tự động từ bảng Tag",
+        ["CardUartSettingsDesc"] = "Tốc độ baud, bit chẵn lẻ và thời gian chờ phản hồi",
+        ["CardRoleSelect"] = "Vai Trò Cổng RS-485",
+        ["CardMasterPoller"] = "Bảng Khai Báo Thanh Ghi Cảm Biến (Modbus Master Poller)",
+        ["CardSlaveMapping"] = "Bản Đồ Vùng Nhớ Thanh Ghi (Modbus Slave)",
+        ["CardWifiStatus"] = "Trạng Thái Phần Cứng & Kết Nối Wi-Fi",
+        ["CardWifiCredentials"] = "Thông Tin Mạng & Xác Thực",
+        ["CardWifiIp"] = "Cấu Hình Địa Chỉ IP",
+        ["CardMqttServer"] = "Máy Chủ MQTT Broker & Xác Thực",
+        ["CardMqttTls"] = "Bảo Mật Đường Truyền & Chứng Chỉ TLS/SSL",
+        ["CardMqttTopics"] = "Chủ Đề Dữ Liệu (Topics) & Chất Lượng Dịch Vụ (QoS)",
+        ["CardMqttLwt"] = "Bản Tin LWT Ngoại Tuyến (Last Will & Testament)",
+        ["CardHttpEndpoint"] = "Máy Chủ HTTP REST & Phương Thức Gửi",
+        ["CardHttpHeaders"] = "Headers Yêu Cầu & Mã Xác Thực",
+        ["CardHttpMappings"] = "Bảng Ánh Xạ Trường Dữ Liệu HTTP",
+        ["CardTcpSocket"] = "Máy Chủ TCP Socket & Cổng Kết Nối",
+        ["CardTcpAdvanced"] = "Gói Tin Đăng Ký & Giữ Kết Nối (Heartbeat PING)",
+        ["CardTiming"] = "Thiết Lập Chu Kỳ & Tần Suất",
+        ["CardPayloadPreview"] = "Xem Trước Gói Tin Thời Gian Thực (Live Payload)",
+        ["DeviceConfigTitle"] = "CẤU HÌNH THIẾT BỊ",
+        ["DeviceConfigSubtitle"] = "Thiết lập cổng truyền thông RS-485, mạng Wi-Fi và đẩy dữ liệu lên Cloud",
+        ["DtuInspectorHeaderTitle"] = "GIÁM SÁT & CHẨN ĐOÁN",
+        ["DtuInspectorHeaderSubtitle"] = "Đo kiểm cảm biến & trạng thái thiết bị",
+        ["DtuInspectorSlaveHeaderTitle"] = "HƯỚNG DẪN KẾT NỐI SCADA / HMI",
+        ["DtuInspectorSlaveHeaderSubtitle"] = "Thông số trạm: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorNoRegSelected"] = "Chọn một thanh ghi trong bảng để xem chi tiết",
+        ["ModbusSlaveInspectorCardTitle"] = "CẤU HÌNH TRUYỀN THÔNG SCADA",
+        ["ModbusSlaveInspectorAddressLabel"] = "Địa chỉ SCADA (1-based):",
+        ["ModbusSlaveInspectorOffsetLabel"] = "Địa chỉ Offset (0-based):",
+        ["ModbusSlaveInspectorFuncLabel"] = "Mã hàm (FC):",
+        ["ModbusSlaveInspectorLengthLabel"] = "Độ dài / Định dạng:",
+        ["ModbusSlaveInspectorAccessLabel"] = "Quyền truy cập:",
+        ["ModbusSlaveInspectorRuleLabel"] = "QUY TẮC ÁNH XẠ (BIT / BYTE MAPPING):",
+        ["ModbusSlaveInspectorServerBadge"] = "Modbus RTU Server: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorSelectedReg"] = "Thông Số Thanh Ghi Slave Được Chọn",
+        ["ModbusSlaveInspectorLiveMemoryTitle"] = "GIÁ TRỊ NỘI BỘ PLC HIỆN TẠI (SCADA SẼ ĐỌC)",
+        ["ModbusSlaveInspectorWireTitle"] = "Mô Phỏng Giao Thức Khung Truyền SCADA (Wire Protocol)",
+        ["ModbusSlaveInspectorScadaQuery"] = "Khung truyền SCADA Master gửi tới:",
+        ["ModbusSlaveInspectorPlcResponse"] = "Khung truyền PLC phản hồi SCADA:",
+        ["ModbusSlaveInspectorServerStatus"] = "Trạng thái Server Slave:",
+        ["ModbusSlaveInspectorListening"] = "Sẵn sàng phục vụ SCADA (ID: {0}, {1} bps)",
+        ["ModbusSlaveInspectorHexOffset"] = "Địa chỉ Hex (0-based):",
+        ["ModbusSlaveInspectorFuncCodes"] = "Mã hàm hỗ trợ:",
+        ["InspectorWifiHeaderTitle"] = "THÔNG TIN MẠNG WI-FI",
+        ["InspectorWifiHeaderSubtitle"] = "Trạng thái bộ thu phát vô tuyến & địa chỉ IP",
+        ["InspectorWifiDisabledSubtitle"] = "Bộ thu phát vô tuyến Wi-Fi đang tắt (Radio Off)",
+        ["InspectorWifiConnectedSubtitle"] = "Mạng: {0} · {1}",
+        ["InspectorMqttHeaderTitle"] = "MQTT TELEMETRY & STATUS",
+        ["InspectorMqttHeaderSubtitle"] = "Kết nối Broker & kiến trúc chủ đề",
+        ["InspectorHttpHeaderTitle"] = "HTTP ENDPOINT & PAYLOAD",
+        ["InspectorHttpHeaderSubtitle"] = "Điểm cuối HTTP & báo cáo dữ liệu",
+        ["InspectorTcpHeaderTitle"] = "TCP SOCKET & STREAM",
+        ["InspectorTcpHeaderSubtitle"] = "Kết nối Socket TCP & luồng gói tin",
+        ["DeviceNavZigbee"] = "Mạng Zigbee",
+        ["DeviceNavZigbeeDesc"] = "Mạng vô tuyến Modbus over Zigbee",
+        ["InspectorZigbeeHeaderTitle"] = "VIỄN TRẮC SÓNG ZIGBEE",
+        ["InspectorZigbeeHeaderSubtitle"] = "Chẩn đoán chất lượng tín hiệu & mạng Mesh",
+        ["PageHeaderZigbeeTitle"] = "Zigbee Wireless Modbus",
+        ["PageHeaderZigbeeSubtitle"] = "Cấu hình mạng không dây Zigbee, địa chỉ trạm, kênh sóng và bảo mật mã hóa AES-128",
+        ["ZigbeeEnableTitle"] = "Kích hoạt phân hệ truyền thông không dây Zigbee trên thiết bị",
+        ["ZigbeeCardNetworkTitle"] = "Tham Số Mạng Vô Tuyến & Định Danh Nút",
+        ["ZigbeeCardNetworkDesc"] = "Cấu hình vai trò thiết bị trong mạng Mesh, địa chỉ trạm Modbus, PAN ID và kênh sóng",
+        ["ZigbeeCardSecurityTitle"] = "Bảo Mật Mạng Không Dây AES-128 (IEC 62443)",
+        ["ZigbeeCardSecurityDesc"] = "Bảo vệ liên kết vô tuyến chống xâm nhập và nghe lén dữ liệu qua không gian mở",
+        ["ZigbeeRoleSlave"] = "Slave / Router (Nút mạng lắng nghe & chuyển tiếp)",
+        ["ZigbeeRoleMaster"] = "Master / Coordinator (Nút điều phối khởi tạo mạng)",
+        ["ZigbeeFieldStationId"] = "Địa chỉ trạm (Node ID):",
+        ["ZigbeeFieldPanId"] = "Mã mạng (PAN ID):",
+        ["ZigbeeFieldChannel"] = "Kênh sóng (Channel):",
+        ["ZigbeeFieldAntenna"] = "Loại ăng-ten vô tuyến:",
+        ["ZigbeeAntennaPcb"] = "Ăng-ten tích hợp sẵn trên mạch (PCB)",
+        ["ZigbeeAntennaExternal"] = "Ăng-ten ngoài nối giắc SMA",
+        ["ZigbeeFieldEnableSecurity"] = "Bật mã hóa bảo mật mạng AES-128 CCM*",
+        ["ZigbeeFieldKey"] = "Khóa bảo mật mạng (16 bytes):",
+        ["ZigbeeFieldPreserveKey"] = "Giữ nguyên khóa trong Flash MCU khi nạp cấu hình (PRESERVE_KEY)",
+        ["ZigbeeShowKey"] = "Hiện mật khẩu",
+        ["ZigbeeHideKey"] = "Ẩn mật khẩu",
+        ["ZigbeeInspectorLinkState"] = "Trạng thái liên kết:",
+        ["ZigbeeInspectorRssi"] = "Cường độ tín hiệu:",
+        ["ZigbeeInspectorLqi"] = "Chất lượng sóng (LQI):",
+        ["ZigbeeInspectorNodeCount"] = "Số nút trong Mesh:",
+        ["ZigbeeInspectorPackets"] = "Gói tin TX / RX:",
+        ["ZigbeeInspectorErrorCode"] = "Mã lỗi phần cứng:",
+        ["ZigbeeTopologyTitle"] = "Sơ đồ topo truyền thông:",
+        ["ZigbeeChannelGuidance"] = "Khuyến nghị kênh sóng:",
+        ["ZigbeeErrRestrictedId"] = "Cấm sử dụng ID 236 (0xEC) và 237 (0xED) vì trùng mã lệnh cấu hình module RF.",
+        ["ZigbeeDisabledSubtitle"] = "Phân hệ truyền thông không dây Zigbee đang tắt (Radio Off)",
+        ["ZigbeeFieldRole"] = "Vai trò thiết bị:",
+        ["ZigbeePanIdRangeHint"] = "Dải: 0x0001 .. 0xFFFE",
+        ["ZigbeeEnableSubtitle"] = "Kích hoạt truyền thông Modbus qua sóng không dây Zigbee Mesh",
+        ["InspectorZigbeeRadioTitle"] = "TRẠNG THÁI LIÊN KẾT VÔ TUYẾN",
+        ["PageHeaderMqttTitle"] = "MQTT Client",
+        ["PageHeaderMqttSubtitle"] = "Cấu hình kết nối Broker, xuất bản dữ liệu Telemetry và nhận lệnh Command qua MQTT",
+        ["PageHeaderHttpTitle"] = "HTTP Client",
+        ["PageHeaderHttpSubtitle"] = "Cấu hình điểm cuối gửi dữ liệu qua HTTP POST/PUT và Header tùy chỉnh",
+        ["PageHeaderTcpTitle"] = "TCP Client",
+        ["PageHeaderTcpSubtitle"] = "Cấu hình truyền dữ liệu nối tiếp qua mạng TCP, gói tin nhịp tim và đăng ký",
+        ["InspectorHttpEndpointLabel"] = "Điểm cuối URL:",
+        ["InspectorHttpMethodLabel"] = "Phương thức:",
+        ["InspectorHttpTimeoutLabel"] = "Thời gian Timeout:",
+        ["InspectorHttpHeadersLabel"] = "Headers tùy chỉnh:",
+        ["InspectorHttpFieldCountLabel"] = "Trường dữ liệu:",
+        ["InspectorTcpModeLabel"] = "Chế độ Socket:",
+        ["InspectorTcpServerLabel"] = "Máy chủ từ xa:",
+        ["InspectorTcpPortLabel"] = "Cổng kết nối:",
+        ["InspectorTcpHeartbeatLabel"] = "Nhịp tim (Heartbeat):",
+        ["InspectorTcpRegLabel"] = "Gói tin đăng ký:",
+        ["WifiAutoReconnectLabelShort"] = "Tự động kết nối lại:",
+        ["EnableWifiService"] = "Kích hoạt kết nối Wi-Fi trên thiết bị",
+        ["NoticeWifiDisabled"] = "Kết nối Wi-Fi đang tắt trên thiết bị này. Tích chọn checkbox ở trên để kích hoạt kết nối không dây.",
+        ["InspectorWifiRadioTitle"] = "THÔNG TIN VÔ TUYẾN WI-FI",
+        ["InspectorWifiRadioSubtitle"] = "Thông số kết nối vô tuyến và băng tần sóng",
+        ["InspectorWifiIpTitle"] = "ĐỊNH DANH PHẦN CỨNG & IP",
+        ["InspectorWifiIpSubtitle"] = "Địa chỉ MAC phần cứng và cấu hình IPv4",
+        ["EnableHttpClientService"] = "Kích hoạt dịch vụ HTTP Client trên thiết bị",
+        ["NoticeHttpClientDisabled"] = "Dịch vụ HTTP Client đang tắt trên thiết bị này. Tích chọn checkbox ở trên để kích hoạt gửi dữ liệu Webhook / REST API.",
+        ["EnableTcpClientService"] = "Kích hoạt dịch vụ TCP Client trên thiết bị",
+        ["NoticeTcpClientDisabled"] = "Dịch vụ TCP Client đang tắt trên thiết bị này. Tích chọn checkbox ở trên để kích hoạt kết nối Socket TCP.",
+        ["InspectorUplinkHeaderTitle"] = "CẤU HÌNH CLOUD UPLINK",
+        ["InspectorUplinkHeaderSubtitle"] = "Giao thức IoT Cloud & bảo mật đường truyền",
+        ["InspectorTimingHeaderTitle"] = "CHU KỲ TRUYỀN DỮ LIỆU",
+        ["InspectorTimingHeaderSubtitle"] = "Tần suất phát tin & xem trước định dạng dữ liệu",
+        ["WifiRadioEnableLabel"] = "Kích hoạt Wi-Fi (Power):",
+        ["WifiRadioEnableCheck"] = "Bật kết nối Wi-Fi",
+        ["WifiAutoReconnectCheck"] = "Tự động kết nối lại khi mất sóng",
+        ["WifiSsidLabel"] = "Tên mạng Wi-Fi (SSID):",
+        ["WifiPasswordLabel"] = "Mật khẩu bảo mật (Password):",
+        ["WifiScanBtn"] = "Quét mạng Wi-Fi",
+        ["WifiScanningText"] = "Đang quét các trạm phát Wi-Fi...",
+        ["WifiScanFoundFormat"] = "Đã tìm thấy {0} mạng Wi-Fi lân cận.",
+        ["WifiDhcpLabel"] = "Sử dụng DHCP (Tự động nhận địa chỉ IP từ Router mạng)",
+        ["WifiStaticIpLabel"] = "Địa chỉ IP tĩnh:",
+        ["WifiSubnetLabel"] = "Mặt nạ mạng (Subnet Mask):",
+        ["WifiGatewayLabel"] = "Cổng mặc định (Gateway):",
+        ["WifiDnsLabel"] = "Máy chủ DNS chính:",
+        ["WifiRssiRadioOff"] = "— (Vô hiệu hóa)",
+        ["WifiRssiOffline"] = "— (Thiết bị Offline)",
+        ["WifiRssiGuideGood"] = "≥ -65 dBm (Tốt)",
+        ["WifiRssiGuideFair"] = "-66..-75 dBm (Khá)",
+        ["WifiRssiGuideWeak"] = "≤ -76 dBm (Yếu)",
+        ["WifiNoSsidPlaceholder"] = "(Chưa cấu hình SSID)",
+        ["WifiIpDhcpAuto"] = "DHCP Client (Tự động)",
+        ["WifiIpStaticManual"] = "IP tĩnh (Thủ công)",
+        ["WifiPasswordToggleTip"] = "Ẩn / Hiện mật khẩu Wi-Fi",
+        ["WifiCardWlanStatusTitle"] = "TRẠNG THÁI BỘ THU PHÁT WI-FI",
+        ["WifiWlanModeLabel"] = "Chế độ mạng:",
+        ["WifiWlanModeVal"] = "Station (STA) · 2.4 GHz 802.11 b/g/n",
+        ["WifiWlanSecurityLabel"] = "Chuẩn bảo mật:",
+        ["WifiWlanSecurityVal"] = "WPA2-PSK (AES / WPA3-Ready)",
+        ["WifiIpConfigTypeLabel"] = "Cơ chế cấp IP:",
+        ["WifiSubnetValLabel"] = "Mặt nạ mạng:",
+        ["WifiGatewayValLabel"] = "Cổng mặc định:",
+        ["WifiDnsValLabel"] = "Máy chủ DNS:",
+        ["BtnSaveConfig"] = "Lưu cấu hình",
+        ["DeviceConfigAppliedStatus"] = "Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị",
+        ["InspectorPinoutTitle"] = "Sơ Đồ Chân & Đấu Nối Vật Lý",
+        ["InspectorPinoutDesc"] = "Cổng domino 3 chân RS-485 và điện trở cân bằng 120Ω",
+        ["InspectorBusHealthTitle"] = "Tải Đường Truyền & Sức Khỏe Bus",
+        ["InspectorTopologyTitle"] = "Sơ Đồ Topo Mạng Không Dây",
+        ["InspectorTopologyDesc"] = "Luồng truyền tin từ trạm DTU qua Access Point lên Cloud",
+        ["InspectorTopicFlowTitle"] = "Kiến Trúc Chủ Đề Cloud 2 Chiều",
+        ["InspectorTopicFlowDesc"] = "Kiến trúc chủ đề 2 chiều Uplink, Downlink và LWT ngoại tuyến",
+        ["InspectorDataUsageTitle"] = "Ước Tính Tiêu Thụ Dữ Liệu (Data Quota)",
+        ["InspectorDataUsageDesc"] = "Băng thông mạng 4G/Wi-Fi tiêu thụ ước tính theo chu kỳ",
+        ["BtnCopyMac"] = "Sao chép MAC",
+        ["BtnCopyJson"] = "Sao chép JSON",
+        ["DeviceUploadBtn"] = "Đọc từ thiết bị (Upload)",
+        ["DeviceUploadBtnTip"] = "Đọc trực tiếp cấu hình đang lưu trong MCU DTU lên các trường form trên IDE",
+        ["DeviceDownloadBtn"] = "Nạp xuống thiết bị (Download)",
+        ["DeviceDownloadBtnTip"] = "Biên dịch và ghi toàn bộ thông số cấu hình xuống bộ nhớ flash của thiết bị",
+        ["DeviceQuickWizardBtn"] = "Quick Wizard",
+        ["BtnQuickWizard"] = "Quick Wizard",
+        ["DeviceQuickWizardBtnTip"] = "Mở trình hướng dẫn từng bước 1-2-3 cho người dùng mới",
+        ["DeviceHardwareConnected"] = "ĐÃ KẾT NỐI",
+        ["DeviceHardwareDisconnected"] = "Chưa kết nối phần cứng",
+        ["DeviceDeployNotConnectedTip"] = "⚡ Thiết bị chưa được kết nối! Vui lòng kết nối thiết bị tại thanh kết nối ở góc trên bên phải trước khi nạp.",
+        ["DtuStep1Title"] = "1. Nguồn Dữ Liệu RS-485",
+        ["DtuStep1Desc"] = "Chọn vai trò cổng và khai báo các thanh ghi cảm biến cần thu thập",
+        ["DtuStep2Title"] = "2. Đích Đẩy Lên Mạng",
+        ["DtuStep2Desc"] = "Chọn giao thức truyền thông Internet và thông số máy chủ đích",
+        ["DtuStep3Title"] = "3. Chu Kỳ & Xác Nhận",
+        ["DtuStep3Desc"] = "Cài đặt chu kỳ gửi dữ liệu và xem trước bản tin thực tế",
+        ["DtuBtnNext"] = "Tiếp tục >",
+        ["DtuBtnBack"] = "< Quay lại",
+        ["DtuBtnFinish"] = "🚀 Hoàn tất & Tạo sơ đồ FBD",
+        ["DtuBtnCancel"] = "Hủy bỏ",
+        ["DtuFastRegAdd"] = "+ Thêm thanh ghi",
+        ["DtuFastRegColSlave"] = "Slave ID",
+        ["DtuFastRegColAddress"] = "Địa chỉ (Reg)",
+        ["DtuFastRegColType"] = "Kiểu dữ liệu",
+        ["DtuFastRegColTag"] = "Tên biến Tag",
+        ["DtuFastRegColDesc"] = "Mô tả / Ghi chú",
+        ["DtuAutoGenerateFbdTip"] = "Tự động sinh các khối Modbus và Uplink trên sơ đồ FBD và cắm dây sẵn.",
         ["DtuStudioTitle"] = "SYNAPTIX DTU GATEWAY STUDIO",
         ["DtuStudioSubtitle"] = "Bộ chuyển đổi dữ liệu RS-485 lên Internet (Truyền trong suốt / Modbus RTU qua MQTT, HTTP, TCP)",
         ["DtuDeployBtn"] = "Nạp DTU xuống Thiết Bị",
@@ -516,8 +1008,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuJsonConfigTitle"] = "KHO CÚ PHÁP ĐÓNG GÓI BẢN TIN JSON (JSON TEMPLATE BUILDER)",
         ["DtuJsonConfigSubtitle"] = "Tùy biến cấu trúc dữ liệu JSON gửi lên MQTT, HTTP REST hoặc TCP Socket",
         ["DtuMonitorTitle"] = "BẢNG ĐIỀU KHIỂN GIÁM SÁT & TRUYỀN THỬ NGHIỆM GÓI TIN",
-        ["MqttWillSectionTitle"] = "Bản tin di chúc (Last Will & Testament - LWT)",
-        ["MqttWillEnableLabel"] = "Kích hoạt bản tin di chúc (LWT)",
+        ["MqttWillSectionTitle"] = "Bản tin LWT ngoại tuyến (Last Will & Testament)",
+        ["MqttWillEnableLabel"] = "Kích hoạt bản tin LWT (Last Will & Testament)",
         ["MqttWillTopicLabel"] = "Will Topic",
         ["MqttWillPayloadLabel"] = "Will Payload",
         ["MqttWillRetainLabel"] = "Will Retain",
@@ -534,6 +1026,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuHttpAddFieldBtn"] = "+ Thêm trường",
         ["InspectorConfigureBtn"] = "Cấu hình DTU Gateway...",
         // DTU Detailed Industrial Studio Keys (Issue #10)
+
         ["DtuSerialModeTransference"] = "Truyền trong suốt (Transparent / Passthrough)",
         ["DtuSerialModeModbusMaster"] = "Modbus RTU Master (Thu thập thiết bị ngoài)",
         ["DtuSerialModeModbusSlave"] = "Modbus RTU Slave (Đáp ứng SCADA ngoài)",
@@ -558,12 +1051,12 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuMqttSubTopicLabel"] = "Chủ đề nhận lệnh điều khiển (Subscribe Topic)",
         ["DtuMqttQosLabel"] = "Mức dịch vụ QoS",
         ["DtuMqttRetainLabel"] = "Lưu bản tin trên Broker (Retain)",
-        ["DtuMqttLwtTitle"] = "Bản tin di chúc báo sự cố (Last Will & Testament - LWT)",
+        ["DtuMqttLwtTitle"] = "Bản tin LWT báo sự cố (Last Will & Testament)",
         ["DtuMqttLwtEnableLabel"] = "Kích hoạt LWT",
-        ["DtuMqttLwtTopicLabel"] = "Chủ đề di chúc (Will Topic)",
+        ["DtuMqttLwtTopicLabel"] = "Chủ đề LWT (Will Topic)",
         ["DtuMqttLwtQosLabel"] = "Mức dịch vụ Will QoS",
-        ["DtuMqttLwtRetainLabel"] = "Lưu tin di chúc (Retain)",
-        ["DtuMqttLwtPayloadLabel"] = "Nội dung di chúc báo offline (tối đa 30 ký tự)",
+        ["DtuMqttLwtRetainLabel"] = "Lưu bản tin LWT (Retain)",
+        ["DtuMqttLwtPayloadLabel"] = "Nội dung LWT báo offline (tối đa 30 ký tự)",
         ["DtuHttpCardTitle"] = "Cấu hình HTTP(s) REST Client",
         ["DtuHttpMethodLabel"] = "Phương thức HTTP",
         ["DtuHttpUrlLabel"] = "Đường dẫn API (Endpoint URL)",
@@ -597,6 +1090,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuMonitorSendBtn"] = "Phát Thử Nghiệm",
         ["DtuMonitorClearBtn"] = "Xóa Nhật Ký",
         // DTU International Standards & Payload Formatter (Task 12)
+
         ["DtuPayloadModeGroup"] = "Chế độ định dạng dữ liệu (Payload Mode):",
         ["DtuPayloadModeStandard"] = "Chuẩn Công Nghiệp (Standard IEC)",
         ["DtuPayloadModeCustom"] = "Tùy Biến Mẫu JSON (Custom)",
@@ -624,6 +1118,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuMacroPayloadLenDesc"] = "Độ dài byte của gói tin nhận được",
         ["DtuMacroPacketSeqDesc"] = "Số thứ tự gói tin tăng dần (Sequence)",
         // DTU Task 12 & UI Standardization Keys
+
         ["DtuMqttTopicsCardTitle"] = "Cấu hình Kênh Dữ liệu Telemetry & Điều khiển",
         ["DtuStandardFieldsTitle"] = "CÁC TRƯỜNG DỮ LIỆU CHUẨN IEC / ISA-95 (NO-CODE)",
         ["DtuStandardFieldsDesc"] = "Tự động đóng gói các trường dữ liệu đo lường theo tiêu chuẩn công nghiệp quốc tế ISA-95 và IEC 62541 mà không cần lập trình mã.",
@@ -641,8 +1136,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuTcpRegistrationTitle"] = "GÓI TIN ĐỊNH DANH BÁO DANH (REGISTRATION / LOGIN PACKET)",
         ["DtuTcpRegistrationTypeLabel"] = "Chế độ gửi báo danh:",
         ["DtuTcpRegistrationPayloadLabel"] = "Chuỗi báo danh (hỗ trợ {{DEVICE_ID}}):",
-
         // DTU Specification in New Project Dialog (Issue #10 & #17)
+
         ["NewProjectDtuCategoryLabel"] = "Phân loại thiết bị:",
         ["NewProjectDtuCategoryVal"] = "Gateway DTU Công nghiệp",
         ["NewProjectDtuSerialLabel"] = "Cổng nối tiếp RS-485:",
@@ -665,8 +1160,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NewProjectNoDeviceConnected"] = "Chưa có thiết bị kết nối! Vui lòng kết nối bộ điều khiển SynaptiX hoặc chọn cấu hình mẫu.",
         ["NewProjectDeviceDetectedSuccess"] = "Đã nhận diện thành công cấu hình phần cứng từ thiết bị kết nối!",
         ["NewProjectInvalidName"] = "Tên dự án không được để trống hoặc chứa ký tự đặc biệt không hợp lệ.",
-
         // Left Toolbox
+
         ["ToolboxTitle"] = "HỘP CÔNG CỤ",
         ["ToolboxSubtitle"] = "Kéo thả các khối vào khung vẽ ở giữa",
         ["ToolboxSearchPrompt"] = "Tìm kiếm khối lệnh (vd: TON, Scale)...",
@@ -706,8 +1201,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolboxInputDesc"] = "DI0..7, AI0..3, VREG",
         ["ToolboxGuideTitle"] = "CÁCH KẾT NỐI:",
         ["ToolboxGuideText"] = "Nối dây theo luồng:\n[Ngõ vào]  [Kích hoạt]  [Khóa liên động]  [Hành động] hoặc [Ngõ vào]  [Timer/Counter].\nBấm Delete để xóa khối.",
-
         // Right Inspector
+
         ["InspectorTitle"] = "THUỘC TÍNH KHỐI",
         ["InspectorSubtitle"] = "Điều chỉnh tham số logic chi tiết",
         ["InspectorNoSelectionTitle"] = "Chưa chọn khối nào",
@@ -816,8 +1311,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorSaveDesc"] = "Mọi liên kết khối trên sơ đồ đều được tự động lưu vào Bảng Rule Firmware để nạp xuống thiết bị.",
         ["InspectorSaveButton"] = "Lưu & Biên Dịch (Ctrl+S)",
         ["ToastViewRuleTable"] = "Xem Bảng Rule",
-
         // Node Cards
+
         ["NodeInputHeader"] = "Input Tag",
         ["NodeInputSub"] = "Cung cấp giá trị từ thiết bị",
         ["NodeTriggerHeader"] = "Trigger",
@@ -826,8 +1321,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NodeGuardSub"] = "Chặn nếu điều kiện không thỏa mãn",
         ["NodeActionHeader"] = "Action",
         ["NodeActionSub"] = "Thực thi cập nhật trạng thái tag",
-
         // Tag Catalog View
+
         ["TagCatalogTitle"] = "DANH MỤC TAG I/O & BIẾN NỘI BỘ (128 TAGS)",
         ["TagCatalogDesc"] = "Cấu hình tên gợi nhớ và theo dõi trạng thái sống của các ngõ I/O vật lý và cờ nhớ nội bộ",
         ["TagSearchPrompt"] = "Tìm kiếm theo tên tag, alias, địa chỉ...",
@@ -837,8 +1332,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ColTagAlias"] = "Tên Gợi Nhớ (Nhấp để sửa)",
         ["TagAliasPlaceholder"] = "Nhấp để đặt tên gợi nhớ...",
         ["ColTagValue"] = "Giá Trị & Thao Tác",
-
         // Rule Table View
+
         ["RuleTableTitle"] = "DANH SÁCH QUY TẮC ĐIỀU KHIỂN",
         ["RuleTableDesc"] = "Tổng hợp các kịch bản tự động hóa được biên dịch từ đồ thị logic để thực thi trên thiết bị",
         ["RuleTableSyncBtn"] = "Đồng bộ từ Đồ thị Node",
@@ -922,18 +1417,18 @@ public class LocalizationService : INotifyPropertyChanged
         ["RuleBtnDeduplicateTip"] = "Tự động phát hiện và loại bỏ các quy tắc trùng lặp logic trong Bảng Rule",
         ["SaveAsNewRule"] = "Lưu thành Rule mới",
         ["SaveAsNewRuleTip"] = "Lưu bản vẽ hiện tại thành một Rule mới riêng biệt trong Bảng Rule thay vì ghi đè lên quy tắc đang sửa",
-
         // Deploy View
+
         ["DeployTitle"] = "NẠP CẤU HÌNH XUỐNG THIẾT BỊ (MODBUS RS485)",
         ["DeployDesc"] = "Tuân thủ tiêu chuẩn an toàn SPLC-AF-003. Kích hoạt khi CRC-16 khớp và lệnh Commit 0xA5A5 hoàn tất.",
         ["DeployStartBtn"] = "Bắt Đầu Nạp Xuống Thiết Bị",
-
         // Simulator View
+
         ["SimTitle"] = "BÀN GIẢ LẬP PHẦN CỨNG (VIRTUAL DEVICE)",
         ["SimDesc"] = "Kích hoạt trạng thái I/O ảo và quan sát phản ứng của các Rule đã nạp theo thời gian thực.",
         ["SimToggleBtn"] = "Chạy Giả Lập",
-
         // Canvas Simulation Bar
+
         ["SimBarRun"] = "Chạy mô phỏng",
         ["SimBarAutoRun"] = "Chạy tự động",
         ["SimBarPause"] = "Tạm dừng",
@@ -979,6 +1474,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["VirtualIoInputsTitle"] = "NGÕ VÀO (DI0 .. DI7)",
         ["VirtualIoOutputsTitle"] = "NGÕ RA (DO0 .. DO7)",
         ["VirtualIoAnalogTitle"] = "NGÕ VÀO TƯƠNG TỰ (AI0 .. AI3)",
+        ["VirtualIoSysTitle"] = "BIẾN HỆ THỐNG & XUNG NHỊP (SYS_*)",
+        ["TagNoneAlias"] = "Không chọn",
+        ["SysFirstScanAlias"] = "Xung quét đầu tiên",
+        ["SysAlwaysOnAlias"] = "Luôn Bật (TRUE)",
+        ["SysAlwaysOffAlias"] = "Luôn Tắt (FALSE)",
+        ["SysClock1SAlias"] = "Xung nhịp 1 giây (1.0 Hz)",
+        ["SysClock100MsAlias"] = "Xung nhịp 100ms (10.0 Hz)",
+        ["SysRtcHourAlias"] = "Giờ thực tế (0..23)",
+        ["SysRtcMinuteAlias"] = "Phút thực tế (0..59)",
+        ["SysCommOkAlias"] = "Truyền thông kết nối tốt",
         ["VirtualIoAllDiOff"] = "Tắt tất cả DI",
         ["VirtualIoResetAll"] = "Đặt lại toàn bộ I/O",
         ["VirtualIoToggleTip"] = "Bật/Tắt Bảng điều khiển I/O Ảo",
@@ -999,8 +1504,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimBtnOn"] = "● BẬT",
         ["SimBtnOff0"] = "○ TẮT (0)",
         ["SimBtnOn1"] = "● BẬT (1)",
-
         // Narrative Preview (Inspector)
+
         ["NarrativeNoSelection"] = "Chọn một khối trên đồ thị để xem và chỉnh sửa thuộc tính.",
         ["NarrTrigFall"] = "Khi tín hiệu chuyển từ BẬT sang TẮT (Sườn xuống 1 → 0)",
         ["NarrTrigRise"] = "Khi tín hiệu chuyển từ TẮT sang BẬT (Sườn lên 0 → 1)",
@@ -1065,8 +1570,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NarrPulseOutBus"] = "Xuất Trực Tiếp - Bus chấp hành nối tiếp ({0}):\n• Hỗ trợ tối đa {1} kênh địa chỉ trên cùng 1 cọc phần cứng {0}.\n• Chân 'Chan' chọn địa chỉ thiết bị (1..{1}), chân 'Param' mang dữ liệu thực thi (RGB/Mã lệnh).\n• Chính sách kênh: {2}.\n• Xuất tức thời chu kỳ scan, chân 'Done' kích hoạt xác nhận gói tin được phát thành công.",
         ["NarrPulseOutBusExcl"] = "Độc quyền (Tự động ngắt các kênh khác khi kích hoạt)",
         ["NarrPulseOutBusIndep"] = "Độc lập (Cho phép nhiều kênh cùng tích cực)",
-
         // Compiler Diagnostics
+
         ["Diag_SPLC-COMP-W01"] = "Sơ đồ logic chưa có khối Hành động (Action). 0 quy tắc được tạo ra.",
         ["Diag_SPLC-COMP-001"] = "Khối Hành động '{0}' chưa được kết nối với khối Kích hoạt hoặc Khóa liên động.",
         ["Diag_SPLC-COMP-002"] = "Khối Khóa liên động '{0}' chưa được kết nối với khối Kích hoạt phía trước.",
@@ -1094,19 +1599,19 @@ public class LocalizationService : INotifyPropertyChanged
         ["Diag_SPLC-COMP-SCALE-IN"] = "Khối Chuyển đổi tỉ lệ (Scale) '{0}' chưa được kết nối Ngõ vào (cổng 'IN').",
         ["Diag_SPLC-COMP-SCALE-OUT"] = "Khối Chuyển đổi tỉ lệ (Scale) '{0}' cần được kết nối Ngõ ra (kéo OUT tới Lệnh xuất hoặc chọn Tag).",
         ["DiagUnsupportedNode"] = "Sơ đồ chứa loại khối không được hỗ trợ.",
-
         // Compile State
+
         ["CompileStateValid"] = "Hợp lệ",
         ["CompileStateStale"] = "Chưa biên dịch",
         ["CompileStateInvalid"] = "Có lỗi",
         ["RtcBatteryLowBadge"] = "Pin RTC yếu",
-
         // Save Status
+
         ["SaveStatusStale"] = "● Cấu hình đã thay đổi · Cần biên dịch",
         ["SaveStatusNoRules"] = "○ Chưa có Rule hợp lệ",
         ["SaveStatusValid"] = "{0} Rule hợp lệ",
-
         // Node display
+
         ["NodeLiveOn"] = "BẬT",
         ["NodeLiveOff"] = "TẮT",
         ["NodeLastKnown"] = "[Lần cuối: {0}]",
@@ -1118,8 +1623,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TrigTypeLoop"] = "{0}ms Chu kỳ",
         ["TrigTypeShift"] = "Khung giờ",
         ["SimLedFired"] = "● ĐÃ XUẤT LỆNH",
-
         // Scan Detail Simulation
+
         ["SimScanStatic"] = "Không đổi",
         ["SimScanTrigTrue"] = "ĐẠT",
         ["SimScanTrigFalse"] = "CHƯA ĐẠT",
@@ -1155,8 +1660,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimDiagNoEdge"] = "Chưa có xung",
         ["SimDiagWaitFall"] = "Chờ sườn 1→0",
         ["SimDiagFalse"] = "Chưa đạt",
-
         // Deploy
+
         ["DeployPreflightStale"] = "Cảnh báo: Bản vẽ logic đang có thay đổi chưa biên dịch (Stale). Cần biên dịch trước khi nạp.",
         ["DeployPreflightInvalid"] = "Lỗi: Bản vẽ logic đang có lỗi biên dịch (Invalid). Không thể nạp.",
         ["DeployPreflightReady"] = "Sẵn sàng nạp: {0} Rule đã biên dịch hợp lệ.",
@@ -1217,18 +1722,18 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeployBtnOpenLiveWatch"] = "Mở Giám Sát Trực Tiếp (Live Watch)",
         ["DeploySuccessTitle"] = "Đã Nạp Thành Công Xuống Thiết Bị!",
         ["DeploySuccessDesc"] = "Thiết bị đang chạy cấu hình mới. Bạn có thể mở Giám Sát để xem tín hiệu I/O.",
-
         // RuleTable View
+
         ["RuleTableReadOnlyBadge"] = "CHỈ ĐỌC · CHIẾU TỪ BẢN VẼ",
         ["RuleTableEditOnCanvas"] = "Chỉnh sửa trên Canvas",
-
         // Blueprints View
+
         ["BlueprintsTitle"] = "THƯ VIỆN MẪU DỰNG SẴN (BLUEPRINTS)",
         ["BlueprintsDesc"] = "Các kịch bản tự động hóa nhà máy phổ biến nhất, sẵn sàng đưa vào áp dụng ngay chỉ với 1 click chuột.",
         ["BlueprintsApplyBtn"] = "Sử Dụng Mẫu Này (Áp Dụng)",
         ["BlueprintsUsedTags"] = "CÁC TAG SỬ DỤNG:",
-
         // Simulator View
+
         ["SimHardwareDIHeader"] = "NGÕ VÀO VẬT LÝ (DI0 .. DI7) - BẤM ĐỂ GẠT CÔNG TẮC",
         ["SimHardwareAIHeader"] = "NGÕ VÀO TƯƠNG TỰ (AI0 .. AI3) - TRƯỢT ĐỂ THAY ĐỔI",
         ["SimHardwareDOHeader"] = "NGÕ RA ĐIỀU KHIỂN (DO0 .. DO7) - TRẠNG THÁI THỜI GIAN THỰC",
@@ -1239,8 +1744,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimTotalOutput"] = "TỔNG SẢN LƯỢNG",
         ["SimTraceFilterTip"] = "Chỉ hiện chu kỳ có hoạt động (PASS / WAITING / BLOCKED)",
         ["SimTraceOrderTip"] = "Thứ tự thực thi & same-scan causality",
-
         // Live Watch View
+
         ["LiveWatchTitle"] = "Trực Tuyến & Chẩn Đoán Thiết Bị",
         ["LiveWatchLastUpdated"] = "Cập nhật lần cuối:",
         ["LiveWatchCycle"] = "• Chu kỳ: 200 ms",
@@ -1293,8 +1798,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["FilterRetain"] = "Lưu trữ Flash (RETAIN)",
         ["FilterCounter"] = "Bộ đếm (COUNTER)",
         ["FilterVarCounter"] = "Biến & Bộ đếm",
-
         // Live Watch Detail & Inspector
+
         ["LiveWatchInspectorTitle"] = "CHI TIẾT TAG & TÍN HIỆU THỜI GIAN THỰC",
         ["LiveWatchInspectorSubtitle"] = "Thanh tra thông số và giám sát đồ thị dạng sóng trực tiếp",
         ["InspectorSelectPrompt"] = "Chọn một Tag trong bảng bên trái để xem phân tích chi tiết và biểu đồ tín hiệu.",
@@ -1327,8 +1832,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TraceToff"] = "Toff (Tắt)",
         ["TraceFreq"] = "Tần số (f)",
         ["TraceSlewRate"] = "Tốc độ dốc",
-
         // Reset Reasons
+
         ["ResetReasonPor"] = "Khởi động cấp nguồn",
         ["ResetReasonPin"] = "Nút Reset phần cứng",
         ["ResetReasonSoftware"] = "Lệnh phần mềm",
@@ -1336,8 +1841,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ResetReasonLowPower"] = "Thoát chế độ chờ",
         ["ResetReasonBrownout"] = "Bảo vệ sụt áp nguồn",
         ["ResetReasonUnknown"] = "Không xác định",
-
         // Live Status & Quality
+
         ["LiveStatusOnline"] = "Đang trực tuyến",
         ["LiveStatusConnecting"] = "Đang kết nối...",
         ["LiveStatusOffline"] = "Chưa kết nối",
@@ -1349,8 +1854,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["QualityUnknown"] = "MẤT TÍN HIỆU",
         ["ValOn"] = "BẬT",
         ["ValOff"] = "TẮT",
-
         // Rule Options (Dropdowns)
+
         ["OptCompareEq"] = "=  Bằng",
         ["OptCompareNeq"] = "≠  Khác",
         ["OptCompareGt"] = ">  Lớn hơn",
@@ -1359,13 +1864,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["OptCompareLte"] = "≤  Nhỏ hơn hoặc bằng",
         ["OptCompareBetween"] = "[Lo .. Hi]  Nằm trong khoảng",
         ["OptCompareNone"] = "—  Không so sánh",
-
         ["OptTrigRise"] = "Sườn lên (0 → 1)",
         ["OptTrigFall"] = "Sườn xuống (1 → 0)",
         ["OptTrigChange"] = "Biến thiên giá trị",
         ["OptTrigInterval"] = "Chu kỳ lặp (ms)",
         ["OptTrigWindow"] = "Khung giờ ca",
-
         ["OptActSet"] = "Đặt giá trị ngõ ra",
         ["OptActToggle"] = "Đảo trạng thái ngõ ra",
         ["OptActInc"] = "Tăng bộ đếm",
@@ -1373,8 +1876,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["OptActAlarm"] = "Phát cảnh báo",
         ["OptActLog"] = "Ghi nhật ký sự kiện",
         ["OptActScale"] = "Quy đổi tỉ lệ (SCALE)",
-
         // Badges on Node Cards
+
         ["BadgeCompareEq"] = "= BẰNG",
         ["BadgeCompareNeq"] = "≠ KHÁC",
         ["BadgeCompareGt"] = "> LỚN HƠN",
@@ -1383,10 +1886,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["BadgeCompareLte"] = "≤ NHỎ HƠN HOẶC BẰNG",
         ["BadgeCompareBetween"] = "[{0}..{1}] TRONG KHOẢNG",
         ["BadgeCompareNone"] = "KHÔNG SO SÁNH",
-
         ["BadgeGuardInvert"] = "ĐẢO NGƯỢC (NOT)",
         ["BadgeGuardPass"] = "CHO PHÉP",
-
         ["BadgeActSet"] = "ĐẶT GIÁ TRỊ",
         ["BadgeActToggle"] = "ĐẢO TRẠNG THÁI",
         ["BadgeActInc"] = "TĂNG BỘ ĐẾM",
@@ -1394,16 +1895,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["BadgeActAlarm"] = "CẢNH BÁO",
         ["BadgeActLog"] = "GHI NHẬT KÝ",
         ["BadgeActScale"] = "QUY ĐỔI (SCALE)",
-
         ["PromptThresholdMin"] = "Ngưỡng dưới (Tối thiểu):",
         ["PromptThresholdVal"] = "Giá trị so sánh:",
-
         ["NodeTitleTrigger"] = "Kích hoạt",
         ["NodeTitleGuard"] = "Khóa liên động",
         ["NodeTitleAction"] = "Lệnh xuất",
         ["NodeTitleInput"] = "Ngõ vào",
-
         // Tag Catalog Enhancements
+
         ["TagCatalogTitleDynamic"] = "DANH MỤC TAG I/O & BIẾN NỘI BỘ ({0} TAGS)",
         ["TagSearchPlaceholder"] = "Tìm theo mã tag, bí danh, địa chỉ Modbus...",
         ["ColTagModbus"] = "Địa chỉ Modbus",
@@ -1420,8 +1919,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TagExportSuccess"] = "Xuất danh mục {0} tags ra tệp CSV thành công!\n{1}",
         ["TagBannerSecMeaning"] = "Ý NGHĨA & THIẾT BỊ TRƯỜNG THỰC TẾ",
         ["TagBannerSecRole"] = "VAI TRÒ TRONG QUY TẮC LOGIC (THIẾT BỊ)",
-
         // Inspector Counter Form
+
         ["InspectorCounterSelecting"] = "KHỐI BỘ ĐẾM (COUNTER)",
         ["InspectorNodeLabel"] = "Nhãn khối (tùy chọn)",
         ["InspectorCounterMode"] = "Chế độ đếm",
@@ -1429,8 +1928,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorCounterAdvancedCv"] = "Nâng cao: Thanh ghi lưu trữ CV (Tự động)",
         ["InspectorCvTag"] = "Thanh ghi lưu trữ CV",
         ["InspectorCvTagHint"] = "Thanh ghi lưu trữ số đếm hiện tại. Mặc định tự động dùng vùng nhớ không mất dữ liệu (VREG_RETAIN) để bảo toàn giá trị khi mất điện.",
-
         // Scale / Analog & Actuators
+
         ["ToolboxAnalogCategory"] = "XỬ LÝ TƯƠNG TỰ & CHẤP HÀNH",
         ["ToolboxAnalogOnlyCategory"] = "XỬ LÝ TƯƠNG TỰ",
         ["ToolboxScaleTitle"] = "SCALE (Chuyển đổi Tuyến tính)",
@@ -1457,8 +1956,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorScalePoint2"] = "Điểm 2 (Điểm Max / Span):",
         ["InspectorScaleBtnApplyCalib"] = "Tính toán & Áp dụng Gain/Offset",
         ["InspectorScaleNarrative"] = "Khối SCALE: Đọc từ {0}  Tuyến tính {1} ({2}){3}  Ra cổng OUT ({4}).",
-
         // Specialized Communication & Fieldbus Protocols (Issue #17)
+
         ["ToolboxCommCategory"] = "TRUYỀN THÔNG",
         ["ToolboxModbusCategory"] = "MODBUS",
         ["ToolboxMqttCategory"] = "MQTT",
@@ -1468,6 +1967,142 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolboxMqttDesc"] = "Phát dữ liệu đo lường, trạng thái hoặc cảnh báo lên MQTT Broker (Raw/JSON/Custom)",
         ["ToolboxMqttSubTitle"] = "MQTT Subscribe",
         ["ToolboxMqttSubDesc"] = "Nhận bản tin MQTT và trích xuất dữ liệu ra các chân ngõ ra",
+        ["ToolboxHttpClientTitle"] = "HTTP Client",
+        ["ToolboxHttpClientDesc"] = "Đẩy dữ liệu đo lường, cảnh báo lên Webhook/Server qua HTTP POST / PUT",
+        ["ToolboxHttpClientReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng và tính năng HTTP Client.",
+        ["ToolboxTcpClientTitle"] = "TCP Client",
+        ["ToolboxTcpClientDesc"] = "Mở Socket TCP và truyền nhận luồng dữ liệu (Raw bytes hoặc chuỗi) với Server",
+        ["ToolboxTcpClientReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng và tính năng TCP Client / Transparent Stream.",
+        ["InspectorHttpClientSelecting"] = "KHỐI TRUYỀN TIN HTTP CLIENT",
+        ["InspectorTcpClientSelecting"] = "KHỐI TRUYỀN TIN TCP CLIENT",
+        ["InspectorHttpClientConfigureBtn"] = "Cấu hình HTTP Client...",
+        ["InspectorHttpClientConfigureTooltip"] = "Mở hộp thoại thiết lập URL Endpoint, Headers và Bản mẫu JSON",
+        ["InspectorTcpClientConfigureBtn"] = "Cấu hình TCP Client...",
+        ["InspectorTcpClientConfigureTooltip"] = "Mở hộp thoại thiết lập địa chỉ Socket TCP, Báo danh và Heartbeat",
+        ["InspectorHttpMethodLabel"] = "Phương thức:",
+        ["InspectorHttpEndpointLabel"] = "URL Endpoint:",
+        ["InspectorHttpTriggerLabel"] = "Kích hoạt:",
+        ["InspectorHttpPayloadLabel"] = "Tải trọng:",
+        ["InspectorTcpServerLabel"] = "Máy chủ:",
+        ["InspectorTcpReconnectLabel"] = "Thử lại:",
+        ["InspectorTcpHeartbeatLabel"] = "Heartbeat:",
+        ["InspectorTcpRegLabel"] = "Báo danh:",
+        // HTTP Client Dialog
+
+        ["HttpClientConfigDialogTitle"] = "Cấu hình HTTP Client / Webhook",
+        ["HttpClientConfigDialogSubtitle"] = "Thiết lập phương thức REST API, URL máy chủ, Tiêu đề Headers và Bản mẫu Tải trọng JSON",
+        ["HttpClientGroupEndpoint"] = "THÔNG SỐ ĐÍCH ĐẾN (ENDPOINT & METHOD)",
+        ["HttpClientGroupEndpointDesc"] = "Cấu hình máy chủ REST API / Webhook tiếp nhận dữ liệu từ thiết bị",
+        ["HttpClientGroupTrigger"] = "CHẾ ĐỘ KÍCH HOẠT (TRIGGER & TIMING)",
+        ["HttpClientGroupTriggerDesc"] = "Xác định thời điểm gửi yêu cầu HTTP lên máy chủ",
+        ["HttpClientGroupPayload"] = "BẢN MẪU TẢI TRỌNG (PAYLOAD TEMPLATE)",
+        ["HttpClientGroupPayloadDesc"] = "Tùy biến nội dung bản tin JSON hoặc dữ liệu thô gửi kèm yêu cầu",
+        ["HttpClientFieldMethod"] = "Phương thức HTTP:",
+        ["HttpClientFieldUrl"] = "Địa chỉ URL Endpoint (tối đa 64 ký tự):",
+        ["HttpClientFieldUrlTip"] = "Nhập URL hoàn chỉnh bắt đầu bằng http:// hoặc https://",
+        ["HttpClientFieldTimeout"] = "Thời gian chờ (giây):",
+        ["HttpClientFieldHeaders"] = "Tiêu đề HTTP tùy biến (Headers):",
+        ["HttpClientFieldHeadersTip"] = "Ví dụ: Content-Type: application/json (tối đa 56 ký tự)",
+        ["HttpClientFieldTriggerMode"] = "Điều kiện kích hoạt:",
+        ["HttpClientFieldPeriodicInterval"] = "Chu kỳ gửi (giây):",
+        ["HttpClientFieldPayloadMode"] = "Định dạng dữ liệu:",
+        ["HttpClientFieldTemplate"] = "Bản mẫu chuỗi JSON:",
+        ["HttpClientFieldPreview"] = "Xem trước tải trọng kết quả:",
+        ["HttpClientBtnInsertDevice"] = "+ {device}",
+        ["HttpClientBtnInsertTs"] = "+ {ts}",
+        ["HttpClientBtnInsertVal"] = "+ {val}",
+        ["HttpClientBtnInsertTag"] = "+ {tag}",
+        ["HttpClientOptPostDesc"] = "POST (Tạo mới / Gửi viễn trắc)",
+        ["HttpClientOptPutDesc"] = "PUT (Cập nhật dữ liệu)",
+        ["HttpClientOptTrigDataDesc"] = "Theo chân kích hoạt Trig / Dữ liệu Data",
+        ["HttpClientOptPeriodicDesc"] = "Gửi định kỳ theo chu kỳ thời gian",
+        ["HttpClientOptJsonFieldsDesc"] = "Ghép trường JSON (Visual Field Builder - Khuyên dùng)",
+        ["HttpClientOptCustomDesc"] = "Bản mẫu JSON tùy biến (Custom JSON)",
+        ["HttpClientOptRawDesc"] = "Dữ liệu thô từ chân DATA / Tag",
+        ["HttpClientTriggerEventBadge"] = "Kích hoạt bởi xung cạnh lên ở chân Trig (FBD)",
+        ["HttpClientColKey"] = "Tên trường JSON",
+        ["HttpClientColTag"] = "Tag nguồn PLC",
+        ["HttpClientColDataType"] = "Kiểu dữ liệu",
+        ["HttpClientBtnAddField"] = "+ Thêm trường dữ liệu",
+        ["HttpClientFieldDataTag"] = "Tag dữ liệu nguồn (Source Tag):",
+        ["HttpClientJsonValidBadge"] = "Cú pháp JSON Hợp lệ",
+        ["HttpClientJsonInvalidBadge"] = "Cú pháp JSON Không hợp lệ:",
+        ["HttpClientFieldMethodTip"] = "Chọn phương thức HTTP REST API: POST (tạo mới/gửi viễn trắc) hoặc PUT (cập nhật tài nguyên).",
+        ["HttpClientFieldTimeoutTip"] = "Thời gian chờ tối đa phản hồi từ server (1 - 60 giây). Quá thời gian chân Err sẽ bật.",
+        ["HttpClientFieldTriggerTip"] = "Chế độ Event: Gửi khi có xung ở chân Trig; Chế độ Cyclic: Tự động gửi định kỳ theo timer.",
+        ["HttpClientFieldIntervalTip"] = "Khoảng thời gian đếm giây giữa các lần tự động gửi request (1 - 3600 giây).",
+        ["HttpClientFieldPayloadModeTip"] = "JSON: Dùng bảng ghép trường trực quan; Custom: Soạn mẫu tự do; Raw: Gửi giá trị đơn từ Tag/Chân cắm.",
+        ["HttpClientOptRawPlainDesc"] = "Plain Text / Thô (text/plain)",
+        ["SourceUseFbdPin"] = "— Sử dụng dữ liệu từ chân cắm FBD (DATA Pin - Auto-link) —",
+        ["SourceUseFbdPinTcp"] = "— Sử dụng dữ liệu từ chân cắm FBD (DataIn Pin - Auto-link) —",
+        ["SourceUseFbdPinTip"] = "Tự động lấy dữ liệu thô nhận được từ dây nối vào chân DATA trên sơ đồ FBD để truyền đi.",
+        ["SourceUseFbdPinTcpTip"] = "Dữ liệu thô từ khối Modbus hoặc thiết bị đo nối vào chân DataIn sẽ được truyền thẳng lên máy chủ qua socket.",
+        ["HttpClientColKeyTip"] = "Tên trường thuộc tính JSON (chỉ dùng chữ cái, số và dấu gạch dưới).",
+        ["HttpClientColTagTip"] = "Chọn Tag PLC làm nguồn cung cấp giá trị cho trường dữ liệu này.",
+        ["HttpClientColDataTypeTip"] = "Kiểu dữ liệu vật lý theo chuẩn IEC 61131-3 của Tag đã chọn.",
+        ["HttpClientBtnDeleteFieldTip"] = "Xóa trường dữ liệu này khỏi gói tin JSON.",
+        ["HttpClientBtnAddFieldTip"] = "Thêm một trường dữ liệu mới vào bảng ghép trường.",
+        ["HttpClientFieldTemplateTip"] = "Soạn thảo cấu trúc bản mẫu JSON tùy biến theo yêu cầu của Server/Webhook.",
+        ["HttpClientPreviewPayloadTip"] = "Nội dung tải trọng JSON thực tế được tạo ra theo thời gian thực.",
+        ["HttpClientDiagTitle"] = "THÔNG TIN CHẨN ĐOÁN VIỄN TRẮC",
+        ["HttpClientDiagMethodEndpoint"] = "Đích đến:",
+        ["HttpClientDiagTrigger"] = "Kích hoạt:",
+        ["HttpClientDiagPayloadSize"] = "Kích thước ước tính:",
+        // TCP Client Dialog
+
+        ["TcpClientConfigDialogTitle"] = "Cấu hình Socket TCP Client",
+        ["TcpClientConfigDialogSubtitle"] = "Mở kết nối Socket TCP tới máy chủ từ xa, thiết lập báo danh và duy trì kết nối Heartbeat",
+        ["TcpClientGroupConnection"] = "THÔNG SỐ KẾT NỐI SOCKET",
+        ["TcpClientGroupConnectionDesc"] = "Địa chỉ IP hoặc tên miền và cổng dịch vụ của máy chủ TCP Server",
+        ["TcpClientGroupReg"] = "GÓI TIN ĐỊNH DANH (BÁO DANH)",
+        ["TcpClientGroupRegDesc"] = "Gói tin gửi kèm để máy chủ nhận diện thiết bị khi kết nối socket",
+        ["TcpClientGroupHeartbeat"] = "DUY TRÌ KẾT NỐI (HEARTBEAT / PING)",
+        ["TcpClientGroupHeartbeatDesc"] = "Gửi gói tin PING định kỳ nhằm giữ kết nối thông suốt qua mạng",
+        ["TcpClientGroupPayload"] = "ĐỊNH DẠNG LUỒNG DỮ LIỆU (STREAM PAYLOAD)",
+        ["TcpClientGroupPayloadDesc"] = "Phương thức đóng gói dữ liệu gửi qua socket",
+        ["TcpClientFieldHost"] = "Địa chỉ Máy chủ (IP / Domain):",
+        ["TcpClientFieldHostTip"] = "Địa chỉ IP (ví dụ 192.168.1.100) hoặc tên miền (tối đa 48 ký tự)",
+        ["TcpClientFieldPort"] = "Cổng dịch vụ (Port):",
+        ["TcpClientFieldReconnect"] = "Thời gian thử lại kết nối (giây):",
+        ["TcpClientFieldRegType"] = "Cơ chế báo danh:",
+        ["TcpClientFieldRegPayload"] = "Nội dung gói tin báo danh:",
+        ["TcpClientFieldHeartbeatSec"] = "Chu kỳ gửi Heartbeat (giây, 0 = Tắt):",
+        ["TcpClientFieldHeartbeatPayload"] = "Nội dung gói tin Heartbeat PING:",
+        ["TcpClientFieldPayloadMode"] = "Chế độ tải trọng:",
+        ["TcpClientFieldDataTag"] = "Tag nguồn dữ liệu truyền qua Socket:",
+        ["TcpClientFieldPortTip"] = "Cổng dịch vụ TCP của máy chủ từ xa (dải hợp lệ: 1 - 65535).",
+        ["TcpClientFieldReconnectTip"] = "Thời gian chờ trước khi tự động kết nối lại khi đường truyền mạng bị đứt (1 - 60 giây).",
+        ["TcpClientFieldRegTypeTip"] = "None: Không gửi; OnConnect: Gửi khi bắt tay socket thành công; Prepend: Gắn vào đầu mỗi gói tin.",
+        ["TcpClientFieldRegPayloadTip"] = "Chuỗi định danh hoặc gói tin xác thực gửi lên máy chủ TCP.",
+        ["TcpClientFieldHeartbeatSecTip"] = "Chu kỳ gửi gói tin PING để giữ kết nối xuyên tường lửa/NAT (0 = tắt).",
+        ["TcpClientFieldHeartbeatPayloadTip"] = "Chuỗi dữ liệu PING định kỳ gửi lên máy chủ.",
+        ["TcpClientFieldPayloadModeTip"] = "Chọn phương thức đóng gói: Raw Bytes (truyền trong suốt) hoặc Custom String.",
+        ["TcpClientFieldDataTagTip"] = "Chọn Tag PLC làm nguồn dữ liệu truyền qua Socket TCP.",
+        ["TcpClientPreviewTitle"] = "MÔ PHỎNG LUỒNG GÓI TIN SOCKET TCP",
+        ["TcpClientPreviewTip"] = "Xem trước các gói tin sẽ được gửi qua kết nối socket theo thời gian thực.",
+        ["TcpClientDiagTitle"] = "CHẨN ĐOÁN KẾT NỐI SOCKET",
+        ["TcpClientDiagRemoteSocket"] = "Máy chủ TCP:",
+        ["TcpClientDiagHeartbeat"] = "Duy trì Heartbeat:",
+        ["TcpClientOptRegNoneDesc"] = "Không dùng (Disabled)",
+        ["TcpClientOptRegOnConnectDesc"] = "Gửi khi kết nối thành công (On Connect)",
+        ["TcpClientOptRegPrependDesc"] = "Chèn vào đầu mọi gói tin (Prepend)",
+        ["TcpClientOptRawDesc"] = "Raw Bytes (Truyền trong suốt Transparent)",
+        ["TcpClientOptCustomDesc"] = "Custom String (Chuỗi định dạng tùy biến)",
+        ["TcpClientFieldFraming"] = "Ký tự ngắt khung (Framing Delimiter):",
+        ["TcpClientFieldFramingTip"] = "Ký tự phân tách ranh giới gói tin TCP (CRLF: \\r\\n, LF: \\n, None: byte thô, Custom: ký tự tùy chọn).",
+        ["TcpClientOptFramingCrlf"] = "CRLF (\\r\\n) — Chuẩn SCADA / IoT",
+        ["TcpClientOptFramingLf"] = "LF (\\n) — Chuẩn Unix / Linux",
+        ["TcpClientOptFramingNone"] = "None — Byte thô không ngắt dòng",
+        ["TcpClientOptFramingCustom"] = "Custom — Ký tự tùy chọn",
+        ["TcpClientFieldTemplate"] = "Mẫu chuỗi định dạng (Format Template):",
+        ["TcpClientFieldTemplateTip"] = "Soạn mẫu chuỗi ASCII gửi qua socket với các placeholder: {val}, {tag}, {device}, {ts}.",
+        ["TcpClientCustomModeHint"] = "Định dạng chuỗi bản tin gửi lên socket TCP. Nhấp các nút bên dưới để chèn nhanh tham số.",
+        ["TcpClientDiagFraming"] = "Ký tự ngắt khung:",
+        ["BtnRestoreDefaults"] = "Khôi phục mặc định",
+        ["BtnRestoreDefaultsTip"] = "Khôi phục toàn bộ các thông số về giá trị mặc định chuẩn của nhà sản xuất.",
+        ["BtnClose"] = "Đóng",
+        ["BtnCancelTip"] = "Hủy bỏ toàn bộ các thay đổi và đóng hộp thoại (Phím tắt: Esc).",
+        ["BtnApplyTip"] = "Lưu các thay đổi vào đồ thị FBD và đóng hộp thoại (Phím tắt: Enter).",
         ["InspectorMqttSelecting"] = "KHỐI TRUYỀN TIN MQTT PUBLISH",
         ["InspectorMqttSubSelecting"] = "KHỐI NHẬN TIN MQTT SUBSCRIBE",
         ["InspectorMqttSubOutputsSummary"] = "{0} chân ngõ ra",
@@ -1477,12 +2112,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubPinsSectionTitle"] = "CẤU HÌNH NGÕ RA & GIẢI MÃ PAYLOAD",
         ["MqttSubConfigDialogTitle"] = "Cấu hình MQTT Subscribe",
         ["MqttSubConfigDialogSubtitle"] = "Trích xuất các trường dữ liệu từ bản tin MQTT ra các chân ngõ ra của khối",
-        ["MqttSubFieldSection"] = "DANH SÁCH CHÂN NGÕ RA",
-        ["MqttSubFieldSectionDesc"] = "Tên trường trong bản tin JSON sẽ tự động làm tên chân ngõ ra trên bản vẽ",
+        ["MqttSubFieldSection"] = "DANH SÁCH TRƯỜNG DỮ LIỆU & TAG ĐÍCH",
+        ["MqttSubFieldSectionDesc"] = "Trích xuất các trường dữ liệu từ bản tin JSON và tự động ghi vào Tag đích hoặc xuất ra chân tín hiệu FBD",
         ["MqttSubColFieldName"] = "Tên trường dữ liệu (Field)",
         ["MqttSubColKey"] = "Khóa JSON (Key)",
         ["MqttSubColPin"] = "Tên chân (Pin)",
         ["MqttSubColType"] = "Kiểu dữ liệu",
+        ["MqttSubColTargetTag"] = "Tag đích (Target Tag)",
+        ["MqttSubColTargetTagTooltip"] = "Chọn Tag bộ nhớ PLC (DO, AO, VREG, VFLAG) để tự động nhận giá trị giải mã từ trường JSON này",
         ["MqttSubBtnAddField"] = "+ Thêm trường ngõ ra",
         ["MqttSubTestSection"] = "THỬ NGHIỆM BẢN TIN (PAYLOAD TEST)",
         ["MqttSubTestSectionDesc"] = "Dán bản tin JSON mẫu để xem trước kết quả các chân ngõ ra nhận được:",
@@ -1492,11 +2129,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubResultsPreview"] = "Các chân ngõ ra nhận được:",
         ["MqttSubQueueModeLabel"] = "Chế độ hàng đợi:",
         ["MqttSubColQueueMode"] = "Chế độ hàng đợi:",
-        ["MqttSubQueueFifo"] = "FIFO (Tuần tự từng tin)",
-        ["MqttSubQueueLatest"] = "Latest (Chỉ lấy tin mới nhất)",
+        ["MqttSubQueueFifo"] = "FIFO (Tuần tự theo hàng đợi)",
+        ["MqttSubQueueLatest"] = "Ghi đè (Chỉ lấy tin mới nhất)",
         ["MqttSubBtnApply"] = "Áp dụng",
-        ["ToolboxModbusReadTitle"] = "MB_READ",
-        ["ToolboxModbusReadDesc"] = "Đọc dữ liệu thanh ghi từ cảm biến / thiết bị qua RS-485 Modbus RTU",
+        ["ToolboxModbusReadTitle"] = "MB_READ (RS-485 / Zigbee)",
+        ["ToolboxModbusReadDesc"] = "Đọc dữ liệu thanh ghi từ cảm biến / thiết bị qua cổng RS-485 hoặc sóng Zigbee không dây",
+        ["ModbusPortZigbeeOption"] = "Cổng Zigbee (Wireless Modbus)",
+        ["ModbusPortZigbeeTooltip"] = "Truyền nhận dữ liệu qua sóng vô tuyến Zigbee Mesh 2.4 GHz (IEEE 802.15.4) thay cho cáp RS-485 vật lý.",
+        ["ModbusZigbeeRestrictedIdError"] = "Cấm sử dụng Slave ID 236 (0xEC) và 237 (0xED) trên cổng Zigbee vì trùng mã lệnh cấu hình module RF.",
         ["InspectorModbusSelecting"] = "KHỐI ĐỌC MODBUS RTU",
         ["InspectorCustomLabel"] = "Nhãn khối (tùy chọn)",
         ["InspectorModbusPinsSummary"] = "{0} chân ngõ ra",
@@ -1538,8 +2178,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipMbErr"] = "Báo lỗi truyền thông Modbus (Hết thời gian chờ hoặc sai mã CRC)",
         ["PinTooltipMbErrCode"] = "Mã lỗi chẩn đoán Modbus (0 = Bình thường, 1 = Hết giờ, 2 = Sai CRC, 3 = Ngoại lệ)",
         ["PinTooltipErrCode"] = "Mã lỗi chẩn đoán truyền thông (0 = Bình thường)",
-        ["ToolboxModbusWriteTitle"] = "MB_WRITE",
-        ["ToolboxModbusWriteDesc"] = "Xuất dữ liệu và phát lệnh điều khiển chấp hành qua Modbus RTU",
+        ["ToolboxModbusWriteTitle"] = "MB_WRITE (RS-485 / Zigbee)",
+        ["ToolboxModbusWriteDesc"] = "Xuất dữ liệu và phát lệnh điều khiển chấp hành qua cổng RS-485 hoặc sóng Zigbee không dây",
         ["ToolboxDirectWriteTitle"] = "PULSE_OUT",
         ["ToolboxDirectWriteDesc"] = "Bộ phát xung tốc độ cao, băm xung PWM, PTO và bus chấp hành địa chỉ (DO0..DO7)",
         ["InspectorModbusWriteSelecting"] = "KHỐI GHI MODBUS RTU",
@@ -1815,11 +2455,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttConfigBtnResetTemplate"] = "Mẫu mặc định",
         ["MqttConfigReadyTitle"] = "Bản tin IIoT Tiêu chuẩn Sẵn sàng",
         ["MqttConfigReadyDesc"] = "Bản tin JSON trên sẽ được gửi ngay đến broker khi có tín hiệu kích hoạt.",
-        ["MqttPublishModeEvent"] = "Kích hoạt (On Trigger)",
-        ["MqttPublishModeCov"] = "Biến thiên (On Change / COV)",
-        ["MqttPublishModeCyclic"] = "Định kỳ (Periodic)",
-
+        ["MqttPublishModeEvent"] = "Khi có xung kích hoạt (Trig)",
+        ["MqttPublishModeCov"] = "Khi giá trị biến thiên (COV)",
+        ["MqttPublishModeCyclic"] = "Định kỳ theo thời gian",
         // MQTT Publish & Subscribe Dialog & Inspector Tooltips
+
         ["MqttHeaderTooltip"] = "Hộp thoại cấu hình chi tiết bản tin viễn trắc JSON phát lên MQTT Broker",
         ["MqttPayloadModeTooltip"] = "Lựa chọn phương thức định dạng gói tin: Bảng trường trực quan (Visual Fields) hoặc Mẫu JSON tự do (Custom Template)",
         ["InspectorMqttColKeyTooltip"] = "Tên thuộc tính khóa (Key) trong cấu trúc JSON phát đi",
@@ -1837,7 +2477,6 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttReadyStatusTooltip"] = "Trạng thái sẵn sàng: Bản tin JSON hợp lệ và sẵn sàng truyền tải khi có tín hiệu kích hoạt",
         ["MqttBtnApplyTooltip"] = "Lưu toàn bộ cấu hình bản tin JSON vào khối chức năng và cập nhật sơ đồ FBD",
         ["MqttFooterTopicTooltip"] = "Chủ đề MQTT đích mà bản tin này sẽ được gửi tới",
-
         ["MqttSubHeaderTooltip"] = "Hộp thoại cấu hình bóc tách dữ liệu từ gói tin JSON nhận được vào các chân ngõ ra",
         ["MqttSubColFieldNameTooltip"] = "Tên trường JSON cần bóc tách (đồng thời là tên hiển thị trên chân ngõ ra FBD)",
         ["MqttSubColTypeTooltip"] = "Kiểu dữ liệu đầu ra ép kiểu cho chân tín hiệu (BOOL, INT, DINT, REAL...)",
@@ -1851,7 +2490,6 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubResultsPreviewTooltip"] = "Bảng hiển thị kết quả giá trị bóc tách được từ gói tin thử nghiệm vào từng chân ngõ ra",
         ["MqttSubFooterTopicTooltip"] = "Chủ đề MQTT mà khối đang đăng ký theo dõi",
         ["MqttSubBtnApplyTooltip"] = "Lưu cấu hình chân ngõ ra và đồng bộ các kết nối trên đồ thị FBD",
-
         ["InspectorMqttTopicTooltip"] = "Chủ đề MQTT (Topic) để phát hoặc nhận tin (ví dụ: factory/line1/temp)",
         ["InspectorMqttPublishModeTooltip"] = "Chế độ phát tin: Theo xung kích hoạt Trig (On Trigger), Định kỳ (Periodic), hoặc khi giá trị biến thiên (COV)",
         ["InspectorMqttIntervalTooltip"] = "Chu kỳ phát bản tin định kỳ (tính bằng mili-giây, từ 50ms đến 60000ms)",
@@ -1864,20 +2502,64 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorMqttConfigureTooltip"] = "Mở hộp thoại thiết kế cấu trúc bản tin JSON chi tiết và xem trước trực tiếp",
         ["InspectorMqttSubTopicTooltip"] = "Chủ đề MQTT (Topic) mà khối này đăng ký nhận dữ liệu từ Broker",
         ["InspectorMqttSubConfigureTooltip"] = "Mở hộp thoại định nghĩa danh sách chân ngõ ra và thử nghiệm bóc tách dữ liệu JSON",
-
+        ["MqttSubTabBroker"] = "1. Máy chủ Broker & Bảo mật",
+        ["DtuTabBrokerServer"] = "1. Máy chủ Broker & Bảo mật",
+        ["DtuTabTelemetryPub"] = "2. Đẩy Dữ liệu (Publish)",
+        ["DtuTabCommandSub"] = "3. Nhận Lệnh Điều khiển (Subscribe)",
+        ["MqttSubTabPublish"] = "2. Đẩy Dữ liệu (Publish)",
+        ["MqttSubTabSubscribe"] = "3. Nhận Lệnh Điều khiển (Subscribe)",
+        ["DtuUplinkProtocolHeader"] = "Giao thức truyền dữ liệu lên Cloud:",
+        ["DtuUplinkProtocolSub"] = "Chọn chuẩn giao tiếp tương thích với máy chủ IoT / SCADA",
+        ["DtuUplinkMqttRadio"] = "MQTT Broker (Chuẩn IoT)",
+        ["DtuUplinkHttpRadio"] = "HTTP REST (Web API)",
+        ["DtuUplinkTcpRadio"] = "TCP Socket (Dòng thô)",
+        ["MqttConfigCommSection"] = "THÔNG SỐ GIAO TIẾP & KÍCH HOẠT",
+        ["MqttTriggerInputLabel"] = "Chân kích hoạt:",
+        ["MqttTriggerInputTrig"] = "Chân Trig (FBD)",
+        ["MqttRetainLabel"] = "Lưu tin (Retain)",
+        ["TooltipMqttQueueFifo"] = "Hàng đợi FIFO: Lưu toàn bộ lệnh theo thứ tự thời gian vào bộ đệm và xử lý lần lượt theo chu kỳ scan.",
+        ["TooltipMqttQueueOverwrite"] = "Chế độ Ghi đè: Chỉ giữ lại lệnh mới nhất nhận được từ Broker, tự động hủy bỏ các lệnh cũ chưa kịp đọc.",
+        ["InspectorUplinkPublishLabel"] = "▲ UPLINK (Xuất bản Telemetry):",
+        ["InspectorDownlinkSubscribeLabel"] = "▼ DOWNLINK (Đăng ký nhận lệnh):",
+        ["InspectorLwtLabel"] = "⚡ LWT (Báo ngoại tuyến):",
+        ["InspectorQos1GuaranteeText"] = "Mức dịch vụ: QoS 1 đảm bảo gửi tin cậy với xác nhận PUBACK.",
+        ["InspectorMqttSecurityTitle"] = "Kiểm Tra An Ninh & Bảo Mật",
+        ["InspectorMqttPortLabel"] = "Cổng kết nối:",
+        ["InspectorMqttTlsLabel"] = "Mã hóa TLS/SSL:",
+        ["InspectorIdentityAuth"] = "Xác thực danh tính:",
+        ["InspectorAuthNone"] = "Không xác thực",
+        ["InspectorAuthUserPass"] = "Tên người dùng / Mật khẩu",
+        ["InspectorAuthCert"] = "Chứng chỉ mTLS x509",
+        ["InspectorStateOn"] = "Bật",
+        ["InspectorStateOff"] = "Tắt",
+        ["InspectorDataStatsTitle"] = "Dữ Liệu & Thống Kê Payload",
+        ["InspectorDataStatsDesc"] = "Tổng quan số trường xuất bản, cổng lệnh và dung lượng gói tin",
+        ["InspectorTopicPublishLabel"] = "Topic Đẩy tin (Uplink):",
+        ["InspectorTopicSubscribeLabel"] = "Topic Nhận lệnh (Downlink):",
+        ["InspectorTopicLwtLabel"] = "Topic LWT Ngoại tuyến:",
+        ["InspectorPublishFieldsLabel"] = "Trường xuất bản (Publish):",
+        ["InspectorSubscribePinsLabel"] = "Lệnh điều khiển (Subscribe):",
+        ["InspectorMappedTagsLabel"] = "Tag đích liên kết:",
+        ["InspectorPayloadEstSizeLabel"] = "Dung lượng gói tin ước tính:",
+        ["InspectorPublishModeLabel"] = "Chế độ phát bản tin:",
+        ["InspectorHostLabel"] = "Máy chủ Broker:",
+        ["InspectorClientIdLabel"] = "Client ID:",
+        ["InspectorKeepAliveLabel"] = "Nhịp tim (Keep-Alive):",
+        ["InspectorQueueModeLabel"] = "Chế độ hàng đợi lệnh:",
         // Connector Pin Tooltips - MQTT Publish
+
         ["PinTooltipMqttPubTrig"] = "Xung kích hoạt phát bản tin MQTT ngay lập tức",
         ["PinTooltipMqttPubVal"] = "Tín hiệu dữ liệu hoặc cảm biến cần xuất bản",
         ["PinTooltipMqttPubIn"] = "Tín hiệu dữ liệu đầu vào cho trường JSON tương ứng",
         ["PinTooltipMqttPubDone"] = "Xung báo hoàn tất xuất bản bản tin MQTT thành công",
         ["PinTooltipMqttPubErr"] = "Báo lỗi kết nối máy chủ MQTT hoặc lỗi gửi tin",
-
         // Connector Pin Tooltips - MQTT Subscribe
+
         ["PinTooltipMqttSubEn"] = "Khóa cho phép khối hoạt động để nhận dữ liệu từ chủ đề MQTT",
         ["PinTooltipMqttSubValid"] = "Xung báo nhận được gói tin MQTT hợp lệ từ Broker",
         ["PinTooltipMqttSubErr"] = "Báo lỗi kết nối máy chủ MQTT hoặc cấu trúc bản tin không đúng",
-
         // Standard IEC 61131-3 & Processing Pin Tooltips
+
         ["PinTooltipIn"] = "Tín hiệu logic hoặc dữ liệu ngõ vào",
         ["PinTooltipOut"] = "Tín hiệu logic hoặc kết quả tính toán ngõ ra",
         ["PinTooltipQ"] = "Ngõ ra trạng thái khi đạt thời gian hoặc số đếm đặt trước",
@@ -1888,8 +2570,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipScaleOut"] = "Giá trị kỹ thuật đầu ra sau khi chuẩn hóa tỷ lệ",
         ["PinTooltipCmpIn"] = "Giá trị đầu vào cần so sánh với ngưỡng đặt",
         ["PinTooltipCmpOut"] = "Tín hiệu logic báo kết quả phép so sánh",
-
         // Compatibility aliases
+
         ["PinTooltipTrig"] = "Tín hiệu kích hoạt (Sườn lên)",
         ["PinTooltipVal"] = "Tín hiệu dữ liệu hoặc cảm biến",
         ["PinTooltipDone"] = "Xung báo hoàn tất thực thi lệnh",
@@ -1901,15 +2583,35 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipChannel"] = "Chỉ số kênh chấp hành cần điều khiển (1..N)",
         ["PinTooltipCommand"] = "Mã lệnh điều khiển chấp hành (0 = Tắt, 1 = Bật, 2 = Nhấp nháy)",
         ["PinTooltipParam"] = "Mã màu RGB hoặc tham số phụ trợ điều khiển",
-        ["PinTooltipDataIn"] = "Dữ liệu ghi vào thanh ghi"
+        ["PinTooltipDataIn"] = "Dữ liệu ghi vào thanh ghi",
+        ["RsNarrNcStop"] = "NC: hở mạch/nhấn = 0",
+        ["RsNarrNoStop"] = "NO: đóng mạch/nhấn = 1",
+        ["PinTooltipR1"] = "Ngõ vào Reset (R1): ưu tiên ngắt đưa Q1 về 0",
+        ["EditorModeEditing"] = "Đang sửa: {0}",
+        ["EditorModeNew"] = "Tạo Rule Mới",
+        ["EditorModeBadgeNew"] = "Mới",
+        ["EditorStatusErrors"] = "{0} lỗi biên dịch",
+        ["EditorStatusFbsReady"] = "{0} khối chức năng (FBs/MQTT) sẵn sàng nạp",
+        ["EditorToastSaved"] = "Đã lưu kịch bản vào Bảng Rule ({0})",
+        ["LiveDebugStatusActive"] = "Đang giám sát trực tiếp",
+        ["LiveDebugStatusInactive"] = "Chế độ giám sát tắt",
+        ["ToolboxMqttPublishReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Publish.",
+        ["ToolboxMqttSubscribeReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Subscribe.",
+        ["ToolboxModbusMasterReqHardware"] = "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
+
     };
 
-    private readonly Dictionary<string, string> _enStrings = new()
-    {
-        // Window Title
-        ["AppTitle"] = "SynaptiX IDE — Device Configuration & Programming",
 
+
+    private readonly Dictionary<string, string> _enStrings = new()
+
+    {
+
+        // Window Title
+
+        ["AppTitle"] = "SynaptiX IDE — Device Configuration & Programming",
         // Menu Bar
+
         ["MenuFile"] = "File",
         ["MenuNewProject"] = "New Project",
         ["MenuSaveProject"] = "Save Project",
@@ -2057,7 +2759,117 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusMasterInfoTitle"] = "MODBUS RTU MASTER MODE",
         ["ModbusMasterInfoLine1"] = "• This port operates as a Modbus Master, actively sending Read/Write requests to external Slave devices (ID: 1..247) via MB_READ and MB_WRITE logic blocks.",
         ["ModbusMasterInfoLine2"] = "• Response Timeout, Retry Count, and Inter-frame Delay configured above are automatically applied to all Modbus transactions on this port.",
-        ["ModbusSlaveExportTooltip"] = "Export Modbus Slave memory map to CSV or Markdown for SCADA / HMI integration.",
+        ["ModbusMasterTableTitle"] = "MODBUS MASTER I/O & COMMAND CHANNELS",
+        ["ModbusMasterTableSubtitle"] = "Configure periodic sensor polling channels and event-driven control writes mapped to tags",
+        ["ModbusBtnAddMasterChannel"] = "Add Modbus Channel",
+        ["ModbusColSlaveIdHeader"] = "Slave ID",
+        ["ModbusColSlaveIdTooltip"] = "Modbus RTU peripheral slave station address (1 to 247).",
+        ["ModbusColFunctionCodeHeader"] = "Function Code",
+        ["ModbusColFunctionCodeTooltip"] = "Modbus function: FC01-04 (Cyclic Read), FC05-16 (Write on change).",
+        ["ModbusColAddressHeader"] = "Address",
+        ["ModbusColAddressTooltip"] = "Modbus register address (1-based, e.g. 40001, 30001, 00001...).",
+        ["ModbusColDataTypeHeader"] = "Data Type",
+        ["ModbusColDataTypeTooltip"] = "Binary data decoding format: INT16, REAL, BOOL, INT32...",
+        ["ModbusColEndiannessHeader"] = "Endianness",
+        ["ModbusColEndiannessTooltip"] = "Byte and word ordering format (ABCD, CDAB-WordSwap, BADC, DCBA).",
+        ["ModbusColScaleHeader"] = "Scale (x)",
+        ["ModbusColScaleTooltip"] = "Engineering scale multiplier (e.g. 0.1 to divide by 10).",
+        ["ModbusColTargetTagHeader"] = "Device Tag",
+        ["ModbusColTargetTagTooltip"] = "Device Tag on SynaptiX hardware receiving read data or supplying write data.",
+        ["ModbusColAliasHeader"] = "Tag Alias",
+        ["ModbusColAliasTooltip"] = "Descriptive alias of the linked PLC tag (automatically synced with Tag Catalog).",
+        ["InspectorChannelDetailsTitle"] = "Selected Modbus Channel Diagnostics",
+        ["InspectorChannelDetailsDesc"] = "Live wire frame byte sequence and register memory layout analysis",
+        ["InspectorNoChannelSelected"] = "No Modbus channel selected or channel list is empty.",
+        ["InspectorWireFrameTitle"] = "Live Modbus RTU Wire Frame",
+        ["InspectorWireTxLabel"] = "TX (Request):",
+        ["InspectorWireRxLabel"] = "RX (Expected Response):",
+        ["InspectorRegSpanLabel"] = "IEC Register Range:",
+        ["InspectorByteSizeLabel"] = "Data Size:",
+        ["InspectorScalingFormulaLabel"] = "Scaling Formula:",
+        ["InspectorActiveChannelsFmt"] = "{0} Polled Channel(s)",
+        ["InspectorBtnViewRawHex"] = "Modbus RTU Wire Frame Details",
+        ["InspectorBtnHideRawHex"] = "Hide Wire Frame Details",
+        ["InspectorWireFrameHint"] = "Click to inspect raw Hex byte breakdown and CRC-16 checksum",
+        ["ModbusColEndiannessNotApplicable"] = "Applicable only to 32-bit data (Real, Int32, UInt32) spanning 2 registers",
+        ["LiveTestTitle"] = "Modbus Channel Live Diagnostics",
+        ["LiveTestSubtitle"] = "Live sensor telemetry received by SynaptiX Device via RS-485",
+        ["LiveTestBtnReadOnce"] = "Read Once",
+        ["LiveTestBtnContinuous"] = "Continuous Polling (1s)",
+        ["LiveTestNoPortSelected"] = "Device Disconnected",
+        ["LiveTestPortConnected"] = "Device Online",
+        ["LiveTestPortDisconnected"] = "Offline",
+        ["LiveTestOpenPort"] = "Connect",
+        ["LiveTestClosePort"] = "Disconnect",
+        ["LiveTestSelectPortTip"] = "Communication port to SynaptiX Device",
+        ["LiveTestLatencyFmt"] = "{0} ms",
+        ["LiveTestRawFmt"] = "Raw: {0} ({1})",
+        ["LiveTestStatusGood"] = "Good Telemetry",
+        ["LiveTestStatusIdle"] = "Pending device deployment",
+        ["LiveTestErrorTimeout"] = "Sensor Not Responding (Timeout)",
+        ["LiveTestErrorTimeoutHint"] = "SynaptiX device received no response on RS-485. Check A+/B- wiring, Slave ID, and sensor power.",
+        ["LiveTestErrorCrc"] = "CRC Checksum Error (RS-485 Noise)",
+        ["LiveTestErrorCrcHint"] = "Check Baud rate/Parity settings, 120Ω termination or ground shielding.",
+        ["LiveTestTargetChannel"] = "Target Channel:",
+        ["LiveTestNoChannelSelected"] = "Select a channel in table to inspect diagnostics",
+        ["LiveTestWiringGuideTitle"] = "RS-485 Pinout Reference",
+        ["LiveTestWiringGuideTip"] = "Enable 120Ω termination jumper if cable run exceeds 50m",
+        ["DeviceSubToolbarSaveTip"] = "Save current project to file [Ctrl+S]",
+        ["DeviceSubToolbarDeployTip"] = "Deploy device and Modbus channel configuration to SynaptiX hardware [Ctrl+F5]",
+        ["InspectorDeviceTagLabel"] = "Device Tag:",
+        ["InspectorDeviceTagTip"] = "SynaptiX device Tag mapped to this Modbus channel",
+        ["InspectorTagAliasLabel"] = "Tag Alias:",
+        ["InspectorTagAliasTip"] = "User-friendly tag alias in Tag Catalog",
+        ["InspectorDataTypeLabel"] = "Data Type:",
+        ["InspectorDataTypeTip"] = "Modbus data type and byte ordering format (Endianness)",
+        ["InspectorScaleLabel"] = "Scale Multiplier:",
+        ["InspectorScaleTip"] = "Multiplier converting raw register integer to physical engineering units",
+        ["InspectorScaledValueTitle"] = "REAL-TIME SENSOR VALUE",
+        ["InspectorScaledValueTip"] = "Physical sensor value received by SynaptiX device over RS-485",
+        ["InspectorBtnReadOnceTip"] = "Probe Modbus sensor once to verify communication response",
+        ["InspectorBtnContinuousTip"] = "Start/Stop continuous 1-second polling to observe sensor live values",
+        ["InspectorHardwareStatusTip"] = "Current connection status between PC and SynaptiX hardware",
+        ["DeviceSubToolbarSyncOk"] = "Hardware synchronized",
+        ["DeviceSubToolbarSyncPending"] = "Pending deploy",
+        ["InspectorSensorStatusGood"] = "Good telemetry",
+        ["InspectorSensorStatusTimeout"] = "Sensor not responding (Timeout)",
+        ["InspectorSensorTimeoutHint"] = "Check RS-485 A+/B- wiring, Slave ID, and sensor power.",
+        ["InspectorSensorStatusPendingDeploy"] = "Pending deploy",
+        ["InspectorSensorPendingDeployHint"] = "Click [Deploy to Device (Ctrl+F5)] on toolbar to activate channel polling.",
+        ["InspectorSensorStatusOffline"] = "Device offline",
+        ["InspectorSensorOfflineHint"] = "Connect SynaptiX device to receive live sensor data.",
+        ["InspectorChannelProps"] = "Selected Channel Properties",
+        ["InspectorLiveTelemetry"] = "Real-Time Sensor Telemetry",
+        ["InspectorToggleCollapseTip"] = "Collapse Inspector panel for maximum workspace width",
+        ["InspectorToggleExpandTip"] = "Expand Inspector panel for live diagnostics",
+        ["InspectorBtnCollapse"] = "Collapse",
+        ["InspectorBtnExpand"] = "Inspector",
+        ["ModbusBtnDeleteMasterChannel"] = "Remove this channel from Modbus Master table",
+        ["ModbusMasterTableEmptyTitle"] = "No Modbus channels configured",
+        ["ModbusMasterTableEmptyHint"] = "Click 'Add Modbus Channel' above to add polling registers or write commands.",
+        ["ModbusMasterFooterNotice"] = "FC01-04 automatically poll periodically; FC05-16 automatically transmit when Tag value changes. Data maps directly into Tag Catalog.",
+        ["ModbusMasterIoSectionTitle"] = "MODBUS MASTER I/O & COMMAND SCANNER",
+        ["ModbusMasterIoSectionDesc"] = "Configure periodic sensor polling channels and event-driven control writes mapped to tags",
+        ["ModbusMasterAddChannelBtn"] = "Add Modbus Channel",
+        ["ModbusMasterAddChannelTip"] = "Add a new sensor polling channel or control write command",
+        ["ModbusMasterColSlaveId"] = "Slave ID",
+        ["ModbusMasterColSlaveIdTip"] = "Modbus RTU peripheral slave address (1 to 247)",
+        ["ModbusMasterColFc"] = "Function Code",
+        ["ModbusMasterColFcTip"] = "Modbus function: FC01-04 (Cyclic Read), FC05-16 (Write on change)",
+        ["ModbusMasterColAddr"] = "Address",
+        ["ModbusMasterColAddrTip"] = "Modbus register address (1-based, e.g. 40001, 30001, 00001)",
+        ["ModbusMasterColType"] = "Data Type",
+        ["ModbusMasterColTypeTip"] = "Binary decoding data format: INT16, REAL, BOOL...",
+        ["ModbusMasterColEndian"] = "Endianness",
+        ["ModbusMasterColEndianTip"] = "Byte and word ordering format (ABCD, CDAB-WordSwap, BADC, DCBA)",
+        ["ModbusMasterColScale"] = "Scale Multiplier",
+        ["ModbusMasterColScaleTip"] = "Engineering conversion factor (e.g. 0.1 to divide by 10)",
+        ["ModbusMasterColTag"] = "Bound Tag",
+        ["ModbusMasterColTagTip"] = "Tag in Tag Catalog receiving read data or supplying write data",
+        ["ModbusMasterColAction"] = "Action",
+        ["ModbusMasterDeleteChannelTip"] = "Remove this channel from Modbus Master table",
+        ["ModbusMasterNoChannelsMessage"] = "No Modbus Master channels configured for this port. Click '+ Add Modbus Channel' to begin.",
+["ModbusSlaveExportTooltip"] = "Export Modbus Slave memory map to CSV or Markdown for SCADA / HMI integration.",
         ["ModbusSlaveExportNotice"] = "Successfully exported Modbus Slave memory map datasheet: {0}",
         ["WifiDialogTitle"] = "WI-FI CONFIGURATION",
         ["WifiDialogSubtitle"] = "Scan nearby networks, configure connection credentials and monitor wireless signal",
@@ -2183,8 +2995,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["MenuCheckUpdates"] = "Check for Updates...",
         ["MenuDocSpec"] = "SynaptiX IDE Technical Specifications & Docs...",
         ["MenuAbout"] = "About SynaptiX IDE...",
-
         // Toolbar
+
         ["ToolNew"] = "New Project",
         ["ToolNewTip"] = "Create new project / Clear canvas (Ctrl+N)",
         ["ToolOpen"] = "Open Project",
@@ -2220,8 +3032,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolDelete"] = "Delete Node (Del)",
         ["ToolDeleteTip"] = "Delete selected node on canvas (Delete key)",
         ["ToolLanguage"] = "Language:",
-
         // Navigation Tabs
+
         ["TabLogicGraph"] = "Logic Graph",
         ["TabTagCatalog"] = "I/O Tags",
         ["TabRuleTable"] = "Rule Table",
@@ -2229,16 +3041,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["TabDeploy"] = "Deploy",
         ["TabSimulator"] = "Simulator",
         ["TabLiveWatch"] = "Live Watch & Diag",
-
         // Hardware Status
+
         ["StatusConnected"] = "Connected",
         ["StatusDisconnected"] = "Disconnected",
         ["StatusMcuInfo"] = "SynaptiX Controller (Contract V2.0)",
         ["DeviceDefaultBadge"] = "Remote I/O",
         ["DeviceDefaultToolTip"] = "SynaptiX Remote I/O (8DI/8DO/4AI) · Default hardware configuration",
         ["StatusScanLoop"] = "Scan cycle: 10 ms · Watchdog: OK · RS485 Modbus RTU",
-
         // Device Properties Dialog
+
         ["DeviceInfoTitle"] = "DEVICE INFORMATION",
         ["DeviceInfoSubtitle"] = "Hardware specifications, I/O resources, and firmware details",
         ["DeviceInfoGroupOverview"] = "1. DEVICE IDENTIFICATION",
@@ -2268,8 +3080,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeviceInfoClickHint"] = "Click to view detailed device properties",
         ["DeviceInfoStatusOnline"] = "ONLINE",
         ["DeviceInfoStatusOffline"] = "OFFLINE",
-
         // New Project Wizard
+
         ["NewProjectDialogTitle"] = "New Project Configuration",
         ["NewProjectDialogSubtitle"] = "Configure project metadata and target hardware profile",
         ["NewProjectSectionInfo"] = "PROJECT INFORMATION",
@@ -2279,9 +3091,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["NewProjectAuthor"] = "Engineer / Author:",
         ["NewProjectDescription"] = "Project Description:",
         ["NewProjectSectionHw"] = "TARGET HARDWARE SPECIFICATION",
-        ["NewProjectPresetMode"] = "Target Hardware Presets:",
-        ["NewProjectDetectConnected"] = "Detect from Connected Device",
-        ["NewProjectDetectConnectedTooltip"] = "Automatically fetch real hardware parameters from connected controller",
+        ["NewProjectPresetMode"] = "Target Device Model:",
+        ["NewProjectHardwareSeries"] = "Hardware Series:",
+        ["NewProjectDeviceClass"] = "Device Class:",
+        ["NewProjectDetectConnected"] = "Detect Device",
+        ["NewProjectDetectConnectedTooltip"] = "Automatically fetch hardware profile from connected SynaptiX controller",
         ["NewProjectCustomHw"] = "Custom Hardware Specification",
         ["NewProjectCustomDi"] = "Digital Inputs (DI):",
         ["NewProjectCustomDo"] = "Digital Outputs (DO):",
@@ -2302,8 +3116,348 @@ public class LocalizationService : INotifyPropertyChanged
         ["PresetDataloggerDesc"] = "Environmental logging & sensor hub profile: 4DI, 2DO, 4AI, 94 Tags, 50 Rules.",
         ["PresetGatewayDesc"] = "Industrial gateway & protocol bridge profile: 2DI, 2DO, 104 Tags, 50 Rules.",
         ["PresetDtuDesc"] = "Industrial DTU Gateway profile: RS-485 to Internet via TCP/MQTT/HTTP, 100 Tags, 50 Rules.",
+        ["PresetXLinkZigbee44Desc"] = "X.Link Wireless Zigbee I/O Module: 4DI, 4DO Relays, Modbus RTU Slave/Master, 68 Tags, 50 Rules.",
         ["TabDtuGateway"] = "DTU Gateway",
+        ["TabDevice"] = "System",
+        ["MenuViewDevice"] = "System Workspace",
         ["MenuConfigureDtu"] = "Configure DTU Gateway (RS-485 to Internet)...",
+                ["DtuWizardTitle_Old"] = "Trình Cấu Hình Nhanh DTU Gateway",
+        ["DtuWizardSubtitle"] = "Cấu hình Modbus RS-485 và tự động kết nối đẩy dữ liệu lên IoT Cloud",
+        ["DeviceNavRs485"] = "RS-485 Modbus",
+        ["DeviceNavRs485Desc"] = "Cổng nối tiếp & bảng thanh ghi cảm biến",
+        ["DeviceNavWifi"] = "Mạng Wi-Fi",
+        ["DeviceNavWifiDesc"] = "Tên mạng, mật khẩu & cấu hình IP",
+        ["DeviceNavMqtt"] = "MQTT Client",
+        ["DeviceNavMqttDesc"] = "Máy chủ Broker, đẩy tin & nhận lệnh",
+        ["DeviceNavHttp"] = "HTTP Client",
+        ["DeviceNavHttpDesc"] = "Đẩy dữ liệu qua Webhook POST/PUT",
+        ["DeviceNavTcp"] = "TCP Client",
+        ["DeviceNavTcpDesc"] = "Truyền thô dữ liệu qua mạng TCP",
+        ["DeviceNavUplink"] = "Cloud Uplink",
+        ["DeviceNavUplinkDesc"] = "MQTT, HTTP REST hoặc TCP Socket",
+        ["DeviceNavTiming"] = "Chu kỳ & Timing",
+        ["DeviceNavTimingDesc"] = "Tần suất gửi tin & xem trước dữ liệu",
+        ["ColFunctionCode"] = "Mã hàm (FC)",
+        ["DeviceConfigTitle"] = "CẤU HÌNH THIẾT BỊ",
+        ["DeviceConfigSubtitle"] = "Thiết lập cổng truyền thông RS-485, mạng Wi-Fi và đẩy dữ liệu lên Cloud",
+        ["DtuInspectorHeaderTitle"] = "GIÁM SÁT & CHẨN ĐOÁN",
+        ["DtuInspectorHeaderSubtitle"] = "Đo kiểm cảm biến & trạng thái thiết bị",
+        ["DtuInspectorSlaveHeaderTitle"] = "HƯỚNG DẪN KẾT NỐI SCADA / HMI",
+        ["DtuInspectorSlaveHeaderSubtitle"] = "Thông số trạm: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorNoRegSelected"] = "Chọn một thanh ghi trong bảng để xem chi tiết",
+        ["ModbusSlaveInspectorCardTitle"] = "CẤU HÌNH TRUYỀN THÔNG SCADA",
+        ["ModbusSlaveInspectorAddressLabel"] = "Địa chỉ SCADA (1-based):",
+        ["ModbusSlaveInspectorOffsetLabel"] = "Địa chỉ Offset (0-based):",
+        ["ModbusSlaveInspectorFuncLabel"] = "Mã hàm (FC):",
+        ["ModbusSlaveInspectorLengthLabel"] = "Độ dài / Định dạng:",
+        ["ModbusSlaveInspectorAccessLabel"] = "Quyền truy cập:",
+        ["ModbusSlaveInspectorRuleLabel"] = "QUY TẮC ÁNH XẠ (BIT / BYTE MAPPING):",
+        ["ModbusSlaveInspectorServerBadge"] = "Modbus RTU Server: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorSelectedReg"] = "Thông Số Thanh Ghi Slave Được Chọn",
+        ["ModbusSlaveInspectorLiveMemoryTitle"] = "GIÁ TRỊ NỘI BỘ PLC HIỆN TẠI (SCADA SẼ ĐỌC)",
+        ["ModbusSlaveInspectorWireTitle"] = "Mô Phỏng Giao Thức Khung Truyền SCADA (Wire Protocol)",
+        ["ModbusSlaveInspectorScadaQuery"] = "Khung truyền SCADA Master gửi tới:",
+        ["ModbusSlaveInspectorPlcResponse"] = "Khung truyền PLC phản hồi SCADA:",
+        ["ModbusSlaveInspectorServerStatus"] = "Trạng thái Server Slave:",
+        ["ModbusSlaveInspectorListening"] = "Sẵn sàng phục vụ SCADA (ID: {0}, {1} bps)",
+        ["ModbusSlaveInspectorHexOffset"] = "Địa chỉ Hex (0-based):",
+        ["ModbusSlaveInspectorFuncCodes"] = "Mã hàm hỗ trợ:",
+        ["BtnSaveConfig"] = "Lưu cấu hình",
+        ["DeviceConfigAppliedStatus"] = "Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị",
+        ["InspectorPinoutTitle"] = "Physical Pinout & Wiring Guide",
+        ["InspectorPinoutDesc"] = "RS-485 3-pin terminal wiring and 120Ω termination jumper",
+        ["InspectorBusHealthTitle"] = "Bus Traffic & Polling Health",
+        ["InspectorTopologyTitle"] = "Wireless Network Topology",
+        ["InspectorTopologyDesc"] = "Telemetry stream from DTU node via AP to Cloud",
+        ["InspectorTopicFlowTitle"] = "Bidirectional Cloud Topic Architecture",
+        ["InspectorTopicFlowDesc"] = "Uplink telemetry, Downlink commands and LWT status",
+        ["InspectorDataUsageTitle"] = "Monthly Data Quota Estimator",
+        ["InspectorDataUsageDesc"] = "Estimated cellular/Wi-Fi data usage per publishing interval",
+        ["BtnCopyMac"] = "Copy MAC",
+        ["BtnCopyJson"] = "Copy JSON",
+        ["DtuStep1Title"] = "1. Nguồn Dữ Liệu RS-485",
+        ["DtuStep1Desc"] = "Chọn vai trò cổng và khai báo các thanh ghi cảm biến cần thu thập",
+        ["DtuStep2Title"] = "2. Đích Đẩy Lên Mạng",
+        ["DtuStep2Desc"] = "Chọn giao thức truyền thông Internet và thông số máy chủ đích",
+        ["DtuStep3Title"] = "3. Chu Kỳ & Xác Nhận",
+        ["DtuStep3Desc"] = "Cài đặt chu kỳ gửi dữ liệu và xem trước bản tin thực tế",
+        ["DtuBtnNext"] = "Tiếp tục >",
+        ["DtuBtnBack"] = "< Quay lại",
+        ["DtuBtnFinish"] = "🚀 Hoàn tất & Tạo sơ đồ FBD",
+        ["DtuBtnCancel"] = "Hủy bỏ",
+        ["DtuFastRegAdd"] = "+ Thêm thanh ghi",
+        ["DtuFastRegColSlave"] = "Slave ID",
+        ["DtuFastRegColAddress"] = "Địa chỉ (Reg)",
+        ["DtuFastRegColType"] = "Kiểu dữ liệu",
+        ["DtuFastRegColTag"] = "Tên biến Tag",
+        ["DtuFastRegColDesc"] = "Mô tả / Ghi chú",
+        ["DtuAutoGenerateFbdTip"] = "Tự động sinh các khối Modbus và Uplink trên sơ đồ FBD và cắm dây sẵn.",
+                ["DtuWizardTitle"] = "DTU Gateway Quick Setup Wizard",
+        ["DtuWizardSubtitle"] = "Configure RS-485 Modbus and stream telemetry to IoT Cloud",
+        ["DeviceNavRs485"] = "RS-485 Modbus",
+        ["DeviceNavRs485Desc"] = "Serial port & sensor registers",
+        ["DeviceNavWifi"] = "Wi-Fi Network",
+        ["DeviceNavWifiDesc"] = "SSID, credentials & IP configuration",
+        ["DeviceNavMqtt"] = "MQTT Client",
+        ["DeviceNavMqttDesc"] = "Broker, telemetry & commands",
+        ["DeviceNavHttp"] = "HTTP Client",
+        ["DeviceNavHttpDesc"] = "POST / PUT webhook reporting",
+        ["DeviceNavTcp"] = "TCP Client",
+        ["DeviceNavTcpDesc"] = "Transparent serial-to-TCP stream",
+        ["DeviceNavUplink"] = "Cloud Uplink",
+        ["DeviceNavUplinkDesc"] = "MQTT, HTTP REST or TCP Socket",
+        ["DeviceNavTiming"] = "Timing & Payload",
+        ["DeviceNavTimingDesc"] = "Reporting interval & live preview",
+        ["ColFunctionCode"] = "Function Code (FC)",
+        ["DeviceRs485Subtitle"] = "Configure RS-485 UART physical parameters and sensor register collection table",
+        ["DeviceWifiSubtitle"] = "Configure Wi-Fi wireless network connection and IP addressing parameters",
+        ["DeviceUplinkSubtitle"] = "Configure uplink protocol to IoT Cloud servers (MQTT / HTTP / TCP)",
+        ["DeviceTimingSubtitle"] = "Configure sensor polling rate, publishing interval and live payload preview",
+        ["CardUartSettings"] = "RS-485 Serial Port Parameters",
+        ["LblPortName"] = "Port Name",
+        ["LblBaudRate"] = "Baud Rate",
+        ["LblParity"] = "Parity",
+        ["LblDataBits"] = "Data Bits",
+        ["LblStopBits"] = "Stop Bits",
+        ["LblTimeout"] = "Response Timeout (ms)",
+        ["LblRetries"] = "Retry Count",
+        ["LblInterFrameDelay"] = "Inter-frame Delay (ms)",
+        ["CardOperationRole"] = "RS-485 Operating Role",
+        ["CardOperationRoleDesc"] = "Configure how the RS-485 port communicates with the industrial network",
+        ["RoleMaster"] = "Modbus RTU Master (Sensor Poller)",
+        ["RoleSlave"] = "Modbus RTU Slave (SCADA / PLC Uplink)",
+        ["CardMasterPollerDesc"] = "Periodically polls peripheral slaves and binds values to the Tag Catalog",
+        ["CardSlaveMap"] = "Modbus Slave Memory Map",
+        ["CardSlaveMapDesc"] = "Memory map exposed for SCADA or supervisory PLCs to read/write",
+        ["BtnAddRegister"] = "+ Add Register",
+        ["BtnAddMapping"] = "+ Add Mapping",
+        ["ColSlaveId"] = "Slave ID",
+        ["ColAddress"] = "Address",
+        ["ColDataType"] = "Data Type",
+        ["ColTagName"] = "Tag Name",
+        ["ColDescription"] = "Description / Notes",
+        ["ColStartAddress"] = "Start Address",
+        ["ColQuantity"] = "Quantity",
+        ["ColMappedTag"] = "Mapped Tag",
+        ["PinDataNonInverting"] = "Data + (Non-inverting)",
+        ["PinDataInverting"] = "Data - (Inverting)",
+        ["PinShieldGnd"] = "Shield / Noise Ground",
+        ["PinoutTermHint"] = "Engineering tip: Enable 120Ω termination jumper if cable run exceeds 50m to suppress signal reflections.",
+        ["InspectorTagCountLbl"] = "Active Polled Tags:",
+        ["InspectorBaudRateLbl"] = "Communication Baud:",
+        ["InspectorEstScanTimeLbl"] = "Estimated Scan Cycle:",
+        ["InspectorBusLoadLbl"] = "Bus Line Load:",
+        ["InspectorTimeoutSafety"] = "Response timeout is safely dimensioned relative to the bus scan cycle.",
+        ["InspectorSlaveGuideTitle"] = "SCADA / PLC Connection Guide",
+        ["InspectorSlaveGuideDesc"] = "Addressing guidelines for SCADA master requests",
+        ["InspectorSlaveBaseAddr"] = "Holding Register Base Address:",
+        ["InspectorSlaveSupportedFc"] = "Supported Function Codes:",
+        ["InspectorSlaveFcList"] = "FC03 (Read), FC06 (Write Single), FC16 (Write Multiple)",
+        ["InspectorSlaveRespTime"] = "Standard Response Time:",
+        ["InspectorSlaveRespVal"] = "< 5 ms (RAM Direct DMA Buffer)",
+        ["InspectorSlaveHint"] = "Tip: SCADA queries mapped registers sequentially starting from the declared base address.",
+        ["WifiHardwareStatus"] = "Wi-Fi Hardware Status",
+        ["WifiMacAddress"] = "Physical MAC Address:",
+        ["WifiIpAddress"] = "Current IP Address:",
+        ["WifiSignalLevel"] = "Signal Strength (RSSI):",
+        ["WifiReconnectPolicy"] = "Auto-reconnect Policy:",
+        ["WifiReconnectVal"] = "Exponential Backoff (5s)",
+        ["InspectorIdentityTitle"] = "Device Identity & Network Address",
+        ["InspectorIdentityDesc"] = "Hardware identifiers and local LAN addressing",
+        ["InspectorCloudStateTitle"] = "Cloud Status & Topology",
+        ["InspectorCloudStateDesc"] = "Uplink topology from gateway to MQTT Broker",
+        ["InspectorBrokerHost"] = "Broker Host:",
+        ["InspectorTransportProto"] = "Transport Protocol:",
+        ["InspectorTlsSecurity"] = "Security Encryption:",
+        ["InspectorTlsEnabled"] = "TLS v1.2 / v1.3 Enabled",
+        ["InspectorTlsDisabled"] = "Unencrypted (Plain TCP)",
+        ["InspectorPublishRate"] = "Publish Interval:",
+        ["InspectorMsgsPerDay"] = "Packets / Day:",
+        ["InspectorEstMonthlyUsage"] = "Estimated Monthly Quota:",
+        ["InspectorQuotaSimHint"] = "Engineering tip: Recommended minimum IoT SIM plan: 100 MB / month for stable operation.",
+        ["InspectorLiveJsonTitle"] = "Live Real-Time JSON Telemetry",
+        ["InspectorLiveJsonDesc"] = "Preview payload auto-packaged from active tags",
+        ["CardUartSettingsDesc"] = "Baud rate, parity bit, timeout and retry settings",
+        ["CardRoleSelect"] = "RS-485 Operation Role",
+        ["CardMasterPoller"] = "Sensor Register Collection Table (Modbus Master Poller)",
+        ["CardSlaveMapping"] = "Modbus Slave Memory Map",
+        ["CardWifiStatus"] = "Wi-Fi Hardware Status & Telemetry",
+        ["CardWifiCredentials"] = "Network SSID & Authentication",
+        ["CardWifiIp"] = "IP Address Configuration",
+        ["CardMqttServer"] = "MQTT Broker Server & Credentials",
+        ["CardMqttTls"] = "TLS/SSL Encryption & Certificates",
+        ["CardMqttTopics"] = "Telemetry Topics & Quality of Service (QoS)",
+        ["CardMqttLwt"] = "Last Will & Testament (LWT) Message",
+        ["CardHttpEndpoint"] = "HTTP REST Endpoint & Request Method",
+        ["CardHttpHeaders"] = "Custom Headers & Authentication Token",
+        ["CardHttpMappings"] = "HTTP Payload Field Mappings",
+        ["CardTcpSocket"] = "Remote TCP Socket Server & Ports",
+        ["CardTcpAdvanced"] = "Registration Packet & KeepAlive Heartbeat",
+        ["CardTiming"] = "Scan & Publish Interval Settings",
+        ["CardPayloadPreview"] = "Real-Time Payload Preview (Live JSON)",
+        ["DeviceConfigTitle"] = "DEVICE CONFIGURATION",
+        ["DeviceConfigSubtitle"] = "Configure RS-485 Modbus, Wi-Fi connectivity and Cloud telemetry",
+        ["DtuInspectorHeaderTitle"] = "INSPECTOR & DIAGNOSTICS",
+        ["DtuInspectorHeaderSubtitle"] = "Live sensor telemetry & device status",
+        ["DtuInspectorSlaveHeaderTitle"] = "SCADA / HMI INTEGRATION GUIDE",
+        ["DtuInspectorSlaveHeaderSubtitle"] = "Station parameters: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorNoRegSelected"] = "Select a register in table to inspect details",
+        ["ModbusSlaveInspectorCardTitle"] = "SCADA INTEGRATION SETTINGS",
+        ["ModbusSlaveInspectorAddressLabel"] = "SCADA Address (1-based):",
+        ["ModbusSlaveInspectorOffsetLabel"] = "Offset Address (0-based):",
+        ["ModbusSlaveInspectorFuncLabel"] = "Function Code (FC):",
+        ["ModbusSlaveInspectorLengthLabel"] = "Length / Format:",
+        ["ModbusSlaveInspectorAccessLabel"] = "Access Right:",
+        ["ModbusSlaveInspectorRuleLabel"] = "MAPPING RULES (BIT / BYTE MAPPING):",
+        ["ModbusSlaveInspectorServerBadge"] = "Modbus RTU Server: ID {0} · {1} bps · 8-N-1",
+        ["ModbusSlaveInspectorSelectedReg"] = "Selected Slave Register Properties",
+        ["ModbusSlaveInspectorLiveMemoryTitle"] = "LIVE PLC INTERNAL VALUE (SCADA READOUT)",
+        ["ModbusSlaveInspectorWireTitle"] = "SCADA Wire Protocol Simulation & Frames",
+        ["ModbusSlaveInspectorScadaQuery"] = "SCADA Master Query Frame:",
+        ["ModbusSlaveInspectorPlcResponse"] = "PLC Response Frame:",
+        ["ModbusSlaveInspectorServerStatus"] = "Slave Server Status:",
+        ["ModbusSlaveInspectorListening"] = "Ready for SCADA Requests (ID: {0}, {1} bps)",
+        ["ModbusSlaveInspectorHexOffset"] = "Hex Offset (0-based):",
+        ["ModbusSlaveInspectorFuncCodes"] = "Supported Functions:",
+        ["InspectorWifiHeaderTitle"] = "WI-FI DIAGNOSTICS & TELEMETRY",
+        ["InspectorWifiHeaderSubtitle"] = "WLAN radio link status & IP addressing",
+        ["InspectorWifiDisabledSubtitle"] = "Wi-Fi wireless radio is disabled (Radio Off)",
+        ["InspectorWifiConnectedSubtitle"] = "Network: {0} · {1}",
+        ["InspectorMqttHeaderTitle"] = "MQTT TELEMETRY & STATUS",
+        ["InspectorMqttHeaderSubtitle"] = "Broker connection & topic architecture",
+        ["InspectorHttpHeaderTitle"] = "HTTP ENDPOINT & PAYLOAD",
+        ["InspectorHttpHeaderSubtitle"] = "HTTP endpoint & payload reporting",
+        ["InspectorTcpHeaderTitle"] = "TCP SOCKET & STREAM",
+        ["InspectorTcpHeaderSubtitle"] = "TCP socket connection & packet stream",
+        ["DeviceNavZigbee"] = "Zigbee Wireless",
+        ["DeviceNavZigbeeDesc"] = "Modbus over Zigbee wireless network",
+        ["InspectorZigbeeHeaderTitle"] = "ZIGBEE TELEMETRY & RF",
+        ["InspectorZigbeeHeaderSubtitle"] = "Signal quality diagnostics & Mesh status",
+        ["PageHeaderZigbeeTitle"] = "Zigbee Wireless Modbus",
+        ["PageHeaderZigbeeSubtitle"] = "Configure Zigbee wireless network, station ID, RF channel, and AES-128 encryption",
+        ["ZigbeeEnableTitle"] = "Enable Zigbee wireless communication subsystem on device",
+        ["ZigbeeCardNetworkTitle"] = "Wireless Network Parameters & Node Identity",
+        ["ZigbeeCardNetworkDesc"] = "Configure device role in Mesh network, Modbus station ID, PAN ID, and RF channel",
+        ["ZigbeeCardSecurityTitle"] = "AES-128 Network Security (IEC 62443)",
+        ["ZigbeeCardSecurityDesc"] = "Protect wireless link against unauthorized access and eavesdropping over the air",
+        ["ZigbeeRoleSlave"] = "Slave / Router (Listening & forwarding node)",
+        ["ZigbeeRoleMaster"] = "Master / Coordinator (Network coordinator node)",
+        ["ZigbeeFieldStationId"] = "Station Address (Node ID):",
+        ["ZigbeeFieldPanId"] = "Network ID (PAN ID):",
+        ["ZigbeeFieldChannel"] = "RF Channel:",
+        ["ZigbeeFieldAntenna"] = "RF Antenna Type:",
+        ["ZigbeeAntennaPcb"] = "On-board PCB Trace Antenna",
+        ["ZigbeeAntennaExternal"] = "External SMA Antenna",
+        ["ZigbeeFieldEnableSecurity"] = "Enable AES-128 CCM* Network Encryption",
+        ["ZigbeeFieldKey"] = "Network Encryption Key (16 bytes):",
+        ["ZigbeeFieldPreserveKey"] = "Preserve existing key in MCU Flash on deploy (PRESERVE_KEY)",
+        ["ZigbeeShowKey"] = "Show Key",
+        ["ZigbeeHideKey"] = "Hide Key",
+        ["ZigbeeInspectorLinkState"] = "Link State:",
+        ["ZigbeeInspectorRssi"] = "Signal Strength:",
+        ["ZigbeeInspectorLqi"] = "Link Quality (LQI):",
+        ["ZigbeeInspectorNodeCount"] = "Mesh Node Count:",
+        ["ZigbeeInspectorPackets"] = "TX / RX Packets:",
+        ["ZigbeeInspectorErrorCode"] = "Hardware Error Code:",
+        ["ZigbeeTopologyTitle"] = "Communication Topology:",
+        ["ZigbeeChannelGuidance"] = "Channel Recommendation:",
+        ["ZigbeeErrRestrictedId"] = "Station IDs 236 (0xEC) and 237 (0xED) are restricted by RF module firmware.",
+        ["ZigbeeDisabledSubtitle"] = "Zigbee wireless communication subsystem is disabled (Radio Off)",
+        ["ZigbeeFieldRole"] = "Device Operating Role:",
+        ["ZigbeePanIdRangeHint"] = "Range: 0x0001 .. 0xFFFE",
+        ["ZigbeeEnableSubtitle"] = "Enable Modbus RTU communication over Zigbee Mesh wireless network",
+        ["InspectorZigbeeRadioTitle"] = "WIRELESS LINK STATUS",
+        ["PageHeaderMqttTitle"] = "MQTT Client",
+        ["PageHeaderMqttSubtitle"] = "Configure MQTT Broker connection, telemetry publishing and command subscriptions",
+        ["PageHeaderHttpTitle"] = "HTTP Client",
+        ["PageHeaderHttpSubtitle"] = "Configure HTTP POST/PUT data reporting endpoints and custom headers",
+        ["PageHeaderTcpTitle"] = "TCP Client",
+        ["PageHeaderTcpSubtitle"] = "Configure serial-to-TCP socket stream, heartbeat packets and registration frames",
+        ["InspectorHttpEndpointLabel"] = "Endpoint URL:",
+        ["InspectorHttpMethodLabel"] = "HTTP Method:",
+        ["InspectorHttpTimeoutLabel"] = "Request Timeout:",
+        ["InspectorHttpHeadersLabel"] = "Custom Headers:",
+        ["InspectorHttpFieldCountLabel"] = "Telemetry Fields:",
+        ["InspectorTcpModeLabel"] = "Socket Mode:",
+        ["InspectorTcpServerLabel"] = "Remote Server:",
+        ["InspectorTcpPortLabel"] = "Remote Port:",
+        ["InspectorTcpHeartbeatLabel"] = "Heartbeat Ping:",
+        ["InspectorTcpRegLabel"] = "Registration Packet:",
+        ["WifiAutoReconnectLabelShort"] = "Auto-Reconnect:",
+        ["EnableWifiService"] = "Enable Wi-Fi connection on device",
+        ["NoticeWifiDisabled"] = "Wi-Fi wireless connection is currently disabled on this device. Check the box above to enable Wi-Fi.",
+        ["InspectorWifiRadioTitle"] = "WLAN RADIO & LINK STATUS",
+        ["InspectorWifiRadioSubtitle"] = "Wireless radio link parameters and frequency band",
+        ["InspectorWifiIpTitle"] = "HARDWARE IDENTITY & IP",
+        ["InspectorWifiIpSubtitle"] = "Physical MAC address and IPv4 configuration",
+        ["EnableHttpClientService"] = "Enable HTTP Client service on device",
+        ["NoticeHttpClientDisabled"] = "HTTP Client service is currently disabled on this device. Check the box above to enable Webhook / REST API telemetry.",
+        ["EnableTcpClientService"] = "Enable TCP Client service on device",
+        ["NoticeTcpClientDisabled"] = "TCP Client service is currently disabled on this device. Check the box above to enable TCP socket communication.",
+        ["InspectorUplinkHeaderTitle"] = "CLOUD UPLINK TELEMETRY",
+        ["InspectorUplinkHeaderSubtitle"] = "IoT Cloud protocol & transport security",
+        ["InspectorTimingHeaderTitle"] = "REPORTING INTERVAL & PAYLOAD",
+        ["InspectorTimingHeaderSubtitle"] = "Publish frequency & payload preview",
+        ["WifiRadioEnableLabel"] = "Wi-Fi Radio Enable (Power):",
+        ["WifiRadioEnableCheck"] = "Enable Wi-Fi connectivity",
+        ["WifiAutoReconnectCheck"] = "Auto-reconnect on signal loss",
+        ["WifiSsidLabel"] = "Wi-Fi Network Name (SSID):",
+        ["WifiPasswordLabel"] = "Security Password (WPA2/WPA3):",
+        ["WifiScanBtn"] = "Scan Wi-Fi Networks",
+        ["WifiScanningText"] = "Scanning Wi-Fi access points...",
+        ["WifiScanFoundFormat"] = "Found {0} nearby Wi-Fi networks.",
+        ["WifiDhcpLabel"] = "Enable DHCP (Automatically obtain IP address from Router)",
+        ["WifiStaticIpLabel"] = "Static IP Address:",
+        ["WifiSubnetLabel"] = "Subnet Mask:",
+        ["WifiGatewayLabel"] = "Default Gateway:",
+        ["WifiDnsLabel"] = "Primary DNS Server:",
+        ["WifiRssiRadioOff"] = "— (Radio Off)",
+        ["WifiRssiOffline"] = "— (Device Offline)",
+        ["WifiRssiGuideGood"] = "≥ -65 dBm (Good)",
+        ["WifiRssiGuideFair"] = "-66..-75 dBm (Fair)",
+        ["WifiRssiGuideWeak"] = "≤ -76 dBm (Weak)",
+        ["WifiNoSsidPlaceholder"] = "(No SSID Configured)",
+        ["WifiIpDhcpAuto"] = "DHCP Client (Automatic)",
+        ["WifiIpStaticManual"] = "Static IP (Manual)",
+        ["WifiPasswordToggleTip"] = "Toggle Wi-Fi password visibility",
+        ["WifiCardWlanStatusTitle"] = "WLAN RADIO HARDWARE STATUS",
+        ["WifiWlanModeLabel"] = "Network Mode:",
+        ["WifiWlanModeVal"] = "Station (STA) · 2.4 GHz 802.11 b/g/n",
+        ["WifiWlanSecurityLabel"] = "Security Protocol:",
+        ["WifiWlanSecurityVal"] = "WPA2-PSK (AES / WPA3-Ready)",
+        ["WifiIpConfigTypeLabel"] = "IP Assignment:",
+        ["WifiSubnetValLabel"] = "Subnet Mask:",
+        ["WifiGatewayValLabel"] = "Default Gateway:",
+        ["WifiDnsValLabel"] = "DNS Server:",
+        ["BtnSaveConfig"] = "Save Configuration",
+        ["DeviceConfigAppliedStatus"] = "Configuration committed to project — ready to deploy",
+        ["DeviceUploadBtn"] = "Read from Device (Upload)",
+        ["DeviceUploadBtnTip"] = "Read active configuration directly from MCU flash to IDE forms",
+        ["DeviceDownloadBtn"] = "Download to Device (Flash)",
+        ["DeviceDownloadBtnTip"] = "Compile and flash complete configuration into DTU non-volatile storage",
+        ["DeviceQuickWizardBtn"] = "Quick Wizard",
+        ["BtnQuickWizard"] = "Quick Wizard",
+        ["DeviceQuickWizardBtnTip"] = "Open step-by-step 1-2-3 guided setup wizard",
+        ["DeviceHardwareConnected"] = "CONNECTED",
+        ["DeviceHardwareDisconnected"] = "Hardware Disconnected",
+        ["DeviceDeployNotConnectedTip"] = "⚡ Device not connected! Please connect via the Quick Connect bar at top-right before deploying.",
+        ["DtuStep1Title"] = "1. RS-485 Data Source",
+        ["DtuStep1Desc"] = "Select port role and specify sensor registers to collect",
+        ["DtuStep2Title"] = "2. Internet Uplink",
+        ["DtuStep2Desc"] = "Select network communication protocol and target server settings",
+        ["DtuStep3Title"] = "3. Timing & Review",
+        ["DtuStep3Desc"] = "Set telemetry interval and inspect rendered live payload preview",
+        ["DtuBtnNext"] = "Next >",
+        ["DtuBtnBack"] = "< Back",
+        ["DtuBtnFinish"] = "🚀 Finish & Generate FBD",
+        ["DtuBtnCancel"] = "Cancel",
+        ["DtuFastRegAdd"] = "+ Add Register",
+        ["DtuFastRegColSlave"] = "Slave ID",
+        ["DtuFastRegColAddress"] = "Address (Reg)",
+        ["DtuFastRegColType"] = "Data Type",
+        ["DtuFastRegColTag"] = "Tag Name",
+        ["DtuFastRegColDesc"] = "Description",
+        ["DtuAutoGenerateFbdTip"] = "Automatically generate Modbus and Uplink blocks on FBD Canvas with pre-wired connections.",
         ["DtuStudioTitle"] = "SYNAPTIX DTU GATEWAY STUDIO",
         ["DtuStudioSubtitle"] = "RS-485 to Network Gateway (Transparent / Modbus RTU over MQTT, HTTP, TCP)",
         ["DtuDeployBtn"] = "Deploy DTU to Device",
@@ -2344,6 +3498,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuHttpFieldsTitle"] = "HTTP Fields Mapping",
         ["DtuHttpAddFieldBtn"] = "+ Add Field",
         // DTU Detailed Industrial Studio Keys (Issue #10)
+
         ["DtuSerialModeTransference"] = "Transparent / Passthrough",
         ["DtuSerialModeModbusMaster"] = "Modbus RTU Master (Poll External Devices)",
         ["DtuSerialModeModbusSlave"] = "Modbus RTU Slave (Respond to External SCADA)",
@@ -2407,6 +3562,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuMonitorSendBtn"] = "Send Test",
         ["DtuMonitorClearBtn"] = "Clear Log",
         // DTU International Standards & Payload Formatter (Task 12)
+
         ["DtuPayloadModeGroup"] = "Payload Format Mode:",
         ["DtuPayloadModeStandard"] = "Standard Industrial (IEC Telemetry)",
         ["DtuPayloadModeCustom"] = "Custom JSON Template",
@@ -2434,6 +3590,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuMacroPayloadLenDesc"] = "Byte length of received packet",
         ["DtuMacroPacketSeqDesc"] = "Monotonic packet sequence counter",
         // DTU Task 12 & UI Standardization Keys
+
         ["DtuMqttTopicsCardTitle"] = "Telemetry Publish & Downlink Command Topics",
         ["DtuStandardFieldsTitle"] = "IEC / ISA-95 STANDARD DATA FIELDS (NO-CODE)",
         ["DtuStandardFieldsDesc"] = "Automatically format telemetry payload per ISA-95 and IEC 62541 industrial standards without writing code.",
@@ -2451,9 +3608,9 @@ public class LocalizationService : INotifyPropertyChanged
         ["DtuTcpRegistrationTitle"] = "DEVICE IDENTIFICATION & REGISTRATION PACKET",
         ["DtuTcpRegistrationTypeLabel"] = "Registration Mode:",
         ["DtuTcpRegistrationPayloadLabel"] = "Registration Payload (supports {{DEVICE_ID}}):",
-
         ["InspectorConfigureBtn"] = "Configure DTU Gateway...",
         // DTU Specification in New Project Dialog (Issue #10 & #17)
+
         ["NewProjectDtuCategoryLabel"] = "Device Category:",
         ["NewProjectDtuCategoryVal"] = "Industrial DTU Gateway",
         ["NewProjectDtuSerialLabel"] = "RS-485 Serial Port:",
@@ -2476,8 +3633,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NewProjectNoDeviceConnected"] = "No connected device! Please connect a controller or select a standard preset.",
         ["NewProjectDeviceDetectedSuccess"] = "Successfully detected hardware profile from connected device!",
         ["NewProjectInvalidName"] = "Project name cannot be empty or contain invalid characters.",
-
         // Left Toolbox
+
         ["ToolboxTitle"] = "TOOLBOX",
         ["ToolboxSubtitle"] = "Drag and drop blocks onto central canvas",
         ["ToolboxSearchPrompt"] = "Search blocks (e.g. TON, Scale)...",
@@ -2517,8 +3674,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolboxInputDesc"] = "DI0..7, AI0..3, VREG",
         ["ToolboxGuideTitle"] = "HOW TO CONNECT:",
         ["ToolboxGuideText"] = "Connect wire flow:\n[Input]  [Trigger]  [Guard]  [Action] or [Input]  [Timer/Counter].\nPress Delete to remove node.",
-
         // Right Inspector
+
         ["InspectorTitle"] = "NODE PROPERTIES",
         ["InspectorSubtitle"] = "Configure detailed logic parameters",
         ["InspectorNoSelectionTitle"] = "No node selected",
@@ -2627,8 +3784,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorSaveDesc"] = "All canvas block connections are automatically saved into Firmware Rule Table to deploy to the device.",
         ["InspectorSaveButton"] = "Save & Compile (Ctrl+S)",
         ["ToastViewRuleTable"] = "View Rule Table",
-
         // Node Cards
+
         ["NodeInputHeader"] = "Input Tag",
         ["NodeInputSub"] = "Provides value from device",
         ["NodeTriggerHeader"] = "Trigger",
@@ -2637,8 +3794,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NodeGuardSub"] = "Blocks execution if condition not met",
         ["NodeActionHeader"] = "Action",
         ["NodeActionSub"] = "Executes and updates target tag",
-
         // Tag Catalog View
+
         ["TagCatalogTitle"] = "I/O TAG CATALOG & INTERNAL VARIABLES (128 TAGS)",
         ["TagCatalogDesc"] = "Configure aliases and monitor live statuses of physical I/O and internal flags",
         ["TagSearchPrompt"] = "Search by tag name, alias, address...",
@@ -2648,8 +3805,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ColTagAlias"] = "Alias (Click to edit)",
         ["TagAliasPlaceholder"] = "Click to enter alias...",
         ["ColTagValue"] = "Value & Action",
-
         // Rule Table View
+
         ["RuleTableTitle"] = "CONTROL LOGIC RULES",
         ["RuleTableDesc"] = "Summary of automation logic rules compiled from the logic graph for device execution",
         ["RuleTableSyncBtn"] = "Sync from Node Graph",
@@ -2733,18 +3890,18 @@ public class LocalizationService : INotifyPropertyChanged
         ["RuleBtnDeduplicateTip"] = "Automatically detect and remove duplicate logic rules in Rule Table",
         ["SaveAsNewRule"] = "Save as New Rule",
         ["SaveAsNewRuleTip"] = "Save current canvas drawing as a brand-new rule in Rule Table instead of overwriting",
-
         // Deploy View
+
         ["DeployTitle"] = "DEPLOY CONFIGURATION TO DEVICE (MODBUS RS485)",
         ["DeployDesc"] = "Compliant with SPLC-AF-003 safety standard. Activated once CRC-16 matches and Commit 0xA5A5 completes.",
         ["DeployStartBtn"] = "Start Deployment to Device",
-
         // Simulator View
+
         ["SimTitle"] = "HARDWARE SIMULATOR (VIRTUAL DEVICE)",
         ["SimDesc"] = "Toggle virtual I/O states and observe real-time response of configured rules.",
         ["SimToggleBtn"] = "Run Simulation",
-
         // Canvas Simulation Bar
+
         ["SimBarRun"] = "Run Simulation",
         ["SimBarAutoRun"] = "Auto Run",
         ["SimBarPause"] = "Pause",
@@ -2790,6 +3947,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["VirtualIoInputsTitle"] = "DIGITAL INPUTS (DI0 .. DI7)",
         ["VirtualIoOutputsTitle"] = "DIGITAL OUTPUTS (DO0 .. DO7)",
         ["VirtualIoAnalogTitle"] = "ANALOG INPUTS (AI0 .. AI3)",
+        ["VirtualIoSysTitle"] = "SYSTEM TAGS & CLOCK PULSES (SYS_*)",
+        ["TagNoneAlias"] = "NONE",
+        ["SysFirstScanAlias"] = "First Scan Pulse",
+        ["SysAlwaysOnAlias"] = "Always ON (TRUE)",
+        ["SysAlwaysOffAlias"] = "Always OFF (FALSE)",
+        ["SysClock1SAlias"] = "1-Second Clock (1.0 Hz)",
+        ["SysClock100MsAlias"] = "100ms Clock (10.0 Hz)",
+        ["SysRtcHourAlias"] = "Current RTC Hour (0..23)",
+        ["SysRtcMinuteAlias"] = "Current RTC Minute (0..59)",
+        ["SysCommOkAlias"] = "Communication Link OK",
         ["VirtualIoAllDiOff"] = "All DI OFF",
         ["VirtualIoResetAll"] = "Reset All I/O",
         ["VirtualIoToggleTip"] = "Show/Hide Virtual I/O Simulation Board",
@@ -2810,8 +3977,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimBtnOn"] = "● ON",
         ["SimBtnOff0"] = "○ OFF (0)",
         ["SimBtnOn1"] = "● ON (1)",
-
         // Narrative Preview (Inspector)
+
         ["NarrativeNoSelection"] = "Select a node on the graph to view and edit properties.",
         ["NarrTrigFall"] = "When signal transitions from ON to OFF (Falling edge 1 → 0)",
         ["NarrTrigRise"] = "When signal transitions from OFF to ON (Rising edge 0 → 1)",
@@ -2876,8 +4043,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["NarrPulseOutBus"] = "Direct Output - Serial Actuator Bus ({0}):\n• Supports up to {1} addressable channels on hardware terminal {0}.\n• 'Chan' pin selects device address (1..{1}), 'Param' pin carries payload (RGB/Command).\n• Channel policy: {2}.\n• Instant zero-latency dispatch; 'Done' pin pulses high when frame transmission succeeds.",
         ["NarrPulseOutBusExcl"] = "Exclusive (Auto-deactivates all other channels on trigger)",
         ["NarrPulseOutBusIndep"] = "Independent (Allows multiple simultaneous active channels)",
-
         // Compiler Diagnostics
+
         ["Diag_SPLC-COMP-W01"] = "Graph does not contain any Action nodes. 0 rules produced.",
         ["Diag_SPLC-COMP-001"] = "Action node '{0}' is not connected to a Trigger or Guard.",
         ["Diag_SPLC-COMP-002"] = "Guard node '{0}' is not connected to an upstream Trigger.",
@@ -2905,19 +4072,19 @@ public class LocalizationService : INotifyPropertyChanged
         ["Diag_SPLC-COMP-SCALE-IN"] = "Scale block '{0}' requires an Input Tag (connect port 'IN').",
         ["Diag_SPLC-COMP-SCALE-OUT"] = "Scale block '{0}' requires an Output Tag (connect OUT to an Action node or choose Tag).",
         ["DiagUnsupportedNode"] = "Graph contains unsupported node type.",
-
         // Compile State
+
         ["CompileStateValid"] = "Valid",
         ["CompileStateStale"] = "Stale",
         ["CompileStateInvalid"] = "Invalid",
         ["RtcBatteryLowBadge"] = "RTC Battery Low",
-
         // Save Status
+
         ["SaveStatusStale"] = "● Graph modified · Compile needed",
         ["SaveStatusNoRules"] = "○ No valid rules",
         ["SaveStatusValid"] = "{0} valid rules",
-
         // Node display
+
         ["NodeLiveOn"] = "ON",
         ["NodeLiveOff"] = "OFF",
         ["NodeLastKnown"] = "[Last Known: {0}]",
@@ -2929,8 +4096,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TrigTypeLoop"] = "{0}ms Loop",
         ["TrigTypeShift"] = "Shift",
         ["SimLedFired"] = "● FIRED",
-
         // Scan Detail Simulation
+
         ["SimScanStatic"] = "Static",
         ["SimScanTrigTrue"] = "TRUE",
         ["SimScanTrigFalse"] = "FALSE",
@@ -2966,8 +4133,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimDiagNoEdge"] = "No edge",
         ["SimDiagWaitFall"] = "Waiting 1→0",
         ["SimDiagFalse"] = "FALSE",
-
         // Deploy
+
         ["DeployPreflightStale"] = "Warning: Logic graph has uncompiled modifications (Stale). Compilation required.",
         ["DeployPreflightInvalid"] = "Error: Logic graph has compilation errors (Invalid). Cannot deploy.",
         ["DeployPreflightReady"] = "Ready to deploy: {0} valid compiled rules.",
@@ -3028,18 +4195,18 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeployBtnOpenLiveWatch"] = "Open Live Watch",
         ["DeploySuccessTitle"] = "Deployed Successfully to Device!",
         ["DeploySuccessDesc"] = "Device is running updated configuration. You can open Live Watch to monitor I/O.",
-
         // RuleTable View
+
         ["RuleTableReadOnlyBadge"] = "READ-ONLY · PROJECTED FROM CANVAS",
         ["RuleTableEditOnCanvas"] = "Edit on Canvas",
-
         // Blueprints View
+
         ["BlueprintsTitle"] = "READY-TO-USE BLUEPRINTS LIBRARY",
         ["BlueprintsDesc"] = "Pre-built common factory automation patterns, ready to apply to your project in one click.",
         ["BlueprintsApplyBtn"] = "Use This Blueprint (Apply)",
         ["BlueprintsUsedTags"] = "USED TAGS:",
-
         // Simulator View
+
         ["SimHardwareDIHeader"] = "PHYSICAL DIGITAL INPUTS (DI0 .. DI7) - CLICK TO TOGGLE",
         ["SimHardwareAIHeader"] = "ANALOG INPUTS (AI0 .. AI3) - SLIDE TO ADJUST",
         ["SimHardwareDOHeader"] = "DIGITAL OUTPUTS (DO0 .. DO7) - REALTIME STATUS",
@@ -3050,8 +4217,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["SimTotalOutput"] = "TOTAL OUTPUT",
         ["SimTraceFilterTip"] = "Show active cycles only (PASS / WAITING / BLOCKED)",
         ["SimTraceOrderTip"] = "Execution order & same-scan causality",
-
         // Live Watch View
+
         ["LiveWatchTitle"] = "Online Diagnostics & Live Watch",
         ["LiveWatchLastUpdated"] = "Last updated:",
         ["LiveWatchCycle"] = "• Cycle: 200 ms",
@@ -3104,8 +4271,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["FilterRetain"] = "Retain Flash (RETAIN)",
         ["FilterCounter"] = "Counters (COUNTER)",
         ["FilterVarCounter"] = "Variables & Counters",
-
         // Live Watch Detail & Inspector
+
         ["LiveWatchInspectorTitle"] = "TAG INSPECTOR & REAL-TIME SIGNAL",
         ["LiveWatchInspectorSubtitle"] = "Parameter inspection and live waveform oscilloscope",
         ["InspectorSelectPrompt"] = "Select a tag in the table to view detailed analysis and live trend graph.",
@@ -3138,8 +4305,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TraceToff"] = "Toff (Low)",
         ["TraceFreq"] = "Freq (f)",
         ["TraceSlewRate"] = "Slew Rate",
-
         // Reset Reasons
+
         ["ResetReasonPor"] = "Power-On Reset",
         ["ResetReasonPin"] = "Hardware Pin Reset",
         ["ResetReasonSoftware"] = "Software Command",
@@ -3147,8 +4314,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ResetReasonLowPower"] = "Wake from Low Power",
         ["ResetReasonBrownout"] = "Brownout Protection",
         ["ResetReasonUnknown"] = "Unknown",
-
         // Live Status & Quality
+
         ["LiveStatusOnline"] = "Online",
         ["LiveStatusConnecting"] = "Connecting...",
         ["LiveStatusOffline"] = "Offline",
@@ -3160,8 +4327,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["QualityUnknown"] = "LOST SIGNAL",
         ["ValOn"] = "ON",
         ["ValOff"] = "OFF",
-
         // Rule Options (Dropdowns)
+
         ["OptCompareEq"] = "=  Equal",
         ["OptCompareNeq"] = "≠  Not Equal",
         ["OptCompareGt"] = ">  Greater Than",
@@ -3170,13 +4337,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["OptCompareLte"] = "≤  Less or Equal",
         ["OptCompareBetween"] = "[Lo .. Hi]  Between Range",
         ["OptCompareNone"] = "—  None",
-
         ["OptTrigRise"] = "Rising Edge (0 → 1)",
         ["OptTrigFall"] = "Falling Edge (1 → 0)",
         ["OptTrigChange"] = "Value Change",
         ["OptTrigInterval"] = "Periodic Interval",
         ["OptTrigWindow"] = "Time Window",
-
         ["OptActSet"] = "Set Tag Value",
         ["OptActToggle"] = "Toggle Tag State",
         ["OptActInc"] = "Increment Counter",
@@ -3184,8 +4349,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["OptActAlarm"] = "Send Alarm",
         ["OptActLog"] = "Log Event",
         ["OptActScale"] = "Scale Value (SCALE)",
-
         // Badges on Node Cards
+
         ["BadgeCompareEq"] = "= EQUAL",
         ["BadgeCompareNeq"] = "≠ NOT EQUAL",
         ["BadgeCompareGt"] = "> GREATER THAN",
@@ -3194,10 +4359,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["BadgeCompareLte"] = "≤ LESS OR EQUAL",
         ["BadgeCompareBetween"] = "[{0}..{1}] BETWEEN",
         ["BadgeCompareNone"] = "NO COMPARISON",
-
         ["BadgeGuardInvert"] = "INVERT (NOT)",
         ["BadgeGuardPass"] = "PASS (ACTIVE)",
-
         ["BadgeActSet"] = "SET TAG VALUE",
         ["BadgeActToggle"] = "TOGGLE TAG STATE",
         ["BadgeActInc"] = "INCREMENT COUNTER",
@@ -3205,16 +4368,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["BadgeActAlarm"] = "SEND ALARM",
         ["BadgeActLog"] = "LOG EVENT",
         ["BadgeActScale"] = "SCALE VALUE",
-
         ["PromptThresholdMin"] = "Lower Threshold (Min):",
         ["PromptThresholdVal"] = "Threshold Value:",
-
         ["NodeTitleTrigger"] = "Trigger",
         ["NodeTitleGuard"] = "Guard",
         ["NodeTitleAction"] = "Action",
         ["NodeTitleInput"] = "Input",
-
         // Tag Catalog Enhancements
+
         ["TagCatalogTitleDynamic"] = "TAG I/O & INTERNAL REGISTERS CATALOG ({0} TAGS)",
         ["TagSearchPlaceholder"] = "Search by tag name, alias, Modbus address...",
         ["ColTagModbus"] = "Modbus Address",
@@ -3231,8 +4392,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["TagExportSuccess"] = "Exported {0} tags to CSV file successfully!\n{1}",
         ["TagBannerSecMeaning"] = "FIELD DEVICE MEANING & USAGE",
         ["TagBannerSecRole"] = "ROLE IN DEVICE LOGIC RULES",
-
         // Inspector Counter Form
+
         ["InspectorCounterSelecting"] = "COUNTER BLOCK",
         ["InspectorNodeLabel"] = "Node Label (optional)",
         ["InspectorCounterMode"] = "Counter Mode",
@@ -3240,8 +4401,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorCounterAdvancedCv"] = "Advanced: Storage Register CV (Auto)",
         ["InspectorCvTag"] = "Storage Register (CV)",
         ["InspectorCvTagHint"] = "Register storing current count. Defaults to non-volatile register (VREG_RETAIN) to survive power loss.",
-
         // Scale / Analog & Actuators
+
         ["ToolboxAnalogCategory"] = "ANALOG & ACTUATORS",
         ["ToolboxAnalogOnlyCategory"] = "ANALOG",
         ["ToolboxScaleTitle"] = "SCALE (Linear Scaler)",
@@ -3268,8 +4429,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorScalePoint2"] = "Point 2 (Span / Max):",
         ["InspectorScaleBtnApplyCalib"] = "Calculate & Apply Gain/Offset",
         ["InspectorScaleNarrative"] = "SCALE Block: Read from {0}  Linear transform {1} ({2}){3}  Output to {4}.",
-
         // Specialized Communication & Fieldbus Protocols (Issue #17)
+
         ["ToolboxCommCategory"] = "COMMUNICATION",
         ["ToolboxModbusCategory"] = "MODBUS",
         ["ToolboxMqttCategory"] = "MQTT",
@@ -3279,6 +4440,142 @@ public class LocalizationService : INotifyPropertyChanged
         ["ToolboxMqttDesc"] = "Publish measurements or status to MQTT Broker (Raw/JSON/Custom)",
         ["ToolboxMqttSubTitle"] = "MQTT Subscribe",
         ["ToolboxMqttSubDesc"] = "Subscribe to MQTT topic and extract data to output pins",
+        ["ToolboxHttpClientTitle"] = "HTTP Client",
+        ["ToolboxHttpClientDesc"] = "Publish measurements or alerts to Webhook/Server via HTTP POST / PUT",
+        ["ToolboxHttpClientReqHardware"] = "Requires hardware network port and HTTP Client capability.",
+        ["ToolboxTcpClientTitle"] = "TCP Client",
+        ["ToolboxTcpClientDesc"] = "Open TCP Socket and stream raw bytes or strings to remote server",
+        ["ToolboxTcpClientReqHardware"] = "Requires hardware network port and TCP Client / Transparent Stream capability.",
+        ["InspectorHttpClientSelecting"] = "HTTP CLIENT FUNCTION BLOCK",
+        ["InspectorTcpClientSelecting"] = "TCP CLIENT FUNCTION BLOCK",
+        ["InspectorHttpClientConfigureBtn"] = "Configure HTTP Client...",
+        ["InspectorHttpClientConfigureTooltip"] = "Open dialog to configure REST API URL, Headers, and JSON Template",
+        ["InspectorTcpClientConfigureBtn"] = "Configure TCP Client...",
+        ["InspectorTcpClientConfigureTooltip"] = "Open dialog to configure TCP Socket, Registration, and Heartbeat",
+        ["InspectorHttpMethodLabel"] = "Method:",
+        ["InspectorHttpEndpointLabel"] = "Endpoint URL:",
+        ["InspectorHttpTriggerLabel"] = "Trigger:",
+        ["InspectorHttpPayloadLabel"] = "Payload:",
+        ["InspectorTcpServerLabel"] = "Server:",
+        ["InspectorTcpReconnectLabel"] = "Reconnect:",
+        ["InspectorTcpHeartbeatLabel"] = "Heartbeat:",
+        ["InspectorTcpRegLabel"] = "Registration:",
+        // HTTP Client Dialog
+
+        ["HttpClientConfigDialogTitle"] = "HTTP Client / Webhook Configuration",
+        ["HttpClientConfigDialogSubtitle"] = "Configure REST API method, endpoint URL, custom headers, and JSON payload template",
+        ["HttpClientGroupEndpoint"] = "ENDPOINT & HTTP METHOD",
+        ["HttpClientGroupEndpointDesc"] = "Configure the remote REST API / Webhook server receiving device telemetry",
+        ["HttpClientGroupTrigger"] = "TRIGGER & TIMING MODE",
+        ["HttpClientGroupTriggerDesc"] = "Specify when HTTP requests should be dispatched to the server",
+        ["HttpClientGroupPayload"] = "PAYLOAD FORMATTING",
+        ["HttpClientGroupPayloadDesc"] = "Customize JSON template or raw value payload dispatched with each request",
+        ["HttpClientFieldMethod"] = "HTTP Method:",
+        ["HttpClientFieldUrl"] = "Endpoint URL (max 64 chars):",
+        ["HttpClientFieldUrlTip"] = "Enter full URL starting with http:// or https://",
+        ["HttpClientFieldTimeout"] = "Timeout (seconds):",
+        ["HttpClientFieldHeaders"] = "Custom HTTP Headers:",
+        ["HttpClientFieldHeadersTip"] = "e.g., Content-Type: application/json (max 56 chars)",
+        ["HttpClientFieldTriggerMode"] = "Trigger Condition:",
+        ["HttpClientFieldPeriodicInterval"] = "Periodic Interval (seconds):",
+        ["HttpClientFieldPayloadMode"] = "Payload Format:",
+        ["HttpClientFieldTemplate"] = "JSON Template:",
+        ["HttpClientFieldPreview"] = "Rendered Payload Preview:",
+        ["HttpClientBtnInsertDevice"] = "+ {device}",
+        ["HttpClientBtnInsertTs"] = "+ {ts}",
+        ["HttpClientBtnInsertVal"] = "+ {val}",
+        ["HttpClientBtnInsertTag"] = "+ {tag}",
+        ["HttpClientOptPostDesc"] = "POST (Create / Push Telemetry)",
+        ["HttpClientOptPutDesc"] = "PUT (Update Resource)",
+        ["HttpClientOptTrigDataDesc"] = "On Trig Pulse / Data Change",
+        ["HttpClientOptPeriodicDesc"] = "Periodic Timer Interval",
+        ["HttpClientOptJsonFieldsDesc"] = "JSON Visual Field Builder (Recommended)",
+        ["HttpClientOptCustomDesc"] = "Custom JSON Template",
+        ["HttpClientOptRawDesc"] = "Raw Value from DATA Pin / Tag",
+        ["HttpClientTriggerEventBadge"] = "Triggered by rising edge on Trig pin (FBD)",
+        ["HttpClientColKey"] = "JSON Field Key",
+        ["HttpClientColTag"] = "Source Device Tag",
+        ["HttpClientColDataType"] = "Data Type",
+        ["HttpClientBtnAddField"] = "+ Add Data Field",
+        ["HttpClientFieldDataTag"] = "Source Data Tag:",
+        ["HttpClientJsonValidBadge"] = "Valid JSON Syntax",
+        ["HttpClientJsonInvalidBadge"] = "Invalid JSON Syntax:",
+        ["HttpClientFieldMethodTip"] = "Select HTTP REST API method: POST (create/push telemetry) or PUT (update resource).",
+        ["HttpClientFieldTimeoutTip"] = "Maximum response timeout from server (1 - 60 seconds). Pin Err asserts on timeout.",
+        ["HttpClientFieldTriggerTip"] = "Event mode: Triggered by rising edge on Trig pin; Cyclic mode: Periodic timer interval.",
+        ["HttpClientFieldIntervalTip"] = "Interval in seconds between automatic periodic dispatches (1 - 3600 seconds).",
+        ["HttpClientFieldPayloadModeTip"] = "JSON: Visual Field Builder; Custom: Freeform JSON template; Raw: Single scalar value.",
+        ["HttpClientOptRawPlainDesc"] = "Plain Text / Raw String (text/plain)",
+        ["SourceUseFbdPin"] = "— Use DATA Pin from FBD Canvas (Auto-link) —",
+        ["SourceUseFbdPinTcp"] = "— Use DataIn Pin from FBD Canvas (Auto-link) —",
+        ["SourceUseFbdPinTip"] = "Automatically transmit raw data received via the DATA wire connection on the FBD canvas.",
+        ["SourceUseFbdPinTcpTip"] = "Raw data from Modbus block or measurement device connected to DataIn will be streamed directly to server via socket.",
+        ["HttpClientColKeyTip"] = "JSON property name (alphanumeric and underscore only).",
+        ["HttpClientColTagTip"] = "Select source Device Tag providing physical value for this field.",
+        ["HttpClientColDataTypeTip"] = "IEC 61131-3 physical data type of selected Tag.",
+        ["HttpClientBtnDeleteFieldTip"] = "Delete this data field from the JSON payload.",
+        ["HttpClientBtnAddFieldTip"] = "Add a new data field to the table.",
+        ["HttpClientFieldTemplateTip"] = "Compose freeform custom JSON structure according to server/webhook specifications.",
+        ["HttpClientPreviewPayloadTip"] = "Real-time rendered preview of the resulting JSON payload.",
+        ["HttpClientDiagTitle"] = "TELEMETRY DIAGNOSTIC INFO",
+        ["HttpClientDiagMethodEndpoint"] = "Destination:",
+        ["HttpClientDiagTrigger"] = "Triggering:",
+        ["HttpClientDiagPayloadSize"] = "Est. Payload Size:",
+        // TCP Client Dialog
+
+        ["TcpClientConfigDialogTitle"] = "TCP Client Socket Configuration",
+        ["TcpClientConfigDialogSubtitle"] = "Open TCP socket connection to remote host, configure registration and heartbeat ping",
+        ["TcpClientGroupConnection"] = "SOCKET CONNECTION PARAMETERS",
+        ["TcpClientGroupConnectionDesc"] = "Remote IP address or domain name and service port of the TCP Server",
+        ["TcpClientGroupReg"] = "REGISTRATION PACKET",
+        ["TcpClientGroupRegDesc"] = "Device identification packet sent to authenticate with the remote server",
+        ["TcpClientGroupHeartbeat"] = "KEEP-ALIVE & HEARTBEAT PING",
+        ["TcpClientGroupHeartbeatDesc"] = "Periodic heartbeat PING packet to keep socket connection alive across networks",
+        ["TcpClientGroupPayload"] = "STREAM PAYLOAD FORMAT",
+        ["TcpClientGroupPayloadDesc"] = "Packaging format for data sent over the socket",
+        ["TcpClientFieldHost"] = "Remote Host (IP / Domain):",
+        ["TcpClientFieldHostTip"] = "IP address (e.g. 192.168.1.100) or domain name (max 48 chars)",
+        ["TcpClientFieldPort"] = "Remote Port:",
+        ["TcpClientFieldReconnect"] = "Reconnect Delay (seconds):",
+        ["TcpClientFieldRegType"] = "Registration Mechanism:",
+        ["TcpClientFieldRegPayload"] = "Registration Payload:",
+        ["TcpClientFieldHeartbeatSec"] = "Heartbeat Interval (seconds, 0 = Off):",
+        ["TcpClientFieldHeartbeatPayload"] = "Heartbeat PING Payload:",
+        ["TcpClientFieldPayloadMode"] = "Payload Mode:",
+        ["TcpClientFieldDataTag"] = "Socket Source Data Tag:",
+        ["TcpClientFieldPortTip"] = "TCP service port of remote server (valid range: 1 - 65535).",
+        ["TcpClientFieldReconnectTip"] = "Delay before automatic reconnect on network drop (1 - 60 seconds).",
+        ["TcpClientFieldRegTypeTip"] = "None: Disabled; OnConnect: Send once on socket handshake; Prepend: Attach to every packet.",
+        ["TcpClientFieldRegPayloadTip"] = "Device identification or authentication string sent to the server.",
+        ["TcpClientFieldHeartbeatSecTip"] = "Interval for keep-alive PING packet across NAT/firewall (0 = disabled).",
+        ["TcpClientFieldHeartbeatPayloadTip"] = "Periodic PING string sent to keep socket open.",
+        ["TcpClientFieldPayloadModeTip"] = "Packaging mode: Raw Bytes (transparent passthrough) or Custom String.",
+        ["TcpClientFieldDataTagTip"] = "Select source PLC Tag streamed over TCP socket.",
+        ["TcpClientPreviewTitle"] = "TCP SOCKET PACKET STREAM PREVIEW",
+        ["TcpClientPreviewTip"] = "Real-time simulated preview of packets dispatched over the network connection.",
+        ["TcpClientDiagTitle"] = "SOCKET DIAGNOSTICS",
+        ["TcpClientDiagRemoteSocket"] = "Remote Server:",
+        ["TcpClientDiagHeartbeat"] = "Heartbeat PING:",
+        ["TcpClientOptRegNoneDesc"] = "None (Disabled)",
+        ["TcpClientOptRegOnConnectDesc"] = "Send on Connect",
+        ["TcpClientOptRegPrependDesc"] = "Prepend to Every Packet",
+        ["TcpClientOptRawDesc"] = "Raw Bytes (Transparent Passthrough)",
+        ["TcpClientOptCustomDesc"] = "Custom String",
+        ["TcpClientFieldFraming"] = "Framing Delimiter (EOL):",
+        ["TcpClientFieldFramingTip"] = "TCP packet framing delimiter (CRLF: \\r\\n, LF: \\n, None: raw stream, Custom: user string).",
+        ["TcpClientOptFramingCrlf"] = "CRLF (\\r\\n) — Standard SCADA / IoT",
+        ["TcpClientOptFramingLf"] = "LF (\\n) — Standard Unix / Linux",
+        ["TcpClientOptFramingNone"] = "None — Raw Stream (No Delimiter)",
+        ["TcpClientOptFramingCustom"] = "Custom — User Delimiter",
+        ["TcpClientFieldTemplate"] = "Format Template:",
+        ["TcpClientFieldTemplateTip"] = "Compose ASCII socket payload template with placeholders: {val}, {tag}, {device}, {ts}.",
+        ["TcpClientCustomModeHint"] = "Format of ASCII message sent over TCP socket. Click buttons below to insert placeholders.",
+        ["TcpClientDiagFraming"] = "Framing Delimiter:",
+        ["BtnRestoreDefaults"] = "Restore Defaults",
+        ["BtnRestoreDefaultsTip"] = "Restore all parameters to factory defaults.",
+        ["BtnClose"] = "Close",
+        ["BtnCancelTip"] = "Discard all changes and close dialog (Hotkey: Esc).",
+        ["BtnApplyTip"] = "Commit changes to FBD logic graph and close dialog (Hotkey: Enter).",
         ["InspectorMqttSelecting"] = "MQTT PUBLISH FUNCTION BLOCK",
         ["InspectorMqttSubSelecting"] = "MQTT SUBSCRIBE FUNCTION BLOCK",
         ["InspectorMqttSubOutputsSummary"] = "{0} output pins",
@@ -3288,12 +4585,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubPinsSectionTitle"] = "OUTPUT PINS & PAYLOAD EXTRACTION",
         ["MqttSubConfigDialogTitle"] = "MQTT Subscribe Configuration",
         ["MqttSubConfigDialogSubtitle"] = "Extract data fields from incoming MQTT messages into block output pins",
-        ["MqttSubFieldSection"] = "OUTPUT PINS LIST",
-        ["MqttSubFieldSectionDesc"] = "JSON field name will automatically become the output pin name on canvas",
+        ["MqttSubFieldSection"] = "DATA FIELDS & TARGET TAGS",
+        ["MqttSubFieldSectionDesc"] = "Extract data fields from JSON message and automatically write to target tags or emit to FBD pins",
         ["MqttSubColFieldName"] = "Field Name",
         ["MqttSubColKey"] = "JSON Key",
         ["MqttSubColPin"] = "Pin Title",
         ["MqttSubColType"] = "Data Type",
+        ["MqttSubColTargetTag"] = "Target Tag",
+        ["MqttSubColTargetTagTooltip"] = "Select PLC memory tag (DO, AO, VREG, VFLAG) to automatically receive decoded value from this JSON field",
         ["MqttSubBtnAddField"] = "+ Add Output Pin",
         ["MqttSubTestSection"] = "PAYLOAD TEST",
         ["MqttSubTestSectionDesc"] = "Paste sample JSON payload to preview values received on output pins:",
@@ -3303,11 +4602,14 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubResultsPreview"] = "Extracted Output Pins:",
         ["MqttSubQueueModeLabel"] = "Queue Mode:",
         ["MqttSubColQueueMode"] = "Queue Mode:",
-        ["MqttSubQueueFifo"] = "FIFO (Sequential)",
-        ["MqttSubQueueLatest"] = "Latest Message",
+        ["MqttSubQueueFifo"] = "FIFO (Sequential Queue)",
+        ["MqttSubQueueLatest"] = "Overwrite (Latest Message Only)",
         ["MqttSubBtnApply"] = "Apply",
-        ["ToolboxModbusReadTitle"] = "MB_READ",
-        ["ToolboxModbusReadDesc"] = "Poll register data from RS-485 Modbus RTU sensors and devices",
+        ["ToolboxModbusReadTitle"] = "MB_READ (RS-485 / Zigbee)",
+        ["ToolboxModbusReadDesc"] = "Poll register data from sensors and devices via RS-485 serial or Zigbee wireless",
+        ["ModbusPortZigbeeOption"] = "Port Zigbee (Wireless Modbus)",
+        ["ModbusPortZigbeeTooltip"] = "Transmit and receive data over 2.4 GHz IEEE 802.15.4 Zigbee wireless mesh instead of RS-485 cable.",
+        ["ModbusZigbeeRestrictedIdError"] = "Slave IDs 236 (0xEC) and 237 (0xED) are restricted on Zigbee port due to RF module AT commands.",
         ["InspectorModbusSelecting"] = "MODBUS RTU READ",
         ["InspectorCustomLabel"] = "Node Label (optional)",
         ["InspectorModbusPinsSummary"] = "{0} output pins",
@@ -3349,8 +4651,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipMbErr"] = "Modbus communication error indicator (Timeout or CRC failure)",
         ["PinTooltipMbErrCode"] = "Modbus diagnostic error code (0 = OK, 1 = Timeout, 2 = CRC, 3 = Exception)",
         ["PinTooltipErrCode"] = "Communication diagnostic error code (0 = OK)",
-        ["ToolboxModbusWriteTitle"] = "MB_WRITE",
-        ["ToolboxModbusWriteDesc"] = "Transmit data / control actuators via Modbus RTU (Sort-to-Light / Solenoids / Tower light)",
+        ["ToolboxModbusWriteTitle"] = "MB_WRITE (RS-485 / Zigbee)",
+        ["ToolboxModbusWriteDesc"] = "Transmit data / control actuators via RS-485 serial or Zigbee wireless",
         ["ToolboxDirectWriteTitle"] = "PULSE_OUT",
         ["ToolboxDirectWriteDesc"] = "High-speed pulse generator, PWM, PTO, and addressable bus output (DO0..DO7)",
         ["InspectorModbusWriteSelecting"] = "MODBUS RTU MASTER WRITE",
@@ -3628,8 +4930,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttPublishModeEvent"] = "On Trigger",
         ["MqttPublishModeCov"] = "On Change (COV)",
         ["MqttPublishModeCyclic"] = "Periodic",
-
         // MQTT Publish & Subscribe Dialog & Inspector Tooltips
+
         ["MqttHeaderTooltip"] = "Configuration dialog for structured telemetry JSON payload published to MQTT Broker",
         ["MqttPayloadModeTooltip"] = "Select payload formatting method: Visual Fields builder or Custom Freeform JSON Template",
         ["InspectorMqttColKeyTooltip"] = "Property key name in the published JSON payload",
@@ -3647,7 +4949,6 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttReadyStatusTooltip"] = "Ready status: Payload is syntactically valid and ready to transmit on trigger",
         ["MqttBtnApplyTooltip"] = "Save JSON payload configuration to the function block and update FBD canvas",
         ["MqttFooterTopicTooltip"] = "Destination MQTT topic where this message will be published",
-
         ["MqttSubHeaderTooltip"] = "Configuration dialog to extract fields from incoming MQTT JSON messages into block output pins",
         ["MqttSubColFieldNameTooltip"] = "JSON field name to extract (simultaneously sets the FBD output pin label)",
         ["MqttSubColTypeTooltip"] = "Output data type cast for this signal pin (BOOL, INT, DINT, REAL...)",
@@ -3661,7 +4962,6 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttSubResultsPreviewTooltip"] = "Inspection table displaying extracted values mapped into each output pin",
         ["MqttSubFooterTopicTooltip"] = "MQTT topic subscribed by this block",
         ["MqttSubBtnApplyTooltip"] = "Apply output pins configuration and synchronize connections on FBD canvas",
-
         ["InspectorMqttTopicTooltip"] = "MQTT Topic to publish to or subscribe from (e.g. factory/line1/temp)",
         ["InspectorMqttPublishModeTooltip"] = "Publish Mode: On Trigger pulse, Periodic timer, or Change-of-Value (COV)",
         ["InspectorMqttIntervalTooltip"] = "Periodic transmission cycle time in milliseconds (50ms to 60000ms)",
@@ -3674,20 +4974,64 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorMqttConfigureTooltip"] = "Open dialog to configure structured JSON payload and view live preview",
         ["InspectorMqttSubTopicTooltip"] = "MQTT Topic subscribed by this block to receive messages from Broker",
         ["InspectorMqttSubConfigureTooltip"] = "Open dialog to define output pins and test incoming JSON data extraction",
-
+        ["MqttSubTabBroker"] = "1. Broker Server & Security",
+        ["DtuTabBrokerServer"] = "1. Broker Server & Security",
+        ["DtuTabTelemetryPub"] = "2. Telemetry Publish",
+        ["DtuTabCommandSub"] = "3. Command Subscribe",
+        ["MqttSubTabPublish"] = "2. Telemetry Publish",
+        ["MqttSubTabSubscribe"] = "3. Command Subscribe",
+        ["DtuUplinkProtocolHeader"] = "Cloud Uplink Protocol:",
+        ["DtuUplinkProtocolSub"] = "Select communication standard compatible with IoT / SCADA servers",
+        ["DtuUplinkMqttRadio"] = "MQTT Broker (IoT Standard)",
+        ["DtuUplinkHttpRadio"] = "HTTP REST (Web API)",
+        ["DtuUplinkTcpRadio"] = "TCP Socket (Raw Stream)",
+        ["MqttConfigCommSection"] = "COMMUNICATION & TRIGGER PARAMETERS",
+        ["MqttTriggerInputLabel"] = "Trigger Input:",
+        ["MqttTriggerInputTrig"] = "Trig Pin (FBD)",
+        ["MqttRetainLabel"] = "Retain",
+        ["TooltipMqttQueueFifo"] = "FIFO Queue: Buffers all inbound commands sequentially and processes them in order during scan cycles.",
+        ["TooltipMqttQueueOverwrite"] = "Overwrite Mode: Retains only the most recent command received from Broker, discarding unread stale messages.",
+        ["InspectorUplinkPublishLabel"] = "▲ UPLINK (Telemetry Publish):",
+        ["InspectorDownlinkSubscribeLabel"] = "▼ DOWNLINK (Command Subscribe):",
+        ["InspectorLwtLabel"] = "⚡ LWT (Last Will & Testament):",
+        ["InspectorQos1GuaranteeText"] = "Service Level: QoS 1 ensures telemetry delivery with PUBACK verification.",
+        ["InspectorMqttSecurityTitle"] = "Security & Port Overview",
+        ["InspectorMqttPortLabel"] = "Connection Port:",
+        ["InspectorMqttTlsLabel"] = "TLS/SSL Encryption:",
+        ["InspectorIdentityAuth"] = "Authentication:",
+        ["InspectorAuthNone"] = "None (Anonymous)",
+        ["InspectorAuthUserPass"] = "Username / Password",
+        ["InspectorAuthCert"] = "mTLS x509 Certificate",
+        ["InspectorStateOn"] = "Enabled",
+        ["InspectorStateOff"] = "Disabled",
+        ["InspectorDataStatsTitle"] = "Data & Payload Statistics",
+        ["InspectorDataStatsDesc"] = "Summary of telemetry fields, command pins and estimated packet size",
+        ["InspectorTopicPublishLabel"] = "Publish Topic (Uplink):",
+        ["InspectorTopicSubscribeLabel"] = "Subscribe Topic (Downlink):",
+        ["InspectorTopicLwtLabel"] = "LWT Status Topic:",
+        ["InspectorPublishFieldsLabel"] = "Telemetry Fields (Publish):",
+        ["InspectorSubscribePinsLabel"] = "Command Pins (Subscribe):",
+        ["InspectorMappedTagsLabel"] = "Mapped Target Tags:",
+        ["InspectorPayloadEstSizeLabel"] = "Est. Payload Size:",
+        ["InspectorPublishModeLabel"] = "Publish Trigger Mode:",
+        ["InspectorHostLabel"] = "Broker Host:",
+        ["InspectorClientIdLabel"] = "Client ID:",
+        ["InspectorKeepAliveLabel"] = "Keep-Alive Ping:",
+        ["InspectorQueueModeLabel"] = "Command Queue Mode:",
         // Connector Pin Tooltips - MQTT Publish
+
         ["PinTooltipMqttPubTrig"] = "Pulse to publish MQTT message immediately",
         ["PinTooltipMqttPubVal"] = "Sensor or data signal to be published",
         ["PinTooltipMqttPubIn"] = "Input data signal for corresponding JSON field",
         ["PinTooltipMqttPubDone"] = "Pulse asserting MQTT message was published successfully",
         ["PinTooltipMqttPubErr"] = "MQTT publish error indicator (Broker disconnected or send error)",
-
         // Connector Pin Tooltips - MQTT Subscribe
+
         ["PinTooltipMqttSubEn"] = "Block operation enable (Receive incoming messages from MQTT topic)",
         ["PinTooltipMqttSubValid"] = "Pulse asserting a valid MQTT message was received from Broker",
         ["PinTooltipMqttSubErr"] = "MQTT subscribe error indicator (Broker disconnected or payload parse error)",
-
         // Standard IEC 61131-3 & Processing Pin Tooltips
+
         ["PinTooltipIn"] = "Logic or data input signal",
         ["PinTooltipOut"] = "Logic or calculation result output signal",
         ["PinTooltipQ"] = "Status output asserted when preset condition is met",
@@ -3698,8 +5042,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipScaleOut"] = "Scaled engineering output value",
         ["PinTooltipCmpIn"] = "Input value to be compared against threshold",
         ["PinTooltipCmpOut"] = "Boolean result of the comparison",
-
         // Compatibility aliases
+
         ["PinTooltipTrig"] = "Command trigger signal (Rising edge)",
         ["PinTooltipVal"] = "Sensor or data signal",
         ["PinTooltipDone"] = "Pulse asserting command completion",
@@ -3711,6 +5055,23 @@ public class LocalizationService : INotifyPropertyChanged
         ["PinTooltipChannel"] = "Actuator channel index (1..N)",
         ["PinTooltipCommand"] = "Actuator command code (0 = Off, 1 = On, 2 = Blink)",
         ["PinTooltipParam"] = "RGB color code or auxiliary parameter",
-        ["PinTooltipDataIn"] = "Data value to write into register"
+        ["PinTooltipDataIn"] = "Data value to write into register",
+        ["RsNarrNcStop"] = "NC: circuit broken = 0",
+        ["RsNarrNoStop"] = "NO: circuit closed = 1",
+        ["PinTooltipR1"] = "Reset input (R1): dominant reset clears output Q1 OFF",
+        ["EditorModeEditing"] = "Editing: {0}",
+        ["EditorModeNew"] = "New Rule",
+        ["EditorModeBadgeNew"] = "New",
+        ["EditorStatusErrors"] = "{0} compile errors",
+        ["EditorStatusFbsReady"] = "{0} function/MQTT blocks ready",
+        ["EditorToastSaved"] = "Saved rule into Rule Table ({0})",
+        ["LiveDebugStatusActive"] = "Live Monitoring Active",
+        ["LiveDebugStatusInactive"] = "Live Monitor Inactive",
+        ["ToolboxMqttPublishReqHardware"] = "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Publish capability.",
+        ["ToolboxMqttSubscribeReqHardware"] = "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Subscribe capability.",
+        ["ToolboxModbusMasterReqHardware"] = "Requires hardware Modbus Master Poller capability."
+
     };
+
 }
+

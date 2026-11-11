@@ -10,10 +10,491 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Protocol.Constants;
+using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
+
+
+/// <summary>
+/// Model quan sát biểu diễn từng kênh truyền Modbus Master trong bảng Master I/O Table của cổng RS-485.
+/// Hỗ trợ cả 2 nhóm hàm: Đọc tuần hoàn (FC01..FC04) và Ghi theo sự kiện/chu kỳ (FC05, FC06, FC15, FC16).
+/// Tuân thủ học thuyết First Principles (Axiom 1, 2, 3) về kiểu dữ liệu vật lý và máy trạng thái nhập liệu.
+/// </summary>
+public partial class ModbusMasterChannelItemViewModel : ObservableObject
+{
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
+    [NotifyPropertyChangedFor(nameof(ExpectedResponseHex))]
+    private byte _slaveId = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReadOperation))]
+    [NotifyPropertyChangedFor(nameof(IsWriteOperation))]
+    [NotifyPropertyChangedFor(nameof(OperationTypeBadge))]
+    [NotifyPropertyChangedFor(nameof(FunctionCodeBadge))]
+    [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
+    [NotifyPropertyChangedFor(nameof(ExpectedResponseHex))]
+    [NotifyPropertyChangedFor(nameof(RegisterRangeDisplay))]
+    [NotifyPropertyChangedFor(nameof(FilteredAvailableTags))]
+    private byte _functionCode = 3;
+
+    partial void OnFunctionCodeChanged(byte value)
+    {
+        OnPropertyChanged(nameof(FilteredAvailableTags));
+        CoerceTargetTagCompatibility();
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
+    [NotifyPropertyChangedFor(nameof(RegisterRangeDisplay))]
+    private ushort _address = 40001;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
+    [NotifyPropertyChangedFor(nameof(ExpectedResponseHex))]
+    [NotifyPropertyChangedFor(nameof(RegisterSizeDisplay))]
+    [NotifyPropertyChangedFor(nameof(IsEndiannessApplicable))]
+    [NotifyPropertyChangedFor(nameof(FilteredAvailableTags))]
+    private ModbusDataType _dataType = ModbusDataType.Int16;
+
+    partial void OnDataTypeChanged(ModbusDataType value)
+    {
+        OnPropertyChanged(nameof(FilteredAvailableTags));
+        CoerceTargetTagCompatibility();
+    }
+
+    private void CoerceTargetTagCompatibility()
+    {
+        if (TargetTag == null || TargetTag.Kind == TagKind.None || string.Equals(TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // Axiom 1 (Hardware Ground Truth): Read operations (FC01..FC04) cannot target read-only tags (AI, DI, SYSTEM)
+        if (IsReadOperation && TargetTag.IsReadOnly)
+        {
+            ResetTargetTag();
+            return;
+        }
+
+        // Type safety: Bit vs Register
+        if (DataType == ModbusDataType.Bool)
+        {
+            if (!TargetTag.IsDigital && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                ResetTargetTag();
+            }
+        }
+        else
+        {
+            if (TargetTag.IsDigital || TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                ResetTargetTag();
+                return;
+            }
+
+            if (DataType == ModbusDataType.Real 
+                && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32 
+                && TargetTag.Kind != TagKind.VirtualRegister 
+                && TargetTag.Kind != TagKind.VirtualRegisterRetain)
+            {
+                ResetTargetTag();
+                return;
+            }
+
+            if ((DataType == ModbusDataType.Int16 || DataType == ModbusDataType.UInt16 || DataType == ModbusDataType.Int32 || DataType == ModbusDataType.UInt32)
+                && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32
+                && TargetTag.Kind != TagKind.VirtualRegister
+                && TargetTag.Kind != TagKind.VirtualRegisterRetain)
+            {
+                ResetTargetTag();
+            }
+        }
+    }
+
+    private void ResetTargetTag()
+    {
+        var noneTag = AvailableTagsProvider?.Invoke().FirstOrDefault(t => t.Kind == TagKind.None || string.Equals(t.Name, "NONE", StringComparison.OrdinalIgnoreCase));
+        TargetTag = noneTag;
+        TargetTagName = string.Empty;
+        TargetTagAlias = string.Empty;
+    }
+
+    /// <summary>
+    /// Hàm cung cấp danh sách toàn bộ Tag từ TagCatalog để lọc động.
+    /// </summary>
+    public Func<IEnumerable<TagModel>>? AvailableTagsProvider { get; set; }
+
+    /// <summary>
+    /// Danh sách Tag tương thích với kiểu dữ liệu vật lý (IEC 61131-3) của kênh Modbus hiện tại.
+    /// BOOL: chỉ hiển thị cờ bit (DI, DO, VFLAG).
+    /// REAL: chỉ hiển thị thanh ghi số thực (VREG Float32 / AI).
+    /// INT16/INT32: chỉ hiển thị thanh ghi số nguyên (VREG Int32).
+    /// Tag NONE (-- No Selection --) luôn xuất hiện đầu danh sách.
+    /// </summary>
+    public IEnumerable<TagModel> FilteredAvailableTags
+    {
+        get
+        {
+            var all = AvailableTagsProvider?.Invoke() ?? Enumerable.Empty<TagModel>();
+            return FilterTagsByPhysicalDataType(all, DataType, IsReadOperation);
+        }
+    }
+
+    /// <summary>
+    /// Lọc danh sách Tag theo kiểu dữ liệu vật lý và chiều thao tác Đọc/Ghi theo Axiom 1 (IEC 61131-3).
+    /// </summary>
+    /// <param name="tags">Toàn bộ danh sách Tag từ Tag Catalog.</param>
+    /// <param name="dataType">Kiểu dữ liệu Modbus đang cấu hình.</param>
+    /// <param name="isReadOperation">True nếu là thao tác Đọc (FC01..FC04); False nếu là thao tác Ghi (FC05..FC16).</param>
+    public static IEnumerable<TagModel> FilterTagsByPhysicalDataType(IEnumerable<TagModel> tags, ModbusDataType dataType, bool isReadOperation = true)
+    {
+        foreach (var tag in tags)
+        {
+            if (tag.Kind == TagKind.None || string.Equals(tag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return tag;
+                continue;
+            }
+
+            // Axiom 1 (Hardware Ground Truth):
+            // Thao tác ĐỌC (FC01..04): PLC nhận dữ liệu từ cảm biến RS-485 và ghi vào bộ nhớ nội bộ.
+            // Các chân đầu vào vật lý (AI, DI) và System inputs liên tục bị phần cứng vi điều khiển (ADC/GPIO sampler)
+            // quét và ghi đè sau mỗi 10ms scan cycle. Do đó TUYỆT ĐỐI không cho phép ghi đè vào chân phần cứng chỉ đọc!
+            if (isReadOperation && tag.IsReadOnly)
+            {
+                continue;
+            }
+
+            if (dataType == ModbusDataType.Bool)
+            {
+                if (tag.IsDigital || tag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+                {
+                    yield return tag;
+                }
+            }
+            else if (dataType == ModbusDataType.Real)
+            {
+                if (!tag.IsDigital && (tag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32 || tag.Kind is TagKind.VirtualRegister or TagKind.VirtualRegisterRetain))
+                {
+                    yield return tag;
+                }
+            }
+            else // Int16, Int32, UInt16, UInt32
+            {
+                if (!tag.IsDigital && (tag.DataType == SimplePLC.Domain.Enums.TagDataType.Int32 || tag.Kind is TagKind.VirtualRegister or TagKind.VirtualRegisterRetain))
+                {
+                    yield return tag;
+                }
+            }
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RegisterSizeDisplay))]
+    private ModbusEndianness _endianness = ModbusEndianness.BigEndian_ABCD;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScalingFormulaDisplay))]
+    private double _scale = 1.0;
+
+    [ObservableProperty]
+    private string _scaleText = "1";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TargetTagDisplay))]
+    private string _targetTagName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTagSelected))]
+    [NotifyPropertyChangedFor(nameof(TargetTagDisplay))]
+    private TagModel? _targetTag;
+
+    [ObservableProperty]
+    private string _targetTagAlias = string.Empty;
+
+    [ObservableProperty]
+    private string _description = string.Empty;
+
+    /// <summary>
+    /// Xác định hàm này thuộc nhóm Đọc (FC01, FC02, FC03, FC04).
+    /// </summary>
+    public bool IsReadOperation => FunctionCode is 1 or 2 or 3 or 4;
+
+    /// <summary>
+    /// Xác định hàm này thuộc nhóm Ghi (FC05, FC06, FC15, FC16).
+    /// </summary>
+    public bool IsWriteOperation => FunctionCode is 5 or 6 or 15 or 16;
+
+    /// <summary>
+    /// Kiểm tra xem Tag đích đã được chọn hợp lệ hay chưa (khác None).
+    /// </summary>
+    /// <summary>
+    /// Xác định xem quy tắc Endianness có áp dụng cho kiểu dữ liệu này hay không.
+    /// Chỉ áp dụng cho các kiểu dữ liệu 32-bit (Real, Int32, UInt32) chiếm từ 2 thanh ghi trở lên.
+    /// Không áp dụng cho 1 thanh ghi 16-bit (Int16, UInt16) hoặc 1-bit (Bool).
+    /// </summary>
+    public bool IsEndiannessApplicable => DataType is ModbusDataType.Int32 or ModbusDataType.UInt32 or ModbusDataType.Real;
+
+    public bool IsTagSelected => TargetTag != null && TargetTag.Kind != TagKind.None && !string.Equals(TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Nhãn trạng thái hiển thị thao tác (ĐỌC / GHI hoặc READ / WRITE).
+    /// </summary>
+    /// <summary>
+    /// Nhãn hiển thị Function Code dưới dạng FCxx (ví dụ FC03).
+    /// </summary>
+    public string FunctionCodeBadge => $"FC{FunctionCode:D2}";
+
+    public string OperationTypeBadge => IsReadOperation
+        ? (LocalizationService.Instance.IsVietnamese ? "ĐỌC" : "READ")
+        : (LocalizationService.Instance.IsVietnamese ? "GHI" : "WRITE");
+
+    /// <summary>
+    /// Tên Tag hiển thị an toàn.
+    /// </summary>
+    public string TargetTagDisplay => TargetTag != null && TargetTag.Kind != TagKind.None
+        ? TargetTag.DisplayName
+        : (!string.IsNullOrWhiteSpace(TargetTagName) ? TargetTagName : "—");
+
+    partial void OnTargetTagChanged(TagModel? value)
+    {
+        if (value == null || value.Kind == TagKind.None || string.Equals(value.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+        {
+            TargetTagName = string.Empty;
+            TargetTagAlias = string.Empty;
+        }
+        else
+        {
+            TargetTagName = value.Name;
+            TargetTagAlias = value.Alias ?? string.Empty;
+
+            if (value.IsDigital || value.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                DataType = ModbusDataType.Bool;
+            }
+            else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+            {
+                DataType = ModbusDataType.Real;
+            }
+            else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32 && DataType == ModbusDataType.Bool)
+            {
+                DataType = ModbusDataType.Int16;
+            }
+        }
+    }
+
+    partial void OnTargetTagAliasChanged(string value)
+    {
+        if (TargetTag != null && TargetTag.Kind != TagKind.None)
+        {
+            TargetTag.Alias = value;
+        }
+        Description = value;
+    }
+
+    partial void OnScaleTextChanged(string value)
+    {
+        string clean = value.Trim().Replace(',', '.');
+        if (double.TryParse(clean, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsedVal))
+        {
+            if (parsedVal > 0 && Math.Abs(Scale - parsedVal) > 1e-9)
+            {
+                Scale = parsedVal;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chuẩn hóa giá trị ScaleText khi mất focus (LostFocus) hoặc nhấn Enter (Axiom 3).
+    /// Tự động định dạng lại số hợp lệ hoặc khôi phục giá trị đã commit trước đó.
+    /// </summary>
+    public void CommitScaleText()
+    {
+        string clean = (ScaleText ?? string.Empty).Trim().Replace(',', '.');
+        if (double.TryParse(clean, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsedVal) && parsedVal > 0)
+        {
+            Scale = parsedVal;
+            ScaleText = parsedVal.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            ScaleText = Scale.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi biểu diễn Hex byte thực tế của bản tin Modbus RTU gửi đi (TX) kèm mã CRC-16 chuẩn.
+    /// </summary>
+    public string RequestFrameHex
+    {
+        get
+        {
+            ushort offset = CalculateOffset(Address);
+            ushort quantity = (DataType is ModbusDataType.Int32 or ModbusDataType.Real) ? (ushort)2 : (ushort)1;
+
+            Span<byte> frame = stackalloc byte[8];
+            frame[0] = SlaveId;
+            frame[1] = FunctionCode;
+            frame[2] = (byte)(offset >> 8);
+            frame[3] = (byte)(offset & 0xFF);
+
+            if (IsWriteOperation && FunctionCode is 5 or 6)
+            {
+                frame[4] = 0x00;
+                frame[5] = 0x01;
+            }
+            else
+            {
+                frame[4] = (byte)(quantity >> 8);
+                frame[5] = (byte)(quantity & 0xFF);
+            }
+
+            ushort crc = SimplePLC.Protocol.Cryptography.Crc16Modbus.Compute(frame[..6]);
+            byte crcLo = (byte)(crc & 0xFF);
+            byte crcHi = (byte)(crc >> 8);
+            frame[6] = crcLo;
+            frame[7] = crcHi;
+
+            return $"[ {frame[0]:X2} ] [ {frame[1]:X2} ] [ {frame[2]:X2} {frame[3]:X2} ] [ {frame[4]:X2} {frame[5]:X2} ] [ {frame[6]:X2} {frame[7]:X2} ]";
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi biểu diễn Hex byte của bản tin Modbus RTU phản hồi dự kiến (RX).
+    /// </summary>
+    public string ExpectedResponseHex
+    {
+        get
+        {
+            ushort quantity = (DataType is ModbusDataType.Int32 or ModbusDataType.Real) ? (ushort)2 : (ushort)1;
+            if (IsReadOperation)
+            {
+                byte byteCount = (byte)(FunctionCode is 1 or 2 ? 1 : (quantity * 2));
+                return byteCount == 1
+                    ? $"[ {SlaveId:X2} ] [ {FunctionCode:X2} ] [ 01 ] [ XX ] [ CRC ]"
+                    : (byteCount == 2
+                        ? $"[ {SlaveId:X2} ] [ {FunctionCode:X2} ] [ 02 ] [ HI LO ] [ CRC ]"
+                        : $"[ {SlaveId:X2} ] [ {FunctionCode:X2} ] [ 04 ] [ B0 B1 B2 B3 ] [ CRC ]");
+            }
+            else
+            {
+                return $"[ {SlaveId:X2} ] [ {FunctionCode:X2} ] [ ACK ] [ CRC ]";
+            }
+        }
+    }
+
+    private static ushort CalculateOffset(ushort address) => address switch
+    {
+        >= 40001 and <= 49999 => (ushort)(address - 40001),
+        >= 30001 and <= 39999 => (ushort)(address - 30001),
+        >= 10001 and <= 19999 => (ushort)(address - 10001),
+        >= 1 and <= 9999 => (ushort)(address - 1),
+        _ => address
+    };
+
+    /// <summary>
+    /// Định dạng hiển thị dải địa chỉ thanh ghi IEC theo chuẩn Modbus.
+    /// </summary>
+    public string RegisterRangeDisplay
+    {
+        get
+        {
+            ushort offset = CalculateOffset(Address);
+            string fcName = FunctionCode switch
+            {
+                1 => "Coil (0x)",
+                2 => "Discrete Input (1x)",
+                3 => "Holding Reg (4x)",
+                4 => "Input Reg (3x)",
+                5 => "Write Coil (0x)",
+                6 => "Write Reg (4x)",
+                15 => "Write Multi-Coil (0x)",
+                16 => "Write Multi-Reg (4x)",
+                _ => "Register"
+            };
+            return $"{fcName} · {Address} (Offset 0x{offset:X4})";
+        }
+    }
+
+    /// <summary>
+    /// Kích thước dữ liệu và chiều dài thanh ghi chiếm dụng.
+    /// </summary>
+    public string RegisterSizeDisplay => DataType switch
+    {
+        ModbusDataType.Bool => "1 Bit (Coil / Contact)",
+        ModbusDataType.Int16 => "1 Register (16-bit Signed, 2 Bytes)",
+        ModbusDataType.UInt16 => "1 Register (16-bit Unsigned, 2 Bytes)",
+        ModbusDataType.Int32 => $"2 Registers (32-bit Signed {Endianness}, 4 Bytes)",
+        ModbusDataType.Real => $"2 Registers (32-bit Float {Endianness}, 4 Bytes)",
+        _ => "1 Register (16-bit, 2 Bytes)"
+    };
+
+    /// <summary>
+    /// Công thức toán học chuyển đổi đơn vị kỹ thuật (Scaling).
+    /// </summary>
+    public string ScalingFormulaDisplay
+    {
+        get
+        {
+            string baseFormula = $"Tag Value = Raw × {Scale:G}";
+            if (Math.Abs(Scale - 1.0) > 1e-6)
+            {
+                double exampleVal = 100.0 * Scale;
+                return $"{baseFormula} (vd: Raw 100 → {exampleVal:G})";
+            }
+            return $"{baseFormula} (1:1 Trực tiếp)";
+        }
+    }
+
+    public void NotifyLanguageChanged()
+    {
+        OnPropertyChanged(nameof(OperationTypeBadge));
+        OnPropertyChanged(nameof(ScalingFormulaDisplay));
+        OnPropertyChanged(nameof(TargetTagDisplay));
+        OnPropertyChanged(nameof(FilteredAvailableTags));
+    }
+
+    /// <summary>
+    /// Danh sách các mã hàm Modbus Master khả dụng (FC01..FC04 đọc, FC05..FC16 ghi).
+    /// </summary>
+    public static IReadOnlyList<OptionItem<byte>> AvailableFunctionCodes { get; } = new List<OptionItem<byte>>
+    {
+        new(1, "FC01 · Read Coils (0x)"),
+        new(2, "FC02 · Read Inputs (1x)"),
+        new(3, "FC03 · Read Holding (4x)"),
+        new(4, "FC04 · Read Input Regs (3x)"),
+        new(5, "FC05 · Write Coil (0x)"),
+        new(6, "FC06 · Write Register (4x)"),
+        new(15, "FC15 · Write Coils (0x)"),
+        new(16, "FC16 · Write Registers (4x)")
+    };
+
+    /// <summary>
+    /// Danh sách các kiểu dữ liệu Modbus khả dụng.
+    /// </summary>
+    public static IReadOnlyList<OptionItem<ModbusDataType>> AvailableDataTypes { get; } = new List<OptionItem<ModbusDataType>>
+    {
+        new(ModbusDataType.Int16, "INT16 (Signed)"),
+        new(ModbusDataType.UInt16, "UINT16 (Unsigned)"),
+        new(ModbusDataType.Real, "REAL (Float32)"),
+        new(ModbusDataType.Bool, "BOOL (1-bit)"),
+        new(ModbusDataType.Int32, "INT32 (Signed)")
+    };
+
+    /// <summary>
+    /// Danh sách thứ tự byte (Endianness) theo chuẩn công nghiệp.
+    /// </summary>
+    public static IReadOnlyList<OptionItem<ModbusEndianness>> AvailableEndianness { get; } = new List<OptionItem<ModbusEndianness>>
+    {
+        new(ModbusEndianness.BigEndian_ABCD, "Big-Endian (ABCD)"),
+        new(ModbusEndianness.MidBig_CDAB, "Word-Swap (CDAB)"),
+        new(ModbusEndianness.ByteSwap_BADC, "Byte-Swap (BADC)"),
+        new(ModbusEndianness.LittleEndian_DCBA, "Little-Endian (DCBA)")
+    };
+}
 
 /// <summary>
 /// Model quan sát biểu diễn từng mục ánh xạ thanh ghi Modbus Slave tại phân vùng 0x1500 (Memory Protection Sandbox).
@@ -188,9 +669,48 @@ public partial class ModbusPortItemViewModel : ObservableObject
     [ObservableProperty]
     private ushort _interFrameDelayMs = 20;
 
+    private readonly TagCatalogViewModel? _tagCatalog;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadge))]
     private ushort _retryCount = 1;
+
+    [ObservableProperty]
+    private ModbusMasterChannelItemViewModel? _selectedMasterChannel;
+
+    /// <summary>
+    /// Danh sách các kênh truyền Modbus Master tuần hoàn và phát lệnh trên cổng này.
+    /// </summary>
+    public ObservableCollection<ModbusMasterChannelItemViewModel> MasterChannels { get; } = new();
+
+    /// <summary>
+    /// Xác định cổng có kênh truyền Modbus Master nào đang được cấu hình hay không.
+    /// </summary>
+    public bool HasMasterChannels => MasterChannels.Count > 0;
+
+    /// <summary>
+    /// Số lượng kênh đọc tuần hoàn (FC01-04).
+    /// </summary>
+    public int ActivePolledChannelsCount => MasterChannels.Count(c => c.IsReadOperation);
+
+    /// <summary>
+    /// Số lượng lệnh ghi (FC05-16).
+    /// </summary>
+    public int ActiveWriteChannelsCount => MasterChannels.Count(c => c.IsWriteOperation);
+
+    /// <summary>
+    /// Ước tính chu kỳ quét toàn vòng (ms) dựa trên tổng số byte và tốc độ Baud.
+    /// </summary>
+    public int EstimatedScanCycleMs
+    {
+        get
+        {
+            int readCount = ActivePolledChannelsCount;
+            if (readCount == 0) return 0;
+            double msPerChannel = Math.Max(15.0, (180.0 / Math.Max(1200, BaudRate)) * 1000.0 + InterFrameDelayMs + 10.0);
+            return (int)Math.Round(readCount * msPerChannel);
+        }
+    }
 
     public bool IsMasterMode => string.Equals(Role, "Master", StringComparison.OrdinalIgnoreCase);
     public bool IsSlaveMode => string.Equals(Role, "Slave", StringComparison.OrdinalIgnoreCase);
@@ -203,6 +723,10 @@ public partial class ModbusPortItemViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayName));
         OnPropertyChanged(nameof(StatusPill));
         OnPropertyChanged(nameof(SummaryBadge));
+        foreach (var ch in MasterChannels)
+        {
+            ch.NotifyLanguageChanged();
+        }
     }
 
     public string SummaryBadge
@@ -224,8 +748,9 @@ public partial class ModbusPortItemViewModel : ObservableObject
 
     public string StatusPillColor => Enabled ? "#107C41" : "#64748B";
 
-    public ModbusPortItemViewModel(ModbusPortConfigModel model)
+    public ModbusPortItemViewModel(ModbusPortConfigModel model, TagCatalogViewModel? tagCatalog = null)
     {
+        _tagCatalog = tagCatalog;
         PortIndex = model.PortIndex;
         _portName = model.PortName;
         _enabled = model.Enabled;
@@ -238,6 +763,96 @@ public partial class ModbusPortItemViewModel : ObservableObject
         _responseTimeoutMs = model.ResponseTimeoutMs == 0 ? (ushort)200 : model.ResponseTimeoutMs;
         _interFrameDelayMs = model.InterFrameDelayMs;
         _retryCount = model.RetryCount;
+
+        if (model.MasterChannels != null)
+        {
+            foreach (var ch in model.MasterChannels)
+            {
+                var item = new ModbusMasterChannelItemViewModel
+                {
+                    AvailableTagsProvider = () => tagCatalog?.AllTags ?? Enumerable.Empty<TagModel>(),
+                    SlaveId = ch.SlaveId == 0 ? (byte)1 : ch.SlaveId,
+                    FunctionCode = ch.FunctionCode == 0 ? (byte)3 : ch.FunctionCode,
+                    Address = ch.Address,
+                    DataType = ch.DataType,
+                    Endianness = ch.Endianness,
+                    Scale = ch.Scale == 0 ? 1.0 : ch.Scale,
+                    ScaleText = (ch.Scale == 0 ? 1.0 : ch.Scale).ToString("G", System.Globalization.CultureInfo.InvariantCulture),
+                    TargetTagName = ch.TargetTagName ?? string.Empty,
+                    Description = ch.Description ?? string.Empty
+                };
+                if (tagCatalog != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.TargetTagName))
+                    {
+                        item.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Name == item.TargetTagName);
+                    }
+                    if (item.TargetTag == null)
+                    {
+                        item.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.None);
+                    }
+                }
+                if (item.TargetTag != null && item.TargetTag.Kind != TagKind.None)
+                {
+                    item.TargetTagAlias = item.TargetTag.Alias ?? item.Description;
+                }
+                else
+                {
+                    item.TargetTagAlias = item.Description;
+                }
+                MasterChannels.Add(item);
+            }
+        }
+        SelectedMasterChannel = MasterChannels.FirstOrDefault();
+
+        MasterChannels.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasMasterChannels));
+            OnPropertyChanged(nameof(ActivePolledChannelsCount));
+            OnPropertyChanged(nameof(ActiveWriteChannelsCount));
+            OnPropertyChanged(nameof(EstimatedScanCycleMs));
+        };
+    }
+
+    /// <summary>
+    /// Thêm một kênh truyền Modbus Master mới với các giá trị mặc định chuẩn công nghiệp.
+    /// </summary>
+    [RelayCommand]
+    public void AddMasterChannel()
+    {
+        var noneTag = _tagCatalog?.AllTags.FirstOrDefault(t => t.Kind == TagKind.None);
+        ushort nextAddr = MasterChannels.Count > 0 ? (ushort)(MasterChannels.Max(c => c.Address) + 1) : (ushort)40001;
+        var item = new ModbusMasterChannelItemViewModel
+        {
+            AvailableTagsProvider = () => _tagCatalog?.AllTags ?? Enumerable.Empty<TagModel>(),
+            SlaveId = 1,
+            FunctionCode = 3,
+            Address = nextAddr,
+            DataType = ModbusDataType.Int16,
+            Endianness = ModbusEndianness.BigEndian_ABCD,
+            Scale = 1.0,
+            ScaleText = "1",
+            TargetTag = noneTag
+        };
+        MasterChannels.Add(item);
+        SelectedMasterChannel = item;
+    }
+
+    /// <summary>
+    /// Xóa một kênh truyền Modbus Master khỏi danh sách.
+    /// </summary>
+    /// <param name="channel">Kênh Modbus Master cần xóa.</param>
+    [RelayCommand]
+    public void RemoveMasterChannel(ModbusMasterChannelItemViewModel? channel)
+    {
+        if (channel != null && MasterChannels.Contains(channel))
+        {
+            MasterChannels.Remove(channel);
+            if (SelectedMasterChannel == channel)
+            {
+                SelectedMasterChannel = MasterChannels.FirstOrDefault();
+            }
+        }
     }
 
     public void CopyToModel(ModbusPortConfigModel model)
@@ -254,6 +869,18 @@ public partial class ModbusPortItemViewModel : ObservableObject
         model.ResponseTimeoutMs = ResponseTimeoutMs;
         model.InterFrameDelayMs = InterFrameDelayMs;
         model.RetryCount = RetryCount;
+
+        model.MasterChannels = MasterChannels.Select(c => new ModbusMasterChannelModel
+        {
+            SlaveId = c.SlaveId,
+            FunctionCode = c.FunctionCode,
+            Address = c.Address,
+            DataType = c.DataType,
+            Endianness = c.Endianness,
+            Scale = c.Scale,
+            TargetTagName = c.TargetTagName,
+            Description = !string.IsNullOrWhiteSpace(c.TargetTagAlias) ? c.TargetTagAlias : c.Description
+        }).ToList();
     }
 }
 
@@ -285,6 +912,15 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     public ObservableCollection<ModbusPortItemViewModel> Ports { get; } = new();
 
     public ObservableCollection<ModbusSlaveMapItemViewModel> SlaveMapEntries { get; } = new();
+
+    /// <summary>
+    /// Bản đồ địa chỉ Modbus Slave cố định của thiết bị SynaptiX Controller.
+    /// </summary>
+    /// <summary>
+    /// Thanh ghi Modbus Slave đang được chọn trên bảng để hiển thị tại Inspector.
+    /// </summary>
+    [ObservableProperty]
+    private ModbusSlaveFixedRegisterViewModel? _selectedFixedRegisterItem;
 
     /// <summary>
     /// Bản đồ địa chỉ Modbus Slave cố định của thiết bị SynaptiX Controller.
@@ -371,6 +1007,11 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         {
             SelectedMemoryTab = ModbusSlaveMemoryTab.All;
         }
+
+        if (SelectedFixedRegisterItem == null || !FilteredFixedRegisterMap.Contains(SelectedFixedRegisterItem))
+        {
+            SelectedFixedRegisterItem = FilteredFixedRegisterMap.FirstOrDefault();
+        }
     }
 
     [ObservableProperty]
@@ -430,58 +1071,7 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         _metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
         TagCatalog = tagCatalog;
 
-        int physicalLimit = _metadata.PhysicalRs485PortCount;
-        if (physicalLimit > 4) physicalLimit = 4;
-
-        if (_metadata.ModbusPorts == null || _metadata.ModbusPorts.Count == 0)
-        {
-            _metadata.ModbusPorts = new List<ModbusPortConfigModel>();
-            for (int i = 0; i < physicalLimit; i++)
-            {
-                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
-                {
-                    PortIndex = (byte)i,
-                    PortName = $"RS-485 #{i + 1}",
-                    Enabled = i < 2,
-                    Role = "Master",
-                    SlaveId = 1,
-                    BaudRate = i == 1 ? 19200u : 9600u,
-                    DataBits = 8,
-                    Parity = i == 1 ? "Even" : "None",
-                    StopBits = 1,
-                    ResponseTimeoutMs = 200,
-                    InterFrameDelayMs = 20,
-                    RetryCount = 1
-                });
-            }
-        }
-        else
-        {
-            while (_metadata.ModbusPorts.Count < physicalLimit)
-            {
-                int idx = _metadata.ModbusPorts.Count;
-                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
-                {
-                    PortIndex = (byte)idx,
-                    PortName = $"RS-485 #{idx + 1}",
-                    Enabled = false,
-                    Role = "Master",
-                    SlaveId = 1,
-                    BaudRate = 9600,
-                    DataBits = 8,
-                    Parity = "None",
-                    StopBits = 1,
-                    ResponseTimeoutMs = 200,
-                    InterFrameDelayMs = 20,
-                    RetryCount = 1
-                });
-            }
-        }
-
-        for (int i = 0; i < physicalLimit && i < _metadata.ModbusPorts.Count; i++)
-        {
-            Ports.Add(new ModbusPortItemViewModel(_metadata.ModbusPorts[i]));
-        }
+        ReloadPortsFromMetadata();
 
         // Tải các mục ánh xạ Modbus Slave đã lưu
         if (_metadata.ModbusSlaveMapEntries != null && _metadata.ModbusSlaveMapEntries.Count > 0)
@@ -510,6 +1100,7 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         FixedRegisterMap = ModbusSlaveFixedMap.DefaultEntries
             .Select(dto => new ModbusSlaveFixedRegisterViewModel(dto))
             .ToList();
+        SelectedFixedRegisterItem = FixedRegisterMap.FirstOrDefault();
 
         HasPhysicalPorts = Ports.Count > 0;
         SelectedPort = Ports.FirstOrDefault();
@@ -892,6 +1483,12 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ExportDocumentationAsync()
+    {
+        await ExportModbusMapAsync();
+    }
+
+    [RelayCommand]
     public async Task ExportModbusMapAsync()
     {
         if (FixedRegisterMap == null || FixedRegisterMap.Count == 0)
@@ -967,6 +1564,90 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     public void Cancel()
     {
         RequestClose?.Invoke();
+    }
+
+
+    /// <summary>
+    /// Tải lại danh sách cổng RS-485 từ ProjectMetadata (Single Source of Truth).
+    /// </summary>
+    public void ReloadPortsFromMetadata()
+    {
+        int physicalLimit = _metadata.PhysicalRs485PortCount;
+        if (physicalLimit > 4) physicalLimit = 4;
+
+        if (_metadata.ModbusPorts == null || _metadata.ModbusPorts.Count == 0)
+        {
+            _metadata.ModbusPorts = new List<ModbusPortConfigModel>();
+            for (int i = 0; i < physicalLimit; i++)
+            {
+                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
+                {
+                    PortIndex = (byte)i,
+                    PortName = $"RS-485 #{i + 1}",
+                    Enabled = i < 2,
+                    Role = "Master",
+                    SlaveId = 1,
+                    BaudRate = i == 1 ? 19200u : 9600u,
+                    DataBits = 8,
+                    Parity = i == 1 ? "Even" : "None",
+                    StopBits = 1,
+                    ResponseTimeoutMs = 200,
+                    InterFrameDelayMs = 20,
+                    RetryCount = 1
+                });
+            }
+        }
+        else
+        {
+            while (_metadata.ModbusPorts.Count < physicalLimit)
+            {
+                int idx = _metadata.ModbusPorts.Count;
+                _metadata.ModbusPorts.Add(new ModbusPortConfigModel
+                {
+                    PortIndex = (byte)idx,
+                    PortName = $"RS-485 #{idx + 1}",
+                    Enabled = false,
+                    Role = "Master",
+                    SlaveId = 1,
+                    BaudRate = 9600,
+                    DataBits = 8,
+                    Parity = "None",
+                    StopBits = 1,
+                    ResponseTimeoutMs = 200,
+                    InterFrameDelayMs = 20,
+                    RetryCount = 1
+                });
+            }
+        }
+
+        byte prevSelectedIndex = SelectedPort?.PortIndex ?? 0;
+        Ports.Clear();
+        for (int i = 0; i < physicalLimit && i < _metadata.ModbusPorts.Count; i++)
+        {
+            Ports.Add(new ModbusPortItemViewModel(_metadata.ModbusPorts[i], TagCatalog));
+        }
+
+        HasPhysicalPorts = Ports.Count > 0;
+        SelectedPort = Ports.FirstOrDefault(p => p.PortIndex == prevSelectedIndex) ?? Ports.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Thêm một kênh truyền Modbus Master mới vào cổng đang chọn.
+    /// </summary>
+    [RelayCommand]
+    public void AddMasterChannel()
+    {
+        SelectedPort?.AddMasterChannel();
+    }
+
+    /// <summary>
+    /// Xóa một kênh truyền Modbus Master khỏi cổng đang chọn.
+    /// </summary>
+    /// <param name="channel">Kênh Modbus Master cần xóa.</param>
+    [RelayCommand]
+    public void RemoveMasterChannel(ModbusMasterChannelItemViewModel? channel)
+    {
+        SelectedPort?.RemoveMasterChannel(channel);
     }
 
     [RelayCommand]

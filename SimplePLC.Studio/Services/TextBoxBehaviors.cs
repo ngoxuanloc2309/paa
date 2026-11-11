@@ -21,6 +21,43 @@ public static class TextBoxBehaviors
     public static bool GetSelectAllOnFocus(DependencyObject obj) => (bool)obj.GetValue(SelectAllOnFocusProperty);
     public static void SetSelectAllOnFocus(DependencyObject obj, bool value) => obj.SetValue(SelectAllOnFocusProperty, value);
 
+    public static readonly DependencyProperty CommitOnLostFocusCommandProperty =
+        DependencyProperty.RegisterAttached(
+            "CommitOnLostFocusCommand",
+            typeof(ICommand),
+            typeof(TextBoxBehaviors),
+            new UIPropertyMetadata(null, OnCommitOnLostFocusCommandChanged));
+
+    public static ICommand? GetCommitOnLostFocusCommand(DependencyObject obj) => (ICommand?)obj.GetValue(CommitOnLostFocusCommandProperty);
+    public static void SetCommitOnLostFocusCommand(DependencyObject obj, ICommand? value) => obj.SetValue(CommitOnLostFocusCommandProperty, value);
+
+    private static void OnCommitOnLostFocusCommandChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is TextBox textBox)
+        {
+            if (e.OldValue is ICommand)
+            {
+                textBox.LostFocus -= OnTextBoxLostFocus;
+            }
+            if (e.NewValue is ICommand)
+            {
+                textBox.LostFocus += OnTextBoxLostFocus;
+            }
+        }
+    }
+
+    private static void OnTextBoxLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox)
+        {
+            var cmd = GetCommitOnLostFocusCommand(textBox);
+            if (cmd != null && cmd.CanExecute(null))
+            {
+                cmd.Execute(null);
+            }
+        }
+    }
+
     private static void OnSelectAllOnFocusChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is TextBox textBox)
@@ -66,6 +103,12 @@ public static class TextBoxBehaviors
                 // Commit binding
                 var binding = textBox.GetBindingExpression(TextBox.TextProperty);
                 binding?.UpdateSource();
+
+                var cmd = GetCommitOnLostFocusCommand(textBox);
+                if (cmd != null && cmd.CanExecute(null))
+                {
+                    cmd.Execute(null);
+                }
 
                 // Move focus to clear caret and trigger formatting
                 Keyboard.ClearFocus();

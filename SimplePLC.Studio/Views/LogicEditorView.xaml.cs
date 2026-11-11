@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -551,6 +551,14 @@ public partial class LogicEditorView : UserControl
                 else if (node is DirectWriteNodeViewModel dwNode)
                 {
                     vm.OpenDirectWriteConfigCommand.Execute(dwNode);
+                }
+                else if (node is HttpClientNodeViewModel httpNode)
+                {
+                    vm.OpenHttpClientConfigCommand.Execute(httpNode);
+                }
+                else if (node is TcpClientNodeViewModel tcpNode)
+                {
+                    vm.OpenTcpClientConfigCommand.Execute(tcpNode);
                 }
 
                 fe.Focus();

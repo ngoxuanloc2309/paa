@@ -8,6 +8,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử cổng an toàn nạp (Deploy Safety Gate) và nạp cấu hình thuần (Zero-Rule Config-Only).
+/// </summary>
 [Collection("AppServicesDeployTests")]
 public class DeploySafetyGateTests : IDisposable
 {
@@ -22,7 +25,7 @@ public class DeploySafetyGateTests : IDisposable
         LocalizationService.Instance.CurrentLanguage = "en";
     }
 
-    private async Task<(DeployViewModel deployVM, LogicEditorViewModel logicVM, FakeModbusClient client)> CreateFixtureAsync()
+    private async Task<(DeployViewModel deployVM, LogicEditorViewModel logicVM, FakeModbusClient client)> CreateFixtureAsync(Func<ProjectMetadata>? getMetadata = null)
     {
         AppServices.Instance.CurrentProduct = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai();
         var fakeClient = new FakeModbusClient();
@@ -34,7 +37,7 @@ public class DeploySafetyGateTests : IDisposable
         var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
         logicVM.LoadDefaultDemoGraph();
         logicVM.CompileNow();
-        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM);
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: getMetadata);
 
         return (deployVM, logicVM, fakeClient);
     }
@@ -166,5 +169,151 @@ public class DeploySafetyGateTests : IDisposable
         deployVM.ClearLogCommand.Execute(null);
         Assert.Contains("Đã xóa nhật ký", deployVM.ConsoleLog);
     }
-}
 
+    [Fact]
+    public async Task DeployToDeviceAsync_WhenDisconnected_DoesNotNavigateToBlueprintsAndStaysOnCurrentTab()
+    {
+        // Arrange - Ensure client is explicitly disconnected
+        AppServices.Instance.SetModbusClient(new FakeModbusClient());
+        var mainVm = new MainViewModel();
+        mainVm.SelectTab(AppTabIndices.Device);
+        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+
+        // Act - Click Quick Deploy when device is disconnected
+        await mainVm.DeployToDeviceAsync();
+
+        // Assert - Does NOT jump to Blueprints (index 4) or Deploy (index 5); stays on Device tab (index 0)
+        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+        Assert.Contains("Thiết bị chưa được kết nối", mainVm.LogicEditorVM.SaveStatusMessage);
+    }
+
+    [Fact]
+    public void Deploy_WhenZeroRules_AndNoModbusChannels_CanDeployIsFalse()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var meta = new ProjectMetadata();
+        meta.ModbusPorts.ForEach(p => p.MasterChannels.Clear());
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+
+        Assert.False(deployVM.CanDeploy);
+        Assert.Contains(LocalizationService.Tr("DeployPreflightNone"), deployVM.PreflightSummary);
+    }
+
+    [Fact]
+    public async Task Deploy_WhenZeroRules_ButModbusChannelsConfigured_CanDeployIsTrue()
+    {
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var meta = new ProjectMetadata();
+        meta.ModbusPorts[0].Enabled = true;
+        meta.ModbusPorts[0].Role = "Master";
+        meta.ModbusPorts[0].MasterChannels.Add(new ModbusMasterChannelModel
+        {
+            SlaveId = 1,
+            FunctionCode = 3,
+            Address = 40001,
+            DataType = SimplePLC.Protocol.Enums.ModbusDataType.Real,
+            TargetTagName = "VFLAG0"
+        });
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+
+        Assert.True(deployVM.CanDeploy);
+        Assert.Contains("0 Rule logic", deployVM.ManifestRuleSummary);
+    }
+
+    [Fact]
+    public async Task Deploy_WhenZeroRules_WithModbusChannels_DeploysSuccessfully_AndRegistersChannels()
+    {
+        AppServices.Instance.CurrentProduct = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai();
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var meta = new ProjectMetadata();
+        meta.ModbusPorts[0].Enabled = true;
+        meta.ModbusPorts[0].Role = "Master";
+        meta.ModbusPorts[0].MasterChannels.Add(new ModbusMasterChannelModel
+        {
+            SlaveId = 1,
+            FunctionCode = 3,
+            Address = 40001,
+            DataType = SimplePLC.Protocol.Enums.ModbusDataType.Real,
+            TargetTagName = "VFLAG0"
+        });
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+        deployVM.UpdatePreflightSummary();
+
+        Assert.True(deployVM.CanDeploy);
+
+        await deployVM.StartDeployAsync();
+
+        Assert.True(deployVM.IsSuccess);
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+        Assert.Contains("1 kênh RS-485 Modbus Master", deployVM.StatusMessage);
+    }
+
+    [Fact]
+    public async Task DeployToDeviceAsync_WhenOnTab0_WithModbusChannels_DeploysAndStaysOnTab0()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var mainVm = new MainViewModel();
+        mainVm.SelectTab(AppTabIndices.Device);
+        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+
+        // Clear rules
+        mainVm.LogicEditorVM.Nodes.Clear();
+        mainVm.LogicEditorVM.Connections.Clear();
+        mainVm.LogicEditorVM.CompileNow();
+
+        // Configure 1 channel on port 0
+        mainVm.CurrentProjectMetadata.ModbusPorts[0].Enabled = true;
+        mainVm.CurrentProjectMetadata.ModbusPorts[0].Role = "Master";
+        mainVm.CurrentProjectMetadata.ModbusPorts[0].MasterChannels.Add(new ModbusMasterChannelModel
+        {
+            SlaveId = 1,
+            FunctionCode = 3,
+            Address = 40001,
+            DataType = SimplePLC.Protocol.Enums.ModbusDataType.Real,
+            TargetTagName = "VFLAG0"
+        });
+
+        // Act - Deploy from subtoolbar
+        await mainVm.DeployToDeviceAsync();
+
+        // Assert - Stays on Tab 0, deploy was executed without jumping to Tab 4 or 5
+        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+        Assert.Contains("Nạp cấu hình thành công", mainVm.LogicEditorVM.SaveStatusMessage);
+    }
+}
