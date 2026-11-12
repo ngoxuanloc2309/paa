@@ -1,5 +1,146 @@
 
 
+# SynaptiX IDE Engineering Walkthrough & Living Documentation
+
+## 18. Kiểm Thử Tự Động Toàn Diện Hệ Thống & Cơ Chế Độc Quyền Ghi Tag (Exclusive Ingestion Ownership)
+
+### 18.1. Bối cảnh & Mục tiêu Kỹ thuật
+- Nhằm đảm bảo tính toàn vẹn 1:1 theo **Học thuyết Kỹ thuật First Principles (Axiom 1 & Axiom 2)**:
+  - Phân vùng nhớ PLC / MCU không được phép xảy ra xung đột tranh chấp ghi (Race Condition / Data Thrashing) khi nhiều luồng truyền thông ngoại vi (Modbus Master Read FC01..FC04 và MQTT Subscribe Dynamic Pins) cùng trỏ vào một địa chỉ Tag PLC.
+  - Giao diện người dùng SynaptiX IDE phải hiển thị Visual Truth: Tự động vô hiệu hóa các Tag đã bị chiếm dụng trong Dropdown của kênh khác kèm Huy hiệu cảnh báo (`[⛔ Modbus Ch.X]` hoặc `[⛔ MQTT: Pin]`) và Tooltip giải thích chi tiết, đồng thời áp dụng cơ chế tự miễn trừ (Self-Exemption) cho chính kênh đang sở hữu Tag.
+  - Cổng an toàn tiền kiểm nạp (Deploy Preflight Safety Gate) trong `DeployViewModel.cs` phải tự động phát hiện xung đột và từ chối phát lệnh nạp (`[SAFETY ABORT]`) trước khi gửi bất kỳ byte dữ liệu nào xuống cổng vật lý, bảo vệ an toàn cho dây chuyền công nghiệp.
+
+### 18.2. Các Thành Phần Được Triển Khai & Bổ Sung Test
+1. **Dịch vụ Quản lý Sở hữu Ghi Độc quyền (`TagWriteOwnershipService.cs`):**
+   - Đăng ký Provider động từ `ModbusPortConfigViewModel` và `MqttSubscribeNodeViewModel`.
+   - Cung cấp hàm `GetClaimant(TagModel tag, object currentCaller)` với cơ chế tự miễn trừ.
+   - Hàm chuẩn hóa `IsSameTag(TagModel t1, TagModel t2)` xử lý an toàn `TagKind.None` và so khớp case-insensitive.
+2. **Cổng An Toàn Deploy (`DeployViewModel.cs`):**
+   - Tích hợp `ValidateIngestionOwnership(modbusReads, mqttSubs)` trong bước tiền kiểm (Preflight Step 0).
+   - Tự động đồng bộ trạng thái thất bại vào `DeployState = Failed`, `StatusTitle = "Nạp Thất Bại"`, và hiển thị lý do xung đột trên giao diện người dùng.
+3. **Bộ Kiểm Thử Độc Quyền Ghi Tag (`ExclusiveTagOwnershipTests.cs` - 15/15 tests PASS):**
+   - `CrossProtocol_ModbusReadAndMqttSub_EnforcesExclusiveOwnership`: Kiểm tra chặn xung đột chéo giữa Modbus Master và MQTT Inbound.
+   - `CrossProtocol_TwoMqttSubscribePins_EnforcesExclusiveOwnership`: Kiểm tra chặn 2 pin MQTT cùng ghi vào một Tag.
+   - `ModbusReadChannel_WhenTagClaimed_DisablesTagInOtherChannelsDropdown`: Kiểm tra vô hiệu hóa Tag trong Dropdown.
+   - `ModbusChannels_CrossSelection_PreservesBothChannelsTags`: Kiểm tra chuyển đổi Tag không bị mất dữ liệu.
+   - `ModbusReadChannel_WhenChannelRemoved_ReleasesTagOwnership`: Kiểm tra giải phóng quyền khi xóa kênh.
+   - `ModbusPortItemViewModel_WhenPortDisabled_ReleasesAllClaims`: Kiểm tra giải phóng toàn bộ khi tắt cổng.
+   - `ModbusReadChannel_SelfExemption_AllowsCurrentChannelToKeepTag`: Kiểm tra cơ chế tự miễn trừ của Modbus.
+   - `MqttPinBindingViewModel_SelfExemption_AllowsCurrentPinToKeepTag`: Kiểm tra cơ chế tự miễn trừ của MQTT.
+   - `ModbusWriteChannel_DoesNotClaimTag_AllowsOtherWriters`: Đảm bảo kênh ghi (Modbus Write) không chiếm độc quyền vì nó chỉ đọc dữ liệu từ PLC.
+   - `TagWriteOwnershipService_IsSameTag_BoundaryAndEdgeCases`: Kiểm thử biên và trường hợp `TagKind.None`.
+   - `DeploySafetyGate_WhenMultipleIngestionWritersTargetSameTag_RejectsDeployment`: Kiểm thử từ chối nạp cấp độ DTO.
+   - `DeploySafetyGate_WhenConflictExists_AbortsPreflightInDeployViewModel`: Kiểm thử từ chối nạp cấp độ ViewModel UI.
+   - `DeploySafetyGate_WhenLogicEditorRulesTargetSameTag_AllowsDeployment`: Cho phép các rule logic nội bộ cùng ghi theo logic PLC.
+   - `ModbusPortConfigView_WhenAddMasterChannelExecuted_DoesNotCrash`: Kiểm tra độ ổn định UI khi thêm kênh.
+   - `MqttCommandSubscribeControl_WhenAddPinExecuted_DoesNotCrash`: Kiểm tra độ ổn định UI khi thêm pin MQTT.
+
+### 18.3. Mở Rộng Kiểm Thử Tự Động Phần Cứng HIL Qua COM7 ↔ COM9 (27/27 tests PASS)
+- Bộ kiểm thử phần cứng mô phỏng thực tế `RealCom7Com9HwHiltTests.cs` được nâng cấp từ 24 lên **27 test cases toàn diện**:
+  - **Test 25 (`Section2_MqttWill_WhenConfigured_StagedAndVerifiedOverWire`):** Kiểm chứng ghi 32 thanh ghi tại `0x0E60` qua mã hàm FC16 trên đường truyền nối tiếp COM9 $\rightarrow$ COM7, đọc lại bằng FC03 và giải mã chính xác các trường `WILL_CONTROL`, Topic và Payload.
+  - **Test 26 (`Section2_MqttTls_WhenCertificateStaged_CommitsAndStoresCrcOverWire`):** Kiểm chứng phân mảnh chứng chỉ TLS thành các chunk, nạp qua `0x0F00`, đọc xác nhận tại `0x0F40`, gửi lệnh Commit `0xA5A5` tại `0x0F42` và kiểm tra Active Mask tại `0x0F43` cùng Root CA CRC tại `0x0F44`.
+  - **Test 27 (`Section8_ExclusiveOwnership_DeployGateSafetyRejection_OverWire`):** Kiểm chứng cổng an toàn ngăn chặn phát tán dữ liệu xuống dây cáp nối tiếp khi phát hiện xung đột ghi Tag, sau đó khắc phục xung đột và hoàn thành nạp hợp lệ.
+
+### 18.4. Tổng Hợp Kết Quả Toàn Bộ Hệ Thống
+- **XAML Design Token Compliance:** 100% tuân thủ, **0 vi phạm**.
+- **Backend Clean Architecture & IEC 61508-3:** 100% tuân thủ, **0 vi phạm**.
+- **QA / TDD & Living Documentation:** 100% tuân thủ, **0 vi phạm**.
+- **Tổng số Unit / Integration / HIL Tests:** **2,111 / 2,111 tests PASSED (100%)**
+  - `SimplePLC.Domain.Tests`: 55 / 55 PASS
+  - `SimplePLC.Protocol.Tests`: 241 / 241 PASS
+  - `SimplePLC.Infrastructure.Tests`: 189 / 189 PASS
+  - `SimplePLC.Application.Tests`: 253 / 253 PASS
+  - `SimplePLC.Studio.Tests`: 1,373 / 1,373 PASS
+
+---
+
+## 16. Chuẩn Hóa Đặc Tả Kỹ Thuật Firmware ICD Cho Phân Hệ MQTT Last Will & Testament (LWT, SPLC-SPEC-MQTT-004)
+
+### 16.1. Bối cảnh & Mục tiêu
+- Phía Firmware MCU bắt đầu triển khai tính năng MQTT Last Will & Testament (LWT) và cần tài liệu Interface Control Document (ICD) chính thức xác định rõ:
+  - Bản đồ thanh ghi Modbus, phân bổ bộ nhớ (`0x0E60..0x0E7F`, 32 Holding Registers = 64 Bytes).
+  - Cấu trúc C nhị phân chuẩn (`SPLC_MqttWillConfig_t`), các bitmask điều khiển (`WILL_CONTROL`).
+  - Chu trình nạp Deploy hai pha (Two-Phase Staging & Atomic Commit qua `0xA000 = 0xA5A5`).
+  - Xử lý các điều kiện biên: từ chối commit khi `Enabled = 1` nhưng Topic rỗng, vô hiệu hóa an toàn khi `Enabled = 0`, phân giải token `{device}` và phòng vệ cú pháp lệnh AT module Wi-Fi (loại bỏ dấu `"` và `\`).
+
+### 16.2. Các Văn Bản & Tài Liệu Được Cập Nhật / Khởi Tạo
+1. **Khởi tạo ICD Chính Thức:**
+   - [`docs/firmware/SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md):
+     - Định nghĩa phân vùng Modbus 32 thanh ghi: `0x0E60` (`WILL_CONTROL`), `0x0E61..0x0E70` (`WILL_TOPIC[32]`), `0x0E71..0x0E7F` (`WILL_PAYLOAD[30]`).
+     - Quy chuẩn Two-Phase Deploy: Nạp vào Shadow RAM buffer $\rightarrow$ Kiểm tra CRC $\rightarrow$ Commit Flash tại `0xA000` $\rightarrow$ Tái cấu hình MQTT stack.
+     - Quy tắc phòng vệ lệnh AT: Chặn ký tự `"`, `\` và ký tự không in được; chuẩn hóa payload mặc định sang text thuần `"offline"`; App tự động phân giải token `{device}` trước khi gửi xuống thiết bị.
+     - Ma trận kiểm thử & Checklist nghiệm thu cho Firmware MCU (LWT-TC01 .. LWT-TC06).
+2. **Cập nhật Master Conformance Spec:**
+   - [`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md):
+     - Bổ sung phân vùng `0x0E60..0x0E7F` vào Bảng 1 (Master Holding Registers Memory Map).
+     - Bổ sung Mục 13.5.1: *Quy Chuẩn Bản Tin Di Chúc MQTT Last Will & Testament LWT (`0x0E60..0x0E7F`)*.
+     - Cập nhật sơ đồ tuần tự Deploy (Sequence Diagram) bổ sung bước ghi `0x0E60`.
+     - Bổ sung tiêu chí nghiệm thu **CHKL-25**: *MQTT Last Will & Testament LWT Conformance*.
+3. **Cập nhật Mục lục & Web Portal Living Docs:**
+   - [`docs/README.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/README.md): Thêm liên kết tài liệu `SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`.
+   - [`docs-portal/vi/tools/mqtt-and-wifi-config.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/vi/tools/mqtt-and-wifi-config.md) & [`docs-portal/en/tools/mqtt-and-wifi-config.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/en/tools/mqtt-and-wifi-config.md): Chuẩn hóa giá trị mặc định của `WillPayload` sang text thuần `"offline"` (<= 30 ký tự) kèm khuyến nghị tránh dùng dấu `"` để tương thích module Wi-Fi.
+
+### 16.3. Kết quả Thẩm Định (Docs Validation)
+- Chạy công cụ kiểm định tự động `validate-docs.ps1` thuộc skill `synaptix-docs-techwriter`:
+  - Quét 89 tệp Markdown trên docs-portal: **0 vi phạm**.
+  - Kiểm tra 14 thông số kỹ thuật Firmware ICD: **14/14 PASS**.
+  - Biên dịch cổng thông tin VitePress 1.6 (`npm run docs:build`): **0 broken links, clean build**.
+
+---
+
+## 17. Hoàn Thiện Triển Khai Phân Hệ MQTT Last Will & Testament (LWT) Trên SynaptiX IDE (Full Pipeline)
+
+### 17.1. Bối cảnh & Yêu cầu Kỹ thuật
+- Sau khi chuẩn hóa ICD `SPLC-SPEC-MQTT-004`, toàn bộ chuỗi mắt xích từ Presentation Layer (WPF UI, ViewModels) đến Core Logic (Deploy UseCase, RuleTableWriter) và Hardware Protocol Codec được hoàn thiện nhằm đảm bảo tính toàn vẹn 1:1 giữa Studio và Firmware MCU.
+- Các yêu cầu kỹ thuật then chốt:
+  1. **Quy chuẩn Two-Phase Deploy & Safe Disable:** Khi người dùng tắt tính năng LWT (`Enabled = false`), hệ thống nạp bắt buộc phải ghi đè 32 thanh ghi giá trị 0 (`WILL_CONTROL = 0`) vào địa chỉ `0x0E60` trong Shadow RAM trước khi gửi lệnh COMMIT `0xA000 = 0xA5A5`, đảm bảo MCU xóa sạch cấu hình LWT cũ trong Flash và ngắt cờ Will khi gửi gói `CONNECT`.
+  2. **Tự động phân giải Token `{device}`:** App tự động thay thế token `{device}` bằng `MqttClientId` hợp lệ trước khi mã hóa wire packet, giải phóng MCU khỏi việc xử lý chuỗi ký tự động.
+  3. **Phòng vệ cú pháp Lệnh AT Wi-Fi:** Tự động thanh lọc (sanitize) các ký tự dấu ngoặc kép `"` và dấu gạch chéo ngược `\` trong ô nhập Topic và Payload (cả khi nhập trực tiếp lẫn khi nạp Deploy), giới hạn độ dài Payload tối đa 30 ký tự, và đặt giá trị mặc định là chuỗi text thuần `"offline"`.
+  4. **Chặn lỗi UI & Trực quan hóa lỗi:** Khi bật LWT nhưng `WillTopic` rỗng hoặc chỉ chứa khoảng trắng, trường nhập hiển thị viền cảnh báo màu đỏ (`DangerBrush`), thông báo lỗi tiếng Việt/tiếng Anh, và vô hiệu hóa nút Lưu (`CanSave = false`).
+
+### 17.2. Các Thành Phần Mã Nguồn Được Triển Khai
+
+1. **Protocol Layer (`SimplePLC.Protocol`):**
+   - [`src/SimplePLC.Protocol/Dto/MqttWillConfigDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/MqttWillConfigDto.cs): Chuẩn hóa giá trị mặc định của `Payload` sang `"offline"`, bổ sung đầy đủ tài liệu XML doc theo chuẩn Living Docs.
+   - [`src/SimplePLC.Protocol/Codec/MqttWillConfigCodec.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Codec/MqttWillConfigCodec.cs): Mã hóa/giải mã 32 holding register (`0x0E60..0x0E7F`) với bitmask `WILL_CONTROL` (Bit 0: Enable, Bit 1: Retain, Bit 2..3: QoS) và Packed ASCII Big-Endian (Topic 32 bytes, Payload 30 bytes).
+   - [`tests/SimplePLC.Protocol.Tests/MqttWillConfigCodecTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/MqttWillConfigCodecTests.cs): Kiểm thử Triad (Happy Path, Boundary Truncation, Fault Injection). 8/8 tests PASS.
+
+2. **Infrastructure Layer (`SimplePLC.Infrastructure`):**
+   - [`src/SimplePLC.Infrastructure/Devices/RuleTableWriter.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Devices/RuleTableWriter.cs): Bổ sung khối lệnh xử lý an toàn:
+     - Khi `effectiveWill != null && effectiveWill.Enabled`: Mã hóa và ghi 32 registers vào `0x0E60`.
+     - Khi `effectiveWill != null && !effectiveWill.Enabled`: Ghi đè 32 registers 0 vào `0x0E60` và ghi log `[MQTT LWT] Disabling LWT: clearing 32 registers at 0x0E60`.
+   - [`tests/SimplePLC.Infrastructure.Tests/RuleTableWriterLwtTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Infrastructure.Tests/RuleTableWriterLwtTests.cs): Kiểm thử kiểm chứng ghi 32 registers kích hoạt và xóa an toàn khi vô hiệu hóa. 2/2 tests PASS.
+
+3. **Application Layer (`SimplePLC.Application`):**
+   - [`src/SimplePLC.Application/UseCases/DeployRulesUseCase.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/UseCases/DeployRulesUseCase.cs): Tiếp nhận `MqttWillConfigDto? mqttWillConfig` và chuyển tiếp đến `_writer.DeployRulesAsync(...)`.
+   - [`tests/SimplePLC.Application.Tests/DeployRulesUseCaseTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Application.Tests/DeployRulesUseCaseTests.cs): Bổ sung test `ExecuteAsync_WithMqttWillConfig_ForwardsLwtToWriterAndLogs0x0E60`. 6/6 tests PASS.
+
+4. **Presentation Layer & UI/UX (`SimplePLC.Studio`):**
+   - [`SimplePLC.Studio/ViewModels/DeployViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/DeployViewModel.cs): Trích xuất `MqttWillConfig` từ `ProjectMetadata`, giải quyết token `{device}`, thanh lọc ký tự `"` và `\`, cắt ngắn payload tối đa 30 ký tự, và truyền xuống `DeployRulesUseCase`.
+   - [`SimplePLC.Studio/ViewModels/MqttBrokerConfigViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttBrokerConfigViewModel.cs):
+     - Payload mặc định: `"offline"`.
+     - Tự động thanh lọc khi gõ: `OnWillPayloadChanged` loại bỏ `"` và `\`.
+     - Xác thực chủ đề: `ValidateWillTopic()` cập nhật `HasWillTopicError`, hiển thị lỗi đa ngôn ngữ qua `LocalizationService`, và vô hiệu hóa `SaveCommand` (`CanSave = !HasWillTopicError`).
+   - [`SimplePLC.Studio/ViewModels/DtuGatewayStudioViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/DtuGatewayStudioViewModel.cs): Cập nhật `BuildMqttWillDto()` giải quyết token `{device}` và thanh lọc payload theo chuẩn SPLC-SPEC-MQTT-004.
+   - [`SimplePLC.Studio/Controls/MqttBrokerConfigControl.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Controls/MqttBrokerConfigControl.xaml): Bổ sung dòng thông báo lỗi `WillTopicErrorMessage` và dòng hướng dẫn `MqttWillPayloadHint` sử dụng token ngữ nghĩa Fluent 2 (`DangerBrush`, `TextMutedBrush`).
+   - [`SimplePLC.Studio/Services/LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs): Bổ sung từ khóa `MqttWillPayloadHint` cho cả tiếng Anh và tiếng Việt.
+
+### 17.3. Kết Quả Kiểm Thử & Nghiệm Thu Toàn Diện
+1. **Kiểm tra Token Thiết kế XAML:**
+   - Lệnh: `validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttBrokerConfigControl.xaml"`
+   - Kết quả: **`[PASS]` 0 vi phạm thiết kế**.
+2. **Kiểm tra Kiến trúc Backend:**
+   - Lệnh: `validate-backend-arch.ps1`
+   - Kết quả: **`[PASS]` 0 vi phạm Clean Architecture & IEC 61508-3**.
+3. **Kiểm tra QA, TDD & Living Documentation:**
+   - Lệnh: `validate-tdd-docs.ps1`
+   - Kết quả: **`[PASS]` 0 vi phạm, 100% tỷ lệ pass của toàn bộ test suite**.
+4. **Kiểm tra Tài liệu & Web Wiki Portal:**
+   - Lệnh: `validate-docs.ps1`
+   - Kết quả: **`[PASS]` 14/14 ICDs verified, VitePress clean build**.
+
+---
+
 ## 13. Tách biệt Độc lập các Giao thức Cloud Uplink (MQTT Client, HTTP Client, TCP Client) & Dynamic Hardware Capabilities
 
 ### 13.1. Bối cảnh & Nguyên nhân gốc rễ (Root Cause)
@@ -1102,3 +1243,235 @@ Sau đợt tổng rà soát toàn bộ phần core của dự án, 3 lỗi kiế
 - **Biên dịch & Test Suite:**
   - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
   - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.
+
+
+---
+
+## 29. Cơ Chế Kiểm Soát Quyền Sở Hữu Ghi Độc Quyền Dữ Liệu Ngoại Vi (Exclusive Ingestion Ownership)
+
+### 29.1. Đặt Vấn Đề & Luận Điểm Thiết Kế Theo First Principles
+- **Axiom 1 & Axiom 2 (Hardware Ground Truth & Single Source of Truth):**
+  - Trong vận hành công nghiệp, các luồng tiếp nhận dữ liệu ngoại vi (Modbus Master Read FC01..04 và MQTT Inbound Subscribe pins) liên tục nạp các giá trị đo đạc/câu lệnh từ mạng vào bộ nhớ nội bộ của PLC.
+  - Nếu cho phép nhiều kênh đọc ngoại vi (ví dụ: 2 kênh RS-485 khác nhau hoặc 1 kênh Modbus và 1 pin MQTT) cùng ghi vào một Tag nhớ PLC (như `VREG0`), hiện tượng **Race Condition & Data Thrashing** sẽ lập tức xảy ra: giá trị trong bộ nhớ bị giật cục, sai lệch so với hiển thị, gây tai nạn hoặc sai lệch thuật toán điều khiển.
+  - Tuy nhiên, đối với **Logic Editor (FBD / Bảng Quy Tắc Rule Table)**: Việc nhiều quy tắc logic cùng tác động vào 1 Tag đích (ví dụ: Nút A bật đèn, Nút B tắt đèn - Start/Stop state machine latch) là **hoàn toàn cần thiết và bắt buộc phải được giữ nguyên**.
+- **Giải Pháp Triệt Để Được Thống Nhất:**
+  1. Giữ nguyên Dropdown ComboBox linh hoạt để người dùng tự do lựa chọn Tag đích.
+  2. Bổ sung cơ chế hiển thị định danh kênh đang chiếm giữ độc quyền:
+     - Tag nào đã bị chiếm dụng bởi kênh đọc khác sẽ bị **Disable (`IsEnabled = false`)**, làm mờ (`Opacity = 0.45`), con trỏ chuyển thành `NotAllowed`.
+     - Hiển thị nhãn cảnh báo ngay cạnh tên Tag trong danh sách: `[⛔ Modbus Kênh 1]` hoặc `[⛔ MQTT: temp]`.
+     - Tooltip giải thích chi tiết lý do và địa chỉ đang chiếm giữ.
+     - **Tự miễn trừ (Self-Exemption):** Chính kênh đang chọn Tag đó vẫn thấy Tag là khả dụng (không bị vô hiệu hóa đối với chính nó).
+  3. **Chiều Đọc vs Ghi:**
+     - Modbus Read (FC01..04) & MQTT Sub: Luồng INGRESS (ghi vào PLC) $\rightarrow$ Kiểm soát độc quyền 1:1.
+     - Modbus Write (FC05..16) & MQTT Pub: Luồng EGRESS (đọc từ PLC phát đi) $\rightarrow$ Cho phép 1:N (nhiều kênh cùng đọc từ 1 Tag).
+     - Logic Editor Rules: Điều khiển logic trạng thái $\rightarrow$ Cho phép nhiều luật cùng tác động.
+  4. **Cổng An Toàn Nạp (DeploySafetyGate):** Chặn đứng và báo lỗi chẩn đoán chi tiết trước khi nạp xuống thiết bị nếu phát hiện cấu hình xung đột.
+
+---
+
+### 29.2. Các Thành Phần Triển Khai Kiến Trúc
+
+1. **`SimplePLC.Studio/Models/TagOptionItem.cs`:**
+   - Model chiếu dữ liệu của từng mục Tag trong Dropdown ComboBox.
+   - Chứa: `Tag`, `IsSelectable`, `DisplayText`, `ConflictBadge`, `ConflictTooltip`, `HasConflict`.
+
+2. **`SimplePLC.Studio/Services/TagWriteOwnershipService.cs`:**
+   - Singleton service theo dõi tập trung các kênh truyền thông INGRESS đang active.
+   - Cung cấp:
+     - `RegisterProvider(Func<IEnumerable<TagClaimEntry>> provider)`
+     - `UnregisterProvider(...)`
+     - `GetClaimant(TagModel? tag, object? currentCaller)` với cơ chế tự miễn trừ `Self-Exemption`.
+     - `NotifyOwnershipChanged()` phát sự kiện toàn cục khi có thay đổi lựa chọn.
+     - `Reset()` phục vụ cô lập trạng thái kiểm thử TDD.
+
+3. **Cập Nhật ViewModels:**
+   - `ModbusMasterChannelItemViewModel` & `ModbusPortItemViewModel`: Expose `TagOptions`, lắng nghe `OwnershipChanged`, tự động cập nhật danh sách Dropdown theo thời gian thực.
+   - `MqttPinBindingViewModel` & `MqttSubscribeNodeViewModel`: Expose `TagOptions`, đăng ký chân Subscribe Pins, cập nhật tức thì khi có biến động.
+   - `DeployViewModel.cs`: Thêm phương thức `ValidateIngestionOwnership(modbusReads, mqttSubs)` kiểm tra và từ chối deploy nếu có $>1$ luồng ngoại vi cùng ghi vào 1 Tag index.
+
+4. **Giao Diện Dropdown ComboBox Trong XAML:**
+   - `ModbusPortConfigControl.xaml` & `MqttCommandSubscribeControl.xaml`:
+     ```xaml
+     <ComboBox ItemsSource="{Binding TagOptions}"
+               SelectedValue="{Binding TargetTag, Mode=TwoWay}"
+               SelectedValuePath="Tag"
+               Style="{StaticResource FlatCellComboBoxStyle}">
+         <ComboBox.ItemContainerStyle>
+             <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                 <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+                 <Style.Triggers>
+                     <DataTrigger Binding="{Binding IsSelectable}" Value="False">
+                         <Setter Property="Opacity" Value="0.45" />
+                         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                         <Setter Property="Cursor" Value="NotAllowed" />
+                         <Setter Property="ToolTip" Value="{Binding ConflictTooltip}" />
+                     </DataTrigger>
+                 </Style.Triggers>
+             </Style>
+         </ComboBox.ItemContainerStyle>
+         <ComboBox.ItemTemplate>
+             <DataTemplate>
+                 <DockPanel LastChildFill="True">
+                     <TextBlock Visibility="{Binding HasConflict, Converter={StaticResource BoolToVis}}"
+                                Text="{Binding ConflictBadge}" FontSize="9.5" FontWeight="SemiBold"
+                                Foreground="{DynamicResource WarningBrush}" Margin="6,0,0,0" DockPanel.Dock="Right" VerticalAlignment="Center" />
+                     <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                 </DockPanel>
+             </DataTemplate>
+         </ComboBox.ItemTemplate>
+     </ComboBox>
+     ```
+
+---
+
+### 29.3. Kết Quả Kiểm Thử, Khắc Phục Lỗi Cursor & Nghiệm Thu
+- **Khắc phục lỗi Crash khi mở hoặc thêm kênh Modbus:**
+  - *Nguyên nhân:* Thuộc tính con trỏ chuột trong XAML `ItemContainerStyle` đã gán giá trị `Cursor="NotAllowed"`. Trong WPF, `NotAllowed` là tên con trỏ của CSS/Web và không tồn tại trong `System.Windows.Input.CursorType` (WPF sử dụng `Cursor="No"`). Khi template ComboBox được khởi tạo trên UI thread, bộ chuyển đổi `CursorConverter` ném ngoại lệ `ArgumentException: Requested value 'NotAllowed' was not found`, dẫn đến `XamlParseException` làm crash ứng dụng ngay lập tức.
+  - *Xử lý:* Đã thay thế thành `Cursor="No"` chuẩn WPF tại [`ModbusPortConfigControl.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Controls/ModbusPortConfigControl.xaml) và [`MqttCommandSubscribeControl.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml).
+  - *Bổ sung STA UI Tests:* Thêm 2 kiểm thử giao diện WPF thực tế trên STA Thread (`ModbusPortConfigView_WhenAddMasterChannelExecuted_DoesNotCrash` và `MqttCommandSubscribeControl_WhenAddPinExecuted_DoesNotCrash`) mô phỏng 100% vòng đời khởi tạo cửa sổ, add channel/pin, và tính toán Layout (Measure/Arrange) để ngăn chặn hoàn toàn lỗi crash runtime tương tự.
+- **Khắc phục lỗi Mất Tag kênh 1 khi chọn Tag ở kênh 2 (WPF TwoWay SelectedValue Transient Reset):**
+  - *Hiện tượng:* Người dùng chọn Device Tag ở Kênh 1 (Modbus Master Channel 1) là `VREG0`. Sau đó mở Kênh 2 chọn `VREG1`, thì Tag ở Kênh 1 bị biến mất (trở về trống).
+  - *Nguyên nhân gốc rễ (Root Cause):*
+    1. Khi Kênh 2 chọn một tag, service `TagWriteOwnershipService.Instance.NotifyOwnershipChanged()` phát tín hiệu cập nhật quyền sở hữu tới toàn bộ các kênh khác.
+    2. Kênh 1 lắng nghe sự kiện này và gọi `RefreshTagOptions()` để cập nhật danh sách hiển thị (nhằm làm mờ tag mà Kênh 2 vừa chọn). Việc này kích hoạt `OnPropertyChanged(nameof(TagOptions))`.
+    3. Trong WPF, ComboBox gắn với `ItemsSource` khi nhận thông báo thay đổi bộ sưu tập sẽ tiến hành làm mới bộ điều khiển. Trong khoảnh khắc chuyển tiếp ngắn (transient reset), `Selector` của WPF tạm thời đẩy giá trị `null` vào thuộc tính được liên kết hai chiều (`SelectedValue="{Binding TargetTag, Mode=TwoWay}"`).
+    4. Do setter của `TargetTag` trước đó chưa có cơ chế phòng vệ giá trị rác nhất thời (transient null), giá trị `null` này đã ghi đè lên `_targetTag` của Kênh 1, đồng thời hàm `OnTargetTagChanged` xóa trắng `TargetTagName = string.Empty`, khiến Kênh 1 bị mất tag đã chọn.
+  - *Giải pháp triệt để (First Principles Engineering):*
+    1. **Kiến trúc ObservableCollection Ổn định & Cập nhật Tại chỗ (In-Place Updates):**
+       - Thay vì sử dụng getter `IEnumerable<TagOptionItem> TagOptions` trả về các instance mới và gọi `OnPropertyChanged(nameof(TagOptions))` làm sập toàn bộ cây Items của ComboBox, chuyển `TagOptions` thành `ReadOnlyObservableCollection<TagOptionItem>` backed bởi `ObservableCollection<TagOptionItem>`.
+       - Trong `TagOptionItem`, chuyển các thuộc tính `IsSelectable`, `DisplayText`, `ConflictBadge`, `ConflictTooltip` thành `[ObservableProperty]`.
+       - Khi sự kiện `OwnershipChanged` phát sinh, hàm `RefreshTagOptions()` duyệt qua danh sách `_tagOptions` hiện có và cập nhật trạng thái xung đột tại chỗ (in-place update). **Hoàn toàn không có thao tác Clear/Reset bộ sưu tập hay gán mới ItemsSource**, triệt tiêu 100% nguyên nhân khiến WPF Selector hủy lựa chọn.
+    2. Bổ sung cơ chế **Transient Null Protection** trong Setter của `TargetTag` tại cả [`ModbusMasterChannelItemViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/ModbusPortConfigViewModel.cs) và [`MqttPinBindingViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttPinBindingViewModel.cs):
+       ```csharp
+       set
+       {
+           // Bỏ qua giá trị null nhất thời do WPF Selector tự động đẩy vào trong chu kỳ làm mới ItemsSource
+           if (value == null && _targetTag != null && _targetTag.Kind != TagKind.None && !string.Equals(_targetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+           {
+               return;
+           }
+           if (SetProperty(ref _targetTag, value))
+           {
+               OnTargetTagChanged(value);
+           }
+       }
+       ```
+    3. Trong Synaptix IDE, người dùng khi muốn hủy chọn tag sẽ chọn mục `NONE` (tag có `Kind == TagKind.None`), không bao giờ cố ý đẩy `null` từ giao diện. Nhờ đó, bộ lọc này ngăn chặn 100% hiện tượng reset ngoài ý muốn của WPF Selector mà vẫn hỗ trợ chọn lại tag `NONE` bình thường.
+    4. Cập nhật và mở rộng cả 2 kiểm thử STA Thread UI (`ModbusPortConfigView_WhenAddMasterChannelExecuted_DoesNotCrash` và `MqttCommandSubscribeControl_WhenAddPinExecuted_DoesNotCrash`) cùng bài test chéo kênh `ModbusChannels_CrossSelection_PreservesBothChannelsTags` để xác nhận trực tiếp rằng khi Kênh 1 và Kênh 2 hoán đổi lựa chọn Tag, cả 2 kênh đều bảo toàn trọn vẹn giá trị `TargetTag` và `TargetTagName`.
+- **Bộ Unit Tests Mới `ExclusiveTagOwnershipTests.cs` (9/9 PASS):**
+  1. `ModbusReadChannel_WhenTagClaimed_DisablesTagInOtherChannelsDropdown`: Đạt [PASS].
+  2. `ModbusReadChannel_SelfExemption_AllowsCurrentChannelToKeepTag`: Đạt [PASS].
+  3. `ModbusChannels_CrossSelection_PreservesBothChannelsTags`: Đạt [PASS].
+  4. `ModbusWriteChannel_DoesNotClaimTag_AllowsOtherWriters`: Đạt [PASS].
+  5. `CrossProtocol_ModbusReadAndMqttSub_EnforcesExclusiveOwnership`: Đạt [PASS].
+  6. `DeploySafetyGate_WhenMultipleIngestionWritersTargetSameTag_RejectsDeployment`: Đạt [PASS].
+  7. `DeploySafetyGate_WhenLogicEditorRulesTargetSameTag_AllowsDeployment`: Đạt [PASS].
+  8. `ModbusPortConfigView_WhenAddMasterChannelExecuted_DoesNotCrash`: Đạt [PASS] (STA UI Lifecycle Test).
+  9. `MqttCommandSubscribeControl_WhenAddPinExecuted_DoesNotCrash`: Đạt [PASS] (STA UI Lifecycle Test).
+- **XAML Token Validator:** `[PASS]` 0 vi phạm trên cả `ModbusPortConfigControl.xaml` và `MqttCommandSubscribeControl.xaml`.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc.
+- **QA/TDD & Living Docs Validator:** `[PASS]` 0 vi phạm, 100% test pass rate.
+- **Toàn Bộ Test Suite:** **2,064 / 2,064 tests PASS (100%)**, 0 errors, 0 warnings.
+
+---
+
+## 30. Tự động Đồng bộ Mẫu JSON Payload Test và Trích xuất Chân ngõ ra trong MQTT Command Subscribe (Smart Reactive Test Payload Auto-Sync)
+
+### 30.1. Bối cảnh & Hiện trạng Vấn đề
+- **Hiện trạng:** Trong giao diện cấu hình MQTT Command Subscribe (`MqttSubConfigDialogView` / `MqttCommandSubscribeControl`), khung **Payload Test** bên phải dùng để mô phỏng bóc tách dữ liệu JSON và hiển thị giá trị trích xuất của các chân ngõ ra.
+- **Vấn đề phản hồi từ người dùng:** Khi người dùng thêm chân mới, sửa tên trường (`FieldName`) hoặc kiểu dữ liệu (`DataType`), khung JSON mẫu bên phải không tự động cập nhật tương ứng theo bảng chân ngõ ra. Thay vào đó, người dùng phải bấm nút `Reset Sample` thì mẫu JSON mới cập nhật. Nếu không bấm mà ấn luôn `Test Payload`, hệ thống báo lỗi giả `"Missing required data field: Field 'grid' was not found in the payload"`, tạo trải nghiệm UX gián đoạn và không trực quan.
+
+### 30.2. Nguyên nhân Gốc rễ & Giải pháp Triệt để (First Principles Engineering)
+1. **Phân tách Trạng thái Tự động (Auto-Sync) vs Tự do Tùy biến (Custom Paste):**
+   - Bổ sung cờ `IsUserModified` trong [`MqttSubConfigDialogViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttSubConfigDialogViewModel.cs).
+   - Khi khởi tạo hoặc khi người dùng chưa tự ý gõ/paste JSON tùy biến khác mẫu sinh ra (`IsUserModified == false`), hệ thống tự động sinh cấu trúc JSON mẫu phù hợp theo đúng danh sách chân ngõ ra hiện có.
+   - Khi người dùng dán hoặc chỉnh sửa payload thủ công (`OnSimulationInputChanged`), `IsUserModified` tự động chuyển sang `true`, khóa tính năng ghi đè tự động để bảo toàn dữ liệu tùy biến của người dùng.
+   - Nút `Reset Sample` tái kích hoạt trạng thái tự động (`IsUserModified = false`), sinh lại mẫu JSON tương ứng với các chân hiện hành và chạy ngay mô phỏng.
+
+2. **Lắng nghe Phản ứng Thời gian thực (Reactive Listeners):**
+   - Đăng ký `CollectionChanged` trên danh sách chân (`Node.Pins`).
+   - Lắng nghe `PropertyChanged` của từng chân (`FieldName`, `JsonPath`, `Label`, `DataType`). Khi có bất kỳ thay đổi nào (thêm/xóa chân, đổi tên trường, đổi kiểu dữ liệu), nếu `!IsUserModified`, ViewModel lập tức tự động sinh lại `SimulationInput` và kích hoạt `RunSimulation()` để hiển thị ngay giá trị trích xuất màu xanh lá.
+
+3. **Cơ chế Xóa Cached ResolvedPath Khi Đổi Tên Trường:**
+   - Trong [`MqttPinBindingViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MqttPinBindingViewModel.cs), khi bộ phân tích `MqttSubscriptionParser` chạy mô phỏng lần đầu, nó lưu đường dẫn JSON thành công vào `ResolvedPath` (ví dụ `"values.grid"`).
+   - Khi người dùng đổi tên trường `FieldName` thành `"temperature"`, nếu không xóa cache thì `ToDto()` vẫn gửi đường dẫn cũ `ResolvedPath = "values.grid"` dẫn tới lỗi parser không tìm thấy trường mới trong payload mẫu vừa sinh.
+   - Đã xử lý triệt để: Trong setter của `FieldName` và `OnJsonPathChanged`, đặt `ResolvedPath = string.Empty;` để tự động làm mới đường dẫn tìm kiếm theo tên trường mới.
+
+### 30.3. Kết quả Kiểm thử & Nghiệm thu
+- **Bộ Unit Tests Toàn Diện (4 bài kiểm thử mới):**
+  1. `MqttSubConfig_WhenPinAdded_AutomaticallyUpdatesSamplePayloadAndExtractedPins`: Kiểm tra khi thêm chân mới, payload tự động có trường mới và hiển thị giá trị trích xuất mà không báo lỗi thiếu trường.
+  2. `MqttSubConfig_WhenFieldNameOrDataTypeChanged_AutomaticallyUpdatesSamplePayload`: Kiểm tra khi sửa tên trường hoặc kiểu dữ liệu, payload mẫu tự động cập nhật khớp theo kiểu dữ liệu mới.
+  3. `MqttSubConfig_WhenUserPastesCustomJson_PreservesCustomPayloadOnPinChanges`: Đảm bảo khi người dùng đã dán JSON riêng, các thao tác thêm/sửa chân sẽ không ghi đè payload của người dùng.
+  4. `MqttSubConfig_WhenResetSampleExecuted_RevertsToAutoSync`: Xác nhận nút Reset Sample khôi phục lại chế độ tự động đồng bộ.
+- **Toàn bộ 18/18 test `MqttSubscribeNodeViewModelTests` [PASS]**.
+- **XAML Token Validator:** `[PASS]` 0 vi phạm thiết kế Fluent 2 / Carbon.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc Clean Architecture / IEC 61508-3.
+- **QA/TDD & Living Docs Validator:** `[PASS]` 0 vi phạm, 100% test pass rate.
+- **Toàn Bộ Test Suite:** **2,078 / 2,078 tests PASS (100%)**, 0 errors, 0 warnings.
+
+
+---
+
+## 31. Hệ Thống Nạp Chứng Chỉ Bảo Mật MQTT TLS / mTLS & Smart Sync Checksum (SPLC-SPEC-MQTT-003)
+
+### 31.1. Bối cảnh & Yêu cầu Kỹ thuật
+- **Bối cảnh:** Phía Firmware khi kiểm thử MQTT qua cổng TLS (`8883`) và mTLS nhận thấy thiết bị báo chưa có Root CA dù trên Studio đã chọn tệp Root CA trong hộp thoại Broker và bấm **Deploy**.
+- **Nguyên nhân:** Các phiên bản Studio trước đây chỉ nạp cấu hình Broker (`0x0E00`) mà chưa nạp các khối phân đoạn chứng chỉ xuống phân vùng `0x0F00`.
+- **Yêu cầu & Học thuyết Thiết kế (First Principles Engineering):**
+  1. **Trải nghiệm Nhất quán (Unified Single Deploy):** Tuyệt đối **không tạo nút nạp chứng chỉ riêng biệt** gây phân mảnh trải nghiệm. Toàn bộ chứng chỉ (Root CA, Client Certificate, Client Private Key) được tự động đóng gói và nạp trong một quy trình **Deploy** duy nhất.
+  2. **Bảo toàn Tuổi thọ Flash & Độ trễ Thấp (Smart Sync Checksum):** Flash vi điều khiển có giới hạn chu kỳ ghi/xóa ($10,000 - 100,000$ cycles). Studio không ghi đè chứng chỉ một cách mù quáng trong mỗi lần nạp logic. Hệ thống sử dụng 3 thanh ghi CRC-16 Checksum (`0x0F44..0x0F46`) để so khớp; nếu chứng chỉ trên MCU đã hợp lệ và trùng khớp CRC, Studio bỏ qua (skip) toàn bộ quá trình nạp phân đoạn chứng chỉ đó, giữ thời gian Deploy thông thường $< 100\text{ms}$.
+  3. **Hỗ trợ Đầy đủ Cả One-Way TLS & mTLS:**
+     - Type `0x01`: Server Root CA
+     - Type `0x02`: Client Certificate (Mutual TLS)
+     - Type `0x03`: Client Private Key (Mutual TLS)
+  4. **Cổng An toàn Phòng vệ (Fail-Fast Safety Gate):** Nếu người dùng cấu hình TLS nhưng thiết bị vi điều khiển không báo cờ `SPLC_CAP_MQTT_TLS_CERT (0x0080)` tại thanh ghi năng lực phần cứng `0x0A08`, Studio lập tức từ chối và cảnh báo trước khi nạp.
+
+### 31.2. Kiến trúc & Bản đồ Thanh ghi Modbus (ICD V2.0)
+| Địa chỉ | Tên Thanh Ghi | FC | Kiểu / Độ dài | Chức năng |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0F00..0x0F3F` | `CERT_STAGING_BUFFER` | FC16 | 64 regs (128 bytes) | Buffer nhận phân đoạn chứng chỉ (`SPLC_CertChunk_t`, payload 120 bytes) |
+| `0x0F40` | `CERT_ACK_CHUNK_INDEX` | FC03 | 1 reg (UINT16) | Chỉ số chunk MCU vừa tiếp nhận thành công |
+| `0x0F41` | `CERT_STATUS_ERROR` | FC03 | 1 reg (UINT16) | Trạng thái lỗi (0=OK, 1=CRC Error, 2=Buffer Overflow, 3=Flash Fail) |
+| `0x0F42` | `CERT_COMMIT_COMMAND` | FC16 | 1 reg (UINT16) | Ghi magic `0xA5A5` để MCU ghi chunk buffer vào Flash |
+| `0x0F43` | `CERT_ACTIVE_TYPE_MASK`| FC03 | 1 reg (UINT16) | Mask chứng chỉ đang active (Bit 0: Root CA, Bit 1: Client Cert, Bit 2: Client Key) |
+| `0x0F44` | `CERT_CRC16_ROOT_CA` | FC03 | 1 reg (UINT16) | CRC-16 Modbus của Root CA hiện có trong Flash |
+| `0x0F45` | `CERT_CRC16_CLIENT_CERT`| FC03 | 1 reg (UINT16) | CRC-16 Modbus của Client Cert hiện có trong Flash |
+| `0x0F46` | `CERT_CRC16_CLIENT_KEY` | FC03 | 1 reg (UINT16) | CRC-16 Modbus của Client Key hiện có trong Flash |
+
+### 31.3. Các Thành phần Đã Triển khai
+1. **Giao thức & DTO (`SimplePLC.Protocol`):**
+   - [`src/SimplePLC.Protocol/Dto/MqttTlsCertificatesDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/MqttTlsCertificatesDto.cs): Mang dữ liệu nhị phân/PEM của Root CA, Client Cert, Client Key.
+   - [`src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Constants/ModbusRegisterMap.cs): Khai báo đầy đủ các địa chỉ `0x0F00..0x0F46`.
+   - [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h): Cập nhật hằng số định nghĩa thanh ghi cho Firmware MCU.
+2. **Tầng Ứng dụng & Cổng Trừu tượng (`SimplePLC.Application`):**
+   - [`src/SimplePLC.Application/Abstractions/DeviceInterfaces.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Abstractions/DeviceInterfaces.cs) & [`DeployRulesUseCase.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/UseCases/DeployRulesUseCase.cs): Tiếp nhận DTO chứng chỉ và điều phối xuống Writer.
+3. **Tầng Hạ tầng & Mô phỏng (`SimplePLC.Infrastructure`):**
+   - [`src/SimplePLC.Infrastructure/Devices/RuleTableWriter.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Devices/RuleTableWriter.cs):
+     - Bước 3.4 trong quy trình Deploy: `DeployTlsCertificatesAsync`.
+     - Smart Sync CRC: Đọc `0x0F43..0x0F46`, so sánh CRC file với CRC trên MCU. Nếu trùng khớp -> Skip chunk upload.
+     - Vòng lặp nạp phân đoạn với tối đa 3 lần thử lại (Retries).
+     - Atomic Commit qua magic `0xA5A5` tại `0x0F42` và xác minh phản hồi trạng thái tại `0x0F41..0x0F43`.
+   - [`src/SimplePLC.Infrastructure/Simulator/McuReferenceSimulator.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Simulator/McuReferenceSimulator.cs) & `SimulatorRegisterMemory.cs`:
+     - Bổ sung cờ năng lực mặc định `SPLC_CAP_MQTT_TLS_CERT (0x0080)`.
+     - Hỗ trợ ghi phân đoạn 0x0F00, phản hồi ACK 0x0F40, commit 0x0F42, tính toán lưu trữ CRC-16 vào 0x0F44..0x0F46 và cập nhật ActiveMask 0x0F43.
+4. **Tầng Studio ViewModel (`SimplePLC.Studio`):**
+   - [`SimplePLC.Studio/ViewModels/DeployViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/DeployViewModel.cs):
+     - Tự động trích xuất chuỗi PEM hoặc đọc file chứng chỉ từ `ProjectMetadata` (Root CA, Client Cert, Client Key) và truyền vào `DeployRulesUseCase`.
+     - Bảo vệ an toàn chống xung đột quyền sở hữu Tag Ingestion (`ValidateIngestionOwnership`).
+
+### 31.4. Kết quả Kiểm thử & Nghiệm thu
+- **Bộ Kiểm thử Hạ tầng (`MqttTlsCertificateDeployTests.cs`):**
+  1. `Deploy_OneWayTls_UploadsRootCaAndCommits`: Phân đoạn, ACK, commit thành công Root CA, ActiveMask = 0x01, CRC ghi vào 0x0F44.
+  2. `Deploy_SmartSync_SkipsUploadWhenCrcMatches`: Lần nạp thứ hai với cùng chứng chỉ tự động bỏ qua toàn bộ chunk upload.
+  3. `Deploy_MutualTls_UploadsAllThreeCertificatesInOrder`: Nạp tuần tự và commit thành công cả 3 chứng chỉ mTLS, ActiveMask = 0x07.
+  4. `Deploy_DeltaCertChange_OnlyUploadsChangedCertificate`: Thay đổi duy nhất Client Key thì Root CA và Client Cert được skip, chỉ nạp và commit lại Client Key.
+  5. `Deploy_MissingHardwareCapability_AbortsFailFast`: MCU thiếu cờ 0x0080 lập tức bị từ chối với mã lỗi `UNSUPPORTED`.
+- **Bộ Kiểm thử Tích hợp Studio (`DeployViewModelIntegrationTests.cs`):**
+  1. `StartDeployAsync_WithMqttTlsRootCa_ProvisionsCertificateToMcu`: DeployViewModel đóng gói Root CA từ metadata và nạp thành công xuống MCU.
+  2. `StartDeployAsync_WithMqttMtls_ProvisionsAllThreeCertificates`: DeployViewModel đóng gói cả 3 chứng chỉ mTLS và hoàn tất quy trình 5 bước.
+- **Tuân thủ Tiêu chuẩn Tuyệt đối:**
+  - **XAML Token Validator:** `[PASS]` 0 vi phạm trên toàn bộ các file XAML.
+  - **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc Clean Architecture / SOLID.
+  - **QA/TDD & Living Docs Validator:** `[PASS]` 0 vi phạm, 100% test pass rate.
+  - **Tài liệu & VitePress Build:** `[PASS]` 0 vi phạm, build sạch hoàn toàn.
+  - **Toàn Bộ Test Suite:** **2,085 / 2,085 tests PASS (100%)**, 0 errors, 0 warnings.

@@ -1,8 +1,13 @@
+using TagOptionItem = SimplePLC.Studio.Models.TagOptionItem;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SimplePLC.Application.Models;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Studio.Models;
+using SimplePLC.Studio.Services;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System;
 
 namespace SimplePLC.Studio.ViewModels;
@@ -12,6 +17,13 @@ namespace SimplePLC.Studio.ViewModels;
 /// </summary>
 public partial class MqttPinBindingViewModel : ObservableObject
 {
+    private readonly ObservableCollection<TagOptionItem> _tagOptions = new();
+
+    /// <summary>
+    /// Danh sách các tùy chọn Tag trong Dropdown, được gắn cờ IsSelectable và thông tin xung đột độc quyền.
+    /// Sử dụng ReadOnlyObservableCollection duy trì tham chiếu ổn định để ngăn WPF ComboBox reset SelectedItem.
+    /// </summary>
+    public ReadOnlyObservableCollection<TagOptionItem> TagOptions { get; }
     [ObservableProperty]
     private string _id = Guid.NewGuid().ToString("N")[..8];
 
@@ -27,6 +39,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
     partial void OnDataTypeChanged(MqttDataType oldValue, MqttDataType newValue)
     {
         OnPropertyChanged(nameof(AvailableTags));
+        RefreshTagOptions();
         if (TagProvider != null && TargetTag != null && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
         {
             var available = AvailableTags;
@@ -37,15 +50,38 @@ public partial class MqttPinBindingViewModel : ObservableObject
         }
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTargetTag))]
-    [NotifyPropertyChangedFor(nameof(TargetTagIndex))]
-    [NotifyPropertyChangedFor(nameof(TargetTagName))]
     private TagModel? _targetTag;
+
+    /// <summary>
+    /// Tag đích mà chân MQTT Subscribe này ghi đè dữ liệu vào.
+    /// Có cơ chế bảo vệ chống hiện tượng WPF Selector tự động đẩy null khi làm mới ItemsSource.
+    /// </summary>
+    public TagModel? TargetTag
+    {
+        get => _targetTag;
+        set
+        {
+            if (value == null && _targetTag != null && _targetTag.Kind != SimplePLC.Domain.Enums.TagKind.None && !string.Equals(_targetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!EqualityComparer<TagModel>.Default.Equals(_targetTag, value))
+            {
+                var old = _targetTag;
+                _targetTag = value;
+                OnTargetTagChanged(old, value);
+                OnPropertyChanged(nameof(TargetTag));
+                OnPropertyChanged(nameof(HasTargetTag));
+                OnPropertyChanged(nameof(TargetTagIndex));
+                OnPropertyChanged(nameof(TargetTagName));
+            }
+        }
+    }
 
     private ushort? _initialTargetTagIndex;
 
-    partial void OnTargetTagChanged(TagModel? oldValue, TagModel? newValue)
+    private void OnTargetTagChanged(TagModel? oldValue, TagModel? newValue)
     {
         _initialTargetTagIndex = null;
         if (newValue != null && newValue.Kind != SimplePLC.Domain.Enums.TagKind.None)
@@ -66,12 +102,23 @@ public partial class MqttPinBindingViewModel : ObservableObject
                 }
             }
         }
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
+
+    private Func<MqttDataType, IEnumerable<TagModel>>? _tagProvider;
 
     /// <summary>
     /// Hàm ủy quyền cung cấp danh sách Tag tương thích dựa trên kiểu dữ liệu MQTT và vai trò WriteTarget.
     /// </summary>
-    public Func<MqttDataType, IEnumerable<TagModel>>? TagProvider { get; set; }
+    public Func<MqttDataType, IEnumerable<TagModel>>? TagProvider
+    {
+        get => _tagProvider;
+        set
+        {
+            _tagProvider = value;
+            RefreshTagOptions();
+        }
+    }
 
     /// <summary>
     /// Danh sách các Tag có thể ghi tương thích với DataType hiện tại của Pin.
@@ -79,6 +126,81 @@ public partial class MqttPinBindingViewModel : ObservableObject
     public IEnumerable<TagModel> AvailableTags => TagProvider != null
         ? TagProvider(DataType)
         : System.Linq.Enumerable.Empty<TagModel>();
+
+    /// <summary>
+    /// Làm mới danh sách tùy chọn Tag trong Dropdown với cơ chế cập nhật tại chỗ (in-place update)
+    /// để bảo toàn hoàn toàn lựa chọn hiện tại của WPF ComboBox mà không kích hoạt Collection Reset.
+    /// </summary>
+    public void RefreshTagOptions()
+    {
+        var currentTags = AvailableTags.ToList();
+
+        bool match = _tagOptions.Count == currentTags.Count;
+        if (match)
+        {
+            for (int i = 0; i < currentTags.Count; i++)
+            {
+                if (!ReferenceEquals(_tagOptions[i].Tag, currentTags[i]))
+                {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+        {
+            foreach (var opt in _tagOptions)
+            {
+                UpdateTagOptionConflict(opt);
+            }
+        }
+        else
+        {
+            var existingByTag = _tagOptions.ToDictionary(o => o.Tag);
+            _tagOptions.Clear();
+            foreach (var tag in currentTags)
+            {
+                if (existingByTag.TryGetValue(tag, out var existingOpt))
+                {
+                    UpdateTagOptionConflict(existingOpt);
+                    _tagOptions.Add(existingOpt);
+                }
+                else
+                {
+                    var newOpt = new TagOptionItem(tag, true, tag.DropdownDisplayName);
+                    UpdateTagOptionConflict(newOpt);
+                    _tagOptions.Add(newOpt);
+                }
+            }
+        }
+    }
+
+    private void UpdateTagOptionConflict(TagOptionItem opt)
+    {
+        opt.DisplayText = opt.Tag.DropdownDisplayName;
+        if (opt.Tag.Kind == SimplePLC.Domain.Enums.TagKind.None || string.Equals(opt.Tag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+        {
+            opt.IsSelectable = true;
+            opt.ConflictBadge = string.Empty;
+            opt.ConflictTooltip = string.Empty;
+            return;
+        }
+
+        var claimant = TagWriteOwnershipService.Instance.GetClaimant(opt.Tag, this);
+        if (claimant != null)
+        {
+            opt.IsSelectable = false;
+            opt.ConflictBadge = claimant.DisplayBadge;
+            opt.ConflictTooltip = claimant.TooltipDetail;
+        }
+        else
+        {
+            opt.IsSelectable = true;
+            opt.ConflictBadge = string.Empty;
+            opt.ConflictTooltip = string.Empty;
+        }
+    }
 
     /// <summary>
     /// Tên Tag đích phục vụ hiển thị và lưu trữ Metadata.
@@ -119,6 +241,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
         {
             JsonPath = value;
             Label = value;
+            ResolvedPath = string.Empty;
             if (Connector != null)
             {
                 Connector.Title = value;
@@ -131,6 +254,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
 
     partial void OnJsonPathChanged(string? oldValue, string newValue)
     {
+        ResolvedPath = string.Empty;
         if (string.IsNullOrEmpty(Label) || Label == oldValue || Label == "data")
         {
             Label = newValue;
@@ -164,7 +288,11 @@ public partial class MqttPinBindingViewModel : ObservableObject
 
 
 
-    public MqttPinBindingViewModel() { }
+    public MqttPinBindingViewModel()
+    {
+        TagOptions = new ReadOnlyObservableCollection<TagOptionItem>(_tagOptions);
+        TagWriteOwnershipService.Instance.OwnershipChanged += RefreshTagOptions;
+    }
 
     public MqttPinBindingViewModel(
         string label,
@@ -173,7 +301,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
         ushort? targetTagIndex = null,
         double? minValue = null,
         double? maxValue = null,
-        double defaultValue = 0.0)
+        double defaultValue = 0.0) : this()
     {
         Label = label;
         JsonPath = jsonPath;

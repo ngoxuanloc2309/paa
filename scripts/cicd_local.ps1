@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     SynaptiX IDE Local CI/CD Pipeline & Release Automation.
 .DESCRIPTION
@@ -163,13 +163,13 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.14.0)
-- **Trung tâm Khởi động Hiện đại (Startup Hub & Start Page)**: Màn hình khởi động chuyên nghiệp chuẩn Fluent 2 Desktop, quản lý lịch sử dự án gần đây (Recent Projects), cho phép tạo dự án mới theo mẫu phần cứng hoặc mở tệp dự án sẵn có một cách nhanh chóng.
-- **Thư viện Bản thiết kế Mẫu & Bộ lọc Tương thích Phần cứng (Blueprints Hardware Compatibility)**: Lọc động danh mục Blueprint theo năng lực phần cứng thực tế của thiết bị, hiển thị chi tiết I/O, phiên bản và các thẻ phân loại trực quan.
-- **Mô-đun hóa Trình Biên dịch Quy tắc (RuleCompiler Modularization)**: Phân rã kiến trúc biên dịch logic thành các thành phần chuyên trách (`ActionPathTracer`, `CandidateRule`, `MacroLowering`, `PeripheralConfigExtractor`), nâng cao độ ổn định và độ tin cậy tất định theo chuẩn IEC 61508-3.
-- **Tinh chỉnh Công thái học Giao diện Fluent 2 Desktop**: Đồng bộ hóa chiều cao 28px cho toàn bộ controls nhập liệu, căn lề trên (`Top`) cho các khung xem trước Payload nhiều dòng, căn giữa dấu kiểm CheckBox, chuẩn hóa phông chữ biểu mẫu `Segoe UI` và bảo vệ nghiêm ngặt phông `Consolas` cho vùng dữ liệu kỹ thuật.
-- **Tái cấu trúc Tầng Định nghĩa Miền (Clean Architecture Domain Refactoring)**: Đưa `TagLayoutMap`, `SPLC_HardwareCapabilities` và các enum thiết bị về đúng tầng `SimplePLC.Domain`, đảm bảo triệt để nguyên tắc phụ thuộc một chiều.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,063 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+## 🚀 Tính năng nổi bật & Nâng cấp (v2.14.1)
+- **Cung cấp Chứng chỉ Bảo mật MQTT TLS/mTLS X.509 (`0x0F00..0x0F46`, `SPLC-SPEC-MQTT-003`)**: Hỗ trợ nạp phân đoạn chứng chỉ Root CA, Client Cert, Client Key với Smart Sync CRC, Retry loop tự động và Atomic Commit `0xA5A5` xuống phần cứng MCU.
+- **Đặc tả & Triển khai Giao thức MQTT Last Will & Testament (`0x0F50..0x0F5F`, `SPLC-SPEC-MQTT-004`)**: Chuẩn hóa gói tin di chúc (LWT) giúp Broker phát hiện kịp thời sự cố mất kết nối đột ngột của thiết bị tại hiện trường.
+- **Bảo vệ Quyền Sở hữu Ghi Tag Độc quyền (Exclusive Tag Write Ownership)**: Dịch vụ `TagWriteOwnershipService` tự động kiểm tra và khóa các tag đã được liên kết bởi nguồn nhập dữ liệu khác (Modbus Read, MQTT Sub, TCP/HTTP Ingestion), ngăn chặn hoàn toàn lỗi tranh chấp ghi đè giá trị.
+- **Tự động Phản chiếu Mẫu JSON Payload Test trong MQTT Command Subscribe**: Cơ chế Smart Reactive Test Payload Auto-Sync tự động cập nhật mẫu JSON theo danh sách chân ngõ ra, tự động xóa cache `ResolvedPath` khi đổi tên trường và mô phỏng giá trị trích xuất tức thì.
+- **Cải tiến Trình Thanh tra Inspector & Giao diện Cấu hình**: Đồng bộ kích thước chuẩn Fluent 2, hoàn thiện nhãn song ngữ Anh/Việt và tối ưu hóa không gian hiển thị trên các màn hình Studio.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,111 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

@@ -59,7 +59,9 @@ public sealed class SimulatorRegisterMemory : IDisposable
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttWillConfigBaseAddress, ModbusRegisterMap.MqttWillConfigRegisters) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters + ModbusRegisterMap.MqttWillConfigRegisters) ||
                 IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192) ||
-                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters);
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttCertStagingBaseAddress, ModbusRegisterMap.MqttCertChunkRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttCertAckAddress, 7);
     }
 
     /// <summary>
@@ -96,7 +98,9 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttWillConfigBaseAddress, ModbusRegisterMap.MqttWillConfigRegisters) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttBrokerConfigBaseAddress, ModbusRegisterMap.MqttBrokerConfigRegisters + ModbusRegisterMap.MqttWillConfigRegisters) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DtuHttpConfigBaseAddress, 192) ||
-                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters);
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.ZigbeeConfigBaseAddress, ModbusRegisterMap.ZigbeeConfigRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttCertStagingBaseAddress, ModbusRegisterMap.MqttCertChunkRegisters) ||
+                IsWithin(startAddress, endAddress, ModbusRegisterMap.MqttCertCommitAddress, 1);
     }
 
     private static bool IsWithin(int start, int end, int rangeStart, int rangeLength)

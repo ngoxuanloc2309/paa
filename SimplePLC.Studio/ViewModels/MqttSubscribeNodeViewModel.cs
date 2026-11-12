@@ -195,7 +195,34 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
         };
         OutputConnectors.Add(ErrorConnector);
 
+        _claimsProvider = GetClaimEntries;
+        TagWriteOwnershipService.Instance.RegisterProvider(_claimsProvider);
+
         Pins.CollectionChanged += OnPinsCollectionChanged;
+    }
+
+    private readonly Func<IEnumerable<TagClaimEntry>> _claimsProvider;
+
+    /// <summary>
+    /// Xuất danh sách các Tag đang bị chiếm dụng bởi các chân Inbound của khối này.
+    /// </summary>
+    public IEnumerable<TagClaimEntry> GetClaimEntries()
+    {
+        var list = new System.Collections.Generic.List<TagClaimEntry>();
+        for (int i = 0; i < Pins.Count; i++)
+        {
+            var pin = Pins[i];
+            if (pin.TargetTag != null && pin.TargetTag.Kind != TagKind.None && !string.Equals(pin.TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(new TagClaimEntry(
+                    pin.TargetTag,
+                    pin,
+                    "MQTT Subscribe",
+                    $"[⛔ MQTT: {pin.Label}]",
+                    $"Tag '{pin.TargetTag.Name}' đang được ghi đè bởi MQTT Inbound Pin '{pin.Label}' (Topic: {Topic})."));
+            }
+        }
+        return list;
     }
 
     private void OnPinsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -223,6 +250,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(PinsCountSummary));
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

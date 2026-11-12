@@ -7,6 +7,9 @@ using SimplePLC.Domain.Models;
 using SimplePLC.Domain.Validation;
 using SimplePLC.Protocol.Dto;
 
+/// <summary>
+/// Use case điều phối nạp cấu hình bảng luật, bộ đếm, bộ định thời và truyền thông ngoại vi xuống thiết bị PLC.
+/// </summary>
 public sealed class DeployRulesUseCase
 {
     private readonly IRuleTableWriter _ruleTableWriter;
@@ -70,7 +73,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         byte slaveId = 1,
         CancellationToken ct = default) =>
-        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, null, null, null, null, slaveId, ct);
+        ExecuteAsync(ruleTable, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, null, null, null, null, null, null, null, null, null, slaveId, ct);
 
     public async Task<DeployRulesResult> ExecuteAsync(
         RuleTable ruleTable,
@@ -87,6 +90,7 @@ public sealed class DeployRulesUseCase
         IReadOnlyList<byte>? tagDataTypes = null,
         DtuConfigDto? dtuConfig = null,
         MqttWillConfigDto? mqttWillConfig = null,
+        MqttTlsCertificatesDto? tlsCertificates = null,
         byte slaveId = 1,
         CancellationToken ct = default,
         Action<string>? progressLogger = null)
@@ -129,6 +133,7 @@ public sealed class DeployRulesUseCase
                 tagDataTypes,
                 dtuConfig,
                 mqttWillConfig,
+                tlsCertificates,
                 ct,
                 progressLogger).ConfigureAwait(false);
         }

@@ -51,6 +51,7 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
     /// Thời gian chờ phản hồi tối đa (giây).
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryTimeoutText))]
     private ushort _timeoutSec = 10;
 
     /// <summary>
@@ -87,6 +88,7 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsCustomMode))]
     [NotifyPropertyChangedFor(nameof(IsRawMode))]
     [NotifyPropertyChangedFor(nameof(IsJsonMode))]
+    [NotifyPropertyChangedFor(nameof(SummaryContentType))]
     private string _payloadMode = "JSON";
 
     /// <summary>
@@ -124,12 +126,12 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
     /// <summary>
     /// Danh sách các tùy chọn nguồn dữ liệu thô (mục đầu tiên là Chân cắm FBD DATA Pin - Auto-link).
     /// </summary>
-    public ObservableCollection<TagOptionItem> AvailableDataTags { get; } = new();
+    public ObservableCollection<DtuDataTagOptionItem> AvailableDataTags { get; } = new();
 
     /// <summary>
     /// Tùy chọn nguồn dữ liệu đang được chọn trong ComboBox.
     /// </summary>
-    public TagOptionItem? SelectedDataTagOption
+    public DtuDataTagOptionItem? SelectedDataTagOption
     {
         get
         {
@@ -137,7 +139,7 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
             var matched = AvailableDataTags.FirstOrDefault(o => o.Tag == DataTag || (o.Tag != null && string.Equals(o.Tag.Name, DataTag.Name, StringComparison.OrdinalIgnoreCase)));
             if (matched != null) return matched;
 
-            var item = new TagOptionItem(DataTag, DataTag.DisplayName);
+            var item = new DtuDataTagOptionItem(DataTag, DataTag.DisplayName);
             AvailableDataTags.Add(item);
             return item;
         }
@@ -183,6 +185,23 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
             return $"{bytes} bytes";
         }
     }
+
+    /// <summary>
+    /// Tóm tắt nguồn dữ liệu tải trọng thô (Chân cắm FBD DATA Pin hoặc tên Tag).
+    /// </summary>
+    public string SummarySourceDataText => DataTag != null
+        ? $"{DataTag.DisplayName} ({DataTag.DataTypeText})"
+        : (Services.LocalizationService.Instance.IsVietnamese ? "Chân DATA (FBD Auto-link)" : "DATA Pin (FBD Auto-link)");
+
+    /// <summary>
+    /// Kiểu nội dung HTTP Content-Type tương ứng với định dạng tải trọng hiện tại.
+    /// </summary>
+    public string SummaryContentType => IsRawMode ? "text/plain" : "application/json";
+
+    /// <summary>
+    /// Thời gian chờ phản hồi từ máy chủ HTTP.
+    /// </summary>
+    public string SummaryTimeoutText => $"{TimeoutSec}s";
 
     /// <summary>
     /// Cờ chỉ báo tải trọng JSON có hợp lệ cú pháp hay không.
@@ -252,17 +271,17 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
     {
         var currentTag = DataTag;
         AvailableDataTags.Clear();
-        AvailableDataTags.Add(new TagOptionItem(null, Services.LocalizationService.Tr("SourceUseFbdPin")));
+        AvailableDataTags.Add(new DtuDataTagOptionItem(null, Services.LocalizationService.Tr("SourceUseFbdPin")));
         if (TagCatalog?.AllTags != null)
         {
             foreach (var tag in TagCatalog.AllTags.Where(t => t.Kind != SimplePLC.Domain.Enums.TagKind.None && !string.IsNullOrWhiteSpace(t.Name)))
             {
-                AvailableDataTags.Add(new TagOptionItem(tag, tag.DisplayName));
+                AvailableDataTags.Add(new DtuDataTagOptionItem(tag, tag.DisplayName));
             }
         }
         if (currentTag != null && !AvailableDataTags.Any(o => o.Tag == currentTag || (o.Tag != null && string.Equals(o.Tag.Name, currentTag.Name, StringComparison.OrdinalIgnoreCase))))
         {
-            AvailableDataTags.Add(new TagOptionItem(currentTag, currentTag.DisplayName));
+            AvailableDataTags.Add(new DtuDataTagOptionItem(currentTag, currentTag.DisplayName));
         }
         OnPropertyChanged(nameof(SelectedDataTagOption));
     }
@@ -272,13 +291,36 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
         RebuildAvailableDataTags();
         UpdatePreview();
         OnPropertyChanged(nameof(SummaryTriggerText));
+        OnPropertyChanged(nameof(SummarySourceDataText));
     }
 
     partial void OnCustomTemplateChanged(string value) => UpdatePreview();
-    partial void OnPayloadModeChanged(string value) => UpdatePreview();
+
+    partial void OnPayloadModeChanged(string value)
+    {
+        if (IsRawMode)
+        {
+            if (string.Equals(CustomHeaders, "Content-Type: application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                CustomHeaders = "Content-Type: text/plain";
+            }
+        }
+        else
+        {
+            if (string.Equals(CustomHeaders, "Content-Type: text/plain", StringComparison.OrdinalIgnoreCase))
+            {
+                CustomHeaders = "Content-Type: application/json";
+            }
+        }
+
+        OnPropertyChanged(nameof(SummaryContentType));
+        UpdatePreview();
+    }
+
     partial void OnDataTagChanged(TagModel? value)
     {
         OnPropertyChanged(nameof(SelectedDataTagOption));
+        OnPropertyChanged(nameof(SummarySourceDataText));
         UpdatePreview();
     }
 
@@ -399,15 +441,9 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
     {
         if (IsRawMode)
         {
-            bool isVi = Services.LocalizationService.Instance.IsVietnamese;
-            string sourceDesc = isVi ? "Dữ liệu thô từ" : "Raw value from";
-            string sourceName = DataTag != null 
-                ? $"{DataTag.DisplayName} ({DataTag.DataTypeText})" 
-                : (isVi 
-                    ? "Chân cắm DATA trên sơ đồ FBD (Auto-link)" 
-                    : "FBD Canvas DATA Pin (Auto-link)");
-            PreviewPayloadText = $"25.5 ({sourceDesc}: {sourceName})";
-
+            // CHỈ hiển thị thuần túy giá trị tải trọng thực tế gửi đi (Axiom 2 - Visual Truth)
+            // Thông tin nguồn (Chân DATA / Tag) được phản ánh riêng ở Hộp chẩn đoán kỹ thuật.
+            PreviewPayloadText = "25.5";
             IsJsonValid = false;
             JsonValidationError = string.Empty;
             return;
@@ -460,19 +496,19 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
             .Replace("{val}", "25.5")
             .Replace("{tag}", "VREG0");
 
-        PreviewPayloadText = rendered;
-
-        // Kiểm tra tính hợp lệ cú pháp JSON
+        // Kiểm tra tính hợp lệ cú pháp JSON và tự động thụt lề 2 spaces khi hợp lệ
         try
         {
             using var doc = JsonDocument.Parse(rendered);
             IsJsonValid = true;
             JsonValidationError = string.Empty;
+            PreviewPayloadText = JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception ex)
         {
             IsJsonValid = false;
             JsonValidationError = ex.Message;
+            PreviewPayloadText = rendered;
         }
     }
 }
@@ -480,4 +516,4 @@ public partial class HttpClientConfigDialogViewModel : ObservableObject
 /// <summary>
 /// Mục tùy chọn nguồn dữ liệu Tag hoặc Chân cắm FBD trong ComboBox.
 /// </summary>
-public record TagOptionItem(TagModel? Tag, string DisplayName);
+public record DtuDataTagOptionItem(TagModel? Tag, string DisplayName);

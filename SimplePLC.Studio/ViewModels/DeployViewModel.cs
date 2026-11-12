@@ -5,6 +5,7 @@ using SimplePLC.Application.Models;
 using SimplePLC.Application.UseCases;
 using SimplePLC.Domain.Models;
 using SimplePLC.Domain.Validation;
+using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
@@ -69,6 +70,59 @@ public partial class DeployViewModel : ObservableObject
     {
         if (meta?.ModbusPorts == null) return 0;
         return meta.ModbusPorts.Where(p => p.Enabled && p.MasterChannels != null).Sum(p => p.MasterChannels.Count);
+    }
+
+    /// <summary>
+    /// Kiểm tra tính hợp lệ của quyền sở hữu ghi Tag đối với các luồng truyền thông ngoại vi (Modbus Read & MQTT Subscribe).
+    /// Từ chối nạp cấu hình nếu phát hiện xung đột race condition (nhiều luồng ghi vào cùng một Tag).
+    /// </summary>
+    public (bool IsValid, string? ErrorMessage) ValidateIngestionOwnership(
+        IReadOnlyList<ModbusMasterReadConfigDto>? modbusReads,
+        IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubs)
+    {
+        var claims = new Dictionary<int, string>();
+
+        if (modbusReads != null)
+        {
+            foreach (var read in modbusReads)
+            {
+                if (read.Pins == null) continue;
+                foreach (var pin in read.Pins)
+                {
+                    if (pin.TargetTagIndex.HasValue)
+                    {
+                        int tagIdx = pin.TargetTagIndex.Value;
+                        if (claims.TryGetValue(tagIdx, out var existingSource))
+                        {
+                            return (false, $"Xung đột sở hữu ghi độc quyền: Tag {tagIdx} bị ghi đồng thời bởi {existingSource} và Modbus Master (Port {read.PortIndex}, Addr {read.StartAddress}).");
+                        }
+                        claims[tagIdx] = "Modbus Master";
+                    }
+                }
+            }
+        }
+
+        if (mqttSubs != null)
+        {
+            foreach (var sub in mqttSubs)
+            {
+                if (sub.Pins == null) continue;
+                foreach (var pin in sub.Pins)
+                {
+                    if (pin.TargetTagIndex.HasValue)
+                    {
+                        int tagIdx = pin.TargetTagIndex.Value;
+                        if (claims.TryGetValue(tagIdx, out var existingSource))
+                        {
+                            return (false, $"Xung đột sở hữu ghi độc quyền: Tag {tagIdx} bị ghi đồng thời bởi {existingSource} và MQTT Subscribe ('{sub.Topic}').");
+                        }
+                        claims[tagIdx] = "MQTT Subscribe";
+                    }
+                }
+            }
+        }
+
+        return (true, null);
     }
 
     public bool CanDeploy => !IsDeploying
@@ -247,6 +301,18 @@ public partial class DeployViewModel : ObservableObject
         bool isVi = LocalizationService.Instance.IsVietnamese;
         bool isConnected = AppServices.Instance.SessionManager.HasActiveSession || AppServices.Instance.ModbusClient.IsConnected;
         IsDeviceConnected = isConnected;
+
+        if (DeployState == DeployState.Failed)
+        {
+            StatusTitle = isVi ? "Nạp Thất Bại" : "Deploy Failed";
+            StatusSubtitle = PreflightSummary;
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Thất bại" : "Failed";
+            ActionButtonText = isVi ? "⚡ Thử Nạp Lại" : "⚡ Retry Deploy";
+            ShowProgressBar = false;
+            PrimaryActionCommand.NotifyCanExecuteChanged();
+            return;
+        }
 
         var meta = _getMetadata?.Invoke();
         int tab0ModbusCount = GetTab0ModbusChannelsCount(meta);
@@ -726,6 +792,20 @@ public partial class DeployViewModel : ObservableObject
                 return;
             }
 
+            // Kiểm tra an toàn độc quyền ghi Tag (Exclusive Ingestion Ownership) trước khi tiến hành nạp
+            var (isOwnershipValid, ownershipError) = ValidateIngestionOwnership(modbusMasterConfigs, mqttSubConfigs);
+            if (!isOwnershipValid)
+            {
+                Steps[0].Status = StepStatus.Failed;
+                DeployState = DeployState.Failed;
+                PreflightSummary = ownershipError ?? "Xung đột sở hữu ghi độc quyền Tag.";
+                StatusMessage = PreflightSummary;
+                AppendLog($"[SAFETY ABORT] {PreflightSummary}");
+                IsDeploying = false;
+                UpdatePreflightSummary();
+                return;
+            }
+
             Steps[0].Status = StepStatus.Success;
             ProgressPercent = 30;
             AppendLog(string.Format(LocalizationService.Tr("DeployLogPreflightOk"), ruleTable.Count));
@@ -1022,6 +1102,88 @@ public partial class DeployViewModel : ObservableObject
                     : $"[DTU Gateway FBD] Synthesized configuration from Canvas blocks ({fbdHttpNode?.Title ?? ""} {fbdTcpNode?.Title ?? ""}) -> Deploying to MCU.");
             }
 
+            // MQTT TLS / mTLS Certificates (SPLC-SPEC-MQTT-003)
+            MqttTlsCertificatesDto? tlsCertificates = null;
+            if (meta?.MqttTlsEnabled == true)
+            {
+                tlsCertificates = new MqttTlsCertificatesDto();
+                if (!string.IsNullOrWhiteSpace(meta.MqttTlsCaCertPem))
+                {
+                    tlsCertificates.RootCaBytes = System.Text.Encoding.UTF8.GetBytes(meta.MqttTlsCaCertPem);
+                }
+                else if (!string.IsNullOrWhiteSpace(meta.MqttTlsCaCertPath) && System.IO.File.Exists(meta.MqttTlsCaCertPath))
+                {
+                    try
+                    {
+                        tlsCertificates.RootCaBytes = System.IO.File.ReadAllBytes(meta.MqttTlsCaCertPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendLog($"[TLS WARNING] Error reading Root CA: {ex.Message}");
+                    }
+                }
+
+                if (meta.MqttTlsMtlsEnabled)
+                {
+                    if (!string.IsNullOrWhiteSpace(meta.MqttTlsClientCertPem))
+                    {
+                        tlsCertificates.ClientCertBytes = System.Text.Encoding.UTF8.GetBytes(meta.MqttTlsClientCertPem);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(meta.MqttTlsClientCertPath) && System.IO.File.Exists(meta.MqttTlsClientCertPath))
+                    {
+                        try
+                        {
+                            tlsCertificates.ClientCertBytes = System.IO.File.ReadAllBytes(meta.MqttTlsClientCertPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            AppendLog($"[TLS WARNING] Error reading Client Cert: {ex.Message}");
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(meta.MqttTlsClientKeyPem))
+                    {
+                        tlsCertificates.ClientKeyBytes = System.Text.Encoding.UTF8.GetBytes(meta.MqttTlsClientKeyPem);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(meta.MqttTlsClientKeyPath) && System.IO.File.Exists(meta.MqttTlsClientKeyPath))
+                    {
+                        try
+                        {
+                            tlsCertificates.ClientKeyBytes = System.IO.File.ReadAllBytes(meta.MqttTlsClientKeyPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            AppendLog($"[TLS WARNING] Error reading Client Key: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+                        MqttWillConfigDto? willConfigDto = null;
+            if (meta != null)
+            {
+                string effectiveClientId = string.IsNullOrWhiteSpace(meta.MqttClientId) ? "SynaptiX_PLC" : meta.MqttClientId.Trim();
+                string rawTopic = meta.MqttWillTopic ?? string.Empty;
+                string resolvedTopic = rawTopic.Replace("{device}", effectiveClientId, StringComparison.OrdinalIgnoreCase).Trim();
+                string rawPayload = string.IsNullOrWhiteSpace(meta.MqttWillPayload) ? "offline" : meta.MqttWillPayload;
+                string resolvedPayload = rawPayload.Replace("{device}", effectiveClientId, StringComparison.OrdinalIgnoreCase);
+
+                resolvedPayload = resolvedPayload.Replace("\"", string.Empty).Replace("\\", string.Empty);
+                if (resolvedPayload.Length > MqttWillConfigCodec.MaxPayloadChars)
+                {
+                    resolvedPayload = resolvedPayload.Substring(0, MqttWillConfigCodec.MaxPayloadChars);
+                }
+
+                willConfigDto = new MqttWillConfigDto
+                {
+                    Enabled = meta.MqttWillEnabled,
+                    Topic = resolvedTopic,
+                    Payload = resolvedPayload,
+                    Qos = meta.MqttWillQos,
+                    Retain = meta.MqttWillRetain
+                };
+            }
+
             var deployUseCase = GetDeployUseCase();
             var deployResult = await deployUseCase.ExecuteAsync(
                 ruleTable,
@@ -1037,6 +1199,8 @@ public partial class DeployViewModel : ObservableObject
                 modbusSlaveMapConfigs,
                 tagDataTypes,
                 dtuConfig: dtuConfigDto,
+                mqttWillConfig: willConfigDto,
+                tlsCertificates: tlsCertificates,
                 slaveId: 1,
                 ct: default,
                 progressLogger: AppendLog).ConfigureAwait(true);

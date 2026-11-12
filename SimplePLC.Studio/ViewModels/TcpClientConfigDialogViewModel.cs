@@ -117,12 +117,12 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
     /// <summary>
     /// Danh sách các tùy chọn nguồn dữ liệu thô (mục đầu tiên là Chân cắm FBD DataIn Pin - Auto-link).
     /// </summary>
-    public System.Collections.ObjectModel.ObservableCollection<TagOptionItem> AvailableDataTags { get; } = new();
+    public System.Collections.ObjectModel.ObservableCollection<DtuDataTagOptionItem> AvailableDataTags { get; } = new();
 
     /// <summary>
     /// Tùy chọn nguồn dữ liệu đang được chọn trong ComboBox.
     /// </summary>
-    public TagOptionItem? SelectedDataTagOption
+    public DtuDataTagOptionItem? SelectedDataTagOption
     {
         get
         {
@@ -130,7 +130,7 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
             var matched = AvailableDataTags.FirstOrDefault(o => o.Tag == DataTag || (o.Tag != null && string.Equals(o.Tag.Name, DataTag.Name, StringComparison.OrdinalIgnoreCase)));
             if (matched != null) return matched;
 
-            var item = new TagOptionItem(DataTag, DataTag.DisplayName);
+            var item = new DtuDataTagOptionItem(DataTag, DataTag.DisplayName);
             AvailableDataTags.Add(item);
             return item;
         }
@@ -227,12 +227,12 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
     private void RebuildAvailableDataTags()
     {
         AvailableDataTags.Clear();
-        AvailableDataTags.Add(new TagOptionItem(null, Services.LocalizationService.Tr("SourceUseFbdPinTcp")));
+        AvailableDataTags.Add(new DtuDataTagOptionItem(null, Services.LocalizationService.Tr("SourceUseFbdPinTcp")));
         if (TagCatalog?.AllTags != null)
         {
             foreach (var tag in TagCatalog.AllTags.Where(t => t.Kind != SimplePLC.Domain.Enums.TagKind.None && !string.IsNullOrWhiteSpace(t.Name)))
             {
-                AvailableDataTags.Add(new TagOptionItem(tag, tag.DisplayName));
+                AvailableDataTags.Add(new DtuDataTagOptionItem(tag, tag.DisplayName));
             }
         }
         OnPropertyChanged(nameof(SelectedDataTagOption));

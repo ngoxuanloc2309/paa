@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 using System.Runtime.CompilerServices;
 
@@ -1039,6 +1039,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttWillEnableLabel"] = "Kích hoạt bản tin LWT (Last Will & Testament)",
         ["MqttWillTopicLabel"] = "Will Topic",
         ["MqttWillPayloadLabel"] = "Will Payload",
+        ["MqttWillPayloadHint"] = "Chuỗi văn bản thuần túy (tối đa 30 ký tự, ví dụ: offline). Không dùng dấu \" và \\.",
         ["MqttWillRetainLabel"] = "Will Retain",
         ["ToolboxDtuGateway"] = "DTU Gateway",
         ["ToolboxDtuGatewayTitle"] = "DTU Gateway",
@@ -2077,7 +2078,13 @@ public class LocalizationService : INotifyPropertyChanged
         ["HttpClientDiagTitle"] = "THÔNG TIN CHẨN ĐOÁN VIỄN TRẮC",
         ["HttpClientDiagMethodEndpoint"] = "Đích đến:",
         ["HttpClientDiagTrigger"] = "Kích hoạt:",
-        ["HttpClientDiagPayloadSize"] = "Kích thước ước tính:",
+        ["HttpClientDiagPayloadSize"] = "Dung lượng tải trọng:",
+        ["HttpClientPreviewTitle"] = "XEM TRƯỚC TẢI TRỌNG (PAYLOAD PREVIEW)",
+        ["HttpClientRawBadge"] = "PLAIN TEXT",
+        ["HttpClientJsonValidBadgeShort"] = "JSON HỢP LỆ",
+        ["HttpClientJsonInvalidBadgeShort"] = "LỖI CÚ PHÁP",
+        ["HttpClientDiagSource"] = "Nguồn dữ liệu:",
+        ["HttpClientDiagContentType"] = "Định dạng nội dung:",
         // TCP Client Dialog
 
         ["TcpClientConfigDialogTitle"] = "Cấu hình Socket TCP Client",
@@ -3548,6 +3555,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["MqttWillEnableLabel"] = "Enable Last Will & Testament (LWT)",
         ["MqttWillTopicLabel"] = "Will Topic",
         ["MqttWillPayloadLabel"] = "Will Payload",
+        ["MqttWillPayloadHint"] = "Plain text string (max 30 characters, e.g. offline). Do not use \" and \\.",
         ["MqttWillRetainLabel"] = "Will Retain",
         ["ToolboxDtuGateway"] = "DTU Gateway",
         ["ToolboxDtuGatewayTitle"] = "DTU Gateway",
@@ -4586,7 +4594,13 @@ public class LocalizationService : INotifyPropertyChanged
         ["HttpClientDiagTitle"] = "TELEMETRY DIAGNOSTIC INFO",
         ["HttpClientDiagMethodEndpoint"] = "Destination:",
         ["HttpClientDiagTrigger"] = "Triggering:",
-        ["HttpClientDiagPayloadSize"] = "Est. Payload Size:",
+        ["HttpClientDiagPayloadSize"] = "Payload Size:",
+        ["HttpClientPreviewTitle"] = "HTTP PAYLOAD PREVIEW",
+        ["HttpClientRawBadge"] = "PLAIN TEXT",
+        ["HttpClientJsonValidBadgeShort"] = "VALID JSON",
+        ["HttpClientJsonInvalidBadgeShort"] = "SYNTAX ERROR",
+        ["HttpClientDiagSource"] = "Source Data:",
+        ["HttpClientDiagContentType"] = "Content-Type:",
         // TCP Client Dialog
 
         ["TcpClientConfigDialogTitle"] = "TCP Client Socket Configuration",

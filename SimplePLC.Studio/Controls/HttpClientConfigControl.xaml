@@ -320,7 +320,7 @@
         </ScrollViewer>
 
         <!-- RIGHT PANE: STICKY LIVE PAYLOAD PREVIEW & DIAGNOSTICS (360px) -->
-        <Border Grid.Column="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="16">
+        <Border Grid.Column="2" VerticalAlignment="Top" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="16">
             <Grid>
                 <Grid.RowDefinitions>
                     <!-- 0. Header & Validity Pill -->
@@ -333,39 +333,38 @@
 
                 <!-- Row 0: Preview Header with Syntax Validity Indicator -->
                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <TextBlock Text="{Binding [HttpClientFieldPreview], Source={x:Static services:LocalizationService.Instance}}" 
+                    <TextBlock Text="{Binding [HttpClientPreviewTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <!-- JSON Validity Indicators (Fields / Custom mode) -->
                         <StackPanel Orientation="Horizontal" Visibility="{Binding IsJsonMode, Converter={StaticResource BoolToVis}}">
                             <Border Visibility="{Binding IsJsonValid, Converter={StaticResource BoolToVis}}" 
-                                    Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                    Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysCheck}" Stroke="{DynamicResource SuccessBrush}" Width="11" Height="11" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [HttpClientJsonValidBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" />
+                                    <TextBlock Text="{Binding [HttpClientJsonValidBadgeShort], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" />
                                 </StackPanel>
                             </Border>
                             <Border Visibility="{Binding HasJsonError, Converter={StaticResource BoolToVis}}" 
-                                    Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                    Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysClear}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [HttpClientJsonInvalidBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" />
+                                    <TextBlock Text="{Binding [HttpClientJsonInvalidBadgeShort], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
                         <!-- Plain Text Badge (Raw mode) -->
                         <Border Visibility="{Binding IsRawMode, Converter={StaticResource BoolToVis}}" 
-                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="8,2">
-                            <TextBlock Text="{Binding [HttpClientOptRawPlainDesc], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="{Binding [HttpClientRawBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                         </Border>
                     </StackPanel>
                 </DockPanel>
 
-                <!-- Row 1: Full-Height Monospace Payload Viewer -->
-                <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12"
-                        ToolTip="{Binding [HttpClientPreviewPayloadTip], Source={x:Static services:LocalizationService.Instance}}">
+                <!-- Row 1: Monospace Payload Viewer (Clean, no hovering tooltip) -->
+                <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12" MinHeight="140" MaxHeight="360">
                     <TextBox Text="{Binding PreviewPayloadText, Mode=OneWay}" 
                              IsReadOnly="True" AcceptsReturn="True" VerticalContentAlignment="Top"
                              Background="Transparent" BorderThickness="0" 
@@ -374,22 +373,26 @@
                              TextWrapping="NoWrap" Padding="10,8" />
                 </Border>
 
-                <!-- Row 2: Diagnostic Summary Box -->
+                <!-- Row 2: Payload Diagnostics Summary Box (Non-duplicate technical metrics) -->
                 <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10">
                     <StackPanel>
                         <TextBlock Text="{Binding [HttpClientDiagTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                    FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" />
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock Text="{Binding [HttpClientDiagMethodEndpoint], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SummaryEndpointText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                            <TextBlock Text="{Binding [HttpClientDiagPayloadSize], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding PayloadByteSizeText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock Text="{Binding [HttpClientDiagTrigger], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SummaryTriggerText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding [HttpClientDiagSource], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SummarySourceDataText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                        </DockPanel>
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="{Binding [HttpClientDiagContentType], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SummaryContentType}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                         <DockPanel>
-                            <TextBlock Text="{Binding [HttpClientDiagPayloadSize], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding PayloadByteSizeText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding [HttpClientDiagTrigger], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SummaryTriggerText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                     </StackPanel>
                 </Border>

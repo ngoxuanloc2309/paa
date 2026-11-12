@@ -1098,7 +1098,8 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Equal(8883, metadata.MqttBrokerPort);
         Assert.True(metadata.MqttTlsEnabled);
         Assert.Equal("plant/status", metadata.MqttWillTopic);
-        Assert.Equal("{\"state\":\"dead\"}", metadata.MqttWillPayload);
+        // In accordance with SPLC-SPEC-MQTT-004 Wi-Fi AT defense, quotes are sanitized
+        Assert.Equal("{state:dead}", metadata.MqttWillPayload);
 
         var vm2 = new DtuGatewayStudioViewModel(metadata);
         Assert.Equal("mqtt.edge.internal", vm2.MqttBrokerConfigVM.Host);
@@ -1897,5 +1898,46 @@ public sealed class DtuGatewayStudioViewModelTests
         // Assert: Wi-Fi is enabled and notice disappears
         Assert.True(vm.WifiEnabled);
         Assert.False(vm.IsWifiRequiredNoticeVisible);
+    }
+
+    [Fact]
+    public void BuildMqttWillDto_ShouldResolveDeviceTokenAndSanitizePayload()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata)
+        {
+            MqttClientId = "DTU_EDGE_99",
+            MqttWillEnabled = true,
+            MqttWillTopic = "devices/{device}/lwt",
+            MqttWillPayload = "{\"status\":\"offline\\\"}",
+            MqttWillQos = 1,
+            MqttWillRetain = true
+        };
+
+        // Act
+        var dto = vm.BuildMqttWillDto();
+
+        // Assert
+        Assert.True(dto.Enabled);
+        Assert.Equal("devices/DTU_EDGE_99/lwt", dto.Topic);
+        // Quotes and backslashes sanitized
+        Assert.Equal("{status:offline}", dto.Payload);
+        Assert.Equal((byte)1, dto.Qos);
+        Assert.True(dto.Retain);
+    }
+
+    [Fact]
+    public void OnMqttWillPayloadChanged_ShouldSanitizeQuotesAndBackslashes()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        // Act
+        vm.MqttWillPayload = "offline\"\\";
+
+        // Assert
+        Assert.Equal("offline", vm.MqttWillPayload);
     }
 }

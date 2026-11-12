@@ -1,861 +1,1726 @@
-<UserControl x:Class="SimplePLC.Studio.Controls.ModbusPortConfigControl"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:services="clr-namespace:SimplePLC.Studio.Services"
-             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
-             xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
-              xmlns:viewModels="clr-namespace:SimplePLC.Studio.ViewModels"
-             FontFamily="Segoe UI"
-             TextOptions.TextFormattingMode="Display"
-             TextOptions.TextRenderingMode="ClearType"
-             RenderOptions.ClearTypeHint="Enabled">
-
-    <UserControl.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="../Styles/Colors.xaml" />
-                <ResourceDictionary Source="../Styles/Controls.xaml" />
-                <ResourceDictionary Source="../Styles/Icons.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-            <BooleanToVisibilityConverter x:Key="BoolToVis" />
-            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
-
-            <!-- Flat Industrial Data Grid Cell Styles (IBM Carbon / Fluent 2) -->
-            <Style x:Key="FlatCellTextBoxStyle" TargetType="TextBox">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                <Setter Property="Height" Value="25" />
-                <Setter Property="VerticalContentAlignment" Value="Center" />
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
-                    </Trigger>
-                    <Trigger Property="IsFocused" Value="True">
-                        <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
-                    </Trigger>
-                    <Trigger Property="IsEnabled" Value="False">
-                        <Setter Property="Opacity" Value="0.4" />
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
-
-            <Style x:Key="FlatCellComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                <Setter Property="Height" Value="25" />
-                <Setter Property="FontSize" Value="10.5" />
-                <Setter Property="Padding" Value="4,1" />
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-            </Style>
-
-            <!-- Clean Compact Grid ComboBox Style -->
-            <Style x:Key="ModernGridComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                <Setter Property="Height" Value="24" />
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                <Setter Property="Padding" Value="4,1" />
-                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
-                <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
-                <Setter Property="VerticalContentAlignment" Value="Center" />
-            </Style>
-
-            <!-- Segmented Tab RadioButton Style (Fluent 2 Desktop Style, CornerRadius=4) -->
-            <Style x:Key="SegmentedTabRadioBtnStyle" TargetType="RadioButton">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="BorderBrush" Value="Transparent" />
-                <Setter Property="Padding" Value="9,3" />
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="SnapsToDevicePixels" Value="True" />
-                <Setter Property="UseLayoutRounding" Value="True" />
-                <Setter Property="Cursor" Value="Hand" />
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="RadioButton">
-                            <Border x:Name="TabBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="4"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
-                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                                </Trigger>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
-                                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
-                                    <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
-                                    <Setter Property="FontWeight" Value="Bold" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-        </ResourceDictionary>
-    </UserControl.Resources>
-
-    <!-- Content Body: Left Port Selector & Right Settings Editor -->
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="265" />
-            <ColumnDefinition Width="14" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-
-        <!-- Left Column: Port List -->
-        <Border Grid.Column="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="{Binding [ModbusPortSelectorLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                           FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="4,4,4,8" />
-                <TextBlock DockPanel.Dock="Top" Text="{Binding [ModbusNoPhysicalPortsMessage], Source={x:Static services:LocalizationService.Instance}}" 
-                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic" Margin="8,12,8,8" TextWrapping="Wrap"
-                           Visibility="{Binding HasPhysicalPorts, Converter={StaticResource InverseBoolToVis}}" />
-                <ListBox ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}" 
-                         BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="Padding" Value="2" />
-                            <Setter Property="Margin" Value="0,0,0,6" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ItemBorder" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
-                                            <ContentPresenter />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
-                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
-                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
-                                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1.5" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <!-- Row 0: Name and Status Pill -->
-                                <Grid Grid.Row="0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <Border Grid.Column="1" Background="{Binding StatusPillColor}" CornerRadius="2" Padding="5,1">
-                                        <TextBlock Text="{Binding StatusPill}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" />
-                                    </Border>
-                                </Grid>
-
-                                <!-- Row 1: Role Badge -->
-                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                                    <Border Background="{DynamicResource IndustrialPrimaryBrush}" CornerRadius="2" Padding="5,1" Margin="0,0,6,0"
-                                            Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="MASTER" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" />
-                                    </Border>
-                                    <Border Background="{DynamicResource SuccessDarkBrush}" CornerRadius="2" Padding="5,1" Margin="0,0,6,0"
-                                            Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="SLAVE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Row 2: Summary Badge -->
-                                <TextBlock Grid.Row="2" Text="{Binding SummaryBadge}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
-        </Border>
-
-        <!-- Right Column: Port Details Editor -->
-        <Border Grid.Column="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10">
-            <Grid DataContext="{Binding SelectedPort}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <!-- Header Details: DisplayName on Left, Reset Button & Enable CheckBox on Right -->
-                <Grid Grid.Row="0" Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Command="{Binding DataContext.ResetDefaultsCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" 
-                                ToolTip="{Binding [ModbusPortResetBtnTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                IsEnabled="{Binding Enabled}"
-                                Style="{StaticResource BtnSecondary}" 
-                                Height="26" Padding="10,2" Margin="0,0,12,0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" 
-                                      Stroke="{DynamicResource TextPrimaryBrush}" Width="12" Height="12" Margin="0,0,5,0" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding [ModbusPortResetBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-
-                        <CheckBox Content="{Binding [ModbusPortEnabledLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                  IsChecked="{Binding Enabled}" FontWeight="SemiBold" VerticalAlignment="Center"
-                                  ToolTip="{Binding [ModbusPortEnabledTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                    </StackPanel>
-                </Grid>
-
-                <Separator Grid.Row="1" Background="{DynamicResource IndustrialBorderSubtleBrush}" Margin="0,0,0,6" />
-
-                <!-- Form Parameters & Dynamic Content -->
-                <Grid Grid.Row="2" IsEnabled="{Binding Enabled}">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Style.Triggers>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter Property="Opacity" Value="0.45" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" /> <!-- Row 0: Role Selection -->
-                        <RowDefinition Height="Auto" /> <!-- Row 1: UART Settings Grid -->
-                        <RowDefinition Height="*" />    <!-- Row 2: Mode View (Master Info or Slave Table) -->
-                    </Grid.RowDefinitions>
-
-                    <!-- Role Selector Section -->
-                    <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,5" Margin="0,0,0,6">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding [ModbusPortRoleLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <RadioButton Content="{Binding [ModbusPortRoleMaster], Source={x:Static services:LocalizationService.Instance}}"
-                                             GroupName="ModbusPortRoleGroup"
-                                             IsChecked="{Binding IsMasterMode, Mode=OneWay}"
-                                             Command="{Binding DataContext.SetMasterRoleCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                             FontWeight="SemiBold" FontSize="11" Margin="0,0,20,0" VerticalAlignment="Center" />
-                                <RadioButton Content="{Binding [ModbusPortRoleSlave], Source={x:Static services:LocalizationService.Instance}}"
-                                             GroupName="ModbusPortRoleGroup"
-                                             IsChecked="{Binding IsSlaveMode, Mode=OneWay}"
-                                             Command="{Binding DataContext.SetSlaveRoleCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                             FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <!-- UART & Port Settings Grid (Compact 2-Row Layout) -->
-                    <Grid Grid.Row="1" Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Row 0: Port Name | Baud Rate | Data Bits | Parity -->
-                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,6">
-                            <TextBlock Text="{Binding [ModbusPortNameLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <TextBox Text="{Binding PortName, UpdateSourceTrigger=PropertyChanged}" 
-                                     ToolTip="{Binding [ModbusPortNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                     MaxLength="12" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,6">
-                            <TextBlock Text="{Binding [ModbusPortBaudRateLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortBaudRateTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <ComboBox ItemsSource="{Binding DataContext.AvailableBaudRates, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                      SelectedItem="{Binding BaudRate}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                      ToolTip="{Binding [ModbusPortBaudRateTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,6">
-                            <TextBlock Text="{Binding [ModbusPortDataBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortDataBitsTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <ComboBox ItemsSource="{Binding DataContext.AvailableDataBits, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                      SelectedItem="{Binding DataBits}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                      ToolTip="{Binding [ModbusPortDataBitsTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="6" Margin="0,0,0,6">
-                            <TextBlock Text="{Binding [ModbusPortParityLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortParityTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <ComboBox ItemsSource="{Binding DataContext.AvailableParities, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                      SelectedItem="{Binding Parity}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                      ToolTip="{Binding [ModbusPortParityTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <!-- Row 1: Stop Bits | (Slave ID / Retries) | (Delay / Timeout) | (Master Delay) -->
-                        <StackPanel Grid.Row="1" Grid.Column="0">
-                            <TextBlock Text="{Binding [ModbusPortStopBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortStopBitsTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <ComboBox ItemsSource="{Binding DataContext.AvailableStopBits, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                      SelectedItem="{Binding StopBits}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                      ToolTip="{Binding [ModbusPortStopBitsTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <!-- Col 2: (Master: Retries / Slave: Slave ID) -->
-                        <StackPanel Grid.Row="1" Grid.Column="2"
-                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding [ModbusPortRetriesLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortRetriesTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <TextBox Text="{Binding RetryCount, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                     ToolTip="{Binding [ModbusPortRetriesTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="1" Grid.Column="2"
-                                    Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding [ModbusPortSlaveIdLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <TextBox Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                     ToolTip="{Binding [ModbusPortSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-                        <!-- Col 4: (Master: Timeout) -->
-                        <StackPanel Grid.Row="1" Grid.Column="4"
-                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding [ModbusPortTimeoutLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortTimeoutTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <TextBox Text="{Binding ResponseTimeoutMs, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                     ToolTip="{Binding [ModbusPortTimeoutTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-
-
-                        <!-- Col 6: (Master Delay) -->
-                        <StackPanel Grid.Row="1" Grid.Column="6"
-                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding [ModbusPortDelayLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       ToolTip="{Binding [ModbusPortDelayTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                            <TextBox Text="{Binding InterFrameDelayMs, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
-                                     ToolTip="{Binding [ModbusPortDelayTooltip], Source={x:Static services:LocalizationService.Instance}}" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Master Mode: Modbus Master I/O & Command Table (Visible only when in Master Mode) -->
-                    <Border Grid.Row="2" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" VerticalAlignment="Stretch" Margin="0,2,0,0"
-                            Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Row 0: Header with Section Title and Add Channel Button -->
-                            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
-                                <StackPanel DockPanel.Dock="Left" Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding [ModbusMasterTableTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                               FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding [ModbusMasterTableSubtitle], Source={x:Static services:LocalizationService.Instance}}"
-                                               FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
-                                </StackPanel>
-
-                                <Button DockPanel.Dock="Right"
-                                        Command="{Binding AddMasterChannelCommand}"
-                                        Style="{StaticResource TiaTactileBtnStyle}"
-                                        Height="26" Padding="10,2" VerticalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlus}"
-                                              Stroke="{DynamicResource TextPrimaryBrush}" Width="11" Height="11" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding [ModbusBtnAddMasterChannel], Source={x:Static services:LocalizationService.Instance}}"
-                                                   FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </DockPanel>
-
-                            <!-- Row 1: The Master I/O Flat Data Table -->
-                            <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="0">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Table Header Row (IBM Carbon Data Table Density) -->
-                                    <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="6,0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="65" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="175" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="75" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="110" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="120" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="60" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="120" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="*" MinWidth="130" />
-                                                <ColumnDefinition Width="5" />
-                                                <ColumnDefinition Width="32" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <!-- Col 0: Slave ID -->
-                                            <TextBlock Grid.Column="0" Text="{Binding [ModbusColSlaveIdHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
-
-                                            <!-- Col 2: Function Code -->
-                                            <TextBlock Grid.Column="2" Text="{Binding [ModbusColFunctionCodeHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
-
-                                            <!-- Col 4: Address -->
-                                            <TextBlock Grid.Column="4" Text="{Binding [ModbusColAddressHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColAddressTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
-
-                                            <!-- Col 6: Data Type -->
-                                            <TextBlock Grid.Column="6" Text="{Binding [ModbusColDataTypeHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
-
-                                            <!-- Col 8: Endianness -->
-                                            <TextBlock Grid.Column="8" Text="{Binding [ModbusColEndiannessHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
-
-                                            <!-- Col 10: Scale (x) -->
-                                            <TextBlock Grid.Column="10" Text="{Binding [ModbusColScaleHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
-
-                                            <!-- Col 12: Target / Source Tag -->
-                                            <TextBlock Grid.Column="12" Text="{Binding [ModbusColTargetTagHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
-
-                                            <!-- Col 14: Tag Alias -->
-                                            <TextBlock Grid.Column="14" Text="{Binding [ModbusColAliasHeader], Source={x:Static services:LocalizationService.Instance}}"
-                                                       ToolTip="{Binding [ModbusColAliasTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
-
-                                            <!-- Col 16: Action -->
-                                            <TextBlock Grid.Column="16" Text="" VerticalAlignment="Center" TextAlignment="Center" />
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- Empty State (When no channels) -->
-                                    <StackPanel Grid.Row="1" Visibility="{Binding HasMasterChannels, Converter={StaticResource InverseBoolToVis}}"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,25">
-                                        <TextBlock Text="📋" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" Opacity="0.4" />
-                                        <TextBlock Text="{Binding [ModbusMasterTableEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
-                                                   FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding [ModbusMasterTableEmptyHint], Source={x:Static services:LocalizationService.Instance}}"
-                                                   FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,3,0,0" />
-                                    </StackPanel>
-
-                                    <!-- Table Rows (When channels exist) -->
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                                  Visibility="{Binding HasMasterChannels, Converter={StaticResource BoolToVis}}"
-                                                  Padding="6,2">
-                                        <ListBox ItemsSource="{Binding MasterChannels}"
-                                                 SelectedItem="{Binding SelectedMasterChannel}"
-                                                 services:ListBoxBehaviors.AutoSelectOnFocus="True"
-                                                 BorderThickness="0" Background="Transparent"
-                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                            <ListBox.ItemContainerStyle>
-                                                <Style TargetType="ListBoxItem">
-                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                                    <Setter Property="Padding" Value="0" />
-                                                    <Setter Property="Margin" Value="0,0,0,2" />
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ListBoxItem">
-                                                                <Border x:Name="RowBd" Background="Transparent" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,2">
-                                                                    <ContentPresenter />
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
-                                                                    </Trigger>
-                                                                    <Trigger Property="IsSelected" Value="True">
-                                                                        <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
-                                                                        <Setter TargetName="RowBd" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ListBox.ItemContainerStyle>
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="65" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="175" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="75" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="110" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="120" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="60" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="120" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="*" MinWidth="130" />
-                                                            <ColumnDefinition Width="5" />
-                                                            <ColumnDefinition Width="32" />
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <!-- Col 0: Slave ID (1..247) -->
-                                                        <TextBox Grid.Column="0" Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}"
-                                                                 ToolTip="{Binding [ModbusColSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
-
-                                                        <!-- Col 2: Function Code (FC01..FC16) -->
-                                                        <ComboBox Grid.Column="2"
-                                                                  ToolTip="{Binding [ModbusColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                  ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableFunctionCodes}"
-                                                                  SelectedValue="{Binding FunctionCode}"
-                                                                  SelectedValuePath="Value"
-                                                                  DisplayMemberPath="DisplayName"
-                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
-                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-                                                        <!-- Col 4: Modbus Register Address (40001, etc.) -->
-                                                        <TextBox Grid.Column="4" Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
-                                                                 ToolTip="{Binding [ModbusColAddressTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
-
-                                                        <!-- Col 6: Data Type -->
-                                                        <ComboBox Grid.Column="6"
-                                                                  ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                  ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableDataTypes}"
-                                                                  SelectedValue="{Binding DataType}"
-                                                                  SelectedValuePath="Value"
-                                                                  DisplayMemberPath="DisplayName"
-                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
-                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-                                                        <!-- Col 8: Endianness (Smart context: dash if not applicable) -->
-                                                        <Grid Grid.Column="8">
-                                                            <ComboBox ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                      ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableEndianness}"
-                                                                      SelectedValue="{Binding Endianness}"
-                                                                      SelectedValuePath="Value"
-                                                                      DisplayMemberPath="DisplayName"
-                                                                      Style="{StaticResource FlatCellComboBoxStyle}"
-                                                                      Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center"
-                                                                      Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource BoolToVis}}" />
-                                                            <TextBlock Text="—" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" 
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                       Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource InverseBoolToVis}}" />
-                                                        </Grid>
-
-                                                        <!-- Col 10: Scale (x) -->
-                                                        <TextBox Grid.Column="10" Text="{Binding ScaleText, UpdateSourceTrigger=LostFocus}"
-                                                                 ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
-
-                                                        <!-- Col 12: Target / Source Device Tag -->
-                                                        <ComboBox Grid.Column="12"
-                                                                  ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                  ItemsSource="{Binding FilteredAvailableTags}"
-                                                                  SelectedItem="{Binding TargetTag, Mode=TwoWay}"
-                                                                  DisplayMemberPath="DisplayName"
-                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
-                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-                                                        <!-- Col 14: Alias (Tên gợi nhớ 2-way sync) -->
-                                                        <TextBox Grid.Column="14" Text="{Binding TargetTagAlias, UpdateSourceTrigger=PropertyChanged}"
-                                                                 IsEnabled="{Binding IsTagSelected}"
-                                                                 ToolTip="{Binding [ModbusColAliasTooltip], Source={x:Static services:LocalizationService.Instance}}"
-                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="6,2" FontSize="11" />
-
-                                                        <!-- Col 16: Delete Channel Button -->
-                                                        <Button Grid.Column="16"
-                                                                Style="{StaticResource TableRowDeleteBtnStyle}"
-                                                                ToolTip="{Binding [ModbusBtnDeleteMasterChannel], Source={x:Static services:LocalizationService.Instance}}"
-                                                                Command="{Binding DataContext.SelectedPort.RemoveMasterChannelCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                                                CommandParameter="{Binding}" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </ScrollViewer>
-                                </Grid>
-                            </Border>
-
-                            <!-- Row 2: Bottom Info Card -->
-                            <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,6,0,0">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysInfo}"
-                                          Stroke="{DynamicResource IndustrialPrimaryBrush}" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding [ModbusMasterFooterNotice], Source={x:Static services:LocalizationService.Instance}}"
-                                               FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Modbus Slave Data Reference Table Section (Visible only when in Slave Mode) -->
-                    <Border Grid.Row="2" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" VerticalAlignment="Stretch" Margin="0,2,0,0"
-                            Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Section Toolbar Header -->
-                            <Grid Grid.Row="0" Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding [ModbusSlaveMapSectionTitle], Source={x:Static services:LocalizationService.Instance}}" 
-                                               FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" 
-                                            Padding="7,2" Margin="8,0,0,0" VerticalAlignment="Center"
-                                            ToolTip="{Binding [ModbusSlaveFactoryNote], Source={x:Static services:LocalizationService.Instance}}">
-                                        <TextBlock Text="{Binding [ModbusSlaveFactoryBadge], Source={x:Static services:LocalizationService.Instance}}" 
-                                                   FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Command="{Binding DataContext.OpenExportFolderCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                            Visibility="{Binding DataContext.HasLastExportedFilePath, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Converter={StaticResource BoolToVis}}"
-                                            Style="{StaticResource TactileToolbarBtnStyle}" Height="26" Padding="8,3" Margin="0,0,6,0"
-                                            ToolTip="{Binding [ModbusSlaveOpenFolderTooltip], Source={x:Static services:LocalizationService.Instance}}">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconFolder}" Width="11" Height="11" Margin="0,0,4,0" />
-                                            <TextBlock Text="{Binding [ModbusSlaveOpenFolderBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </Button>
-
-                                    <Button Command="{Binding DataContext.ExportModbusMapCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                            Style="{StaticResource TactileToolbarBtnStyle}" Height="26" Padding="8,3"
-                                            ToolTip="{Binding [ModbusSlaveExportTooltip], Source={x:Static services:LocalizationService.Instance}}">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconFileText}" Width="12" Height="12" Margin="0,0,5,0" />
-                                            <TextBlock Text="{Binding [ModbusSlaveMapExportBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Row 1: Segmented Moxa Tabs & Export Notice -->
-                            <Grid Grid.Row="1" Margin="0,0,0,6">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <!-- Moxa Tab Buttons Bar -->
-                                <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
-                                                     IsChecked="{Binding DataContext.IsTabAllSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
-                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                                     CommandParameter="All"
-                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding [ModbusSlaveTabAll], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
-                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text="{Binding DataContext.CountAll, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
-                                            </StackPanel>
-                                        </RadioButton>
-
-                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
-                                                     IsChecked="{Binding DataContext.IsTabHoldingSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
-                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                                     CommandParameter="Holding"
-                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding [ModbusSlaveTabHolding], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
-                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text="{Binding DataContext.CountHolding, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
-                                            </StackPanel>
-                                        </RadioButton>
-
-                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
-                                                     IsChecked="{Binding DataContext.IsTabCoilsSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
-                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                                     CommandParameter="Coils"
-                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding [ModbusSlaveTabCoils], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
-                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text="{Binding DataContext.CountCoils, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
-                                            </StackPanel>
-                                        </RadioButton>
-
-                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
-                                                     IsChecked="{Binding DataContext.IsTabDiscreteInputsSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
-                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                                     CommandParameter="Discrete"
-                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding [ModbusSlaveTabDiscreteInputs], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
-                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text="{Binding DataContext.CountDiscreteInputs, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
-                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Export Notice Message -->
-                                <Grid Grid.Row="1" Margin="0,4,0,0"
-                                      Visibility="{Binding DataContext.HasExportNoticeMessage, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding DataContext.ExportNoticeMessage, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" 
-                                               FontSize="10.5" Foreground="{DynamicResource IndustrialPrimaryBrush}" FontWeight="SemiBold" FontStyle="Italic" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                            </Grid>
-
-                            <!-- Fixed Memory Map DataGrid (IBM Carbon Density - 5 Lean Columns) -->
-                            <Grid Grid.Row="2">
-                                <DataGrid VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                          ItemsSource="{Binding DataContext.FilteredFixedRegisterMap, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
-                                          SelectedItem="{Binding DataContext.SelectedFixedRegisterItem, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=TwoWay}"
-                                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                                          IsReadOnly="True" SelectionMode="Single"
-                                          RowHeight="28"
-                                          BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" Background="{DynamicResource BgPanelBrush}"
-                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                                          HorizontalGridLinesBrush="{DynamicResource IndustrialBorderSubtleBrush}"
-                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <DataGrid.ColumnHeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader">
-                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
-                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                            <Setter Property="FontSize" Value="11" />
-                                            <Setter Property="Padding" Value="6,3" />
-                                            <Setter Property="BorderThickness" Value="0,0,1,1" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
-                                            <Setter Property="HorizontalContentAlignment" Value="Left" />
-                                        </Style>
-                                    </DataGrid.ColumnHeaderStyle>
-
-                                    <DataGrid.Columns>
-                                        <!-- 1. Modbus Address (1-based) with Protocol Wire Tooltip -->
-                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColModbusAddress], Source={x:Static services:LocalizationService.Instance}}" Width="140">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding ModbusAddress}" TextAlignment="Left" VerticalAlignment="Center" 
-                                                               Padding="8,2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource IndustrialPrimaryBrush}"
-                                                               ToolTip="{Binding ProtocolWireTooltip}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <!-- 2. Device Tag -->
-                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColTag], Source={x:Static services:LocalizationService.Instance}}" Width="150">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding DeviceTag}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" 
-                                                               VerticalAlignment="Center" Padding="8,2" FontSize="11" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <!-- 3. Data Type -->
-                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColType], Source={x:Static services:LocalizationService.Instance}}" Width="95">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
-                                                            BorderThickness="1" CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding DataType}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                    </Border>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <!-- 4. Access Right -->
-                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColAccess], Source={x:Static services:LocalizationService.Instance}}" Width="75">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
-                                                            BorderThickness="1" CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding AccessRight}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                    </Border>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <!-- 5. Description Localized -->
-                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColDesc], Source={x:Static services:LocalizationService.Instance}}" Width="*">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Description}" VerticalAlignment="Center" Padding="8,2" FontSize="11" 
-                                                               Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" 
-                                                               ToolTip="{Binding Description}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Grid>
-        </Border>
-    </Grid>
-</UserControl>
+<UserControl x:Class="SimplePLC.Studio.Controls.ModbusPortConfigControl"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+
+             xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
+
+              xmlns:viewModels="clr-namespace:SimplePLC.Studio.ViewModels"
+
+             FontFamily="Segoe UI"
+
+             TextOptions.TextFormattingMode="Display"
+
+             TextOptions.TextRenderingMode="ClearType"
+
+             RenderOptions.ClearTypeHint="Enabled">
+
+
+
+    <UserControl.Resources>
+
+        <ResourceDictionary>
+
+            <ResourceDictionary.MergedDictionaries>
+
+                <ResourceDictionary Source="../Styles/Colors.xaml" />
+
+                <ResourceDictionary Source="../Styles/Controls.xaml" />
+
+                <ResourceDictionary Source="../Styles/Icons.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+
+
+
+            <!-- Flat Industrial Data Grid Cell Styles (IBM Carbon / Fluent 2) -->
+
+            <Style x:Key="FlatCellTextBoxStyle" TargetType="TextBox">
+
+                <Setter Property="Background" Value="Transparent" />
+
+                <Setter Property="BorderBrush" Value="Transparent" />
+
+                <Setter Property="BorderThickness" Value="1" />
+
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+
+                <Setter Property="Height" Value="25" />
+
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+
+                <Style.Triggers>
+
+                    <Trigger Property="IsMouseOver" Value="True">
+
+                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
+
+                    </Trigger>
+
+                    <Trigger Property="IsFocused" Value="True">
+
+                        <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+
+                        <Setter Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+
+                    </Trigger>
+
+                    <Trigger Property="IsEnabled" Value="False">
+
+                        <Setter Property="Opacity" Value="0.4" />
+
+                    </Trigger>
+
+                </Style.Triggers>
+
+            </Style>
+
+
+
+            <Style x:Key="FlatCellComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+
+                <Setter Property="Height" Value="25" />
+
+                <Setter Property="FontSize" Value="10.5" />
+
+                <Setter Property="Padding" Value="4,1" />
+
+                <Setter Property="Background" Value="Transparent" />
+
+                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderSubtleBrush}" />
+
+                <Setter Property="BorderThickness" Value="1" />
+
+            </Style>
+
+
+
+            <!-- Clean Compact Grid ComboBox Style -->
+
+            <Style x:Key="ModernGridComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+
+                <Setter Property="Height" Value="24" />
+
+                <Setter Property="FontSize" Value="11" />
+
+                <Setter Property="FontWeight" Value="SemiBold" />
+
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+
+                <Setter Property="Padding" Value="4,1" />
+
+                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+
+                <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+
+            </Style>
+
+
+
+            <!-- Segmented Tab RadioButton Style (Fluent 2 Desktop Style, CornerRadius=4) -->
+
+            <Style x:Key="SegmentedTabRadioBtnStyle" TargetType="RadioButton">
+
+                <Setter Property="Background" Value="Transparent" />
+
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+
+                <Setter Property="BorderThickness" Value="1" />
+
+                <Setter Property="BorderBrush" Value="Transparent" />
+
+                <Setter Property="Padding" Value="9,3" />
+
+                <Setter Property="FontSize" Value="11" />
+
+                <Setter Property="FontWeight" Value="SemiBold" />
+
+                <Setter Property="SnapsToDevicePixels" Value="True" />
+
+                <Setter Property="UseLayoutRounding" Value="True" />
+
+                <Setter Property="Cursor" Value="Hand" />
+
+                <Setter Property="Template">
+
+                    <Setter.Value>
+
+                        <ControlTemplate TargetType="RadioButton">
+
+                            <Border x:Name="TabBorder"
+
+                                    Background="{TemplateBinding Background}"
+
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+
+                                    CornerRadius="4"
+
+                                    Padding="{TemplateBinding Padding}">
+
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                            </Border>
+
+                            <ControlTemplate.Triggers>
+
+                                <Trigger Property="IsMouseOver" Value="True">
+
+                                    <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+
+                                </Trigger>
+
+                                <Trigger Property="IsChecked" Value="True">
+
+                                    <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource BgPanelBrush}" />
+
+                                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+
+                                    <Setter Property="Foreground" Value="{DynamicResource IndustrialPrimaryBrush}" />
+
+                                    <Setter Property="FontWeight" Value="Bold" />
+
+                                </Trigger>
+
+                            </ControlTemplate.Triggers>
+
+                        </ControlTemplate>
+
+                    </Setter.Value>
+
+                </Setter>
+
+            </Style>
+
+        </ResourceDictionary>
+
+    </UserControl.Resources>
+
+
+
+    <!-- Content Body: Left Port Selector & Right Settings Editor -->
+
+    <Grid>
+
+        <Grid.ColumnDefinitions>
+
+            <ColumnDefinition Width="265" />
+
+            <ColumnDefinition Width="14" />
+
+            <ColumnDefinition Width="*" />
+
+        </Grid.ColumnDefinitions>
+
+
+
+        <!-- Left Column: Port List -->
+
+        <Border Grid.Column="0" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
+
+            <DockPanel>
+
+                <TextBlock DockPanel.Dock="Top" Text="{Binding [ModbusPortSelectorLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                           FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="4,4,4,8" />
+
+                <TextBlock DockPanel.Dock="Top" Text="{Binding [ModbusNoPhysicalPortsMessage], Source={x:Static services:LocalizationService.Instance}}" 
+
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic" Margin="8,12,8,8" TextWrapping="Wrap"
+
+                           Visibility="{Binding HasPhysicalPorts, Converter={StaticResource InverseBoolToVis}}" />
+
+                <ListBox ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}" 
+
+                         BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                    <ListBox.ItemContainerStyle>
+
+                        <Style TargetType="ListBoxItem">
+
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+
+                            <Setter Property="Padding" Value="2" />
+
+                            <Setter Property="Margin" Value="0,0,0,6" />
+
+                            <Setter Property="Template">
+
+                                <Setter.Value>
+
+                                    <ControlTemplate TargetType="ListBoxItem">
+
+                                        <Border x:Name="ItemBorder" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+
+                                            <ContentPresenter />
+
+                                        </Border>
+
+                                        <ControlTemplate.Triggers>
+
+                                            <Trigger Property="IsMouseOver" Value="True">
+
+                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+
+                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+
+                                            </Trigger>
+
+                                            <Trigger Property="IsSelected" Value="True">
+
+                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+
+                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+
+                                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1.5" />
+
+                                            </Trigger>
+
+                                        </ControlTemplate.Triggers>
+
+                                    </ControlTemplate>
+
+                                </Setter.Value>
+
+                            </Setter>
+
+                        </Style>
+
+                    </ListBox.ItemContainerStyle>
+
+                    <ListBox.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <Grid>
+
+                                <Grid.RowDefinitions>
+
+                                    <RowDefinition Height="Auto" />
+
+                                    <RowDefinition Height="Auto" />
+
+                                    <RowDefinition Height="Auto" />
+
+                                </Grid.RowDefinitions>
+
+
+
+                                <!-- Row 0: Name and Status Pill -->
+
+                                <Grid Grid.Row="0">
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*" />
+
+                                        <ColumnDefinition Width="Auto" />
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                    <Border Grid.Column="1" Background="{Binding StatusPillColor}" CornerRadius="2" Padding="5,1">
+
+                                        <TextBlock Text="{Binding StatusPill}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BgPanelBrush}" />
+
+                                    </Border>
+
+                                </Grid>
+
+
+
+                                <!-- Row 1: Role Badge (Option 2: Subtle Outline on White Card) -->
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Border Background="{DynamicResource BgSubtleBrush}"
+                                            BorderBrush="{DynamicResource PrimaryBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="3"
+                                            Padding="5,1"
+                                            Margin="0,0,6,0"
+                                            Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="MASTER" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" />
+                                    </Border>
+                                    <Border Background="{DynamicResource BgSubtleBrush}"
+                                            BorderBrush="{DynamicResource SuccessBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="3"
+                                            Padding="5,1"
+                                            Margin="0,0,6,0"
+                                            Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="SLAVE" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" />
+                                    </Border>
+                                </StackPanel>
+
+
+
+                                <!-- Row 2: Summary Badge -->
+
+                                <TextBlock Grid.Row="2" Text="{Binding SummaryBadge}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+
+                            </Grid>
+
+                        </DataTemplate>
+
+                    </ListBox.ItemTemplate>
+
+                </ListBox>
+
+            </DockPanel>
+
+        </Border>
+
+
+
+        <!-- Right Column: Port Details Editor -->
+
+        <Border Grid.Column="2" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10">
+
+            <Grid DataContext="{Binding SelectedPort}">
+
+                <Grid.RowDefinitions>
+
+                    <RowDefinition Height="Auto" />
+
+                    <RowDefinition Height="Auto" />
+
+                    <RowDefinition Height="*" />
+
+                </Grid.RowDefinitions>
+
+
+
+                <!-- Header Details: DisplayName on Left, Reset Button & Enable CheckBox on Right -->
+
+                <Grid Grid.Row="0" Margin="0,0,0,6">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="*" />
+
+                        <ColumnDefinition Width="Auto" />
+
+                    </Grid.ColumnDefinitions>
+
+
+
+                    <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+
+
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+                        <Button Command="{Binding DataContext.ResetDefaultsCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" 
+
+                                ToolTip="{Binding [ModbusPortResetBtnTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                IsEnabled="{Binding Enabled}"
+
+                                Style="{StaticResource BtnSecondary}" 
+
+                                Height="26" Padding="10,2" Margin="0,0,12,0" VerticalAlignment="Center">
+
+                            <StackPanel Orientation="Horizontal">
+
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" 
+
+                                      Stroke="{DynamicResource TextPrimaryBrush}" Width="12" Height="12" Margin="0,0,5,0" VerticalAlignment="Center" />
+
+                                <TextBlock Text="{Binding [ModbusPortResetBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" VerticalAlignment="Center" />
+
+                            </StackPanel>
+
+                        </Button>
+
+
+
+                        <CheckBox Content="{Binding [ModbusPortEnabledLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                  IsChecked="{Binding Enabled}" FontWeight="SemiBold" VerticalAlignment="Center"
+
+                                  ToolTip="{Binding [ModbusPortEnabledTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                    </StackPanel>
+
+                </Grid>
+
+
+
+                <Separator Grid.Row="1" Background="{DynamicResource IndustrialBorderSubtleBrush}" Margin="0,0,0,6" />
+
+
+
+                <!-- Form Parameters & Dynamic Content -->
+
+                <Grid Grid.Row="2" IsEnabled="{Binding Enabled}">
+
+                    <Grid.Style>
+
+                        <Style TargetType="Grid">
+
+                            <Style.Triggers>
+
+                                <Trigger Property="IsEnabled" Value="False">
+
+                                    <Setter Property="Opacity" Value="0.45" />
+
+                                </Trigger>
+
+                            </Style.Triggers>
+
+                        </Style>
+
+                    </Grid.Style>
+
+                    <Grid.RowDefinitions>
+
+                        <RowDefinition Height="Auto" /> <!-- Row 0: Role Selection -->
+
+                        <RowDefinition Height="Auto" /> <!-- Row 1: UART Settings Grid -->
+
+                        <RowDefinition Height="*" />    <!-- Row 2: Mode View (Master Info or Slave Table) -->
+
+                    </Grid.RowDefinitions>
+
+
+
+                    <!-- Role Selector Section (Fluent 2 Segmented Control) -->
+                    <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,5" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding [ModbusPortRoleLabel], Source={x:Static services:LocalizationService.Instance}}" 
+                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                            <Border Grid.Column="1" HorizontalAlignment="Left"
+                                    Background="{DynamicResource IndustrialSurfaceInsetBrush}" 
+                                    BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="4" 
+                                    Padding="2">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <RadioButton Content="{Binding [ModbusPortRoleMaster], Source={x:Static services:LocalizationService.Instance}}"
+                                                 GroupName="ModbusPortRoleGroup"
+                                                 Style="{StaticResource SegmentedTabRadioBtnStyle}"
+                                                 IsChecked="{Binding IsMasterMode, Mode=OneWay}"
+                                                 Command="{Binding DataContext.SetMasterRoleCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+                                                 Margin="0,0,2,0" />
+                                    <RadioButton Content="{Binding [ModbusPortRoleSlave], Source={x:Static services:LocalizationService.Instance}}"
+                                                 GroupName="ModbusPortRoleGroup"
+                                                 Style="{StaticResource SegmentedTabRadioBtnStyle}"
+                                                 IsChecked="{Binding IsSlaveMode, Mode=OneWay}"
+                                                 Command="{Binding DataContext.SetSlaveRoleCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+
+
+                    <!-- UART & Port Settings Grid (Compact 2-Row Layout) -->
+
+                    <Grid Grid.Row="1" Margin="0,0,0,6">
+
+                        <Grid.ColumnDefinitions>
+
+                            <ColumnDefinition Width="*" />
+
+                            <ColumnDefinition Width="10" />
+
+                            <ColumnDefinition Width="*" />
+
+                            <ColumnDefinition Width="10" />
+
+                            <ColumnDefinition Width="*" />
+
+                            <ColumnDefinition Width="10" />
+
+                            <ColumnDefinition Width="*" />
+
+                        </Grid.ColumnDefinitions>
+
+                        <Grid.RowDefinitions>
+
+                            <RowDefinition Height="Auto" />
+
+                            <RowDefinition Height="Auto" />
+
+                        </Grid.RowDefinitions>
+
+
+
+                        <!-- Row 0: Port Name | Baud Rate | Data Bits | Parity -->
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,6">
+
+                            <TextBlock Text="{Binding [ModbusPortNameLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <TextBox Text="{Binding PortName, UpdateSourceTrigger=PropertyChanged}" 
+
+                                     ToolTip="{Binding [ModbusPortNameTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                     MaxLength="12" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center" />
+
+                        </StackPanel>
+
+
+
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,6">
+
+                            <TextBlock Text="{Binding [ModbusPortBaudRateLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortBaudRateTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableBaudRates, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                      SelectedItem="{Binding BaudRate}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                      ToolTip="{Binding [ModbusPortBaudRateTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,6">
+
+                            <TextBlock Text="{Binding [ModbusPortDataBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortDataBitsTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableDataBits, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                      SelectedItem="{Binding DataBits}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                      ToolTip="{Binding [ModbusPortDataBitsTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <StackPanel Grid.Row="0" Grid.Column="6" Margin="0,0,0,6">
+
+                            <TextBlock Text="{Binding [ModbusPortParityLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortParityTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableParities, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                      SelectedItem="{Binding Parity}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                      ToolTip="{Binding [ModbusPortParityTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <!-- Row 1: Stop Bits | (Slave ID / Retries) | (Delay / Timeout) | (Master Delay) -->
+
+                        <StackPanel Grid.Row="1" Grid.Column="0">
+
+                            <TextBlock Text="{Binding [ModbusPortStopBitsLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortStopBitsTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableStopBits, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                      SelectedItem="{Binding StopBits}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                      ToolTip="{Binding [ModbusPortStopBitsTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <!-- Col 2: (Master: Retries / Slave: Slave ID) -->
+
+                        <StackPanel Grid.Row="1" Grid.Column="2"
+
+                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
+
+                            <TextBlock Text="{Binding [ModbusPortRetriesLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortRetriesTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <TextBox Text="{Binding RetryCount, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                     ToolTip="{Binding [ModbusPortRetriesTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <StackPanel Grid.Row="1" Grid.Column="2"
+
+                                    Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
+
+                            <TextBlock Text="{Binding [ModbusPortSlaveIdLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <TextBox Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                     ToolTip="{Binding [ModbusPortSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+                        <!-- Col 4: (Master: Timeout) -->
+
+                        <StackPanel Grid.Row="1" Grid.Column="4"
+
+                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
+
+                            <TextBlock Text="{Binding [ModbusPortTimeoutLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortTimeoutTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <TextBox Text="{Binding ResponseTimeoutMs, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                     ToolTip="{Binding [ModbusPortTimeoutTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+
+
+
+
+                        <!-- Col 6: (Master Delay) -->
+
+                        <StackPanel Grid.Row="1" Grid.Column="6"
+
+                                    Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
+
+                            <TextBlock Text="{Binding [ModbusPortDelayLabel], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                       ToolTip="{Binding [ModbusPortDelayTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,3" />
+
+                            <TextBox Text="{Binding InterFrameDelayMs, UpdateSourceTrigger=PropertyChanged}" Height="26" Padding="6,2" FontSize="11.5" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" VerticalContentAlignment="Center"
+
+                                     ToolTip="{Binding [ModbusPortDelayTooltip], Source={x:Static services:LocalizationService.Instance}}" />
+
+                        </StackPanel>
+
+                    </Grid>
+
+
+
+                    <!-- Master Mode: Modbus Master I/O & Command Table (Visible only when in Master Mode) -->
+
+                    <Border Grid.Row="2" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" VerticalAlignment="Stretch" Margin="0,2,0,0"
+
+                            Visibility="{Binding IsMasterMode, Converter={StaticResource BoolToVis}}">
+
+                        <Grid>
+
+                            <Grid.RowDefinitions>
+
+                                <RowDefinition Height="Auto" />
+
+                                <RowDefinition Height="*" />
+
+                                <RowDefinition Height="Auto" />
+
+                            </Grid.RowDefinitions>
+
+
+
+                            <!-- Row 0: Header with Section Title and Add Channel Button -->
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+
+                                <StackPanel DockPanel.Dock="Left" Orientation="Vertical" VerticalAlignment="Center">
+
+                                    <TextBlock Text="{Binding [ModbusMasterTableTitle], Source={x:Static services:LocalizationService.Instance}}"
+
+                                               FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                    <TextBlock Text="{Binding [ModbusMasterTableSubtitle], Source={x:Static services:LocalizationService.Instance}}"
+
+                                               FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+
+                                </StackPanel>
+
+
+
+                                <Button DockPanel.Dock="Right"
+
+                                        Command="{Binding AddMasterChannelCommand}"
+
+                                        Style="{StaticResource TiaTactileBtnStyle}"
+
+                                        Height="26" Padding="10,2" VerticalAlignment="Center">
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlus}"
+
+                                              Stroke="{DynamicResource TextPrimaryBrush}" Width="11" Height="11" Margin="0,0,6,0" VerticalAlignment="Center" />
+
+                                        <TextBlock Text="{Binding [ModbusBtnAddMasterChannel], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                   FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                                    </StackPanel>
+
+                                </Button>
+
+                            </DockPanel>
+
+
+
+                            <!-- Row 1: The Master I/O Flat Data Table -->
+
+                            <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="0">
+
+                                <Grid>
+
+                                    <Grid.RowDefinitions>
+
+                                        <RowDefinition Height="28" />
+
+                                        <RowDefinition Height="*" />
+
+                                    </Grid.RowDefinitions>
+
+
+
+                                    <!-- Table Header Row (IBM Carbon Data Table Density) -->
+
+                                    <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="6,0">
+
+                                        <Grid>
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="65" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="175" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="75" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="110" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="120" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="60" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="120" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="*" MinWidth="130" />
+
+                                                <ColumnDefinition Width="5" />
+
+                                                <ColumnDefinition Width="32" />
+
+                                            </Grid.ColumnDefinitions>
+
+
+
+                                            <!-- Col 0: Slave ID -->
+
+                                            <TextBlock Grid.Column="0" Text="{Binding [ModbusColSlaveIdHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
+
+
+
+                                            <!-- Col 2: Function Code -->
+
+                                            <TextBlock Grid.Column="2" Text="{Binding [ModbusColFunctionCodeHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 4: Address -->
+
+                                            <TextBlock Grid.Column="4" Text="{Binding [ModbusColAddressHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColAddressTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
+
+
+
+                                            <!-- Col 6: Data Type -->
+
+                                            <TextBlock Grid.Column="6" Text="{Binding [ModbusColDataTypeHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 8: Endianness -->
+
+                                            <TextBlock Grid.Column="8" Text="{Binding [ModbusColEndiannessHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 10: Scale (x) -->
+
+                                            <TextBlock Grid.Column="10" Text="{Binding [ModbusColScaleHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
+
+
+
+                                            <!-- Col 12: Target / Source Tag -->
+
+                                            <TextBlock Grid.Column="12" Text="{Binding [ModbusColTargetTagHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 14: Tag Alias -->
+
+                                            <TextBlock Grid.Column="14" Text="{Binding [ModbusColAliasHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColAliasTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 16: Action -->
+
+                                            <TextBlock Grid.Column="16" Text="" VerticalAlignment="Center" TextAlignment="Center" />
+
+                                        </Grid>
+
+                                    </Border>
+
+
+
+                                    <!-- Empty State (When no channels) -->
+
+                                    <StackPanel Grid.Row="1" Visibility="{Binding HasMasterChannels, Converter={StaticResource InverseBoolToVis}}"
+
+                                                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,25">
+
+                                        <TextBlock Text="📋" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,6" Opacity="0.4" />
+
+                                        <TextBlock Text="{Binding [ModbusMasterTableEmptyTitle], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                   FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" />
+
+                                        <TextBlock Text="{Binding [ModbusMasterTableEmptyHint], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                   FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,3,0,0" />
+
+                                    </StackPanel>
+
+
+
+                                    <!-- Table Rows (When channels exist) -->
+
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+
+                                                  Visibility="{Binding HasMasterChannels, Converter={StaticResource BoolToVis}}"
+
+                                                  Padding="6,2">
+
+                                        <ListBox ItemsSource="{Binding MasterChannels}"
+
+                                                 SelectedItem="{Binding SelectedMasterChannel}"
+
+                                                 services:ListBoxBehaviors.AutoSelectOnFocus="True"
+
+                                                 BorderThickness="0" Background="Transparent"
+
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                                            <ListBox.ItemContainerStyle>
+
+                                                <Style TargetType="ListBoxItem">
+
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+
+                                                    <Setter Property="Padding" Value="0" />
+
+                                                    <Setter Property="Margin" Value="0,0,0,2" />
+
+                                                    <Setter Property="Template">
+
+                                                        <Setter.Value>
+
+                                                            <ControlTemplate TargetType="ListBoxItem">
+
+                                                                <Border x:Name="RowBd" Background="Transparent" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,2">
+
+                                                                    <ContentPresenter />
+
+                                                                </Border>
+
+                                                                <ControlTemplate.Triggers>
+
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+
+                                                                        <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+
+                                                                    </Trigger>
+
+                                                                    <Trigger Property="IsSelected" Value="True">
+
+                                                                        <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SelectionHighlightBrush}" />
+
+                                                                        <Setter TargetName="RowBd" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
+
+                                                                    </Trigger>
+
+                                                                </ControlTemplate.Triggers>
+
+                                                            </ControlTemplate>
+
+                                                        </Setter.Value>
+
+                                                    </Setter>
+
+                                                </Style>
+
+                                            </ListBox.ItemContainerStyle>
+
+                                            <ListBox.ItemTemplate>
+
+                                                <DataTemplate>
+
+                                                    <Grid>
+
+                                                        <Grid.ColumnDefinitions>
+
+                                                            <ColumnDefinition Width="65" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="175" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="75" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="110" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="120" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="60" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="120" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="*" MinWidth="130" />
+
+                                                            <ColumnDefinition Width="5" />
+
+                                                            <ColumnDefinition Width="32" />
+
+                                                        </Grid.ColumnDefinitions>
+
+
+
+                                                        <!-- Col 0: Slave ID (1..247) -->
+
+                                                        <TextBox Grid.Column="0" Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}"
+
+                                                                 ToolTip="{Binding [ModbusColSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
+
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
+
+
+
+                                                        <!-- Col 2: Function Code (FC01..FC16) -->
+
+                                                        <ComboBox Grid.Column="2"
+
+                                                                  ToolTip="{Binding [ModbusColFunctionCodeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                  ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableFunctionCodes}"
+
+                                                                  SelectedValue="{Binding FunctionCode}"
+
+                                                                  SelectedValuePath="Value"
+
+                                                                  DisplayMemberPath="DisplayName"
+
+                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
+
+                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
+
+
+
+                                                        <!-- Col 4: Modbus Register Address (40001, etc.) -->
+
+                                                        <TextBox Grid.Column="4" Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+
+                                                                 ToolTip="{Binding [ModbusColAddressTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
+
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
+
+
+
+                                                        <!-- Col 6: Data Type -->
+
+                                                        <ComboBox Grid.Column="6"
+
+                                                                  ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                  ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableDataTypes}"
+
+                                                                  SelectedValue="{Binding DataType}"
+
+                                                                  SelectedValuePath="Value"
+
+                                                                  DisplayMemberPath="DisplayName"
+
+                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
+
+                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
+
+
+
+                                                        <!-- Col 8: Endianness (Smart context: dash if not applicable) -->
+
+                                                        <Grid Grid.Column="8">
+
+                                                            <ComboBox ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                      ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableEndianness}"
+
+                                                                      SelectedValue="{Binding Endianness}"
+
+                                                                      SelectedValuePath="Value"
+
+                                                                      DisplayMemberPath="DisplayName"
+
+                                                                      Style="{StaticResource FlatCellComboBoxStyle}"
+
+                                                                      Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center"
+
+                                                                      Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource BoolToVis}}" />
+
+                                                            <TextBlock Text="—" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" 
+
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                                                       Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource InverseBoolToVis}}" />
+
+                                                        </Grid>
+
+
+
+                                                        <!-- Col 10: Scale (x) -->
+
+                                                        <TextBox Grid.Column="10" Text="{Binding ScaleText, UpdateSourceTrigger=LostFocus}"
+
+                                                                 ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
+
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
+
+
+
+                                                        <!-- Col 12: Target / Source Device Tag -->
+
+                                                        <ComboBox Grid.Column="12"
+                                                                  ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+                                                                  ItemsSource="{Binding TagOptions}"
+                                                                  SelectedValue="{Binding TargetTag, Mode=TwoWay}"
+                                                                  SelectedValuePath="Tag"
+                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
+                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center">
+                                                            <ComboBox.ItemContainerStyle>
+                                                                <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                                    <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSelectable}" Value="False">
+                                                                            <Setter Property="Opacity" Value="0.45" />
+                                                                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                                                            <Setter Property="Cursor" Value="No" />
+                                                                            <Setter Property="ToolTip" Value="{Binding ConflictTooltip}" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ComboBox.ItemContainerStyle>
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <DockPanel LastChildFill="True">
+                                                                        <TextBlock Visibility="{Binding HasConflict, Converter={StaticResource BoolToVis}}"
+                                                                                   Text="{Binding ConflictBadge}" FontSize="9.5" FontWeight="SemiBold"
+                                                                                   Foreground="{DynamicResource WarningBrush}" Margin="6,0,0,0" DockPanel.Dock="Right" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                                                                    </DockPanel>
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+
+
+
+                                                        <!-- Col 14: Alias (Tên gợi nhớ 2-way sync) -->
+
+                                                        <TextBox Grid.Column="14" Text="{Binding TargetTagAlias, UpdateSourceTrigger=PropertyChanged}"
+
+                                                                 IsEnabled="{Binding IsTagSelected}"
+
+                                                                 ToolTip="{Binding [ModbusColAliasTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
+
+                                                                 Padding="6,2" FontSize="11" />
+
+
+
+                                                        <!-- Col 16: Delete Channel Button -->
+
+                                                        <Button Grid.Column="16"
+
+                                                                Style="{StaticResource TableRowDeleteBtnStyle}"
+
+                                                                ToolTip="{Binding [ModbusBtnDeleteMasterChannel], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                Command="{Binding DataContext.SelectedPort.RemoveMasterChannelCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                                                CommandParameter="{Binding}" />
+
+                                                    </Grid>
+
+                                                </DataTemplate>
+
+                                            </ListBox.ItemTemplate>
+
+                                        </ListBox>
+
+                                    </ScrollViewer>
+
+                                </Grid>
+
+                            </Border>
+
+
+
+                            <!-- Row 2: Bottom Info Card -->
+
+                            <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,6,0,0">
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysInfo}"
+
+                                          Stroke="{DynamicResource IndustrialPrimaryBrush}" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+
+                                    <TextBlock Text="{Binding [ModbusMasterFooterNotice], Source={x:Static services:LocalizationService.Instance}}"
+
+                                               FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+
+                                </StackPanel>
+
+                            </Border>
+
+                        </Grid>
+
+                    </Border>
+
+
+
+                    <!-- Modbus Slave Data Reference Table Section (Visible only when in Slave Mode) -->
+
+                    <Border Grid.Row="2" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" VerticalAlignment="Stretch" Margin="0,2,0,0"
+
+                            Visibility="{Binding IsSlaveMode, Converter={StaticResource BoolToVis}}">
+
+                        <Grid>
+
+                            <Grid.RowDefinitions>
+
+                                <RowDefinition Height="Auto" />
+
+                                <RowDefinition Height="Auto" />
+
+                                <RowDefinition Height="*" />
+
+                            </Grid.RowDefinitions>
+
+
+
+                            <!-- Section Toolbar Header -->
+
+                            <Grid Grid.Row="0" Margin="0,0,0,6">
+
+                                <Grid.ColumnDefinitions>
+
+                                    <ColumnDefinition Width="*" />
+
+                                    <ColumnDefinition Width="Auto" />
+
+                                </Grid.ColumnDefinitions>
+
+
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+
+                                    <TextBlock Text="{Binding [ModbusSlaveMapSectionTitle], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                               FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+
+                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" 
+
+                                            Padding="7,2" Margin="8,0,0,0" VerticalAlignment="Center"
+
+                                            ToolTip="{Binding [ModbusSlaveFactoryNote], Source={x:Static services:LocalizationService.Instance}}">
+
+                                        <TextBlock Text="{Binding [ModbusSlaveFactoryBadge], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                                   FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+
+                                    </Border>
+
+                                </StackPanel>
+
+
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+                                    <Button Command="{Binding DataContext.OpenExportFolderCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                            Visibility="{Binding DataContext.HasLastExportedFilePath, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Converter={StaticResource BoolToVis}}"
+
+                                            Style="{StaticResource TactileToolbarBtnStyle}" Height="26" Padding="8,3" Margin="0,0,6,0"
+
+                                            ToolTip="{Binding [ModbusSlaveOpenFolderTooltip], Source={x:Static services:LocalizationService.Instance}}">
+
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconFolder}" Width="11" Height="11" Margin="0,0,4,0" />
+
+                                            <TextBlock Text="{Binding [ModbusSlaveOpenFolderBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" VerticalAlignment="Center" />
+
+                                        </StackPanel>
+
+                                    </Button>
+
+
+
+                                    <Button Command="{Binding DataContext.ExportModbusMapCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                            Style="{StaticResource TactileToolbarBtnStyle}" Height="26" Padding="8,3"
+
+                                            ToolTip="{Binding [ModbusSlaveExportTooltip], Source={x:Static services:LocalizationService.Instance}}">
+
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconFileText}" Width="12" Height="12" Margin="0,0,5,0" />
+
+                                            <TextBlock Text="{Binding [ModbusSlaveMapExportBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                                        </StackPanel>
+
+                                    </Button>
+
+                                </StackPanel>
+
+                            </Grid>
+
+
+
+                            <!-- Row 1: Segmented Moxa Tabs & Export Notice -->
+
+                            <Grid Grid.Row="1" Margin="0,0,0,6">
+
+                                <Grid.RowDefinitions>
+
+                                    <RowDefinition Height="Auto" />
+
+                                    <RowDefinition Height="Auto" />
+
+                                </Grid.RowDefinitions>
+
+
+
+                                <!-- Moxa Tab Buttons Bar -->
+
+                                <Border Grid.Row="0" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
+
+                                                     IsChecked="{Binding DataContext.IsTabAllSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
+
+                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                                     CommandParameter="All"
+
+                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                <TextBlock Text="{Binding [ModbusSlaveTabAll], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+
+                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text="{Binding DataContext.CountAll, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
+
+                                            </StackPanel>
+
+                                        </RadioButton>
+
+
+
+                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
+
+                                                     IsChecked="{Binding DataContext.IsTabHoldingSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
+
+                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                                     CommandParameter="Holding"
+
+                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                <TextBlock Text="{Binding [ModbusSlaveTabHolding], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+
+                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text="{Binding DataContext.CountHolding, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
+
+                                            </StackPanel>
+
+                                        </RadioButton>
+
+
+
+                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
+
+                                                     IsChecked="{Binding DataContext.IsTabCoilsSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
+
+                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                                     CommandParameter="Coils"
+
+                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                <TextBlock Text="{Binding [ModbusSlaveTabCoils], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+
+                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text="{Binding DataContext.CountCoils, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
+
+                                            </StackPanel>
+
+                                        </RadioButton>
+
+
+
+                                        <RadioButton GroupName="ModbusSlaveMemoryTabGroup"
+
+                                                     IsChecked="{Binding DataContext.IsTabDiscreteInputsSelected, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=OneWay}"
+
+                                                     Command="{Binding DataContext.SelectMemoryTabCommand, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                                     CommandParameter="Discrete"
+
+                                                     Style="{StaticResource SegmentedTabRadioBtnStyle}">
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                <TextBlock Text="{Binding [ModbusSlaveTabDiscreteInputs], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+
+                                                <TextBlock Text=" (" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text="{Binding DataContext.CountDiscreteInputs, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" VerticalAlignment="Center" Opacity="0.7" />
+
+                                                <TextBlock Text=")" VerticalAlignment="Center" Opacity="0.7" />
+
+                                            </StackPanel>
+
+                                        </RadioButton>
+
+                                    </StackPanel>
+
+                                </Border>
+
+
+
+                                <!-- Export Notice Message -->
+
+                                <Grid Grid.Row="1" Margin="0,4,0,0"
+
+                                      Visibility="{Binding DataContext.HasExportNoticeMessage, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Converter={StaticResource BoolToVis}}">
+
+                                    <TextBlock Text="{Binding DataContext.ExportNoticeMessage, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}" 
+
+                                               FontSize="10.5" Foreground="{DynamicResource IndustrialPrimaryBrush}" FontWeight="SemiBold" FontStyle="Italic" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                                </Grid>
+
+                            </Grid>
+
+
+
+                            <!-- Fixed Memory Map DataGrid (IBM Carbon Density - 5 Lean Columns) -->
+
+                            <Grid Grid.Row="2">
+
+                                <DataGrid VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+
+                                          ItemsSource="{Binding DataContext.FilteredFixedRegisterMap, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}}"
+
+                                          SelectedItem="{Binding DataContext.SelectedFixedRegisterItem, RelativeSource={RelativeSource AncestorType=controls:ModbusPortConfigControl}, Mode=TwoWay}"
+
+                                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+
+                                          IsReadOnly="True" SelectionMode="Single"
+
+                                          RowHeight="28"
+
+                                          BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" Background="{DynamicResource BgPanelBrush}"
+
+                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+
+                                          HorizontalGridLinesBrush="{DynamicResource IndustrialBorderSubtleBrush}"
+
+                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+
+                                    <DataGrid.ColumnHeaderStyle>
+
+                                        <Style TargetType="DataGridColumnHeader">
+
+                                            <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+
+                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+
+                                            <Setter Property="FontSize" Value="11" />
+
+                                            <Setter Property="Padding" Value="6,3" />
+
+                                            <Setter Property="BorderThickness" Value="0,0,1,1" />
+
+                                            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+
+                                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+
+                                        </Style>
+
+                                    </DataGrid.ColumnHeaderStyle>
+
+
+
+                                    <DataGrid.Columns>
+
+                                        <!-- 1. Modbus Address (1-based) with Protocol Wire Tooltip -->
+
+                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColModbusAddress], Source={x:Static services:LocalizationService.Instance}}" Width="140">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <TextBlock Text="{Binding ModbusAddress}" TextAlignment="Left" VerticalAlignment="Center" 
+
+                                                               Padding="8,2" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource IndustrialPrimaryBrush}"
+
+                                                               ToolTip="{Binding ProtocolWireTooltip}" />
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+
+
+                                        <!-- 2. Device Tag -->
+
+                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColTag], Source={x:Static services:LocalizationService.Instance}}" Width="150">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <TextBlock Text="{Binding DeviceTag}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" 
+
+                                                               VerticalAlignment="Center" Padding="8,2" FontSize="11" />
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+
+
+                                        <!-- 3. Data Type -->
+
+                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColType], Source={x:Static services:LocalizationService.Instance}}" Width="95">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+
+                                                            BorderThickness="1" CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center">
+
+                                                        <TextBlock Text="{Binding DataType}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                                                    </Border>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+
+
+                                        <!-- 4. Access Right -->
+
+                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColAccess], Source={x:Static services:LocalizationService.Instance}}" Width="75">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+
+                                                            BorderThickness="1" CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center">
+
+                                                        <TextBlock Text="{Binding AccessRight}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                                                    </Border>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+
+
+                                        <!-- 5. Description Localized -->
+
+                                        <DataGridTemplateColumn Header="{Binding [ModbusSlaveColDesc], Source={x:Static services:LocalizationService.Instance}}" Width="*">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <TextBlock Text="{Binding Description}" VerticalAlignment="Center" Padding="8,2" FontSize="11" 
+
+                                                               Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" 
+
+                                                               ToolTip="{Binding Description}" />
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+                                    </DataGrid.Columns>
+
+                                </DataGrid>
+
+                            </Grid>
+
+                        </Grid>
+
+                    </Border>
+
+                </Grid>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
+</UserControl>
+

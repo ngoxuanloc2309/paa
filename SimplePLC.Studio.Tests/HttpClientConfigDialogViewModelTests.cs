@@ -156,11 +156,14 @@ public class HttpClientConfigDialogViewModelTests
         _dialogVm.PayloadMode = "Raw";
         _dialogVm.DataTag = new TagModel { Name = "SENSOR_AI0" };
 
-        // Assert
-        Assert.Contains("SENSOR_AI0", _dialogVm.PreviewPayloadText);
+        // Assert: PreviewPayloadText chỉ hiển thị thuần túy giá trị thực tế (Visual Truth)
+        Assert.Equal("25.5", _dialogVm.PreviewPayloadText);
+        Assert.Equal("4 bytes", _dialogVm.PayloadByteSizeText);
+        Assert.Contains("SENSOR_AI0", _dialogVm.SummarySourceDataText);
         Assert.False(_dialogVm.IsJsonValid);
         Assert.False(_dialogVm.IsJsonMode);
         Assert.True(_dialogVm.IsRawMode);
+        Assert.Equal("text/plain", _dialogVm.SummaryContentType);
     }
 
     [Fact]
@@ -203,11 +206,13 @@ public class HttpClientConfigDialogViewModelTests
         _dialogVm.PayloadMode = "Raw";
         _dialogVm.DataTag = null;
 
-        // Assert
+        // Assert: Giá trị tải trọng thuần túy là 25.5, nguồn dữ liệu hiển thị ở SummarySourceDataText
         Assert.True(_dialogVm.IsRawMode);
         Assert.Null(_dialogVm.SelectedDataTagOption?.Tag);
-        Assert.Contains("DATA", _dialogVm.PreviewPayloadText);
-        Assert.Contains("FBD", _dialogVm.PreviewPayloadText);
+        Assert.Equal("25.5", _dialogVm.PreviewPayloadText);
+        Assert.Equal("4 bytes", _dialogVm.PayloadByteSizeText);
+        Assert.Contains("DATA", _dialogVm.SummarySourceDataText);
+        Assert.Contains("FBD", _dialogVm.SummarySourceDataText);
     }
 
     [Fact]
@@ -221,7 +226,45 @@ public class HttpClientConfigDialogViewModelTests
         // Assert
         Assert.True(_dialogVm.IsRawMode);
         Assert.Same(tag, _dialogVm.SelectedDataTagOption?.Tag);
-        Assert.Contains("SENSOR_AI0", _dialogVm.PreviewPayloadText);
+        Assert.Equal("25.5", _dialogVm.PreviewPayloadText);
+        Assert.Equal("4 bytes", _dialogVm.PayloadByteSizeText);
+        Assert.Contains("SENSOR_AI0", _dialogVm.SummarySourceDataText);
+    }
+
+    [Fact]
+    public void CustomJsonMode_ValidJson_SetsIsJsonValidTrueAndIndents()
+    {
+        // Arrange: Chuỗi JSON viết liền 1 dòng
+        _dialogVm.PayloadMode = "Custom";
+        _dialogVm.CustomTemplate = "{\"device\":\"{device}\",\"tag\":\"{tag}\",\"val\":{val}}";
+
+        // Assert: ViewModel tự động parse và thụt lề 2 spaces
+        Assert.True(_dialogVm.IsJsonMode);
+        Assert.True(_dialogVm.IsJsonValid);
+        Assert.False(_dialogVm.HasJsonError);
+        Assert.Empty(_dialogVm.JsonValidationError);
+        Assert.Contains("\"device\": \"SPLC-DTU-01\"", _dialogVm.PreviewPayloadText);
+        Assert.Contains("\"tag\": \"VREG0\"", _dialogVm.PreviewPayloadText);
+        Assert.Contains("\"val\": 25.5", _dialogVm.PreviewPayloadText);
+    }
+
+    [Fact]
+    public void PayloadModeChanged_SynchronizesContentTypeHeader()
+    {
+        // Arrange: Khởi tạo mặc định JSON -> Content-Type: application/json
+        _dialogVm.PayloadMode = "JSON";
+        Assert.Equal("Content-Type: application/json", _dialogVm.CustomHeaders);
+        Assert.Equal("application/json", _dialogVm.SummaryContentType);
+
+        // Act: Đổi sang Raw
+        _dialogVm.PayloadMode = "Raw";
+        Assert.Equal("Content-Type: text/plain", _dialogVm.CustomHeaders);
+        Assert.Equal("text/plain", _dialogVm.SummaryContentType);
+
+        // Act 2: Đổi lại sang Custom JSON
+        _dialogVm.PayloadMode = "Custom";
+        Assert.Equal("Content-Type: application/json", _dialogVm.CustomHeaders);
+        Assert.Equal("application/json", _dialogVm.SummaryContentType);
     }
 
     [Fact]

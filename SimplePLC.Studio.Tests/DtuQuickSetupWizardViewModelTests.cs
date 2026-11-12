@@ -325,7 +325,8 @@ public sealed class DtuQuickSetupWizardViewModelTests
         Assert.True(_metadata.MqttTlsAllowSelfSigned);
         Assert.True(_metadata.MqttWillEnabled);
         Assert.Equal("factory/emergency", _metadata.MqttWillTopic);
-        Assert.Equal("{\"alert\":\"offline\"}", _metadata.MqttWillPayload);
+        // Under SPLC-SPEC-MQTT-004 Wi-Fi AT defense, quotes are sanitized
+        Assert.Equal("{alert:offline}", _metadata.MqttWillPayload);
         Assert.Equal(2, _metadata.MqttWillQos);
         Assert.True(_metadata.MqttWillRetain);
     }

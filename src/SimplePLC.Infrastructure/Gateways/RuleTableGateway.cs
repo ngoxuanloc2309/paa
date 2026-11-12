@@ -94,6 +94,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
         IReadOnlyList<byte>? tagDataTypes = null,
         DtuConfigDto? dtuConfig = null,
         MqttWillConfigDto? mqttWillConfig = null,
+        MqttTlsCertificatesDto? tlsCertificates = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null) =>
         _writer.DeployRulesAsync(
@@ -112,6 +113,7 @@ public sealed class RuleTableGateway : IRuleTableGateway
             tagDataTypes,
             dtuConfig,
             mqttWillConfig,
+            tlsCertificates,
             cancellationToken,
             progressLogger);
 }

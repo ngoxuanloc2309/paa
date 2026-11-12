@@ -39,7 +39,7 @@ Khi một trạm biên tại nhà máy bị cúp nguồn 24V DC đột ngột ho
 | :--- | :--- | :--- |
 | **Kích hoạt LWT (`WillEnabled`)** | `Tắt` | **Luôn Bật** cho mọi trạm thu thập dữ liệu và điều khiển từ xa. |
 | **Topic Di chúc (`WillTopic`)** | `synaptix/device/status` | Đặt theo phân cấp nhà máy, ví dụ: `factory/line1/node01/status`. |
-| **Nội dung Di chúc (`WillPayload`)** | `{"status":"offline"}` | Chuỗi JSON báo trạng thái ngắt kết nối, kết hợp với bản tin báo `online` khi khởi động. |
+| **Nội dung Di chúc (`WillPayload`)** | `offline` | Chuỗi văn bản thuần báo trạng thái ngắt kết nối (tối đa 30 ký tự). Khuyến nghị dùng text thuần (`offline`, `0`, `lost`) thay cho JSON để tránh ký tự `"` gây lỗi lệnh AT của module Wi-Fi. |
 | **Mức QoS Di chúc (`WillQos`)** | `QoS 1` | Chọn `QoS 1` (Ít nhất một lần) để đảm bảo phần mềm giám sát chắc chắn nhận được cảnh báo rớt trạm. |
 | **Lưu giữ (`WillRetain`)** | `true` | Đặt `true` để bất kỳ màn hình Web/SCADA nào vừa mở lên đều biết ngay trạng thái trực tuyến hiện hành của trạm. |
 
@@ -181,6 +181,13 @@ Khi một trạm biên tại nhà máy bị cúp nguồn 24V DC đột ngột ho
 ::: tip Kiểm thử Bắt tay TLS Trực tiếp (`Kiểm tra Kết nối`)
 Nhấn nút **Kiểm tra Kết nối (`Test Connection`)** ngay trong hộp thoại `Ctrl+Shift+M` trước khi nạp xuống thiết bị. SynaptiX IDE sẽ mở phiên kết nối TCP + `SslStream` thực tế (bao gồm cả xác thực chứng chỉ hai chiều mTLS với ngưỡng chờ `6 giây`) và báo cáo ngay phiên bản giao thức TLS cùng thuật toán mã hóa đã đàm phán thành công!
 :::
+
+### 1.4 Cơ chế Đồng bộ Thông minh trong Deploy (Smart Sync & CRC Checksum)
+
+Nhằm đảm bảo trải nghiệm vận hành nhất quán và không làm phân mảnh quy trình, SynaptiX IDE **không sử dụng nút nạp chứng chỉ rời**. Toàn bộ việc nạp chứng chỉ được tự động hóa hoàn toàn trong quy trình **Deploy (`F5`)**:
+* **Kiểm tra Đối soát Checksum (`0x0F43..0x0F46`):** Trước khi nạp, Studio đọc mã kiểm tra CRC-16 của các chứng chỉ đang lưu trong Flash MCU.
+* **Tối ưu hóa Tốc độ Deploy:** Nếu chứng chỉ trên thiết bị đã đầy đủ và khớp 100% với file trên máy tính, Studio tự động bỏ qua bước nạp phân đoạn chunk, giúp quá trình nạp logic FBD diễn ra tức thời (<100ms) và bảo vệ số lần xóa/ghi của chip nhớ Flash.
+* **Tự động Cập nhật:** Khi người dùng thay đổi file chứng chỉ mới hoặc nạp vào thiết bị trắng, Studio tự động phân mảnh theo chuẩn `SPLC-SPEC-MQTT-003` (`0x0F00`), bắt tay ACK (`0x0F40`) và chốt Commit nguyên tử (`0x0F42 = 0xA5A5`).
 
 ---
 

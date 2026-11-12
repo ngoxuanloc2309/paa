@@ -63,7 +63,8 @@ Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact,
 | `0x0C00..0x0D7F` | **MQTT Telemetry Blocks**  | R/W | FC03/FC16 | 384 regs (768 B) | Cấu hình 4 khối xuất bản dữ liệu viễn trắc MQTT IIoT (SPLC-SPEC-MQTT-001). Mỗi khối 96 thanh ghi (192 bytes) gồm: Flags/Topic/Timing (32 regs) và Payload Template JSON (64 regs). |
 | `0x0D80..0x0DFF` | **MQTT Subscribe Blocks**  | R/W | FC03/FC16 | 128 regs (256 B) | Cấu hình 2 khối nhận lệnh điều khiển Inbound MQTT SUB (SPLC-SPEC-MQTT-002). Mỗi khối 64 thanh ghi (128 bytes) gồm: Control/Timing/Topic và 4 Pin Bindings. |
 | `0x0E00..0x0E5F` | **MQTT Broker Configuration**| R/W | FC03/FC16 | 96 regs (192 B) | Cấu hình kết nối mạng máy chủ MQTT Broker cấp hệ thống: Host/IP (64B), Port, TLS/SSL, Client ID, Username, Password, KeepAlive. |
-| `0x0F00..0x0F43` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 68 regs (136 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`). |
+| `0x0E60..0x0E7F` | **MQTT Last Will & Testament**| R/W | FC03/FC16 | 32 regs (64 B)  | Cấu hình bản tin di chúc LWT báo ngắt kết nối khẩn cấp (SPLC-SPEC-MQTT-004): `will_control` (Bit 0: Enable, Bit 1: Retain, Bit 2..3: QoS), `will_topic[32]`, `will_payload[30]`. Nạp theo cơ chế Shadow RAM buffer và commit Flash tại `0xA000`. |
+| `0x0F00..0x0F46` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 71 regs (142 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA & mTLS theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`), ActiveMask (`0x0F43`), Checksum CRC-16 Flash (`0x0F44..0x0F46`). |
 | `0x1000..0x10FF` | **Modbus Master Poller (MB_READ)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh Modbus RTU Master thu thập dữ liệu cảm biến ngoại vi RS-485 (SPLC-SPEC-MBM-001, mỗi kênh 64 registers = 128 bytes). |
 | `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
 | `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
@@ -417,7 +418,7 @@ Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio,
 - [ ] **CHKL-15: MQTT IIoT Gateway & Telemetry Wire Conformance**: Đọc/ghi cấu hình Broker tại `0x0E00` (96 regs) và Telemetry Block tại `0x0C00` (96 regs) bằng FC03/FC16 đúng byte-exact theo [`splc_mqtt_wire.h`](splc_mqtt_wire.h); thanh ghi `+15` là `reserved_header` (luôn ghi/đọc `0x0000`); phản hồi trạng thái Live Broker tại `0x0E54..0x0E5F`.
 - [ ] **CHKL-16: IEC 61131-3 Data Types & Native Telemetry Conformance**: Toàn bộ giá trị 32-bit tại `0x0900..0x09FF` tuân thủ union `SPLC_TagValue_t`. Các kênh số thực `REAL` (`AI`, `VREG`, `VREG_RETAIN`) lưu nhị phân chuẩn IEEE-754 Single Precision (High Word trước, Low Word sau), tuyệt đối không nhân chia $10^{dec}$; bộ phân giải JSON MQTT tự động format số thực `float` hay số nguyên `int` theo kiểu dữ liệu tự nhiên của Tag.
 - [ ] **CHKL-17: Hardware Capabilities Declaration (0x0A08)**: MCU phản hồi chính xác giá trị 32-bit (2 holding registers, High Word trước) tại `0x0A08..0x0A09` theo bitmask `SPLC_HardwareCapabilities_t` (Logic, Retain, RTC, Ethernet, MQTT PUB, MQTT SUB, TLS CERT). Không gây ngoại lệ `0x02` khi đọc FC03.
-- [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging Conformance (0x0F00)**: Hỗ trợ nạp phân đoạn chứng chỉ số X.509 Root CA theo khối struct chuẩn 128 bytes (64 thanh ghi Modbus `SPLC_CertChunk_t`) qua Staging Buffer `0x0F00..0x0F3F`. Phản hồi ACK `0x0F40` chỉ số khối nhận thành công; kiểm tra CRC-16 của từng khối; chốt lưu Flash vĩnh viễn và nạp vào TLS stack khi nhận lệnh Atomic Commit `0x0F42` với giá trị `0xA5A5` theo [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md).
+- [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging & Checksum Conformance (0x0F00..0x0F46)**: Hỗ trợ nạp phân đoạn chứng chỉ số X.509 Root CA và mTLS theo khối struct chuẩn 128 bytes (64 thanh ghi Modbus `SPLC_CertChunk_t`) qua Staging Buffer `0x0F00..0x0F3F`. Phản hồi ACK `0x0F40` chỉ số khối nhận thành công; kiểm tra CRC-16 của từng khối; chốt lưu Flash vĩnh viễn và nạp vào TLS stack khi nhận lệnh Atomic Commit `0x0F42` với giá trị `0xA5A5`; đồng thời cập nhật mặt nạ hiệu lực `0x0F43` (`CERT_ACTIVE_TYPE_MASK`) và mã kiểm tra CRC-16 toàn tệp tại `0x0F44` (Root CA), `0x0F45` (Client Cert), `0x0F46` (Client Key) theo [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md).
 - [ ] **CHKL-19: Modbus Master RTU Sensor Poller Conformance (0x1000..0x10FF)**: Hỗ trợ nạp cấu hình 4 kênh Modbus Master tại `0x1000..0x10FF` (256 regs, SPLC-SPEC-MBM-001). Thực thi máy trạng thái polling không nghẽn (Non-blocking RTOS Task), xác thực CRC-16 của frame phản hồi, phân giải 4 chuẩn Endianness (ABCD, CDAB, BADC, DCBA), cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét 10ms và phát tín hiệu `Valid` / `Err` / `Err_Code` chính xác theo [`SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md).
 
 ---
@@ -604,6 +605,21 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * Chỉ cập nhật vào `g_tag_store` tại đầu chu kỳ quét (Scan Pass Boundary) 10ms của PLC Engine để tránh xung đột dữ liệu (Thread Safety).
    * Kiểm tra Fail-Safe Watchdog: Nếu quá `failsafe_timeout_ms` không nhận được tin, tự động đưa các chân tín hiệu về giá trị an toàn (Reset về 0 hoặc Set về Default).
 
+### 13.5.1. Quy Chuẩn Bản Tin Di Chúc MQTT Last Will & Testament LWT (`0x0E60..0x0E7F`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x0E60 - 0x0E7F` (32 registers = 64 bytes, SPLC-SPEC-MQTT-004):
+     * `Offset +0` (`0x0E60`): `WILL_CONTROL` (Bit 0: Enable, Bit 1: Retain, Bit 2..3: QoS, Bit 4..15: Reserved).
+     * `Offset +1..+16` (`0x0E61`): `WILL_TOPIC` (char[32] ASCII null-padded).
+     * `Offset +17..+31` (`0x0E71`): `WILL_PAYLOAD` (char[30] ASCII null-padded).
+2. **Nguyên tắc nạp & Atomic Commit hai pha:**
+   * Ghi nháp: Khi nhận FC16 tại `0x0E60`, firmware lưu tạm vào Shadow RAM buffer (`g_shadow_lwt_cfg`), không ghi thẳng vào Flash và không làm gián đoạn phiên MQTT đang chạy.
+   * Chốt nguyên tử: Chỉ lưu vào Flash và áp dụng khi nhận Magic `0xA5A5` tại `0xA000`.
+   * Từ chối lỗi: Nếu `will_control & 0x0001` mà `strlen(will_topic) == 0`, MCU từ chối commit và báo lỗi `INVALID_PARAMETER (0x0001)` tại `0x9001`.
+   * Vô hiệu hóa an toàn: Khi nhận `will_control == 0`, firmware xóa LWT trong Flash và tắt Will Flag trong gói `CONNECT` với Broker.
+3. **Tương thích module Wi-Fi qua lệnh AT:**
+   * App đảm bảo payload LWT là chuỗi an toàn không chứa dấu `"` hay `\` (chuẩn hóa mặc định `"offline"`). MCU truyền thẳng chuỗi literal vào tham số lệnh AT.
+
 ### 13.6. Quy Chuẩn Nạp Chứng Chỉ TLS/SSL Certificate Theo Khối Struct (`0x0F00`)
 * Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md).
 1. **Phân vùng thanh ghi:**
@@ -612,12 +628,16 @@ void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16
    * `0x0F41`: Trạng thái lỗi (0=OK, 1=Lỗi CRC, 2=Tràn bộ nhớ, 3=Lỗi ghi Flash).
    * `0x0F42`: Lệnh chốt nguyên tử (ghi `0xA5A5` để MCU lưu vào Flash và nạp vào mbedTLS/WolfSSL).
    * `0x0F43`: Mặt nạ loại chứng chỉ đang kích hoạt (Bit 0: Root CA, Bit 1: Client Cert, Bit 2: Client Key).
+   * `0x0F44`: Mã kiểm tra CRC-16 của file Root CA đang lưu trong Flash MCU.
+   * `0x0F45`: Mã kiểm tra CRC-16 của file Client Certificate đang lưu trong Flash MCU.
+   * `0x0F46`: Mã kiểm tra CRC-16 của file Client Private Key đang lưu trong Flash MCU.
 2. **Cấu trúc nhị phân `SPLC_CertChunk_t` (128 bytes, `#pragma pack(1)`):**
    * `cert_type` (1B), `chunk_index` (1B), `total_chunks` (1B), `chunk_len` (1B), `total_cert_size` (2B), `chunk_crc16` (2B), `payload[120]` (120B).
 3. **Nguyên tắc triển khai trên Firmware:**
    * MCU nhận từng khối qua Modbus FC16, tính toán CRC-16 của payload khối đó (đa thức Modbus `0xA001`).
    * Nếu CRC hợp lệ, lưu vào RAM buffer tạm và cập nhật thanh ghi ACK `0x0F40 = chunk_index`.
-   * Khi nhận lệnh Commit `0xA5A5` tại `0x0F42`, MCU kiểm tra tổng kích thước đã nhận so với `total_cert_size`, lưu toàn bộ chứng chỉ vào Flash và khởi tạo context SSL/TLS.
+   * Khi nhận lệnh Commit `0xA5A5` tại `0x0F42`, MCU kiểm tra tổng kích thước đã nhận so với `total_cert_size`, lưu toàn bộ chứng chỉ vào Flash, tính mã CRC-16 của toàn bộ tệp vừa lưu để cập nhật vào thanh ghi tương ứng (`0x0F44` cho Root CA, `0x0F45` cho Client Cert, `0x0F46` cho Client Key), bật bit trong `0x0F43` (`CERT_ACTIVE_TYPE_MASK`), và khởi tạo context SSL/TLS.
+   * Khi Host kết nối hoặc chuẩn bị Deploy, Host đọc `0x0F43..0x0F46` để đối soát; nếu mã CRC-16 trùng khớp hoàn toàn, Host bỏ qua bước nạp phân đoạn chunk, giúp tối ưu hóa thời gian Deploy chu kỳ thường nhật.
 
 ### 13.7. Quy Chuẩn Thu Thập Dữ Liệu Ngoại Vi Modbus Master RTU (`0x1000..0x10FF`)
 * Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md) và [`SimplePLC_App_MCU_Structs_Modbus_Master_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/SimplePLC_App_MCU_Structs_Modbus_Master_Profile.md).
@@ -794,6 +814,7 @@ sequenceDiagram
     end
     opt Có MQTT Broker & Telemetry
         IDE->>MCU: FC16 Write 0x0E00.. (Broker Config 96 regs)
+        IDE->>MCU: FC16 Write 0x0E60.. (LWT Config 32 regs)
         IDE->>MCU: FC16 Write 0x0C00.. (PUB Blocks up to 384 regs)
         IDE->>MCU: FC16 Write 0x0D80.. (SUB Blocks up to 128 regs)
     end
@@ -868,6 +889,7 @@ Trước khi nghiệm thu hoặc xuất xưởng firmware tích hợp cùng Simp
 - [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng RS-485 Master & Slave tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay, PortRole, SlaveId).
 - [ ] **CHKL-23: Modbus Slave Fixed Memory Map Conformance (SPLC-SPEC-SLAVE-001)**: Khi cổng RS-485 được cấu hình vai trò Slave (`PORT_ROLE = 1`), firmware MCU kích hoạt Bản đồ địa chỉ bộ nhớ cố định truy xuất RAM $O(1)$ (SPLC-SPEC-SLAVE-001). Hỗ trợ FC 01, 02, 03, 05, 06, 15, 16; chặn ghi vào ô Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`, `DI0..DI15`) với Modbus Exception 0x03; chặn truy cập ngoài bản đồ hoặc đọc/ghi chéo 2 phân vùng chức năng với Modbus Exception 0x02; drop frame im lặng khi sai CRC-16 hoặc không đúng Slave ID. Chi tiết xem `SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md`.
 - [ ] **CHKL-24: DTU Gateway Subsystem & Stream Engine Conformance (0x1600..0x16BF & SPLC-SPEC-DTU-001)**: Khi thiết bị hỗ trợ DTU Gateway, firmware MCU phải hỗ trợ đọc/ghi dải 192 thanh ghi `0x1600..0x16BF` (`splc_dtu_http_config_t`, `splc_dtu_tcp_config_t`, `splc_dtu_routing_config_t`). Xử lý ngắt khung UART DMA IDLE line $t_{3.5}$ chính xác $\pm 2\text{ms}$; hỗ trợ đủ 3 chế độ định dạng dữ liệu (Standard IEC, Custom, Raw Passthrough); hỗ trợ gói tin định danh kết nối TCP Socket (Registration Packet `None`, `OnConnect`, `Prepend`). Chi tiết xem `SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`.
+- [ ] **CHKL-25: MQTT Last Will & Testament LWT Conformance (0x0E60..0x0E7F & SPLC-SPEC-MQTT-004)**: Hỗ trợ nạp cấu hình LWT (32 thanh ghi = 64 bytes) vào Shadow RAM qua FC16; chỉ commit vào Flash Non-Volatile khi nhận Magic `0xA5A5` tại `0xA000`. Từ chối commit nếu `will_control` bật (`0x0001`) mà `will_topic` rỗng (báo lỗi `0x0001` tại `0x9001`); xóa sạch LWT khi `will_control = 0`; hỗ trợ payload ASCII an toàn cho module Wi-Fi (chuẩn hóa `"offline"`, không chứa ký tự `"` hoặc `\`). Chi tiết xem `SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`.
 
 
 

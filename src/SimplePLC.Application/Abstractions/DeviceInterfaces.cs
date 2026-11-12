@@ -67,6 +67,7 @@ public interface IRuleTableWriter
         IReadOnlyList<byte>? tagDataTypes = null,
         DtuConfigDto? dtuConfig = null,
         MqttWillConfigDto? mqttWillConfig = null,
+        MqttTlsCertificatesDto? tlsCertificates = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null);
 }

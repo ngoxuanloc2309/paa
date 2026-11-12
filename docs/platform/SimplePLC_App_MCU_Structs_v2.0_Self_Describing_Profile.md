@@ -238,7 +238,7 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 
 | `0x0E00..0x0E5F` | **MQTT Broker Configuration**| R/W | FC03/FC16 | 96 regs (192 B) | Cấu hình kết nối mạng máy chủ MQTT Broker cấp hệ thống: Host/IP (64B), Port, TLS/SSL, Client ID, Username, Password, KeepAlive và 12 regs phản hồi trạng thái Live. |
 
-| `0x0F00..0x0F43` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 68 regs (136 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`). |
+| `0x0F00..0x0F46` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 71 regs (142 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA & mTLS theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`), ActiveMask (`0x0F43`), Checksum CRC-16 Flash (`0x0F44..0x0F46`). |
 
 | `0x1000..0x10FF` | **Modbus Master Poller (MB_READ)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh Modbus RTU Master thu thập cảm biến (SPLC-SPEC-MBM-001). Mỗi kênh 64 thanh ghi (128 bytes) gồm: Header cấu hình (+0..+15) và 4 Dynamic Pin Bindings (+16..+63). |
 
@@ -816,10 +816,13 @@ typedef struct SPLC_PACKED {
 * `0x0F42` (`CERT_COMMIT_COMMAND`): Ghi `0xA5A5` để MCU đối soát toàn vẹn, ghi vĩnh viễn vào Flash và nạp vào mbedTLS/WolfSSL.
 
 * `0x0F43` (`CERT_ACTIVE_TYPE_MASK`): Cờ phản ánh chứng chỉ đang hiệu lực (Bit 0: Root CA, Bit 1: Client Cert, Bit 2: Client Key).
+* `0x0F44` (`CERT_CRC16_ROOT_CA`): Mã kiểm tra CRC-16 Modbus của file Root CA đang lưu trong Flash MCU.
+* `0x0F45` (`CERT_CRC16_CLIENT_CERT`): Mã kiểm tra CRC-16 Modbus của file Client Certificate đang lưu trong Flash MCU.
+* `0x0F46` (`CERT_CRC16_CLIENT_KEY`): Mã kiểm tra CRC-16 Modbus của file Client Private Key đang lưu trong Flash MCU.
 
 
 
-#### Quy trình Bắt tay Nạp Chứng chỉ (Handshake Sequence):
+#### Quy trình Bắt tay Nạp Chứng chỉ Thông minh (Smart Sync Handshake Sequence):
 
 ```text
 

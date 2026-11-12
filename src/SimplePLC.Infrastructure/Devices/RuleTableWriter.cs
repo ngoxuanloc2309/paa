@@ -69,7 +69,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubConfigs,
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusMasterConfigs,
         CancellationToken cancellationToken = default) =>
-        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, null, null, null, null, cancellationToken, null);
+        DeployRulesAsync(slaveId, rules, timers, counters, mqttConfigs, brokerConfig, mqttSubConfigs, modbusMasterConfigs, null, null, null, null, null, null, null, null, cancellationToken, null);
 
     public async Task<RuleDeployResult> DeployRulesAsync(
         byte slaveId,
@@ -87,6 +87,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         IReadOnlyList<byte>? tagDataTypes = null,
         DtuConfigDto? dtuConfig = null,
         MqttWillConfigDto? mqttWillConfig = null,
+        MqttTlsCertificatesDto? tlsCertificates = null,
         CancellationToken cancellationToken = default,
         Action<string>? progressLogger = null)
     {
@@ -151,7 +152,8 @@ public sealed class RuleTableWriter : IRuleTableWriter
         bool hasMqttPub = mqttConfigs != null && mqttConfigs.Count > 0;
         bool hasMqttSub = mqttSubConfigs != null && mqttSubConfigs.Count > 0;
         bool hasBroker = brokerConfig != null && brokerConfig.Enabled;
-        bool hasMqttWork = hasMqttPub || hasMqttSub || hasBroker;
+        bool hasTlsWork = (brokerConfig != null && brokerConfig.UseTls) || (tlsCertificates != null && tlsCertificates.HasAnyCertificates);
+        bool hasMqttWork = hasMqttPub || hasMqttSub || hasBroker || hasTlsWork;
         bool hasMbRead = modbusMasterConfigs != null && modbusMasterConfigs.Count > 0;
         bool hasMbWrite = modbusMasterWriteConfigs != null && modbusMasterWriteConfigs.Count > 0;
         bool hasMbPorts = modbusPortConfigs != null && modbusPortConfigs.Count > 0;
@@ -161,6 +163,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
 
         bool isMqttPubSupported = false;
         bool isMqttSubSupported = false;
+        bool isMqttTlsSupported = false;
         SPLC_HardwareCapabilities caps = SPLC_HardwareCapabilities.NONE;
         Exception? capsReadException = null;
 
@@ -181,7 +184,8 @@ public sealed class RuleTableWriter : IRuleTableWriter
                     caps = RegisterCodec.DecodeHardwareCapabilities(rawCaps);
                     isMqttPubSupported = (caps & SPLC_HardwareCapabilities.MQTT_PUB) != 0;
                     isMqttSubSupported = (caps & SPLC_HardwareCapabilities.MQTT_SUB) != 0;
-                    progressLogger?.Invoke($"[CAPS] MCU capabilities: 0x{(uint)caps:X8} (MQTT_PUB: {isMqttPubSupported}, MQTT_SUB: {isMqttSubSupported})");
+                    isMqttTlsSupported = (caps & SPLC_HardwareCapabilities.MQTT_TLS_CERT) != 0;
+                    progressLogger?.Invoke($"[CAPS] MCU capabilities: 0x{(uint)caps:X8} (MQTT_PUB: {isMqttPubSupported}, MQTT_SUB: {isMqttSubSupported}, MQTT_TLS: {isMqttTlsSupported})");
                 }
                 else
                 {
@@ -197,6 +201,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
                 capsReadException = ex;
                 isMqttPubSupported = false;
                 isMqttSubSupported = false;
+                isMqttTlsSupported = false;
                 progressLogger?.Invoke($"[CAPS WARNING] Error reading 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}: {ex.Message}");
             }
 
@@ -231,6 +236,16 @@ public sealed class RuleTableWriter : IRuleTableWriter
                         SPLC_ErrorCode.UNSUPPORTED,
                         0,
                         $"Device does not support MQTT Inbound SUB (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MQTT_SUB at 0x0A08). Deployment aborted for safety.");
+                }
+
+                if (hasTlsWork && !isMqttTlsSupported)
+                {
+                    return new RuleDeployResult(
+                        false,
+                        (ushort)SPLC_CommandStatus.ERROR,
+                        SPLC_ErrorCode.UNSUPPORTED,
+                        0,
+                        $"Device does not declare MQTT TLS Certificate capability (Reported caps: 0x{(uint)caps:X8}, missing SPLC_CAP_MQTT_TLS_CERT 0x0080 at 0x0A08). Deployment aborted for safety.");
                 }
 
                 if (hasBroker && !isMqttPubSupported && !isMqttSubSupported)
@@ -417,6 +432,22 @@ public sealed class RuleTableWriter : IRuleTableWriter
             }
         }
 
+        // 3.4 Nạp cấu hình & phân đoạn chứng chỉ MQTT TLS / mTLS (0x0F00 - 0x0F46) nếu có
+        if (hasTlsWork && isMqttTlsSupported)
+        {
+            var tlsResult = await DeployTlsCertificatesAsync(
+                slaveId,
+                brokerConfig,
+                tlsCertificates,
+                cancellationToken,
+                progressLogger).ConfigureAwait(false);
+
+            if (!tlsResult.IsSuccess)
+            {
+                return tlsResult;
+            }
+        }
+
         // 4.1 Nạp cấu hình Modbus RTU Master blocks (0x1000) nếu có
         if (modbusMasterConfigs != null && modbusMasterConfigs.Count > 0)
         {
@@ -539,6 +570,19 @@ public sealed class RuleTableWriter : IRuleTableWriter
             var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
                 ModbusRegisterMap.MqttWillConfigBaseAddress,
                 willRegs.AsMemory());
+            foreach (var (chunkAddress, chunkMemory) in chunks)
+            {
+                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else if (effectiveWill != null && !effectiveWill.Enabled)
+        {
+            // Vô hiệu hóa (disable) an toàn theo SPLC-SPEC-MQTT-004: ghi 32 registers về 0 (will_control = 0)
+            var zeroWillRegs = new ushort[ModbusRegisterMap.MqttWillConfigRegisters];
+            progressLogger?.Invoke($"[MQTT LWT] Disabling LWT: clearing {zeroWillRegs.Length} registers at 0x{ModbusRegisterMap.MqttWillConfigBaseAddress:X04}...");
+            var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                ModbusRegisterMap.MqttWillConfigBaseAddress,
+                zeroWillRegs.AsMemory());
             foreach (var (chunkAddress, chunkMemory) in chunks)
             {
                 await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
@@ -736,5 +780,198 @@ public sealed class RuleTableWriter : IRuleTableWriter
             ErrorCode: SPLC_ErrorCode.BUSY,
             ErrorMessage: $"Timed out waiting for MCU to verify and commit staged rules (Active version remained at {initialVersion})."
         );
+    }
+
+    private async Task<RuleDeployResult> DeployTlsCertificatesAsync(
+        byte slaveId,
+        MqttBrokerConfigDto? brokerConfig,
+        MqttTlsCertificatesDto? tlsCertificates,
+        CancellationToken cancellationToken,
+        Action<string>? progressLogger)
+    {
+        progressLogger?.Invoke($"[MQTT TLS] Checking MCU certificate status at 0x{ModbusRegisterMap.MqttCertActiveTypeMaskAddress:X04}...");
+
+        var statusRegs = await _client.ReadHoldingRegistersAsync(
+            slaveId,
+            ModbusRegisterMap.MqttCertActiveTypeMaskAddress,
+            4,
+            cancellationToken).ConfigureAwait(false);
+
+        ushort activeMask = statusRegs != null && statusRegs.Length >= 1 ? statusRegs[0] : (ushort)0;
+        ushort storedCrcRootCa = statusRegs != null && statusRegs.Length >= 2 ? statusRegs[1] : (ushort)0;
+        ushort storedCrcClientCert = statusRegs != null && statusRegs.Length >= 3 ? statusRegs[2] : (ushort)0;
+        ushort storedCrcClientKey = statusRegs != null && statusRegs.Length >= 4 ? statusRegs[3] : (ushort)0;
+
+        // 1. Đồng bộ Server Root CA
+        if (tlsCertificates?.RootCaBytes != null && tlsCertificates.RootCaBytes.Length > 0)
+        {
+            var caResult = await SyncSingleCertificateAsync(
+                slaveId,
+                ModbusRegisterMap.MqttCertTypeRootCa,
+                tlsCertificates.RootCaBytes,
+                activeMaskBit: 0x0001,
+                currentActiveMask: activeMask,
+                storedCrc: storedCrcRootCa,
+                cancellationToken,
+                progressLogger).ConfigureAwait(false);
+
+            if (!caResult.IsSuccess) return caResult;
+        }
+
+        // 2. Đồng bộ Mutual TLS (mTLS) Client Certificate & Client Key nếu được bật
+        if (brokerConfig?.UseMtls == true)
+        {
+            if (tlsCertificates?.ClientCertBytes != null && tlsCertificates.ClientCertBytes.Length > 0)
+            {
+                var clientCertResult = await SyncSingleCertificateAsync(
+                    slaveId,
+                    ModbusRegisterMap.MqttCertTypeClientCert,
+                    tlsCertificates.ClientCertBytes,
+                    activeMaskBit: 0x0002,
+                    currentActiveMask: activeMask,
+                    storedCrc: storedCrcClientCert,
+                    cancellationToken,
+                    progressLogger).ConfigureAwait(false);
+
+                if (!clientCertResult.IsSuccess) return clientCertResult;
+            }
+
+            if (tlsCertificates?.ClientKeyBytes != null && tlsCertificates.ClientKeyBytes.Length > 0)
+            {
+                var clientKeyResult = await SyncSingleCertificateAsync(
+                    slaveId,
+                    ModbusRegisterMap.MqttCertTypeClientKey,
+                    tlsCertificates.ClientKeyBytes,
+                    activeMaskBit: 0x0004,
+                    currentActiveMask: activeMask,
+                    storedCrc: storedCrcClientKey,
+                    cancellationToken,
+                    progressLogger).ConfigureAwait(false);
+
+                if (!clientKeyResult.IsSuccess) return clientKeyResult;
+            }
+        }
+
+        return new RuleDeployResult(true, 0, SPLC_ErrorCode.NONE, 0);
+    }
+
+    private async Task<RuleDeployResult> SyncSingleCertificateAsync(
+        byte slaveId,
+        byte certType,
+        byte[] certBytes,
+        ushort activeMaskBit,
+        ushort currentActiveMask,
+        ushort storedCrc,
+        CancellationToken cancellationToken,
+        Action<string>? progressLogger)
+    {
+        string certName = certType switch
+        {
+            ModbusRegisterMap.MqttCertTypeRootCa => "Root CA",
+            ModbusRegisterMap.MqttCertTypeClientCert => "Client Certificate",
+            ModbusRegisterMap.MqttCertTypeClientKey => "Client Private Key",
+            _ => $"Certificate 0x{certType:X02}"
+        };
+
+        // 1. Tính toán CRC-16 Checksum của file chứng chỉ
+        ushort localCrc = Crc16Modbus.Compute(certBytes);
+
+        // 2. Kiểm tra Smart Sync Checksum: Nếu cert đã active và trùng khớp CRC-16 -> Bỏ qua
+        bool isAlreadyActive = (currentActiveMask & activeMaskBit) != 0;
+        if (isAlreadyActive && storedCrc == localCrc)
+        {
+            progressLogger?.Invoke($"[MQTT TLS] {certName} is up-to-date on MCU (CRC-16 matched: 0x{localCrc:X04}). Skipping chunk upload.");
+            return new RuleDeployResult(true, 0, SPLC_ErrorCode.NONE, 0);
+        }
+
+        // 3. Phân mảnh chứng chỉ theo struct 128 bytes (64 registers)
+        var chunks = TlsCertificateCodec.SliceCertificate(certType, certBytes);
+        progressLogger?.Invoke($"[MQTT TLS] Slicing {certName} ({certBytes.Length} bytes) into {chunks.Count} chunks...");
+
+        var chunkRegs = new ushort[ModbusRegisterMap.MqttCertChunkRegisters];
+
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            var chunk = chunks[i];
+            TlsCertificateCodec.EncodeChunk(chunk, chunkRegs);
+
+            const int maxRetries = 3;
+            bool chunkAccepted = false;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                // Ghi 64 thanh ghi vào 0x0F00
+                await _client.WriteMultipleRegistersAsync(
+                    slaveId,
+                    ModbusRegisterMap.MqttCertStagingBaseAddress,
+                    chunkRegs,
+                    cancellationToken).ConfigureAwait(false);
+
+                // Đọc phản hồi ACK (0x0F40) và Trạng thái lỗi (0x0F41)
+                var ackRegs = await _client.ReadHoldingRegistersAsync(
+                    slaveId,
+                    ModbusRegisterMap.MqttCertAckAddress,
+                    2,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (ackRegs != null && ackRegs.Length >= 2)
+                {
+                    ushort ackIndex = ackRegs[0];
+                    ushort statusCode = ackRegs[1];
+
+                    if (statusCode == 0 && ackIndex == chunk.ChunkIndex)
+                    {
+                        chunkAccepted = true;
+                        break;
+                    }
+
+                    progressLogger?.Invoke($"[MQTT TLS WARNING] {certName} Chunk {i} attempt {attempt}/{maxRetries} failed (ACK={ackIndex}, Status={statusCode}). Retrying...");
+                }
+            }
+
+            if (!chunkAccepted)
+            {
+                return new RuleDeployResult(
+                    false,
+                    (ushort)SPLC_CommandStatus.ERROR,
+                    SPLC_ErrorCode.FLASH,
+                    0,
+                    $"Failed to stage {certName} chunk {i}/{chunks.Count} after {maxRetries} attempts.");
+            }
+        }
+
+        // 4. Phát lệnh Atomic Commit (ghi 0xA5A5 vào 0x0F42)
+        progressLogger?.Invoke($"[MQTT TLS] Emitting Atomic Commit magic 0xA5A5 to 0x{ModbusRegisterMap.MqttCertCommitAddress:X04} for {certName}...");
+        await _client.WriteSingleRegisterAsync(
+            slaveId,
+            ModbusRegisterMap.MqttCertCommitAddress,
+            ModbusRegisterMap.MqttCertCommitMagic,
+            cancellationToken).ConfigureAwait(false);
+
+        // 5. Xác thực sau commit
+        var verifyRegs = await _client.ReadHoldingRegistersAsync(
+            slaveId,
+            ModbusRegisterMap.MqttCertStatusAddress,
+            3,
+            cancellationToken).ConfigureAwait(false);
+
+        if (verifyRegs != null && verifyRegs.Length >= 3)
+        {
+            ushort status = verifyRegs[0];
+            ushort newMask = verifyRegs[2];
+
+            if (status != 0 || (newMask & activeMaskBit) == 0)
+            {
+                return new RuleDeployResult(
+                    false,
+                    (ushort)SPLC_CommandStatus.ERROR,
+                    SPLC_ErrorCode.FLASH,
+                    0,
+                    $"MCU reported error finalizing {certName} commit (Status={status}, ActiveMask=0x{newMask:X04}).");
+            }
+        }
+
+        progressLogger?.Invoke($"[MQTT TLS OK] {certName} committed successfully to MCU Flash (CRC-16: 0x{localCrc:X04}).");
+        return new RuleDeployResult(true, 0, SPLC_ErrorCode.NONE, 0);
     }
 }

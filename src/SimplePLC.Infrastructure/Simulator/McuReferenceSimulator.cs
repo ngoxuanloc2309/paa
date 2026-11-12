@@ -52,6 +52,9 @@ public sealed class McuReferenceSimulator
     private readonly uint[] _ruleDwellElapsedMs = new uint[ModbusRegisterMap.MaxRules];
     private readonly uint[] _ruleIntervalElapsedMs = new uint[ModbusRegisterMap.MaxRules];
 
+    private readonly List<byte> _stagedCertBuffer = new();
+    private byte _stagedCertType = 0;
+
     internal SimulatorRegisterMemory Memory => _memory;
 
     public bool IsOnline { get; private set; } = true;
@@ -146,6 +149,7 @@ public sealed class McuReferenceSimulator
                        SPLC_HardwareCapabilities.WIFI |
                        SPLC_HardwareCapabilities.MQTT_PUB |
                        SPLC_HardwareCapabilities.MQTT_SUB |
+                       SPLC_HardwareCapabilities.MQTT_TLS_CERT |
                        SPLC_HardwareCapabilities.MODBUS_MASTER |
                        SPLC_HardwareCapabilities.MODBUS_TCP |
                        SPLC_HardwareCapabilities.FLOAT32 |
@@ -1028,6 +1032,20 @@ public sealed class McuReferenceSimulator
             return Task.CompletedTask;
         }
 
+        // Xử lý nạp phân đoạn chứng chỉ MQTT TLS (0x0F00..0x0F3F)
+        if (startAddress == ModbusRegisterMap.MqttCertStagingBaseAddress)
+        {
+            HandleMqttCertChunkWrite(span);
+            return Task.CompletedTask;
+        }
+
+        // Xử lý lệnh Commit chứng chỉ MQTT TLS qua FC16 ghi 0x0F42
+        if (startAddress == ModbusRegisterMap.MqttCertCommitAddress)
+        {
+            HandleMqttCertCommit(span[0]);
+            return Task.CompletedTask;
+        }
+
         // Xử lý ghi RuntimeTagValues (0x0900..0x09FF): chỉ cho phép khi đang ở trạng thái DIAG_CONTROL
         if (startAddress >= ModbusRegisterMap.RuntimeTagValuesBaseAddress &&
             startAddress < ModbusRegisterMap.RuntimeTagValuesBaseAddress + ModbusRegisterMap.RuntimeTagValuesMaxLength)
@@ -1102,6 +1120,12 @@ public sealed class McuReferenceSimulator
             {
                 ExecuteCommitProcess();
             }
+            return Task.CompletedTask;
+        }
+
+        if (address == ModbusRegisterMap.MqttCertCommitAddress)
+        {
+            HandleMqttCertCommit(value);
             return Task.CompletedTask;
         }
 
@@ -1274,6 +1298,71 @@ public sealed class McuReferenceSimulator
 
         // Chuyển sang RECEIVING (1)
         _memory.InternalWrite(ModbusRegisterMap.ConfigStatusAddress, 1);
+    }
+
+    private void HandleMqttCertChunkWrite(ReadOnlySpan<ushort> span)
+    {
+        if (span.Length < ModbusRegisterMap.MqttCertChunkRegisters)
+        {
+            _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 1);
+            return;
+        }
+
+        var chunk = TlsCertificateCodec.DecodeChunk(span);
+
+        if (chunk.ChunkIndex == 0)
+        {
+            _stagedCertBuffer.Clear();
+            _stagedCertType = chunk.CertType;
+        }
+
+        ushort calculatedCrc = Crc16Modbus.Compute(chunk.Payload);
+        if (calculatedCrc != chunk.ChunkCrc16)
+        {
+            _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 1); // CRC Error
+            return;
+        }
+
+        _stagedCertBuffer.AddRange(chunk.Payload);
+        _memory.InternalWrite(ModbusRegisterMap.MqttCertAckAddress, chunk.ChunkIndex);
+        _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 0); // OK
+    }
+
+    private void HandleMqttCertCommit(ushort commitCommand)
+    {
+        if (commitCommand != ModbusRegisterMap.MqttCertCommitMagic)
+        {
+            _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 1);
+            return;
+        }
+
+        if (_stagedCertBuffer.Count == 0)
+        {
+            _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 0);
+            return;
+        }
+
+        ushort fullCrc = Crc16Modbus.Compute(_stagedCertBuffer.ToArray());
+        ushort currentMask = _memory.InternalRead(ModbusRegisterMap.MqttCertActiveTypeMaskAddress);
+
+        switch (_stagedCertType)
+        {
+            case ModbusRegisterMap.MqttCertTypeRootCa:
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertCrcRootCaAddress, fullCrc);
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertActiveTypeMaskAddress, (ushort)(currentMask | 0x0001));
+                break;
+            case ModbusRegisterMap.MqttCertTypeClientCert:
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertCrcClientCertAddress, fullCrc);
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertActiveTypeMaskAddress, (ushort)(currentMask | 0x0002));
+                break;
+            case ModbusRegisterMap.MqttCertTypeClientKey:
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertCrcClientKeyAddress, fullCrc);
+                _memory.InternalWrite(ModbusRegisterMap.MqttCertActiveTypeMaskAddress, (ushort)(currentMask | 0x0004));
+                break;
+        }
+
+        _stagedCertBuffer.Clear();
+        _memory.InternalWrite(ModbusRegisterMap.MqttCertStatusAddress, 0); // OK
     }
 
     private void ExecuteCommitProcess()

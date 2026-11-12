@@ -510,6 +510,10 @@
                                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                         <TextBox Text="{Binding WillTopic, UpdateSourceTrigger=PropertyChanged}" MaxLength="32"
                                                  Padding="8,5" FontSize="12" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                        <TextBlock Text="{Binding WillTopicErrorMessage}"
+                                                   Visibility="{Binding HasWillTopicError, Converter={StaticResource BoolToVis}}"
+                                                   Foreground="{DynamicResource DangerBrush}"
+                                                   FontSize="10.5" Margin="0,3,0,0" />
                                     </StackPanel>
 
                                     <!-- Will QoS -->
@@ -534,6 +538,8 @@
                                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding WillPayload, UpdateSourceTrigger=PropertyChanged}" MaxLength="30"
                                              Padding="8,5" FontSize="11.5" Height="28" VerticalContentAlignment="Center" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                    <TextBlock Text="{Binding [MqttWillPayloadHint], Source={x:Static services:LocalizationService.Instance}}"
+                                               FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>

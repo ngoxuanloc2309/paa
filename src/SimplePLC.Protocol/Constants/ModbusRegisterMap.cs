@@ -285,6 +285,22 @@ public static class ModbusRegisterMap
     public const ushort MqttCertStatusAddress = 0x0F41;
     public const ushort MqttCertCommitAddress = 0x0F42;
     public const ushort MqttCertActiveTypeMaskAddress = 0x0F43;
+
+    /// <summary>
+    /// Thanh ghi phản hồi mã kiểm tra CRC-16 Modbus (đa thức 0xA001) của chứng chỉ Root CA đang lưu trong Flash MCU (0x0F44, 1 register, RO).
+    /// </summary>
+    public const ushort MqttCertCrcRootCaAddress = 0x0F44;
+
+    /// <summary>
+    /// Thanh ghi phản hồi mã kiểm tra CRC-16 Modbus (đa thức 0xA001) của chứng chỉ Client Certificate đang lưu trong Flash MCU (0x0F45, 1 register, RO).
+    /// </summary>
+    public const ushort MqttCertCrcClientCertAddress = 0x0F45;
+
+    /// <summary>
+    /// Thanh ghi phản hồi mã kiểm tra CRC-16 Modbus (đa thức 0xA001) của khóa bí mật Client Private Key đang lưu trong Flash MCU (0x0F46, 1 register, RO).
+    /// </summary>
+    public const ushort MqttCertCrcClientKeyAddress = 0x0F46;
+
     public const ushort MqttCertCommitMagic = 0xA5A5;
 
     // Cert Types

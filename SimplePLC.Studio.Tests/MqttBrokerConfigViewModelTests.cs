@@ -394,4 +394,78 @@ public class MqttBrokerConfigViewModelTests
         // Assert
         Assert.False(meta.MqttBrokerEnabled);
     }
+
+    [Fact]
+    public void WillPayload_WhenContainsQuotesOrBackslashes_SanitizesAutomatically()
+    {
+        // Arrange
+        var meta = new ProjectMetadata();
+        var vm = new MqttBrokerConfigViewModel(meta);
+
+        // Act
+        vm.WillPayload = "{\"status\":\"offline\\\"}";
+
+        // Assert - Double quotes and backslashes must be stripped
+        Assert.Equal("{status:offline}", vm.WillPayload);
+    }
+
+    [Fact]
+    public void WillTopic_WhenEmptyAndWillEnabled_SetsHasWillTopicErrorAndDisablesSave()
+    {
+        // Arrange
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerHost = "10.0.0.1",
+            MqttBrokerPort = 1883
+        };
+        var vm = new MqttBrokerConfigViewModel(meta)
+        {
+            Host = "10.0.0.1",
+            WillEnabled = true,
+            WillTopic = "   "
+        };
+
+        // Assert
+        Assert.True(vm.HasWillTopicError);
+        Assert.False(string.IsNullOrWhiteSpace(vm.WillTopicErrorMessage));
+        Assert.False(vm.CanSave);
+        Assert.False(vm.SaveCommand.CanExecute(null));
+
+        // Act: Operator enters a valid topic
+        vm.WillTopic = "devices/node1/lwt";
+
+        // Assert: Error clears, CanSave restored
+        Assert.False(vm.HasWillTopicError);
+        Assert.True(vm.CanSave);
+        Assert.True(vm.SaveCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void SaveCommand_WhenWillEnabled_PersistsLwtConfigToMetadata()
+    {
+        // Arrange
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerHost = "10.0.0.1"
+        };
+        var vm = new MqttBrokerConfigViewModel(meta)
+        {
+            Host = "10.0.0.1",
+            WillEnabled = true,
+            WillTopic = "telemetry/{device}/status",
+            WillPayload = "offline",
+            WillQos = 1,
+            WillRetain = true
+        };
+
+        // Act
+        vm.SaveCommand.Execute(null);
+
+        // Assert
+        Assert.True(meta.MqttWillEnabled);
+        Assert.Equal("telemetry/{device}/status", meta.MqttWillTopic);
+        Assert.Equal("offline", meta.MqttWillPayload);
+        Assert.Equal((byte)1, meta.MqttWillQos);
+        Assert.True(meta.MqttWillRetain);
+    }
 }

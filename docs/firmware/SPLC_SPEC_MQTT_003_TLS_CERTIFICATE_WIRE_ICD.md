@@ -4,7 +4,7 @@
 **Phiên bản:** `1.0`  
 **Tiêu chuẩn liên quan:** `SPLC-SPEC-MQTT-001`, `SPLC-SPEC-MQTT-002`, `IEC 61131-3`  
 **Đối tượng:** Kỹ sư Firmware Vi điều khiển (STM32, ESP32, FreeRTOS/Zephyr) & Kỹ sư Phần mềm Studio  
-**Tệp Header C quy chuẩn:** [`docs/firmware/splc_mqtt_wire.h`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/splc_mqtt_wire.h)  
+**Tệp Header C quy chuẩn:** [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h)  
 
 ---
 
@@ -28,6 +28,9 @@ Do giới hạn bộ nhớ của khung truyền thông Modbus RTU, một tệp c
 | `0x0F41` | `CERT_STATUS_ERROR` | R | UINT16 | 1 reg | Trạng thái: `0` = OK / Ready, `1` = Lỗi CRC khối, `2` = Tràn bộ nhớ, `3` = Lỗi ghi Flash. |
 | `0x0F42` | `CERT_COMMIT_COMMAND` | W | UINT16 | 1 reg | Lệnh chốt nguyên tử: Ghi `0xA5A5` để MCU lưu vĩnh viễn vào Flash và nạp vào mbedTLS. |
 | `0x0F43` | `CERT_ACTIVE_TYPE_MASK`| R | UINT16 | 1 reg | Cờ phản ánh: Bit 0: Root CA active, Bit 1: Client Cert active, Bit 2: Client Key active. |
+| `0x0F44` | `CERT_CRC16_ROOT_CA` | R | UINT16 | 1 reg | Checksum CRC-16 (Modbus poly `0xA001`) của file Root CA đang lưu trong Flash MCU. |
+| `0x0F45` | `CERT_CRC16_CLIENT_CERT` | R | UINT16 | 1 reg | Checksum CRC-16 của file Client Certificate đang lưu trong Flash MCU. |
+| `0x0F46` | `CERT_CRC16_CLIENT_KEY` | R | UINT16 | 1 reg | Checksum CRC-16 của file Client Private Key đang lưu trong Flash MCU. |
 
 ### 2.1. Cờ Điều Khiển Bảo Mật Tại BROKER_CONTROL (`0x0E00`)
 Cấu hình kích hoạt TLS/mTLS được điều khiển trực tiếp qua các bitmask tại thanh ghi điều khiển Broker `0x0E00`:
@@ -63,31 +66,52 @@ typedef struct SPLC_PACKED {
 
 ## 4. Quy Trình Vận Hành Bắt Tay Nạp Chứng Chỉ (Handshake Sequence)
 
+Cơ chế nạp phân đoạn chứng chỉ được tích hợp trực tiếp, trong suốt vào quy trình **Deploy** tổng thể của SynaptiX IDE. Quá trình kiểm tra thông minh (Smart Sync) dựa trên đối soát mã băm phần cứng **CRC-16 Checksum** đảm bảo chỉ truyền tải tệp khi có thay đổi thực tế, bảo vệ tuổi thọ bộ nhớ Flash vi điều khiển và giữ tốc độ Deploy tức thời (<100ms) trong các chu kỳ nạp logic thường nhật:
+
 ```text
-Host (Studio)                                                      MCU Gateway
+Host (Studio Deploy Pipeline)                                      MCU Gateway
      │                                                                  │
      │ 1. Đọc HardwareCapabilities (0x0A08)                             │
      ├─────────────────────────────────────────────────────────────────>│
      │<─────────────────────────────────────────────────────────────────┤ (Có cờ 0x0080: MQTT_TLS_CERT)
      │                                                                  │
-     │ 2. Gửi Chunk 0: FC16 Write 64 regs vào 0x0F00                   │
+     │ 2. Đọc ActiveMask & Checksum (FC03 Read 4 regs 0x0F43..0x0F46)   │
      ├─────────────────────────────────────────────────────────────────>│
-     │                                                                  │ Kiểm tra chunk_crc16
-     │                                                                  │ Ghi nối tiếp vào Flash buffer
-     │                                                                  │ Set CERT_ACK = 0 (0x0F40)
-     │ 3. Đọc CERT_ACK (0x0F40)                                         │
-     ├─────────────────────────────────────────────────────────────────>│
-     │<─────────────────────────────────────────────────────────────────┤ ACK = 0, Status = 0
+     │<─────────────────────────────────────────────────────────────────┤ Trả về ActiveMask, CrcRootCa,
+     │                                                                  │ CrcClientCert, CrcClientKey
      │                                                                  │
-     │ ... Lặp lại cho đến khi gửi xong Chunk (N - 1) ...               │
+     ├─► [ĐỐI SOÁT CHECKSUM]: So sánh với CRC-16 của file trên Host:    │
+     │   * Nếu ActiveMask đủ VÀ tất cả CRC-16 trùng khớp 100%:          │
+     │     ==> BỎ QUA truyền chunks, tiến hành Deploy Logic FBD ngay!   │
      │                                                                  │
-     │ 4. Ghi COMMIT_COMMAND: FC16 Write 0xA5A5 vào 0x0F42              │
+     │   * Nếu thiếu ActiveMask HOẶC CRC-16 bị lệch (chứng chỉ mới):    │
+     │     ==> TIẾN HÀNH TRUYỀN PHÂN ĐOẠN CHO TỆP BỊ LỆCH:              │
+     │                                                                  │
+     │ 3. Gửi Chunk 0: FC16 Write 64 regs vào 0x0F00                   │
      ├─────────────────────────────────────────────────────────────────>│
-     │                                                                  │ Chốt file /spiffs/ca.crt
-     │                                                                  │ Nạp vào mbedTLS context
-     │                                                                  │ Set CERT_ACTIVE_MASK (0x0F43)
-     │ 5. Đọc xác nhận hoàn tất                                         │
-     │<─────────────────────────────────────────────────────────────────┤ Status = OK, ActiveMask = 0x01
+     │                                                                  │ Kiểm tra chunk_crc16 (poly 0xA001)
+     │                                                                  │ Ghi nối tiếp vào RAM/Flash buffer
+     │                                                                  │ Set CERT_ACK = 0 (0x0F40), Error = 0
+     │ 4. Đọc CERT_ACK (0x0F40) & Error (0x0F41)                        │
+     ├─────────────────────────────────────────────────────────────────>│
+     │<─────────────────────────────────────────────────────────────────┤ ACK = 0, Error = 0 (OK)
+     │                                                                  │
+     │ ... Lặp lại các Chunk 1 .. (N - 1) ...                           │
+     │                                                                  │
+     │ 5. Ghi COMMIT_COMMAND: FC16 Write 0xA5A5 vào 0x0F42              │
+     ├─────────────────────────────────────────────────────────────────>│
+     │                                                                  │ Đối soát toàn vẹn total_cert_size
+     │                                                                  │ Tính CRC-16 toàn tệp -> 0x0F44..0x0F46
+     │                                                                  │ Chốt lưu Flash vĩnh viễn
+     │                                                                  │ Nạp vào context mbedTLS/WolfSSL
+     │                                                                  │ Cập nhật CERT_ACTIVE_MASK (0x0F43)
+     │ 6. Đọc xác nhận hoàn tất (FC03 Read 0x0F43..0x0F46)              │
+     ├─────────────────────────────────────────────────────────────────>│
+     │<─────────────────────────────────────────────────────────────────┤ Mask đã bật bit, CRC cập nhật!
+     │                                                                  │
+     │ (Nếu là Mutual TLS, lặp lại bước 3-6 cho Client Cert & Key)      │
+     │                                                                  │
+     │ 7. Hoàn tất nạp chứng chỉ -> Tiếp tục Staging & Commit Rules FBD │
 ```
 
 ---

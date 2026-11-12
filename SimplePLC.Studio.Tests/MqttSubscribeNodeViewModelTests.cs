@@ -326,7 +326,101 @@ public class MqttSubscribeNodeViewModelTests
             Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.AnalogInput, "AnalogInput must NOT be in AvailableTags");
             Assert.False(t.Kind == SimplePLC.Domain.Enums.TagKind.System, "System tag must NOT be in AvailableTags");
         });
+    }
 
+    [Fact]
+    public void MqttSubConfig_WhenPinAdded_AutomaticallyUpdatesSamplePayloadAndExtractedPins()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        // Ban đầu chưa có pin
+        Assert.Empty(node.Pins);
+
+        // Thêm pin 1 (mặc định là 'grid')
+        dialog.AddPinCommand.Execute(null);
+
+        Assert.Single(node.Pins);
+        Assert.Equal("grid", node.Pins[0].FieldName);
+
+        // Xác nhận SimulationInput tự động chứa "grid" mà không cần bấm Reset Sample
+        Assert.Contains("\"grid\": 5", dialog.SimulationInput);
+        Assert.True(dialog.IsSimulationSuccess);
+
+        // Thêm pin 2 (mặc định là 'color')
+        dialog.AddPinCommand.Execute(null);
+
+        Assert.Equal(2, node.Pins.Count);
+        Assert.Contains("\"grid\": 5", dialog.SimulationInput);
+        Assert.Contains("\"color\": 1", dialog.SimulationInput);
+        Assert.True(dialog.IsSimulationSuccess);
+    }
+
+    [Fact]
+    public void MqttSubConfig_WhenFieldNameOrDataTypeChanged_AutomaticallyUpdatesSamplePayload()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        dialog.AddPinCommand.Execute(null); // 'grid' (INT16)
+        Assert.Contains("\"grid\": 5", dialog.SimulationInput);
+
+        // Đổi tên trường sang 'temperature'
+        node.Pins[0].FieldName = "temperature";
+        Assert.Contains("\"temperature\": 10", dialog.SimulationInput);
+        Assert.DoesNotContain("\"grid\"", dialog.SimulationInput);
+
+        // Đổi kiểu dữ liệu sang Float
+        node.Pins[0].DataType = MqttDataType.Float;
+        Assert.Contains("\"temperature\": 25.5", dialog.SimulationInput);
+        Assert.True(dialog.IsSimulationSuccess, dialog.SimulationStatusMessage);
+    }
+
+    [Fact]
+    public void MqttSubConfig_WhenUserPastesCustomJson_PreservesCustomPayloadOnPinChanges()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        dialog.AddPinCommand.Execute(null);
+
+        // Người dùng tự dán JSON tùy biến
+        string customJson = "{\n  \"device\": \"CustomGateway\",\n  \"values\": {\n    \"grid\": 99\n  }\n}";
+        dialog.SimulationInput = customJson;
+        Assert.True(dialog.IsUserModified);
+
+        // Thêm một pin mới
+        dialog.AddPinCommand.Execute(null);
+
+        // Xác nhận chuỗi tùy biến của người dùng KHÔNG bị ghi đè mất
+        Assert.Equal(customJson, dialog.SimulationInput);
+    }
+
+    [Fact]
+    public void MqttSubConfig_WhenResetSampleExecuted_RevertsToAutoSync()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        dialog.AddPinCommand.Execute(null); // grid
+        dialog.AddPinCommand.Execute(null); // color
+
+        // Người dùng dán JSON tùy biến
+        dialog.SimulationInput = "{\"custom\": true}";
+        Assert.True(dialog.IsUserModified);
+
+        // Bấm nút Reset Sample
+        dialog.ResetSamplePayloadCommand.Execute(null);
+
+        // Xác nhận đã hủy cờ tùy biến và nạp lại mẫu đầy đủ các pin
+        Assert.False(dialog.IsUserModified);
+        Assert.Contains("\"grid\": 5", dialog.SimulationInput);
+        Assert.Contains("\"color\": 1", dialog.SimulationInput);
+        Assert.True(dialog.IsSimulationSuccess);
     }
 }
 

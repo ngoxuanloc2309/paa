@@ -39,7 +39,7 @@ When an industrial edge node loses 24V DC power or suffers a severed WAN fiber l
 | :--- | :--- | :--- |
 | **Enable LWT (`WillEnabled`)** | `Disabled` | `Enabled` on all production telemetry gateways. |
 | **Will Topic (`WillTopic`)** | `synaptix/device/status` | Dedicated device health topic, e.g., `factory/line1/node01/status`. |
-| **Will Payload (`WillPayload`)** | `{"status":"offline"}` | Compact JSON heartbeat state, paired with an online birth message on startup. |
+| **Will Payload (`WillPayload`)** | `offline` | Plain text offline state string (max 30 characters). Plain text (`offline`, `0`, `lost`) is strongly recommended over JSON to avoid double-quote `"` syntax errors in Wi-Fi module AT parsers. |
 | **Will QoS (`WillQos`)** | `QoS 1` | `QoS 1` (At Least Once) guarantees SCADA/Cloud dashboards receive the fault notification. |
 | **Will Retain (`WillRetain`)** | `true` | `true` ensures newly opened HMI/Web dashboards immediately see whether the node is currently online or offline. |
 
@@ -181,6 +181,13 @@ To comply with **IEC 62443-4-2** cryptographic transport requirements, SynaptiX 
 ::: tip Live TLS Handshake Test (`Test Connection`)
 Click **Test Connection** directly inside the `Ctrl+Shift+M` dialog before deploying to hardware. SynaptiX IDE executes a real TCP + `SslStream` X.509 handshake (including mTLS client certificate authentication and `6 s` timeout verification) from your workstation and reports the negotiated TLS version and cipher algorithm immediately!
 :::
+
+### 1.4 Automated Smart Sync During Deploy (CRC-16 Checksum Verification)
+
+To guarantee a unified engineering experience without fragmented menus, SynaptiX IDE **avoids standalone certificate download buttons**. All credential staging is fully automated within the single **Deploy (`F5`)** workflow:
+* **Hardware Checksum Verification (`0x0F43..0x0F46`):** Prior to staging, Studio reads the CRC-16 checksums of the certificates currently stored in the MCU's flash memory.
+* **Deploy Speed Optimization:** If all required certificates on the device match the local project files with 100% integrity, Studio skips chunk transmission entirely. This preserves flash write endurance and ensures routine logic deploys remain blazing fast (<100ms).
+* **Automated Provisioning:** When certificates are renewed or deployed onto a fresh device, Studio splits them into 128-byte `SPLC_CertChunk_t` structs (`0x0F00`), validates chunk ACKs (`0x0F40`), and executes an atomic commit (`0x0F42 = 0xA5A5`).
 
 ---
 

@@ -1,3 +1,4 @@
+using TagOptionItem = SimplePLC.Studio.Models.TagOptionItem;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -24,6 +25,20 @@ namespace SimplePLC.Studio.ViewModels;
 /// </summary>
 public partial class ModbusMasterChannelItemViewModel : ObservableObject
 {
+    private readonly ObservableCollection<TagOptionItem> _tagOptions = new();
+
+    /// <summary>
+    /// Danh sách các tùy chọn Tag trong Dropdown, được gắn cờ IsSelectable và thông tin xung đột độc quyền.
+    /// Sử dụng ReadOnlyObservableCollection duy trì tham chiếu ổn định để ngăn WPF ComboBox reset SelectedItem.
+    /// </summary>
+    public ReadOnlyObservableCollection<TagOptionItem> TagOptions { get; }
+
+    public ModbusMasterChannelItemViewModel()
+    {
+        TagOptions = new ReadOnlyObservableCollection<TagOptionItem>(_tagOptions);
+        TagWriteOwnershipService.Instance.OwnershipChanged += RefreshTagOptions;
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
     [NotifyPropertyChangedFor(nameof(ExpectedResponseHex))]
@@ -43,7 +58,9 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     partial void OnFunctionCodeChanged(byte value)
     {
         OnPropertyChanged(nameof(FilteredAvailableTags));
+        RefreshTagOptions();
         CoerceTargetTagCompatibility();
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
     [ObservableProperty]
@@ -62,7 +79,9 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     partial void OnDataTypeChanged(ModbusDataType value)
     {
         OnPropertyChanged(nameof(FilteredAvailableTags));
+        RefreshTagOptions();
         CoerceTargetTagCompatibility();
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
     private void CoerceTargetTagCompatibility()
@@ -122,10 +141,20 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         TargetTagAlias = string.Empty;
     }
 
+    private Func<IEnumerable<TagModel>>? _availableTagsProvider;
+
     /// <summary>
     /// Hàm cung cấp danh sách toàn bộ Tag từ TagCatalog để lọc động.
     /// </summary>
-    public Func<IEnumerable<TagModel>>? AvailableTagsProvider { get; set; }
+    public Func<IEnumerable<TagModel>>? AvailableTagsProvider
+    {
+        get => _availableTagsProvider;
+        set
+        {
+            _availableTagsProvider = value;
+            RefreshTagOptions();
+        }
+    }
 
     /// <summary>
     /// Danh sách Tag tương thích với kiểu dữ liệu vật lý (IEC 61131-3) của kênh Modbus hiện tại.
@@ -207,16 +236,120 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(TargetTagDisplay))]
     private string _targetTagName = string.Empty;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsTagSelected))]
-    [NotifyPropertyChangedFor(nameof(TargetTagDisplay))]
     private TagModel? _targetTag;
+
+    /// <summary>
+    /// Tag đích / nguồn được liên kết với kênh Modbus này.
+    /// Có cơ chế bảo vệ chống hiện tượng WPF Selector tự động đẩy null khi làm mới ItemsSource.
+    /// </summary>
+    public TagModel? TargetTag
+    {
+        get => _targetTag;
+        set
+        {
+            // Bảo vệ chống hiện tượng WPF Selector tự động đẩy null trong quá trình làm mới ItemsSource (TwoWay transient clear)
+            if (value == null && _targetTag != null && _targetTag.Kind != TagKind.None && !string.Equals(_targetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!EqualityComparer<TagModel>.Default.Equals(_targetTag, value))
+            {
+                _targetTag = value;
+                OnTargetTagChanged(value);
+                OnPropertyChanged(nameof(TargetTag));
+                OnPropertyChanged(nameof(IsTagSelected));
+                OnPropertyChanged(nameof(TargetTagDisplay));
+            }
+        }
+    }
 
     [ObservableProperty]
     private string _targetTagAlias = string.Empty;
 
     [ObservableProperty]
     private string _description = string.Empty;
+
+    /// <summary>
+    /// Làm mới danh sách tùy chọn Tag trong Dropdown với cơ chế cập nhật tại chỗ (in-place update)
+    /// để bảo toàn hoàn toàn lựa chọn hiện tại của WPF ComboBox mà không kích hoạt Collection Reset.
+    /// </summary>
+    public void RefreshTagOptions()
+    {
+        var currentTags = FilteredAvailableTags.ToList();
+        if (currentTags.Count == 0 && AvailableTagsProvider != null)
+        {
+            currentTags = AvailableTagsProvider().ToList();
+        }
+
+        bool match = _tagOptions.Count == currentTags.Count;
+        if (match)
+        {
+            for (int i = 0; i < currentTags.Count; i++)
+            {
+                if (!ReferenceEquals(_tagOptions[i].Tag, currentTags[i]))
+                {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+        {
+            // In-place update: cập nhật thuộc tính observable trên từng item, ZERO collection reset
+            foreach (var opt in _tagOptions)
+            {
+                UpdateTagOptionConflict(opt);
+            }
+        }
+        else
+        {
+            // Tái cấu trúc khi kiểu dữ liệu hoặc catalog thay đổi: tái sử dụng item cũ nếu cùng Tag
+            var existingByTag = _tagOptions.ToDictionary(o => o.Tag);
+            _tagOptions.Clear();
+            foreach (var tag in currentTags)
+            {
+                if (existingByTag.TryGetValue(tag, out var existingOpt))
+                {
+                    UpdateTagOptionConflict(existingOpt);
+                    _tagOptions.Add(existingOpt);
+                }
+                else
+                {
+                    var newOpt = new TagOptionItem(tag, true, tag.DisplayName);
+                    UpdateTagOptionConflict(newOpt);
+                    _tagOptions.Add(newOpt);
+                }
+            }
+        }
+    }
+
+    private void UpdateTagOptionConflict(TagOptionItem opt)
+    {
+        opt.DisplayText = opt.Tag.DisplayName;
+        if (opt.Tag.Kind == TagKind.None || string.Equals(opt.Tag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+        {
+            opt.IsSelectable = true;
+            opt.ConflictBadge = string.Empty;
+            opt.ConflictTooltip = string.Empty;
+            return;
+        }
+
+        var claimant = TagWriteOwnershipService.Instance.GetClaimant(opt.Tag, this);
+        if (claimant != null)
+        {
+            opt.IsSelectable = false;
+            opt.ConflictBadge = claimant.DisplayBadge;
+            opt.ConflictTooltip = claimant.TooltipDetail;
+        }
+        else
+        {
+            opt.IsSelectable = true;
+            opt.ConflictBadge = string.Empty;
+            opt.ConflictTooltip = string.Empty;
+        }
+    }
 
     /// <summary>
     /// Xác định hàm này thuộc nhóm Đọc (FC01, FC02, FC03, FC04).
@@ -259,7 +392,7 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         ? TargetTag.DisplayName
         : (!string.IsNullOrWhiteSpace(TargetTagName) ? TargetTagName : "—");
 
-    partial void OnTargetTagChanged(TagModel? value)
+    private void OnTargetTagChanged(TagModel? value)
     {
         if (value == null || value.Kind == TagKind.None || string.Equals(value.Name, "NONE", StringComparison.OrdinalIgnoreCase))
         {
@@ -284,6 +417,7 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
                 DataType = ModbusDataType.Int16;
             }
         }
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
     partial void OnTargetTagAliasChanged(string value)
@@ -636,11 +770,21 @@ public partial class ModbusPortItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(StatusPillColor))]
     private bool _enabled = true;
 
+    partial void OnEnabledChanged(bool value)
+    {
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadge))]
     [NotifyPropertyChangedFor(nameof(IsMasterMode))]
     [NotifyPropertyChangedFor(nameof(IsSlaveMode))]
     private string _role = "Master"; // "Master", "Slave"
+
+    partial void OnRoleChanged(string value)
+    {
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadge))]
@@ -811,7 +955,36 @@ public partial class ModbusPortItemViewModel : ObservableObject
             OnPropertyChanged(nameof(ActivePolledChannelsCount));
             OnPropertyChanged(nameof(ActiveWriteChannelsCount));
             OnPropertyChanged(nameof(EstimatedScanCycleMs));
+            TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
         };
+
+        _claimsProvider = GetClaimEntries;
+        TagWriteOwnershipService.Instance.RegisterProvider(_claimsProvider);
+    }
+
+    private readonly Func<IEnumerable<TagClaimEntry>> _claimsProvider;
+
+    /// <summary>
+    /// Xuất danh sách các Tag đang bị chiếm giữ độc quyền bởi các kênh Đọc (FC01..04) của cổng này.
+    /// </summary>
+    public IEnumerable<TagClaimEntry> GetClaimEntries()
+    {
+        var list = new List<TagClaimEntry>();
+        if (!Enabled || !string.Equals(Role, "Master", StringComparison.OrdinalIgnoreCase)) return list;
+        for (int i = 0; i < MasterChannels.Count; i++)
+        {
+            var ch = MasterChannels[i];
+            if (ch.IsReadOperation && ch.TargetTag != null && ch.TargetTag.Kind != TagKind.None && !string.Equals(ch.TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(new TagClaimEntry(
+                    ch.TargetTag,
+                    ch,
+                    "Modbus Read",
+                    $"[⛔ Modbus Kênh {i + 1}]",
+                    $"Tag '{ch.TargetTag.Name}' đang được ghi nhận bởi Modbus Master Kênh {i + 1} ({PortName}, FC{ch.FunctionCode:D2}, Addr: {ch.Address})."));
+            }
+        }
+        return list;
     }
 
     /// <summary>
@@ -836,6 +1009,7 @@ public partial class ModbusPortItemViewModel : ObservableObject
         };
         MasterChannels.Add(item);
         SelectedMasterChannel = item;
+        TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
     /// <summary>
@@ -852,6 +1026,7 @@ public partial class ModbusPortItemViewModel : ObservableObject
             {
                 SelectedMasterChannel = MasterChannels.FirstOrDefault();
             }
+            TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
         }
     }
 

@@ -226,13 +226,16 @@ extern "C" {
 #define SPLC_MQTT_WILL_CTRL_QOS_MASK      0x000C
 #define SPLC_MQTT_WILL_CTRL_QOS_SHIFT     2
 
-/* --- 2.8 MQTT TLS Certificate Staging Buffer (0x0F00 - 0x0F43, SPLC-SPEC-MQTT-003) --- */
+/* --- 2.8 MQTT TLS Certificate Staging Buffer (0x0F00 - 0x0F46, SPLC-SPEC-MQTT-003) --- */
 #define SPLC_ADDR_MQTT_TLS_STAGING        0x0F00  /* 64 regs (128 B): SPLC_CertChunk_t (FC16, WO) */
 #define SPLC_LEN_MQTT_TLS_STAGING_CHUNK   64
 #define SPLC_ADDR_MQTT_TLS_ACK            0x0F40  /* 1 reg: ACK chunk index (FC03, RO) */
 #define SPLC_ADDR_MQTT_TLS_ERROR          0x0F41  /* 1 reg: Error Code (FC03, RO) */
 #define SPLC_ADDR_MQTT_TLS_COMMIT         0x0F42  /* 1 reg: Commit 0xA5A5 (FC06/FC16, WO) */
 #define SPLC_ADDR_MQTT_TLS_ACTIVE_MASK    0x0F43  /* 1 reg: Active Cert Type Mask (FC03, RO) */
+#define SPLC_ADDR_MQTT_TLS_CRC_ROOT_CA    0x0F44  /* 1 reg: CRC-16 of stored Root CA (FC03, RO) */
+#define SPLC_ADDR_MQTT_TLS_CRC_CLIENT_CERT 0x0F45 /* 1 reg: CRC-16 of stored Client Cert (FC03, RO) */
+#define SPLC_ADDR_MQTT_TLS_CRC_CLIENT_KEY 0x0F46  /* 1 reg: CRC-16 of stored Client Key (FC03, RO) */
 #define SPLC_MQTT_CERT_PAYLOAD_MAX_BYTES  120
 
 /* --- 2.9 Modbus RTU Master Poller Space (0x1000 - 0x10FF) --- */

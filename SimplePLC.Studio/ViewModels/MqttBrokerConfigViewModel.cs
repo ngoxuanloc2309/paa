@@ -140,7 +140,13 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
     private string _willTopic = string.Empty;
 
     [ObservableProperty]
-    private string _willPayload = "{\"status\":\"offline\"}";
+    private string _willPayload = "offline";
+
+    [ObservableProperty]
+    private bool _hasWillTopicError;
+
+    [ObservableProperty]
+    private string _willTopicErrorMessage = string.Empty;
 
     [ObservableProperty]
     private byte _willQos = 1;
@@ -181,7 +187,7 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
 
         _willEnabled = metadata.MqttWillEnabled;
         _willTopic = metadata.MqttWillTopic ?? string.Empty;
-        _willPayload = string.IsNullOrEmpty(metadata.MqttWillPayload) ? "{\"status\":\"offline\"}" : metadata.MqttWillPayload;
+        _willPayload = string.IsNullOrEmpty(metadata.MqttWillPayload) || metadata.MqttWillPayload == "{\"status\":\"offline\"}" ? "offline" : metadata.MqttWillPayload;
         _willQos = metadata.MqttWillQos;
         _willRetain = metadata.MqttWillRetain;
 
@@ -249,6 +255,52 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         {
             Port = 1883;
         }
+    }
+
+
+    partial void OnWillEnabledChanged(bool value)
+    {
+        ValidateWillTopic();
+    }
+
+    partial void OnWillTopicChanged(string value)
+    {
+        ValidateWillTopic();
+    }
+
+    partial void OnWillPayloadChanged(string value)
+    {
+        if (value != null && (value.Contains('"') || value.Contains('\\')))
+        {
+            string sanitized = value.Replace("\"", string.Empty).Replace("\\", string.Empty);
+            if (sanitized != value)
+            {
+                WillPayload = sanitized;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cho biết cấu hình có hợp lệ để lưu hay không (không có lỗi ở trường WillTopic khi bật LWT).
+    /// </summary>
+    public bool CanSave => !HasWillTopicError;
+
+    private void ValidateWillTopic()
+    {
+        if (WillEnabled && string.IsNullOrWhiteSpace(WillTopic))
+        {
+            HasWillTopicError = true;
+            WillTopicErrorMessage = LocalizationService.Instance.IsVietnamese
+                ? "Chủ đề LWT không được để trống khi đã kích hoạt tính năng."
+                : "Will Topic cannot be empty when LWT is enabled.";
+        }
+        else
+        {
+            HasWillTopicError = false;
+            WillTopicErrorMessage = string.Empty;
+        }
+
+        SaveCommand?.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -685,7 +737,9 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
 
         _metadata.MqttWillEnabled = WillEnabled;
         _metadata.MqttWillTopic = WillTopic?.Trim() ?? string.Empty;
-        _metadata.MqttWillPayload = WillPayload ?? string.Empty;
+        string safePayload = WillPayload ?? "offline";
+        safePayload = safePayload.Replace("\"", string.Empty).Replace("\\", string.Empty);
+        _metadata.MqttWillPayload = safePayload;
         _metadata.MqttWillQos = WillQos;
         _metadata.MqttWillRetain = WillRetain;
 
@@ -723,7 +777,8 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
 
         WillEnabled = _metadata.MqttWillEnabled;
         WillTopic = _metadata.MqttWillTopic ?? string.Empty;
-        WillPayload = string.IsNullOrEmpty(_metadata.MqttWillPayload) ? "{\"status\":\"offline\"}" : _metadata.MqttWillPayload;
+        WillPayload = string.IsNullOrEmpty(_metadata.MqttWillPayload) || _metadata.MqttWillPayload == "{\"status\":\"offline\"}" ? "offline" : _metadata.MqttWillPayload;
+        ValidateWillTopic();
         WillQos = _metadata.MqttWillQos;
         WillRetain = _metadata.MqttWillRetain;
 
@@ -733,7 +788,7 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private void Save()
     {
         Apply();

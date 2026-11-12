@@ -15,6 +15,7 @@ using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Studio.ViewModels;
 using Xunit;
 
 namespace SimplePLC.Studio.Tests;
@@ -1331,6 +1332,172 @@ public class RealCom7Com9HwHiltTests
             ushort doBase = ModbusRegisterMap.GetRuntimeTagAddress(8);
             var doRegs = await client.ReadHoldingRegistersAsync(1, doBase, 16);
             Assert.Equal(16, doRegs.Length);
+        }
+        finally
+        {
+            await transport.CloseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Test 25: Verifies MQTT Last Will & Testament (LWT, SPLC-SPEC-MQTT-004) configuration over physical COM wire (0x0E60).
+    /// </summary>
+    [Fact]
+    public async Task Section2_MqttWill_WhenConfigured_StagedAndVerifiedOverWire()
+    {
+        if (!IsComPairAvailable()) return;
+
+        await using var mcu = new McuSerialHarness();
+        var (transport, client) = await CreateHostClientAsync();
+        try
+        {
+            var willDto = new MqttWillConfigDto
+            {
+                Enabled = true,
+                Retain = true,
+                Qos = 1,
+                Topic = "plant/status/lwt",
+                Payload = "offline"
+            };
+
+            var willRegs = new ushort[ModbusRegisterMap.MqttWillConfigRegisters];
+            MqttWillConfigCodec.Encode(willDto, willRegs);
+
+            // Write 32 registers over COM9 -> COM7 wire to 0x0E60
+            await client.WriteMultipleRegistersAsync(1, ModbusRegisterMap.MqttWillConfigBaseAddress, willRegs);
+
+            // Read back 32 registers over COM9 from 0x0E60
+            var readBack = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttWillConfigBaseAddress, ModbusRegisterMap.MqttWillConfigRegisters);
+            var decoded = MqttWillConfigCodec.Decode(readBack);
+
+            Assert.True(decoded.Enabled);
+            Assert.True(decoded.Retain);
+            Assert.Equal(1, decoded.Qos);
+            Assert.Equal("plant/status/lwt", decoded.Topic);
+            Assert.Equal("offline", decoded.Payload);
+        }
+        finally
+        {
+            await transport.CloseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Test 26: Verifies MQTT TLS / mTLS Chunked Certificate Staging & Atomic Commit (SPLC-SPEC-MQTT-003) over COM wire.
+    /// </summary>
+    [Fact]
+    public async Task Section2_MqttTls_WhenCertificateStaged_CommitsAndStoresCrcOverWire()
+    {
+        if (!IsComPairAvailable()) return;
+
+        await using var mcu = new McuSerialHarness();
+        var (transport, client) = await CreateHostClientAsync();
+        try
+        {
+            var certData = System.Text.Encoding.ASCII.GetBytes("-----BEGIN CERTIFICATE-----\nMIICADCCAYigAwIBAgIU1234567890ABCDEF\n-----END CERTIFICATE-----\n");
+            ushort expectedCrc = Crc16Modbus.Compute(certData);
+
+            // Slice certificate into standard 64-register chunks (SPLC-SPEC-MQTT-003)
+            var chunks = TlsCertificateCodec.SliceCertificate(ModbusRegisterMap.MqttCertTypeRootCa, certData);
+            Assert.NotEmpty(chunks);
+
+            var chunkRegs = new ushort[ModbusRegisterMap.MqttCertChunkRegisters];
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                TlsCertificateCodec.EncodeChunk(chunks[i], chunkRegs);
+                // Write Chunk to 0x0F00 over COM wire
+                await client.WriteMultipleRegistersAsync(1, ModbusRegisterMap.MqttCertStagingBaseAddress, chunkRegs);
+
+                // Read Ack and Status from 0x0F40..0x0F41
+                var ackRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttCertAckAddress, 2);
+                Assert.Equal(i, ackRegs[0]); // Ack == Chunk Index
+                Assert.Equal(0, ackRegs[1]); // Status == OK (0)
+            }
+
+            // Commit Magic 0xA5A5 to 0x0F42
+            await client.WriteSingleRegisterAsync(1, ModbusRegisterMap.MqttCertCommitAddress, ModbusRegisterMap.MqttCertCommitMagic);
+
+            // Verify Active Mask at 0x0F43 has bit 0 (Root CA) set
+            var maskRegs = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttCertActiveTypeMaskAddress, 2);
+            Assert.Equal(0x0001, maskRegs[0] & 0x0001);
+
+            // Verify Flash CRC at 0x0F44 matches computed full CRC
+            var flashCrcReg = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttCertCrcRootCaAddress, 1);
+            Assert.Equal(expectedCrc, flashCrcReg[0]);
+        }
+        finally
+        {
+            await transport.CloseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Test 27: Verifies Exclusive Ingestion Ownership safety gate: Blocks deployment when multiple external
+    /// ingestion writers target the same Tag, preventing corrupted data frames from reaching the physical serial wire.
+    /// </summary>
+    [Fact]
+    public async Task Section8_ExclusiveOwnership_DeployGateSafetyRejection_OverWire()
+    {
+        if (!IsComPairAvailable()) return;
+
+        var deployVm = new DeployViewModel();
+        ushort sharedTagIndex = 10; // VREG10
+
+        var conflictingModbusReads = new List<ModbusMasterReadConfigDto>
+        {
+            new()
+            {
+                PortIndex = 0,
+                FunctionCode = ModbusMasterFunctionCode.ReadHoldingRegisters,
+                StartAddress = 100,
+                Pins = new List<ModbusMasterPinBindingDto>
+                {
+                    new() { Id = "P1", Label = "Val1", TargetTagIndex = sharedTagIndex }
+                }
+            }
+        };
+
+        var conflictingMqttSubs = new List<MqttSubscriptionConfigDto>
+        {
+            new()
+            {
+                Topic = "factory/sensor",
+                Pins = new List<MqttPinBindingDto>
+                {
+                    new() { Id = "P2", Label = "humidity", TargetTagIndex = sharedTagIndex }
+                }
+            }
+        };
+
+        // 1. Verify safety gate detects conflict and rejects deployment
+        var (isValid, errorMessage) = deployVm.ValidateIngestionOwnership(conflictingModbusReads, conflictingMqttSubs);
+        Assert.False(isValid);
+        Assert.Contains("Xung đột sở hữu ghi độc quyền", errorMessage);
+
+        // 2. Resolve conflict (repoint MQTT to separate tag)
+        conflictingMqttSubs[0].Pins[0].TargetTagIndex = 11;
+        var (isResolvedValid, resolvedMsg) = deployVm.ValidateIngestionOwnership(conflictingModbusReads, conflictingMqttSubs);
+        Assert.True(isResolvedValid);
+        Assert.Null(resolvedMsg);
+
+        // 3. Connect to COM wire and verify clean configuration commits successfully
+        await using var mcu = new McuSerialHarness();
+        var (transport, client) = await CreateHostClientAsync();
+        try
+        {
+            var rule = new RuleRecordDto
+            {
+                Enabled = true,
+                TriggerType = SPLC_TriggerType.INTERVAL,
+                CompareOp = SPLC_CompareOp.NONE,
+                ActionType = SPLC_ActionType.SET_TAG,
+                TriggerTag = 0,
+                ActionTag = 8,
+                ActionParam = 1
+            };
+            await CommitRulesOverWireAsync(client, new[] { rule });
+            var activeInfo = await client.ReadHoldingRegistersAsync(1, ModbusRegisterMap.ActiveRuleCountAddress, 1);
+            Assert.Equal(1, activeInfo[0]);
         }
         finally
         {

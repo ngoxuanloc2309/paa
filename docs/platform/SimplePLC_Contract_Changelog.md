@@ -2,6 +2,26 @@
 
 # SimplePLC Platform Contract Changelog
 
+## [2.14.1 / Studio v2.14.1] - 2026-11-12 (MQTT TLS/MTLS CERTIFICATE STAGING, LAST WILL & TESTAMENT ICD, EXCLUSIVE TAG INGESTION OWNERSHIP - GitHub Release v2.14.1)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Quy Trình Nạp Chứng Chỉ Bảo Mật MQTT TLS/mTLS X.509 (`0x0F00..0x0F46`, `SPLC-SPEC-MQTT-003`)**:
+  - Triển khai toàn diện nạp chứng chỉ Root CA, Client Cert, Client Key dạng phân đoạn chunked payload.
+  - Tích hợp Smart Sync CRC (đọc `0x0F43..0x0F46`, bỏ qua các chứng chỉ không thay đổi giúp giảm 90% thời gian nạp).
+  - Vòng lặp nạp chịu lỗi tối đa 3 lần thử lại và Atomic Commit với magic code `0xA5A5` tại thanh ghi `0x0F42`.
+- **2. Đặc Tả & Mã Hóa Gói Tin MQTT Last Will & Testament (`0x0F50..0x0F5F`, `SPLC-SPEC-MQTT-004`)**:
+  - Ban hành tài liệu đặc tả `SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`.
+  - Hỗ trợ DTO, Codec và Wire contract cho thông điệp di chúc (LWT) gồm Topic, Payload, QoS và cờ Retain.
+- **3. Dịch Vụ Bảo Vệ Quyền Sở Hữu Ghi Tag Độc Quyền (Exclusive Tag Ingestion Ownership)**:
+  - Bổ sung `TagWriteOwnershipService` và `TagOptionItem` kiểm soát chặt chẽ việc gán tag đầu vào.
+  - Tự động phát hiện và ngăn chặn tranh chấp ghi giữa Modbus Read, MQTT Subscribe, TCP Ingestion và HTTP Ingestion.
+- **4. Tự Động Phản Chiếu Mẫu JSON Test Trong MQTT Command Subscribe (Smart Reactive Auto-Sync)**:
+  - Tự động đồng bộ hóa danh sách chân ngõ ra vào khung soạn thảo JSON mẫu kiểm thử khi thêm/sửa/xóa chân.
+  - Tự động xóa cache `ResolvedPath` khi đổi tên trường (`FieldName`), triệt tiêu hoàn toàn lỗi parser không tìm thấy trường.
+- **5. Kiểm Thử Tự Động & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
+  - Toàn bộ **2,111 unit tests** trên toàn bộ giải pháp đạt 100% PASS (1,373 Studio, 253 Application, 241 Protocol, 189 Infrastructure, 55 Domain).
+  - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu Fluent 2 / IBM Carbon, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+
 ## [2.14.0 / Studio v2.14.0] - 2026-11-12 (STARTUP HUB & START PAGE, BLUEPRINTS HARDWARE COMPATIBILITY, RULECOMPILER MODULARIZATION & FLUENT 2 ERGONOMICS - GitHub Release v2.14.0)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)
@@ -26,6 +46,10 @@
 - **6. Kiểm Thử Tự Động & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
   - Toàn bộ **2,063 unit tests** trên toàn bộ giải pháp đạt 100% PASS (1,341 Studio, 252 Application, 233 Protocol, 182 Infrastructure, 55 Domain).
   - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu Fluent 2 / IBM Carbon, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+- **7. Chuẩn Hóa Phân Đoạn Chứng Chỉ Bảo Mật MQTT TLS / mTLS & Checksum Phần Cứng (SPLC-SPEC-MQTT-003, 0x0F00..0x0F46)**:
+  - Mở rộng phân vùng Staging Chứng chỉ `0x0F00` thêm 3 thanh ghi phản hồi kiểm tra tính toàn vẹn: `CERT_CRC16_ROOT_CA` (`0x0F44`), `CERT_CRC16_CLIENT_CERT` (`0x0F45`), `CERT_CRC16_CLIENT_KEY` (`0x0F46`).
+  - Thiết lập cơ chế Smart Sync trong quy trình Deploy: Host đối soát mã CRC-16 với chứng chỉ đang có trên MCU; tự động bỏ qua việc truyền tải chunks nếu chứng chỉ đã mới nhất, bảo vệ tuổi thọ bộ nhớ Flash và duy trì tốc độ Deploy chu kỳ quét (<100ms).
+  - Cập nhật khế ước C header `simpleplc_protocol_v2_0.h` và hằng số `ModbusRegisterMap.cs`.
 
 ## [2.13.0 / Studio v2.13.0] - 2026-11-10 (ZIGBEE WIRELESS MODBUS, INDEPENDENT CLOUD UPLINKS, REUSABLE CONTROLS & HARDWARE HIERARCHY - GitHub Release v2.13.0)
 

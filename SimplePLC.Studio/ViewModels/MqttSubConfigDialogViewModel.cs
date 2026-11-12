@@ -63,6 +63,11 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         new(MqttFailSafeAction.ResetToDefault, LocalizationService.Tr("MqttSubFailSafeReset"))
     };
 
+    private bool _isGeneratingSample;
+
+    [ObservableProperty]
+    private bool _isUserModified;
+
     /// <summary>
     /// Cấu hình hàm cung cấp Tag có thể ghi (WriteTarget) tương thích với kiểu dữ liệu cho Pin.
     /// </summary>
@@ -78,8 +83,84 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         foreach (var pin in Node.Pins)
         {
             ConfigurePinTagProvider(pin);
+            AttachPinListener(pin);
         }
-        _simulationInput = GenerateSamplePayload();
+        Node.Pins.CollectionChanged += OnPinsCollectionChanged;
+        GenerateAndApplySamplePayload();
+    }
+
+    private void AttachPinListener(MqttPinBindingViewModel pin)
+    {
+        pin.PropertyChanged += OnPinPropertyChanged;
+    }
+
+    private void DetachPinListener(MqttPinBindingViewModel pin)
+    {
+        pin.PropertyChanged -= OnPinPropertyChanged;
+    }
+
+    private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MqttPinBindingViewModel.FieldName)
+            or nameof(MqttPinBindingViewModel.JsonPath)
+            or nameof(MqttPinBindingViewModel.Label)
+            or nameof(MqttPinBindingViewModel.DataType))
+        {
+            OnPinsStructureOrPropertyChanged();
+        }
+    }
+
+    private void OnPinsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (MqttPinBindingViewModel oldPin in e.OldItems)
+            {
+                DetachPinListener(oldPin);
+            }
+        }
+        if (e.NewItems != null)
+        {
+            foreach (MqttPinBindingViewModel newPin in e.NewItems)
+            {
+                AttachPinListener(newPin);
+            }
+        }
+        OnPinsStructureOrPropertyChanged();
+    }
+
+    private void OnPinsStructureOrPropertyChanged()
+    {
+        if (!IsUserModified)
+        {
+            GenerateAndApplySamplePayload();
+        }
+        else if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationInput))
+        {
+            RunSimulation();
+        }
+    }
+
+    public void GenerateAndApplySamplePayload()
+    {
+        _isGeneratingSample = true;
+        try
+        {
+            SimulationInput = GenerateSamplePayload();
+            RunSimulation();
+        }
+        finally
+        {
+            _isGeneratingSample = false;
+        }
+    }
+
+    partial void OnSimulationInputChanged(string value)
+    {
+        if (!_isGeneratingSample)
+        {
+            IsUserModified = !string.IsNullOrWhiteSpace(value);
+        }
     }
 
     public string GenerateSamplePayload()
@@ -111,8 +192,8 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void ResetSamplePayload()
     {
-        SimulationInput = GenerateSamplePayload();
-        RunSimulation();
+        IsUserModified = false;
+        GenerateAndApplySamplePayload();
     }
 
     [RelayCommand]
@@ -129,18 +210,6 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         var newPin = new MqttPinBindingViewModel(defaultName, defaultName, MqttDataType.Int16);
         ConfigurePinTagProvider(newPin);
         Node.Pins.Add(newPin);
-
-        // Giữ nguyên chuỗi payload người dùng đã nhập, chỉ tạo mẫu mặc định nếu ô nhập hoàn toàn trống
-        if (string.IsNullOrWhiteSpace(SimulationInput))
-        {
-            SimulationInput = GenerateSamplePayload();
-        }
-
-        // Tự động thử nghiệm lại trên payload hiện tại nếu đã từng chạy test
-        if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationInput))
-        {
-            RunSimulation();
-        }
     }
 
     [RelayCommand]
@@ -149,12 +218,6 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         if (pin != null && Node.Pins.Contains(pin))
         {
             Node.Pins.Remove(pin);
-
-            // Giữ nguyên chuỗi payload hiện tại và tự động thử nghiệm lại nếu đang ở trạng thái xem kết quả
-            if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationInput))
-            {
-                RunSimulation();
-            }
         }
     }
 

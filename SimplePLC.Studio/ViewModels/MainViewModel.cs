@@ -2300,21 +2300,28 @@ public partial class MainViewModel : ObservableObject
                     DtuGatewayStudioVM.DeployStatusMessage = successText;
                 }
 
-                // Tự động biến mất sau 3 giây và khôi phục trạng thái bình thường
+                // Tự động biến mất sau 3 giây và khôi phục trạng thái bình thường (bảo vệ chống crash khi dispatcher shutdown)
                 _ = Task.Run(async () =>
                 {
-                    await Task.Delay(3000);
-                    if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+                    try
                     {
-                        dispatcher.Invoke(() =>
+                        await Task.Delay(3000);
+                        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
                         {
-                            if (LogicEditorVM.SaveStatusMessage == successText)
+                            dispatcher.Invoke(() =>
                             {
-                                LogicEditorVM.SaveStatusMessage = LogicEditorVM.CompileState == CompileState.Valid
-                                    ? string.Format(LocalizationService.Tr("SaveStatusValid"), LogicEditorVM.ValidRuleCount)
-                                    : previousMessage;
-                            }
-                        });
+                                if (LogicEditorVM.SaveStatusMessage == successText)
+                                {
+                                    LogicEditorVM.SaveStatusMessage = LogicEditorVM.CompileState == CompileState.Valid
+                                        ? string.Format(LocalizationService.Tr("SaveStatusValid"), LogicEditorVM.ValidRuleCount)
+                                        : previousMessage;
+                                }
+                            });
+                        }
+                    }
+                    catch
+                    {
+                        // Bỏ qua ngoại lệ nếu Dispatcher hoặc tiến trình đang shutdown trong quá trình teardown/test
                     }
                 });
             }

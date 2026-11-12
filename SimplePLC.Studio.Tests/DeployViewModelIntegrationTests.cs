@@ -8,6 +8,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử tích hợp quy trình Deploy của DeployViewModel với MCU Simulator và Transport.
+/// </summary>
 [Collection("AppServicesDeployTests")]
 public class DeployViewModelIntegrationTests : IDisposable
 {
@@ -168,5 +171,137 @@ public class DeployViewModelIntegrationTests : IDisposable
         await deployVM.StartDeployAsync();
         Assert.True(deployVM.IsSuccess);
         Assert.Equal(DeployState.Success, deployVM.DeployState);
+    }
+
+    [Fact]
+    public async Task StartDeployAsync_WithMqttTlsRootCa_ProvisionsCertificateToMcu()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.LoadDefaultRules();
+
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "broker.hivemq.com",
+            MqttBrokerPort = 8883,
+            MqttTlsEnabled = true,
+            MqttTlsCaCertPem = "-----BEGIN CERTIFICATE-----\nMIIB...CA...==\n-----END CERTIFICATE-----\n"
+        };
+
+        var deployVM = new DeployViewModel(
+            AppServices.Instance.DeployUseCase,
+            ruleTableVM,
+            getMetadata: () => meta);
+
+        // Act
+        await deployVM.StartDeployAsync();
+
+        // Assert
+        Assert.True(deployVM.IsSuccess, $"Deploy failed: {deployVM.StatusMessage}\nLogs:\n{deployVM.ConsoleLog}");
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+        Assert.Contains("[MQTT TLS OK] Root CA committed successfully", deployVM.ConsoleLog);
+
+        ushort activeMask = fakeClient.Simulator.Memory.InternalRead(SimplePLC.Protocol.Constants.ModbusRegisterMap.MqttCertActiveTypeMaskAddress);
+        Assert.Equal(0x0001, activeMask & 0x0001);
+    }
+
+    [Fact]
+    public async Task StartDeployAsync_WithMqttMtls_ProvisionsAllThreeCertificates()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.LoadDefaultRules();
+
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "broker.hivemq.com",
+            MqttBrokerPort = 8883,
+            MqttTlsEnabled = true,
+            MqttTlsMtlsEnabled = true,
+            MqttTlsCaCertPem = "-----BEGIN CERTIFICATE-----\nROOT_CA\n-----END CERTIFICATE-----\n",
+            MqttTlsClientCertPem = "-----BEGIN CERTIFICATE-----\nCLIENT_CERT\n-----END CERTIFICATE-----\n",
+            MqttTlsClientKeyPem = "-----BEGIN PRIVATE KEY-----\nCLIENT_KEY\n-----END PRIVATE KEY-----\n"
+        };
+
+        var deployVM = new DeployViewModel(
+            AppServices.Instance.DeployUseCase,
+            ruleTableVM,
+            getMetadata: () => meta);
+
+        // Act
+        await deployVM.StartDeployAsync();
+
+        // Assert
+        Assert.True(deployVM.IsSuccess, $"Deploy failed: {deployVM.StatusMessage}\nLogs:\n{deployVM.ConsoleLog}");
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+        Assert.Contains("[MQTT TLS OK] Root CA committed successfully", deployVM.ConsoleLog);
+        Assert.Contains("[MQTT TLS OK] Client Certificate committed successfully", deployVM.ConsoleLog);
+        Assert.Contains("[MQTT TLS OK] Client Private Key committed successfully", deployVM.ConsoleLog);
+
+        ushort activeMask = fakeClient.Simulator.Memory.InternalRead(SimplePLC.Protocol.Constants.ModbusRegisterMap.MqttCertActiveTypeMaskAddress);
+        Assert.Equal(0x0007, activeMask & 0x0007);
+    }
+
+    [Fact]
+    public async Task StartDeployAsync_WithMqttWillConfig_ProvisionsLwtToMcu()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.LoadDefaultRules();
+
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "broker.hivemq.com",
+            MqttBrokerPort = 1883,
+            MqttClientId = "Station01",
+            MqttWillEnabled = true,
+            MqttWillTopic = "plant/{device}/status",
+            MqttWillPayload = "offline",
+            MqttWillQos = 1,
+            MqttWillRetain = true
+        };
+
+        var deployVM = new DeployViewModel(
+            AppServices.Instance.DeployUseCase,
+            ruleTableVM,
+            getMetadata: () => meta);
+
+        // Act
+        await deployVM.StartDeployAsync();
+
+        // Assert
+        Assert.True(deployVM.IsSuccess, $"Deploy failed: {deployVM.StatusMessage}\nLogs:\n{deployVM.ConsoleLog}");
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+        Assert.Contains("[MQTT LWT] Writing 32 registers to 0x0E60", deployVM.ConsoleLog);
+
+        // Đọc 32 thanh ghi tại 0x0E60 trên bộ nhớ mô phỏng MCU và giải mã kiểm chứng
+        var lwtRegs = fakeClient.Simulator.Memory.ReadRegisters(
+            SimplePLC.Protocol.Constants.ModbusRegisterMap.MqttWillConfigBaseAddress,
+            SimplePLC.Protocol.Constants.ModbusRegisterMap.MqttWillConfigRegisters);
+        var decoded = SimplePLC.Protocol.Codec.MqttWillConfigCodec.Decode(lwtRegs);
+
+        Assert.True(decoded.Enabled);
+        Assert.True(decoded.Retain);
+        Assert.Equal(1, decoded.Qos);
+        Assert.Equal("plant/Station01/status", decoded.Topic);
+        Assert.Equal("offline", decoded.Payload);
     }
 }

@@ -8,6 +8,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
+using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
@@ -893,7 +894,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     private string _mqttWillTopic = "factory/dtu/status";
 
     [ObservableProperty]
-    private string _mqttWillPayload = "{\"status\":\"offline\"}";
+    private string _mqttWillPayload = "offline";
 
     [ObservableProperty]
     private int _mqttWillQos = 1;
@@ -2623,7 +2624,19 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     partial void OnMqttKeepAliveChanged(ushort value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.KeepAliveSec != value) MqttBrokerConfigVM.KeepAliveSec = value; }
     partial void OnMqttWillEnabledChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillEnabled != value) MqttBrokerConfigVM.WillEnabled = value; }
     partial void OnMqttWillTopicChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillTopic != value) MqttBrokerConfigVM.WillTopic = value; }
-    partial void OnMqttWillPayloadChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillPayload != value) MqttBrokerConfigVM.WillPayload = value; }
+    partial void OnMqttWillPayloadChanged(string value)
+    {
+        if (value != null && (value.Contains('"') || value.Contains('\\')))
+        {
+            string sanitized = value.Replace("\"", string.Empty).Replace("\\", string.Empty);
+            if (sanitized != value)
+            {
+                MqttWillPayload = sanitized;
+                return;
+            }
+        }
+        if (MqttBrokerConfigVM != null && value != null && MqttBrokerConfigVM.WillPayload != value) MqttBrokerConfigVM.WillPayload = value;
+    }
     partial void OnMqttWillQosChanged(int value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillQos != (byte)value) MqttBrokerConfigVM.WillQos = (byte)value; }
     partial void OnMqttWillRetainChanged(bool value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.WillRetain != value) MqttBrokerConfigVM.WillRetain = value; }
     partial void OnMqttTlsCaCertPathChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.CaCertPath != value) MqttBrokerConfigVM.CaCertPath = value; }
@@ -2808,15 +2821,29 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     public MqttWillConfigDto BuildMqttWillDto()
     {
+        string effectiveClientId = string.IsNullOrWhiteSpace(MqttClientId) ? "SynaptiX_DTU" : MqttClientId.Trim();
+        string rawTopic = MqttWillTopic ?? string.Empty;
+        string resolvedTopic = rawTopic.Replace("{device}", effectiveClientId, StringComparison.OrdinalIgnoreCase).Trim();
+        string rawPayload = string.IsNullOrWhiteSpace(MqttWillPayload) || MqttWillPayload == "{\"status\":\"offline\"}" ? "offline" : MqttWillPayload;
+        string resolvedPayload = rawPayload.Replace("{device}", effectiveClientId, StringComparison.OrdinalIgnoreCase);
+
+        resolvedPayload = resolvedPayload.Replace("\"", string.Empty).Replace("\\", string.Empty);
+        if (resolvedPayload.Length > MqttWillConfigCodec.MaxPayloadChars)
+        {
+            resolvedPayload = resolvedPayload.Substring(0, MqttWillConfigCodec.MaxPayloadChars);
+        }
+
         return new MqttWillConfigDto
         {
             Enabled = MqttWillEnabled,
-            Topic = MqttWillTopic,
-            Payload = MqttWillPayload,
+            Topic = resolvedTopic,
+            Payload = resolvedPayload,
             Qos = (byte)MqttWillQos,
             Retain = MqttWillRetain
         };
     }
+
+
 
     private void AppendLog(string message)
     {

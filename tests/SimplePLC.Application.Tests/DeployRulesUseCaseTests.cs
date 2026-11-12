@@ -181,5 +181,63 @@ public class DeployRulesUseCaseTests
         var mqttControlReg = await fakeClient.ReadHoldingRegistersAsync(1, ModbusRegisterMap.MqttTelemetryTableBaseAddress, 1);
         Assert.NotEqual(0, mqttControlReg[0]);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithMqttWillConfig_ForwardsLwtToWriterAndLogs0x0E60()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        var writer = new RuleTableWriter(fakeClient);
+        var useCase = new DeployRulesUseCase(writer);
+
+        var table = new RuleTable();
+        var di0 = _product.FindTagByName("DI0")!;
+        var do0 = _product.FindTagByName("DO0")!;
+        table.AddRule(new Rule(0, "R1", new TriggerModel(di0, TriggerKind.OnRise), new ActionModel(do0, ActionKind.SetTag, 1)));
+
+        var brokerConfig = new SimplePLC.Protocol.Dto.MqttBrokerConfigDto
+        {
+            Enabled = true,
+            Host = "10.0.0.1",
+            Port = 1883
+        };
+
+        var willConfig = new SimplePLC.Protocol.Dto.MqttWillConfigDto
+        {
+            Enabled = true,
+            Topic = "device/node01/status",
+            Payload = "offline",
+            Qos = 1,
+            Retain = true
+        };
+
+        var logs = new List<string>();
+
+        // Act
+        var result = await useCase.ExecuteAsync(
+            table,
+            timers: null,
+            counters: null,
+            mqttConfigs: null,
+            brokerConfig: brokerConfig,
+            mqttSubConfigs: null,
+            modbusMasterConfigs: null,
+            modbusMasterWriteConfigs: null,
+            directWriteConfigs: null,
+            modbusPortConfigs: null,
+            slaveMapConfigs: null,
+            tagDataTypes: null,
+            dtuConfig: null,
+            mqttWillConfig: willConfig,
+            tlsCertificates: null,
+            slaveId: 1,
+            ct: default,
+            progressLogger: logs.Add);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Contains(logs, l => l.Contains("[MQTT LWT] Writing 32 registers to 0x0E60") && l.Contains("device/node01/status"));
+    }
 }
 
