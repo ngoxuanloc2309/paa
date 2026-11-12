@@ -1,3 +1,4 @@
+using SimplePLC.Domain.Enums;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 

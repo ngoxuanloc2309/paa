@@ -84,7 +84,7 @@ public class ToolboxIecNamingTests
 
         // 1. Device with RS-485 Modbus Master but NO Network (e.g. Remote I/O)
         var modbusOnly = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai(
-            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER,
+            hardwareCapabilities: SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER,
             physicalRs485PortCount: 1);
         tagCatalog.SyncWithProductDefinition(modbusOnly);
 
@@ -101,7 +101,7 @@ public class ToolboxIecNamingTests
             resources: SimplePLC.Domain.Models.ProductResourceProfile.DefaultRemoteIo,
             tags: System.Array.Empty<SimplePLC.Domain.Models.TagDefinition>(),
             wireProfile: 2,
-            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC,
+            hardwareCapabilities: SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.BASE_LOGIC,
             physicalRs485PortCount: 0);
         tagCatalog.SyncWithProductDefinition(discreteOnly);
 
@@ -118,12 +118,12 @@ public class ToolboxIecNamingTests
             resources: SimplePLC.Domain.Models.ProductResourceProfile.DefaultRemoteIo,
             tags: System.Array.Empty<SimplePLC.Domain.Models.TagDefinition>(),
             wireProfile: 2,
-            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC
-                | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.ETHERNET
-                | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_PUB
-                | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_SUB
-                | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER
-                | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.TRANSPARENT_STREAM,
+            hardwareCapabilities: SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.BASE_LOGIC
+                | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.ETHERNET
+                | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MQTT_PUB
+                | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MQTT_SUB
+                | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER
+                | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.TRANSPARENT_STREAM,
             physicalRs485PortCount: 2);
         tagCatalog.SyncWithProductDefinition(iiotPlc);
 

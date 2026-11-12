@@ -6,6 +6,9 @@ using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
+/// <summary>
+/// Chuyển đổi hai chiều giữa mô hình miền Rule và DTO giao thức Modbus RuleRecordDto (32-byte).
+/// </summary>
 public static class RuleMapper
 {
     public static RuleRecordDto ToDto(Rule domainRule)
@@ -28,6 +31,9 @@ public static class RuleMapper
             ActionParam = domainRule.Action.IsFloat
                 ? BitConverter.SingleToInt32Bits((float)domainRule.Action.Parameter)
                 : (int)Math.Round(domainRule.Action.Parameter),
+            AuxParam = domainRule.Action.IsFloat
+                ? BitConverter.SingleToInt32Bits((float)domainRule.Action.AuxParameter)
+                : (int)Math.Round(domainRule.Action.AuxParameter),
             TriggerTag = domainRule.Trigger.Tag.TagIndex,
             ActionTag = domainRule.Action.TargetTag.TagIndex,
             Enabled = domainRule.Enabled,
@@ -73,7 +79,15 @@ public static class RuleMapper
             ForMs = dto.ForMs
         };
 
-        var action = new ActionModel(actionTag, (ActionKind)dto.ActionType, isActionFloat ? dto.ActionParamFloat : dto.ActionParam)
+        double auxParam = isActionFloat
+            ? (dto.AuxParam != 0 || dto.ThresholdHi == 0 ? dto.AuxParamFloat : dto.ThresholdHiFloat)
+            : (dto.AuxParam != 0 || dto.ThresholdHi == 0 ? dto.AuxParam : dto.ThresholdHi);
+
+        var action = new ActionModel(
+            actionTag,
+            (ActionKind)dto.ActionType,
+            isActionFloat ? dto.ActionParamFloat : dto.ActionParam,
+            auxParam)
         {
             IsFloat = isActionFloat
         };

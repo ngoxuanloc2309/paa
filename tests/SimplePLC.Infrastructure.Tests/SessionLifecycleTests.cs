@@ -28,7 +28,7 @@ public class SessionLifecycleTests
         var descriptor = new DeviceDescriptorDto
         {
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884,
             ProtocolVersion = 1,
             RuleFormatVersion = 1
         };

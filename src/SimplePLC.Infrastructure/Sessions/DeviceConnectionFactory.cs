@@ -92,12 +92,12 @@ public sealed class DeviceConnectionFactory : IDeviceConnectionFactory
             var resourceInfo = await descriptorReader.ReadResourceInfoAsync(slaveId, ct).ConfigureAwait(false);
 
             // 3.1 Đọc HardwareCapabilities tại 0x0A08 (nếu Wire Profile V2)
-            var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+            var capabilities = SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.NONE;
             ushort? rs485PortCount = null;
             if (resourceInfo.WireProfile >= 2)
             {
                 capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, ct).ConfigureAwait(false);
-                bool hasModbus = (capabilities & SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                bool hasModbus = (capabilities & SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
                 rs485PortCount = await descriptorReader.ReadPhysicalRs485PortCountAsync(slaveId, hasModbus, ct).ConfigureAwait(false);
             }
 

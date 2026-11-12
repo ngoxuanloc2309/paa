@@ -18,7 +18,7 @@ public sealed class DtuDeviceClassificationTests
         var dtuDescriptor = new DeviceDescriptorDto
         {
             DeviceClass = SPLC_DeviceClass.DTU,
-            DeviceVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            DeviceVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
             ProtocolVersion = 2,
             RuleFormatVersion = 7,
             HwVersionMajor = 1,
@@ -46,7 +46,7 @@ public sealed class DtuDeviceClassificationTests
         // Act
         var success = DeviceProfileBuilder.TryBuild(
             deviceClass: (ushort)SPLC_DeviceClass.DTU,
-            productVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            productVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
             protocolVersion: 2,
             wireProfile: 2,
             maxRules: 50,

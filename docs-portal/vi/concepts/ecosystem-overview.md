@@ -163,6 +163,21 @@ Nếu một **Thiết bị Biên SynaptiX** thực tế đang kết nối với 
 - Phiên bản phần cứng (`HW`), phiên bản firmware (`FW`), số kênh I/O, số thanh ghi lưu trữ và trần số luật được đồng bộ chính xác 100% vào dự án.
 - Thiết bị vật lý đóng vai trò **Nguồn Chân lý Duy nhất (Single Source of Truth)**, loại bỏ hoàn toàn nguy cơ chọn nhầm cấu hình khi làm việc tại tủ điện hiện trường.
 
+### Nhận Diện Biến Thể Phần Cứng (`DeviceClass` & `DeviceVariant`) & Khóa An Toàn
+
+Bên trong vi điều khiển, mỗi thiết bị mang cặp mã định danh nhị phân bất biến:
+- **`DeviceClass` (Nhóm Thiết bị):** Phân định vai trò chính: Remote I/O (`1`), Datalogger (`2`), Gateway (`3`), Controller (`4`), DTU (`5`).
+- **`DeviceVariant` (Biến thể Phần cứng):** Phân định model phần cứng và số lượng chân I/O thực tế:
+  - *Nhóm Remote I/O:* Biến thể `1` (SYNX-RIO-884: `8DI / 8DO / 4AI`), Biến thể `2` (SYNX-RIO-440-WF: `4DI / 4DO Relay Wi-Fi`), Biến thể `3` (SYNX-RIO-440: `4DI / 4DO Compact`), Biến thể `4` (SYNX-RIO-880: `8DI / 8DO Relay`), Biến thể `5` (SYNX-RIO-440-ZB: `4DI / 4DO Relay Zigbee`).
+  - *Nhóm Datalogger:* Biến thể `1` (`8AI` đo lường — SYNX-DL-8AI).
+  - *Nhóm Gateway:* Biến thể `1` (Cầu nối RS-485 sang Ethernet — SYNX-GW-485-ETH).
+  - *Nhóm Controller:* Biến thể `1` (Bộ điều khiển lập trình logic thời gian thực).
+  - *Nhóm DTU:* Biến thể `1` (Truyền tin RS-485 lên mạng đám mây MQTT/HTTP/TCP).
+
+::: tip Khóa An Toàn Bảo Vệ Chống Nạp Nhầm Mạch Phần Cứng
+Khi bạn nhấn nạp chương trình xuống tủ điện (`Ctrl+F5`), **SynaptiX IDE** tự động kiểm tra đối chiếu mã `DeviceVariant`. Nếu dự án đang vẽ sơ đồ cho mạch 16 DI/DO nhưng lại cắm cáp nạp vào bo mạch chỉ có 4 DI/DO, phần mềm sẽ hiển thị cảnh báo `UnsupportedDeviceVariant` và khóa nút nạp chương trình để triệt tiêu nguy cơ điều khiển sai lệch hoặc chập cháy thiết bị chấp hành.
+:::
+
 ::: warning Yêu cầu Phiên Kết nối Đang Hoạt động
 Nếu chưa mở phiên kết nối thiết bị mà nhấn **Detect from Connected Device**, hộp thoại sẽ hiển thị thông báo nhắc kỹ sư kết nối thiết bị qua thanh công cụ phía trên (`F4`) trước, hoặc tiếp tục thiết kế ngoại tuyến bằng một trong 7 mẫu định sẵn.
 :::

@@ -315,12 +315,28 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{(int)Math.Round(rule.Action.Parameter)})";
                 break;
             case ActionKind.AddTag:
-                afterVal = beforeVal + sourceValue;
-                Write(targetIndex, afterVal);
-                formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{sourceValue})";
+                if (rule.Action.IsFloat || rule.Action.TargetTag.DataType == TagDataType.Float32)
+                {
+                    float tValF = (rule.Trigger.IsFloat || rule.Trigger.Tag.DataType == TagDataType.Float32)
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
+                    float aValF = BitConverter.Int32BitsToSingle(beforeVal);
+                    float sumF = aValF + tValF;
+                    afterVal = BitConverter.SingleToInt32Bits(sumF);
+                    Write(targetIndex, afterVal);
+                    formattedDelta = $"{targetName}: {aValF:0.##} → {sumF:0.##} (+{tValF:0.##})";
+                }
+                else
+                {
+                    afterVal = beforeVal + sourceValue;
+                    Write(targetIndex, afterVal);
+                    formattedDelta = $"{targetName}: {beforeVal} → {afterVal} (+{sourceValue})";
+                }
                 break;
             case ActionKind.ScaleTag:
-                if (rule.Action.IsFloat)
+                if (rule.Action.IsFloat || rule.Trigger.IsFloat ||
+                    rule.Action.TargetTag.DataType == TagDataType.Float32 ||
+                    rule.Trigger.Tag.DataType == TagDataType.Float32)
                 {
                     float inValFloat = rule.Trigger.Tag.DataType == TagDataType.Float32
                         ? BitConverter.Int32BitsToSingle(sourceValue)

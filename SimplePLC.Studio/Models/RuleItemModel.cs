@@ -73,7 +73,23 @@ public partial class RuleItemModel : ObservableObject
     [ObservableProperty]
     private double _thresholdHi;
 
-    public bool IsFloat => Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 || Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
+    /// <summary>
+    /// Cho biết Tag kích hoạt hoặc ngưỡng so sánh của luật này sử dụng số thực IEEE-754 Float32.
+    /// </summary>
+    public bool IsTriggerFloat =>
+        TriggerTag?.DataType == TagDataType.Float32 ||
+        Math.Abs(ThresholdLo - Math.Round(ThresholdLo)) > 1e-6 ||
+        Math.Abs(ThresholdHi - Math.Round(ThresholdHi)) > 1e-6;
+
+    /// <summary>
+    /// Cho biết Tag đích của hành động sử dụng số thực IEEE-754 Float32.
+    /// </summary>
+    public bool IsActionFloat => ActionTag?.DataType == TagDataType.Float32;
+
+    /// <summary>
+    /// Cho biết luật logic này có tham gia tính toán số thực IEEE-754 Float32 hay không.
+    /// </summary>
+    public bool IsFloat => IsTriggerFloat || IsActionFloat;
 
     [ObservableProperty]
     private uint _forMs;

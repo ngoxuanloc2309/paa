@@ -42,7 +42,7 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
         return RegisterCodec.DecodeDeviceResourceInfo(rawRegisters);
     }
 
-    public async Task<SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities> ReadHardwareCapabilitiesAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
+    public async Task<SimplePLC.Domain.Enums.SPLC_HardwareCapabilities> ReadHardwareCapabilitiesAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -67,7 +67,7 @@ public sealed class DeviceDescriptorReader : IDeviceDescriptorReader
             // Fallback an toàn cho firmware đời cũ chưa mở thanh ghi 0x0A08
         }
 
-        return SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+        return SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.NONE;
     }
 
     public async Task<ushort> ReadPhysicalRs485PortCountAsync(byte slaveId = 1, bool hasModbusMasterCap = true, CancellationToken cancellationToken = default)

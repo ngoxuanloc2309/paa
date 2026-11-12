@@ -57,10 +57,11 @@ public static class RegisterCodec
         byte actionTypeByte = (byte)rule.ActionType;
         destination[12] = PackBytes(compareOpByte, actionTypeByte);
 
-        // +13..+15: reserved[6] (Reg 13 High byte = flags, Low byte + Reg 14..15 luôn ghi 0)
+        // +13: flags / reserved_byte (High byte = flags, Low byte = 0)
         destination[13] = PackBytes(rule.Flags, 0);
-        destination[14] = 0;
-        destination[15] = 0;
+
+        // +14..+15: aux_param (int32_t / float32_t, High Word -> Low Word)
+        EncodeInt32(rule.AuxParam, destination.Slice(14, 2));
     }
 
     /// <summary>
@@ -88,7 +89,8 @@ public static class RegisterCodec
             TriggerType = (SPLC_TriggerType)triggerTypeByte,
             CompareOp = (SPLC_CompareOp)compareOpByte,
             ActionType = (SPLC_ActionType)actionTypeByte,
-            Flags = flagsByte
+            Flags = flagsByte,
+            AuxParam = DecodeInt32(source.Slice(14, 2))
         };
     }
 

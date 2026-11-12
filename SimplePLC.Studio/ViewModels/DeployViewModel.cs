@@ -459,13 +459,13 @@ public partial class DeployViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void NavigateToRules() => _navigateTab?.Invoke(2);
+    public void NavigateToRules() => _navigateTab?.Invoke(AppTabIndices.RuleTable);
 
     [RelayCommand]
-    public void NavigateToLogicEditor() => _navigateTab?.Invoke(0);
+    public void NavigateToLogicEditor() => _navigateTab?.Invoke(AppTabIndices.LogicGraph);
 
     [RelayCommand]
-    public void NavigateToLiveWatch() => _navigateTab?.Invoke(5);
+    public void NavigateToLiveWatch() => _navigateTab?.Invoke(AppTabIndices.LiveWatch);
 
     [RelayCommand]
     public void ClearLog() => ConsoleLog = LocalizationService.Instance.IsVietnamese ? "// Đã xóa nhật ký.\n" : "// Log cleared.\n";

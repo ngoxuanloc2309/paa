@@ -23,6 +23,7 @@ public sealed class DtuQuickSetupWizardViewModelTests
 
     public DtuQuickSetupWizardViewModelTests()
     {
+        LocalizationService.Instance.CurrentLanguage = "en";
         _metadata = new ProjectMetadata();
         _tagCatalog = new TagCatalogViewModel();
         _logicEditor = new LogicEditorViewModel(_tagCatalog);

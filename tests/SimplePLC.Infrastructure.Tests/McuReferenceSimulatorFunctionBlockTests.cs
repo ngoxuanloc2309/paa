@@ -283,4 +283,146 @@ public class McuReferenceSimulatorFunctionBlockTests
         Assert.Equal(1, vregValue);
         Assert.Equal(1, sim.Control.GetCounter(0).CurrentValue);
     }
+
+    [Fact]
+    public void ExecuteScanPass_WhenCompiledTonTimerDeployedWithRuleRef_SyncsElapsedMsAndQToFbTable()
+    {
+        var sim = new McuReferenceSimulator();
+
+        // Rule 0 (RuleRef = 1): DI0 (Tag 0) ON_RISE for 100ms -> SET DO0 (Tag 8) = 1
+        // Rule 1: DI0 (Tag 0) ON_FALL for 0ms -> SET DO0 (Tag 8) = 0
+        var rule0 = new RuleRecordDto
+        {
+            Enabled = true,
+            TriggerTag = 0, // DI0
+            TriggerType = SPLC_TriggerType.ON_RISE,
+            ForMs = 100,
+            ActionTag = 8,  // DO0
+            ActionType = SPLC_ActionType.SET_TAG,
+            ActionParam = 1,
+            GuardTag = ModbusRegisterMap.GuardTagNone
+        };
+        var rule1 = new RuleRecordDto
+        {
+            Enabled = true,
+            TriggerTag = 0, // DI0
+            TriggerType = SPLC_TriggerType.ON_FALL,
+            ForMs = 0,
+            ActionTag = 8,  // DO0
+            ActionType = SPLC_ActionType.SET_TAG,
+            ActionParam = 0,
+            GuardTag = ModbusRegisterMap.GuardTagNone
+        };
+        sim.Control.SetActiveRule(0, rule0);
+        sim.Control.SetActiveRule(1, rule1);
+
+        var timer = new FbTimerRecordDto
+        {
+            Mode = SPLC_TimerMode.TON,
+            PresetMs = 100,
+            ElapsedMs = 0,
+            RuleRef = 1 // 1-based reference to rule0
+        };
+        sim.Control.SetTimer(0, timer);
+
+        // Prime scan with DI0 = 0
+        sim.Control.SetTagValue(0, 0);
+        sim.ExecuteScanPass(10);
+
+        // Energize DI0 = 1 -> Scan 1 (40ms): ElapsedMs = 40, Running = true, Q = false, In = true
+        sim.Control.SetTagValue(0, 1);
+        sim.ExecuteScanPass(40);
+        var t1 = sim.Control.GetTimer(0);
+        Assert.True(t1.In);
+        Assert.Equal(40u, t1.ElapsedMs);
+        Assert.True(t1.Running);
+        Assert.False(t1.Q);
+        Assert.Equal(0, sim.Control.GetTagValue(8));
+
+        // Scan 2 (60ms -> total 100ms): ElapsedMs = 100, Running = false, Q = true
+        sim.ExecuteScanPass(60);
+        var t2 = sim.Control.GetTimer(0);
+        Assert.True(t2.In);
+        Assert.Equal(100u, t2.ElapsedMs);
+        Assert.False(t2.Running);
+        Assert.True(t2.Q);
+        Assert.Equal(1, sim.Control.GetTagValue(8));
+
+        // Drop DI0 = 0 -> ElapsedMs resets to 0, Q = false, In = false
+        sim.Control.SetTagValue(0, 0);
+        sim.ExecuteScanPass(10);
+        var t3 = sim.Control.GetTimer(0);
+        Assert.False(t3.In);
+        Assert.Equal(0u, t3.ElapsedMs);
+        Assert.False(t3.Running);
+        Assert.False(t3.Q);
+        Assert.Equal(0, sim.Control.GetTagValue(8));
+    }
+
+    [Fact]
+    public void ExecuteScanPass_WhenCompiledCtuCounterDeployedWithRetainTag_PreservesCountAcrossScansAndSyncsToFbTable()
+    {
+        var sim = new McuReferenceSimulator();
+
+        // Rule 0: DI0 (Tag 0) ON_RISE -> INC_COUNTER Tag 84 (VREG_RETAIN0) by 1
+        // Rule 1: Tag 84 >= 2 -> SET DO0 (Tag 8) = 1
+        var rule0 = new RuleRecordDto
+        {
+            Enabled = true,
+            TriggerTag = 0, // DI0
+            TriggerType = SPLC_TriggerType.ON_RISE,
+            ActionTag = 84, // CV tag
+            ActionType = SPLC_ActionType.INC_COUNTER,
+            ActionParam = 1,
+            GuardTag = ModbusRegisterMap.GuardTagNone
+        };
+        var rule1 = new RuleRecordDto
+        {
+            Enabled = true,
+            TriggerTag = 84,
+            TriggerType = SPLC_TriggerType.ON_CHANGE,
+            CompareOp = SPLC_CompareOp.GTE,
+            ThresholdLo = 2,
+            ActionTag = 8,  // DO0
+            ActionType = SPLC_ActionType.SET_TAG,
+            ActionParam = 1,
+            GuardTag = ModbusRegisterMap.GuardTagNone
+        };
+        sim.Control.SetActiveRule(0, rule0);
+        sim.Control.SetActiveRule(1, rule1);
+
+        var counter = new FbCounterRecordDto
+        {
+            Mode = SPLC_CounterMode.CTU,
+            PresetValue = 2,
+            CurrentValue = 0,
+            RetainTagIndex = 84
+        };
+        sim.Control.SetCounter(0, counter);
+
+        // Prime scan with DI0 = 0
+        sim.Control.SetTagValue(0, 0);
+        sim.ExecuteScanPass(10);
+
+        // Pulse 1 on DI0
+        sim.Control.SetTagValue(0, 1);
+        sim.ExecuteScanPass(10);
+        Assert.Equal(1, sim.Control.GetTagValue(84));
+        Assert.Equal(1, sim.Control.GetCounter(0).CurrentValue);
+        Assert.False(sim.Control.GetCounter(0).Q);
+
+        // Next scan with DI0 = 0: Tag 84 MUST NOT be overwritten back to 0!
+        sim.Control.SetTagValue(0, 0);
+        sim.ExecuteScanPass(10);
+        Assert.Equal(1, sim.Control.GetTagValue(84));
+        Assert.Equal(1, sim.Control.GetCounter(0).CurrentValue);
+
+        // Pulse 2 on DI0 -> reaches PresetValue = 2 -> Q = true, DO0 = 1
+        sim.Control.SetTagValue(0, 1);
+        sim.ExecuteScanPass(10);
+        Assert.Equal(2, sim.Control.GetTagValue(84));
+        Assert.Equal(2, sim.Control.GetCounter(0).CurrentValue);
+        Assert.True(sim.Control.GetCounter(0).Q);
+        Assert.Equal(1, sim.Control.GetTagValue(8));
+    }
 }

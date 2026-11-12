@@ -151,13 +151,13 @@ public class DeploySafetyGateTests : IDisposable
         var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicEditorVM: null, tab => navigatedTab = tab);
 
         deployVM.NavigateToRulesCommand.Execute(null);
-        Assert.Equal(2, navigatedTab);
+        Assert.Equal(AppTabIndices.RuleTable, navigatedTab);
 
         deployVM.NavigateToLogicEditorCommand.Execute(null);
-        Assert.Equal(0, navigatedTab);
+        Assert.Equal(AppTabIndices.LogicGraph, navigatedTab);
 
         deployVM.NavigateToLiveWatchCommand.Execute(null);
-        Assert.Equal(5, navigatedTab);
+        Assert.Equal(AppTabIndices.LiveWatch, navigatedTab);
     }
 
     [Fact]

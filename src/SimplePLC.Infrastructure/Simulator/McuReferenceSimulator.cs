@@ -1,9 +1,10 @@
+using SimplePLC.Domain.Enums;
+using SimplePLC.Domain.Models;
 using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
-using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Infrastructure.Simulator;
 
@@ -104,7 +105,7 @@ public sealed class McuReferenceSimulator
     {
         // 0x0000 - 0x0009: Bất biến phần cứng vĩnh cửu
         _memory.InternalWrite(0, (ushort)SPLC_DeviceClass.REMOTE_IO);
-        _memory.InternalWrite(1, (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI);
+        _memory.InternalWrite(1, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884);
         _memory.InternalWrite(2, 1); // HW Major
         _memory.InternalWrite(3, 0); // HW Minor
         _memory.InternalWrite(4, 0); // HW Patch
@@ -337,8 +338,13 @@ public sealed class McuReferenceSimulator
                 timer.ElapsedMs = 0;
                 timer.Running = false;
                 timer.Q = false;
+                if (timer.RuleRef >= 1 && timer.RuleRef <= ModbusRegisterMap.MaxRules)
+                {
+                    _ruleDwellElapsedMs[timer.RuleRef - 1] = 0;
+                    timer.Reset = false;
+                }
             }
-            else
+            else if (timer.RuleRef == 0)
             {
                 switch (timer.Mode)
                 {
@@ -458,12 +464,14 @@ public sealed class McuReferenceSimulator
                 bool cuNow = counter.Cu;
                 bool cdNow = counter.Cd;
                 bool rNow = counter.Reset;
+                bool directEdge = false;
 
                 if (rNow && !_prevCounterR[i])
                 {
                     // Sườn lên của chân Reset: đưa về 0
                     counter.CurrentValue = 0;
                     counter.Q = false;
+                    directEdge = true;
                 }
                 else if (cuNow && !_prevCounterCu[i])
                 {
@@ -473,6 +481,7 @@ public sealed class McuReferenceSimulator
                     {
                         counter.Q = true;
                     }
+                    directEdge = true;
                 }
                 else if (cdNow && !_prevCounterCd[i])
                 {
@@ -482,6 +491,7 @@ public sealed class McuReferenceSimulator
                     {
                         counter.Q = true;
                     }
+                    directEdge = true;
                 }
 
                 _prevCounterCu[i] = cuNow;
@@ -492,8 +502,9 @@ public sealed class McuReferenceSimulator
 
                 var layout = GetTagLayout();
 
-                // Đồng bộ sang thanh ghi lưu trữ (VREG, VREG_RETAIN, VFLAG, COUNTER...) nếu có cấu hình
-                if (counter.RetainTagIndex != ModbusRegisterMap.FbCounterRetainNone &&
+                // Đồng bộ sang thanh ghi lưu trữ (VREG, VREG_RETAIN, VFLAG, COUNTER...) khi có xung trực tiếp trên StatusBits
+                if (directEdge &&
+                    counter.RetainTagIndex != ModbusRegisterMap.FbCounterRetainNone &&
                     counter.RetainTagIndex < layout.TotalTags)
                 {
                     WriteTagValue(counter.RetainTagIndex, counter.CurrentValue);
@@ -679,6 +690,7 @@ public sealed class McuReferenceSimulator
                                     _ruleDwellElapsedMs[r] += deltaMs;
                                     if (_ruleDwellElapsedMs[r] >= rule.ForMs)
                                     {
+                                        _ruleDwellElapsedMs[r] = rule.ForMs;
                                         triggerFired = true;
                                     }
                                 }
@@ -702,10 +714,88 @@ public sealed class McuReferenceSimulator
             }
         }
 
+        // 6. Đồng bộ trạng thái Telemetry từ Rule Engine và Runtime Tags ngược về bảng Function Block (0x0B00 / 0x0B40)
+        SynchronizeFunctionBlockTelemetry(activeRuleCount);
+
         // Cập nhật giá trị chu kỳ trước cho lần quét tiếp theo
         for (int i = 0; i < ModbusRegisterMap.MaxRuntimeTags; i++)
         {
             _prevTagValues[i] = ReadTagValue((ushort)i);
+        }
+    }
+
+    private void SynchronizeFunctionBlockTelemetry(ushort activeRuleCount)
+    {
+        var layout = GetTagLayout();
+
+        // 6a. Đồng bộ Timers có RuleRef >= 1 với quy tắc đếm thời gian tương ứng trong Active Rule Table
+        for (int i = 0; i < ModbusRegisterMap.FbMaxTimers; i++)
+        {
+            ushort baseAddr = ModbusRegisterMap.GetFbTimerAddress(i);
+            Span<ushort> timerRegs = _memory.InternalMutableSpan(baseAddr, ModbusRegisterMap.FbRegistersPerBlock);
+            var timer = FunctionBlockCodec.DecodeTimer(timerRegs);
+
+            if (timer.Mode == SPLC_TimerMode.DISABLED || timer.RuleRef == 0 || timer.RuleRef > activeRuleCount || timer.RuleRef > ModbusRegisterMap.MaxRules)
+                continue;
+
+            int r = timer.RuleRef - 1;
+            ushort ruleAddr = (ushort)(ModbusRegisterMap.ActiveRuleTableBaseAddress + r * ModbusRegisterMap.RegistersPerRule);
+            Span<ushort> ruleSpan = _memory.InternalMutableSpan(ruleAddr, ModbusRegisterMap.RegistersPerRule);
+            var rule = RegisterCodec.DecodeRuleRecord(ruleSpan);
+
+            uint dwellMs = _ruleDwellElapsedMs[r];
+            bool qNow = rule.ActionTag < ModbusRegisterMap.MaxRuntimeTags && ReadTagValue(rule.ActionTag) != 0;
+            bool trigTagActive = rule.TriggerTag < ModbusRegisterMap.MaxRuntimeTags && ReadTagValue(rule.TriggerTag) != 0;
+
+            switch (timer.Mode)
+            {
+                case SPLC_TimerMode.TON:
+                    timer.In = dwellMs > 0 || qNow || trigTagActive;
+                    timer.Q = qNow;
+                    timer.ElapsedMs = qNow ? timer.PresetMs : Math.Min(dwellMs, timer.PresetMs);
+                    timer.Running = timer.In && !timer.Q && timer.ElapsedMs > 0;
+                    break;
+
+                case SPLC_TimerMode.TOF:
+                    timer.Q = qNow;
+                    timer.In = qNow && dwellMs == 0 && !trigTagActive ? false : (qNow && dwellMs == 0);
+                    timer.ElapsedMs = Math.Min(dwellMs, timer.PresetMs);
+                    timer.Running = timer.Q && dwellMs > 0 && dwellMs < timer.PresetMs;
+                    break;
+
+                case SPLC_TimerMode.TP:
+                case SPLC_TimerMode.CYCLE:
+                    timer.Q = qNow;
+                    timer.In = qNow || dwellMs > 0;
+                    timer.ElapsedMs = Math.Min(dwellMs, timer.PresetMs);
+                    timer.Running = dwellMs > 0 && dwellMs < timer.PresetMs;
+                    break;
+            }
+
+            FunctionBlockCodec.EncodeTimer(timer, timerRegs);
+        }
+
+        // 6b. Đồng bộ Counters có RetainTagIndex hợp lệ từ giá trị Tag thực tế sau khi Rule Engine thực thi
+        for (int i = 0; i < ModbusRegisterMap.FbMaxCounters; i++)
+        {
+            ushort baseAddr = ModbusRegisterMap.GetFbCounterAddress(i);
+            Span<ushort> counterRegs = _memory.InternalMutableSpan(baseAddr, ModbusRegisterMap.FbRegistersPerBlock);
+            var counter = FunctionBlockCodec.DecodeCounter(counterRegs);
+
+            if (counter.Mode == SPLC_CounterMode.DISABLED ||
+                counter.RetainTagIndex == ModbusRegisterMap.FbCounterRetainNone ||
+                counter.RetainTagIndex >= layout.TotalTags)
+            {
+                continue;
+            }
+
+            int tagCv = ReadTagValue(counter.RetainTagIndex);
+            counter.CurrentValue = tagCv;
+            counter.Q = counter.Mode == SPLC_CounterMode.CTU
+                ? tagCv >= counter.PresetValue
+                : tagCv <= 0;
+
+            FunctionBlockCodec.EncodeCounter(counter, counterRegs);
         }
     }
 
@@ -779,14 +869,16 @@ public sealed class McuReferenceSimulator
                     int rawTrigVal = ReadTagValue(rule.TriggerTag);
                     float trigValFloat = rule.IsTriggerFloat ? BitConverter.Int32BitsToSingle(rawTrigVal) : (float)rawTrigVal;
                     float gain = rule.ActionParamFloat;
-                    float offset = rule.ThresholdHiFloat;
+                    // Hỗ trợ cả AuxParamFloat chuẩn mới và fallback sang ThresholdHiFloat nếu AuxParam=0
+                    float offset = (rule.AuxParam != 0 || rule.ThresholdHi == 0) ? rule.AuxParamFloat : rule.ThresholdHiFloat;
                     float scaledFloat = trigValFloat * gain + offset;
                     WriteTagValue(rule.ActionTag, BitConverter.SingleToInt32Bits(scaledFloat));
                 }
                 else
                 {
                     int trigVal = ReadTagValue(rule.TriggerTag);
-                    int scaledVal = (int)((long)trigVal * rule.ActionParam / 1000 + rule.ThresholdHi);
+                    int offset = (rule.AuxParam != 0 || rule.ThresholdHi == 0) ? rule.AuxParam : rule.ThresholdHi;
+                    int scaledVal = (int)((long)trigVal * rule.ActionParam / 1000 + offset);
                     WriteTagValue(rule.ActionTag, scaledVal);
                 }
                 break;
@@ -1443,7 +1535,7 @@ public sealed class McuReferenceSimulator
         }
     }
 
-    private ushort ReadFixedHoldingRegister(ushort addr, SimplePLC.Protocol.Models.TagLayoutMap layout)
+    private ushort ReadFixedHoldingRegister(ushort addr, TagLayoutMap layout)
     {
         // 0x0000: DI_WORD (Packed DI0..DI15)
         if (addr == ModbusSlaveFixedMap.DiWordAddress)
@@ -1611,7 +1703,7 @@ public sealed class McuReferenceSimulator
         }
     }
 
-    private void WriteFixedHoldingRegister(ushort addr, ushort val, SimplePLC.Protocol.Models.TagLayoutMap layout)
+    private void WriteFixedHoldingRegister(ushort addr, ushort val, TagLayoutMap layout)
     {
         if (addr == ModbusSlaveFixedMap.DoWordAddress)
         {

@@ -2,7 +2,7 @@ using System.IO.Ports;
 using SimplePLC.Infrastructure.Simulator;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Enums;
-using SimplePLC.Protocol.Models;
+using SimplePLC.Domain.Models;
 
 namespace SimplePLC.McuEmulator;
 

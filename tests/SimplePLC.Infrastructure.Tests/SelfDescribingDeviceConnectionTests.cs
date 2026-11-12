@@ -148,7 +148,7 @@ public class SelfDescribingDeviceConnectionTests
         sim.Control.Faults.OverrideDescriptor = new SimplePLC.Protocol.Dto.DeviceDescriptorDto
         {
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884,
             HwVersionMajor = 1,
             HwVersionMinor = 0,
             HwVersionPatch = 0,

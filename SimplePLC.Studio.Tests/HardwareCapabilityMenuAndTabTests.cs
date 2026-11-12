@@ -42,7 +42,7 @@ public sealed class HardwareCapabilityMenuAndTabTests
         var dtuMeta = new ProjectMetadata
         {
             DeviceClass = (ushort)SPLC_DeviceClass.DTU,
-            ProductVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            ProductVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
             HardwareCapabilities = (uint)(SPLC_HardwareCapabilities.MODBUS_MASTER |
                                           SPLC_HardwareCapabilities.WIFI |
                                           SPLC_HardwareCapabilities.MQTT_PUB |
@@ -58,11 +58,11 @@ public sealed class HardwareCapabilityMenuAndTabTests
         Assert.True(dtuVm.HasTcpSocketCapability);
         Assert.True(dtuVm.HasSystemCapability);
 
-        // 2. GATEWAY_RS485_ETH (Ethernet only, NO Wi-Fi)
+        // 2. SYNX_GW_220 (Ethernet only, NO Wi-Fi)
         var ethMeta = new ProjectMetadata
         {
             DeviceClass = (ushort)SPLC_DeviceClass.GATEWAY,
-            ProductVariant = (ushort)SPLC_GatewayVariant.VARIANT_RS485_ETH,
+            ProductVariant = (ushort)SPLC_GatewayVariant.VARIANT_GW_220,
             HardwareCapabilities = (uint)(SPLC_HardwareCapabilities.MODBUS_MASTER |
                                           SPLC_HardwareCapabilities.ETHERNET |
                                           SPLC_HardwareCapabilities.MQTT_PUB |
@@ -135,5 +135,106 @@ public sealed class HardwareCapabilityMenuAndTabTests
         vm.SelectFirstAvailableSection();
         Assert.Equal(0, vm.SelectedSectionIndex);
         Assert.True(vm.IsSectionRs485);
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_WhenConnectedToHardwareProduct_OverridesCapabilitiesAccurately()
+    {
+        // 1. Project metadata ban đầu có Full Comms (RS-485, Wi-Fi, MQTT, HTTP, TCP)
+        var dtuMeta = new ProjectMetadata
+        {
+            DeviceClass = (ushort)SPLC_DeviceClass.DTU,
+            ProductVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
+            HardwareCapabilities = (uint)(SPLC_HardwareCapabilities.MODBUS_MASTER |
+                                          SPLC_HardwareCapabilities.WIFI |
+                                          SPLC_HardwareCapabilities.MQTT_PUB |
+                                          SPLC_HardwareCapabilities.HTTP_CLIENT |
+                                          SPLC_HardwareCapabilities.TRANSPARENT_STREAM),
+            PhysicalRs485PortCount = 4
+        };
+        var dtuVm = new DtuGatewayStudioViewModel(dtuMeta);
+        Assert.True(dtuVm.HasWifiCapability);
+        Assert.True(dtuVm.HasRs485Capability);
+
+        // 2. MCU kết nối thực tế chỉ có RS-485 và Modbus Master (KHÔNG có Wi-Fi, 1 cổng RS-485)
+        var resources = new ProductResourceProfile(8, 8, 4, 32, 32, 32, 8);
+        var product = SimplePLC.Domain.Builders.DeviceProfileBuilder.Build(
+            (ushort)SPLC_DeviceClass.REMOTE_IO,
+            1,
+            2,
+            2,
+            100,
+            (ushort)resources.TotalTags,
+            resources,
+            hardwareCapabilities: SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.BASE_LOGIC,
+            physicalRs485PortCount: 1);
+
+        // Act: Sync with connected product
+        dtuVm.SyncWithHardwareProduct(product);
+
+        // Assert: Wi-Fi bị ẩn, RS-485 vẫn hiện
+        Assert.False(dtuVm.HasWifiCapability);
+        Assert.True(dtuVm.HasRs485Capability);
+        Assert.False(dtuVm.HasMqttCapability);
+        Assert.Single(dtuVm.ModbusPortConfigVM.Ports);
+
+        // Act: Ngắt kết nối (Disconnect)
+        dtuVm.SyncWithHardwareProduct(null);
+
+        // Assert: Khôi phục lại năng lực theo project metadata
+        Assert.True(dtuVm.HasWifiCapability);
+        Assert.True(dtuVm.HasMqttCapability);
+        Assert.Equal(4, dtuVm.ModbusPortConfigVM.Ports.Count);
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_WhenConnectedHardwareLacksCurrentSection_AutoFallsBackToAvailableSection()
+    {
+        var meta = new ProjectMetadata
+        {
+            HardwareCapabilities = (uint)(SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.WIFI)
+        };
+        var vm = new DtuGatewayStudioViewModel(meta);
+        vm.SelectSection(1); // Đang đứng ở Wi-Fi
+        Assert.True(vm.IsSectionWifi);
+
+        // Phần cứng kết nối chỉ có RS-485 (không có Wi-Fi)
+        var resources = new ProductResourceProfile(8, 8, 4, 32, 32, 32, 8);
+        var product = SimplePLC.Domain.Builders.DeviceProfileBuilder.Build(
+            (ushort)SPLC_DeviceClass.REMOTE_IO,
+            1,
+            2,
+            2,
+            100,
+            (ushort)resources.TotalTags,
+            resources,
+            hardwareCapabilities: SPLC_HardwareCapabilities.MODBUS_MASTER,
+            physicalRs485PortCount: 2);
+
+        vm.SyncWithHardwareProduct(product);
+
+        // Tự động nhảy về RS-485
+        Assert.True(vm.IsSectionRs485);
+        Assert.False(vm.HasWifiCapability);
+    }
+
+    [Fact]
+    public void ModbusPortConfigViewModel_WhenHardwarePortLimitSynced_ClampsAvailablePorts()
+    {
+        var meta = new ProjectMetadata
+        {
+            PhysicalRs485PortCount = 4
+        };
+        var vm = new ModbusPortConfigViewModel(meta);
+        Assert.Equal(4, vm.Ports.Count);
+
+        // Sync MCU hardware with only 1 physical port
+        vm.SyncHardwarePortLimit(1);
+        Assert.Single(vm.Ports);
+        Assert.Equal(0, vm.Ports[0].PortIndex);
+
+        // Disconnect -> restore 4 ports
+        vm.SyncHardwarePortLimit(null);
+        Assert.Equal(4, vm.Ports.Count);
     }
 }

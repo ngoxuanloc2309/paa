@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
 using SimplePLC.Application.Enums;
 using SimplePLC.Domain.Builders;
@@ -12,12 +12,15 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests verifying hardware capability gating across device presets.
+/// </summary>
 public class HardwareCapabilityGatingTests
 {
     [Fact]
     public void LogicEditor_CapabilityGating_RemoteIoDevice_DisablesMqtt_KeepsModbusMaster()
     {
-        var remoteIoPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "REMOTE_IO_8DI_8DO_4AI");
+        var remoteIoPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_RIO_884");
         var product = remoteIoPreset.BuildProductDefinition();
 
         var catalog = new TagCatalogViewModel();
@@ -59,7 +62,7 @@ public class HardwareCapabilityGatingTests
     [Fact]
     public void LogicEditor_CapabilityGating_GatewayDevice_EnablesMqttAndModbus()
     {
-        var gatewayPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "GATEWAY_RS485_ETH");
+        var gatewayPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_GW_220");
         var product = gatewayPreset.BuildProductDefinition();
 
         var catalog = new TagCatalogViewModel();
@@ -79,7 +82,7 @@ public class HardwareCapabilityGatingTests
         var editor = new LogicEditorViewModel(catalog, uiDispatcher: act => act());
 
         // Bắt đầu với Gateway (có MQTT & Modbus)
-        var gatewayPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "GATEWAY_RS485_ETH");
+        var gatewayPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_GW_220");
         catalog.SyncWithProductDefinition(gatewayPreset.BuildProductDefinition());
 
         Assert.True(editor.IsMqttPublishSupported);
@@ -87,7 +90,7 @@ public class HardwareCapabilityGatingTests
         Assert.True(editor.IsModbusMasterSupported);
 
         // Chuyển sang Remote IO (không có mạng, nhưng có RS-485)
-        var remoteIoPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "REMOTE_IO_8DI_8DO_4AI");
+        var remoteIoPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_RIO_884");
         catalog.SyncWithProductDefinition(remoteIoPreset.BuildProductDefinition());
 
         Assert.False(editor.IsMqttPublishSupported);
@@ -161,5 +164,30 @@ public class HardwareCapabilityGatingTests
 
         Assert.Contains(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Warning &&
                                                 (d.Message.Contains("Modbus Master") || d.Message.Contains("Modbus")));
+    }
+
+    [Fact]
+    public void RemoteIo_WifiVariant_Preset_HasCorrectWifiAndModbusTcpCapabilities()
+    {
+        // Arrange & Act
+        var wifiPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_RIO_440_WF");
+
+        // Assert
+        Assert.Equal((ushort)SPLC_DeviceClass.REMOTE_IO, (ushort)wifiPreset.DeviceClass);
+        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_WF, wifiPreset.DeviceVariant);
+        Assert.Equal(4, wifiPreset.DigitalInputs);
+        Assert.Equal(4, wifiPreset.DigitalOutputs);
+        Assert.Equal(0, wifiPreset.AnalogInputs);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.WIFI) != 0);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_TCP) != 0);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_SLAVE) != 0);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.MQTT_PUB) != 0);
+        Assert.True((wifiPreset.HardwareCapabilities & SPLC_HardwareCapabilities.MQTT_SUB) != 0);
+
+        var product = wifiPreset.BuildProductDefinition();
+        Assert.True(product.SupportsWifi);
+        Assert.True(product.SupportsMqttPublish);
+        Assert.True(product.SupportsMqttSubscribe);
     }
 }

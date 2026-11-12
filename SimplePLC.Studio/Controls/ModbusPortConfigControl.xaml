@@ -555,7 +555,7 @@
                                                         <TextBox Grid.Column="0" Text="{Binding SlaveId, UpdateSourceTrigger=PropertyChanged}"
                                                                  ToolTip="{Binding [ModbusColSlaveIdTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                  Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" />
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
 
                                                         <!-- Col 2: Function Code (FC01..FC16) -->
                                                         <ComboBox Grid.Column="2"
@@ -571,7 +571,7 @@
                                                         <TextBox Grid.Column="4" Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
                                                                  ToolTip="{Binding [ModbusColAddressTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                  Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" />
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
 
                                                         <!-- Col 6: Data Type -->
                                                         <ComboBox Grid.Column="6"
@@ -602,7 +602,7 @@
                                                         <TextBox Grid.Column="10" Text="{Binding ScaleText, UpdateSourceTrigger=LostFocus}"
                                                                  ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                  Style="{StaticResource FlatCellTextBoxStyle}"
-                                                                 Padding="4,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" />
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
 
                                                         <!-- Col 12: Target / Source Device Tag -->
                                                         <ComboBox Grid.Column="12"

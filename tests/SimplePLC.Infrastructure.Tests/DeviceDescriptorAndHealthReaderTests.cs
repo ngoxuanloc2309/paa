@@ -18,7 +18,7 @@ public class DeviceDescriptorAndHealthReaderTests
         var descriptor = await reader.ReadDescriptorAsync(1);
 
         Assert.Equal(SPLC_DeviceClass.REMOTE_IO, descriptor.DeviceClass);
-        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, descriptor.DeviceVariant);
+        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884, descriptor.DeviceVariant);
         Assert.Equal("1.0.0", descriptor.HwVersionString);
         Assert.Equal("2.0.0", descriptor.FwVersionString);
         Assert.Equal(2, descriptor.ProtocolVersion);

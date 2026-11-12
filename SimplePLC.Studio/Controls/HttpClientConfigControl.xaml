@@ -65,14 +65,14 @@
                                 <TextBlock Text="{Binding [HttpClientFieldUrl], Source={x:Static services:LocalizationService.Instance}}" 
                                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Text="{Binding Url.Length, StringFormat='{}{0}/64'}" 
-                                           FontSize="10.5" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
                             </DockPanel>
 
                             <!-- Row 1: Controls -->
                             <ComboBox Grid.Row="1" Grid.Column="0" 
                                       SelectedValue="{Binding Method, Mode=TwoWay}" SelectedValuePath="Tag" 
                                       ToolTip="{Binding [HttpClientFieldMethodTip], Source={x:Static services:LocalizationService.Instance}}"
-                                      Height="30" VerticalContentAlignment="Center">
+                                      Height="28" VerticalContentAlignment="Center">
                                 <ComboBoxItem Content="{Binding [HttpClientOptPostDesc], Source={x:Static services:LocalizationService.Instance}}" Tag="POST" />
                                 <ComboBoxItem Content="{Binding [HttpClientOptPutDesc], Source={x:Static services:LocalizationService.Instance}}" Tag="PUT" />
                             </ComboBox>
@@ -80,7 +80,7 @@
                             <TextBox Grid.Row="1" Grid.Column="2" 
                                      Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [HttpClientFieldUrlTip], Source={x:Static services:LocalizationService.Instance}}" 
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" />
                         </Grid>
 
                         <!-- Headers & Timeout Row -->
@@ -100,7 +100,7 @@
                                 <TextBlock Text="{Binding [HttpClientFieldHeaders], Source={x:Static services:LocalizationService.Instance}}" 
                                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Text="{Binding CustomHeaders.Length, StringFormat='{}{0}/56'}" 
-                                           FontSize="10.5" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
                             </DockPanel>
 
                             <TextBlock Grid.Row="0" Grid.Column="2" 
@@ -112,12 +112,12 @@
                             <TextBox Grid.Row="1" Grid.Column="0" 
                                      Text="{Binding CustomHeaders, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [HttpClientFieldHeadersTip], Source={x:Static services:LocalizationService.Instance}}" 
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" />
 
                             <TextBox Grid.Row="1" Grid.Column="2" 
                                      Text="{Binding TimeoutSec, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [HttpClientFieldTimeoutTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" TextAlignment="Right" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" TextAlignment="Right" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -158,7 +158,7 @@
                             <ComboBox Grid.Row="1" Grid.Column="0" 
                                       SelectedValue="{Binding TriggerMode, Mode=TwoWay}" SelectedValuePath="Tag" 
                                       ToolTip="{Binding [HttpClientFieldTriggerTip], Source={x:Static services:LocalizationService.Instance}}"
-                                      Height="30" VerticalContentAlignment="Center">
+                                      Height="28" VerticalContentAlignment="Center">
                                 <ComboBoxItem Content="{Binding [HttpClientOptTrigDataDesc], Source={x:Static services:LocalizationService.Instance}}" Tag="Event" />
                                 <ComboBoxItem Content="{Binding [HttpClientOptPeriodicDesc], Source={x:Static services:LocalizationService.Instance}}" Tag="Cyclic" />
                             </ComboBox>
@@ -168,10 +168,10 @@
                                 <TextBox Visibility="{Binding IsPeriodicMode, Converter={StaticResource BoolToVis}}" 
                                          Text="{Binding PeriodicIntervalSec, UpdateSourceTrigger=PropertyChanged}" 
                                          ToolTip="{Binding [HttpClientFieldIntervalTip], Source={x:Static services:LocalizationService.Instance}}"
-                                         FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" TextAlignment="Right" />
+                                         FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" TextAlignment="Right" />
 
                                 <Border Visibility="{Binding IsEventMode, Converter={StaticResource BoolToVis}}" 
-                                        Height="30" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,0"
+                                        Height="28" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10,0"
                                         ToolTip="{Binding [HttpClientTriggerEventBadge], Source={x:Static services:LocalizationService.Instance}}">
                                     <TextBlock Text="{Binding [HttpClientTriggerEventBadge], Source={x:Static services:LocalizationService.Instance}}" 
                                                FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
@@ -250,7 +250,7 @@
                                                     <!-- Key -->
                                                     <TextBox Grid.Column="0" Text="{Binding Key, UpdateSourceTrigger=PropertyChanged}" 
                                                              ToolTip="{Binding [HttpClientColKeyTip], Source={x:Static services:LocalizationService.Instance}}"
-                                                             Height="28" Padding="6,2" FontSize="11" FontFamily="Consolas" VerticalContentAlignment="Center" 
+                                                             Height="28" Padding="6,2" FontSize="11" VerticalContentAlignment="Center" 
                                                              Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
 
                                                     <!-- Source Tag ComboBox -->
@@ -367,7 +367,8 @@
                 <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12"
                         ToolTip="{Binding [HttpClientPreviewPayloadTip], Source={x:Static services:LocalizationService.Instance}}">
                     <TextBox Text="{Binding PreviewPayloadText, Mode=OneWay}" 
-                             IsReadOnly="True" Background="Transparent" BorderThickness="0" 
+                             IsReadOnly="True" AcceptsReturn="True" VerticalContentAlignment="Top"
+                             Background="Transparent" BorderThickness="0" 
                              FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" 
                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" 
                              TextWrapping="NoWrap" Padding="10,8" />

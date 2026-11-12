@@ -205,7 +205,7 @@ public class TagCatalogEnhancementTests
     public void GetFilteredTags_WriteTarget_Bool_ContainsOnlyDO_And_VFLAG_And_None()
     {
         var vm = new TagCatalogViewModel();
-        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Protocol.Enums.MqttDataType.Bool).ToList();
+        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Domain.Enums.MqttDataType.Bool).ToList();
 
         Assert.NotEmpty(tags);
         Assert.Contains(tags, t => t.Kind == TagKind.None);
@@ -227,7 +227,7 @@ public class TagCatalogEnhancementTests
         var vr0 = vm.AllTags.First(t => t.Name == "VREG0");
         vr0.DataType = TagDataType.Float32;
 
-        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Protocol.Enums.MqttDataType.Float).ToList();
+        var tags = vm.GetFilteredTags(TagAccessRole.WriteTarget, SimplePLC.Domain.Enums.MqttDataType.Float).ToList();
 
         Assert.NotEmpty(tags);
         Assert.Contains(tags, t => t.Kind == TagKind.None);
@@ -246,7 +246,7 @@ public class TagCatalogEnhancementTests
     public void GetFilteredTags_ReadSource_AllowsDI_And_AI()
     {
         var vm = new TagCatalogViewModel();
-        var tags = vm.GetFilteredTags(TagAccessRole.ReadSource, SimplePLC.Protocol.Enums.MqttDataType.Bool).ToList();
+        var tags = vm.GetFilteredTags(TagAccessRole.ReadSource, SimplePLC.Domain.Enums.MqttDataType.Bool).ToList();
 
         Assert.Contains(tags, t => t.Kind == TagKind.DiscreteInput);
         Assert.Contains(tags, t => t.Kind == TagKind.DiscreteOutput);

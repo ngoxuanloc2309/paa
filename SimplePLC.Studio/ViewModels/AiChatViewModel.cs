@@ -263,7 +263,7 @@ public partial class AiChatViewModel : ObservableObject
     [RelayCommand]
     public void ViewRuleTable(ChatMessageModel? message = null)
     {
-        OnNavigateToTab?.Invoke(2); // Chuyển sang Tab 2: Bảng Rule
+        OnNavigateToTab?.Invoke(AppTabIndices.RuleTable); // Chuyển sang Tab Bảng Quy Tắc (Rule Table)
     }
 
     [RelayCommand]

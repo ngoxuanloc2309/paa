@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Studio.Models;
@@ -15,12 +15,12 @@ public class ProjectMetadata
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
     public int SchemaVersion { get; set; } = 1;
-    public string TargetDevice { get; set; } = "SynaptiX Controller";
+    public string TargetDevice { get; set; } = "SynaptiX SYNX-RIO-884";
     public string Description { get; set; } = string.Empty;
 
     // Hardware Target & Resource Profile (Contract V2.0)
     public ushort DeviceClass { get; set; } = 1; // REMOTE_IO
-    public ushort ProductVariant { get; set; } = 1; // VARIANT_8DI_8DO_4AI
+    public ushort ProductVariant { get; set; } = 1; // VARIANT_RIO_884
     public int DigitalInputs { get; set; } = 8;
     public int DigitalOutputs { get; set; } = 8;
     public int AnalogInputs { get; set; } = 4;
@@ -69,7 +69,7 @@ public class ProjectMetadata
     public string MqttTlsSniHostname { get; set; } = string.Empty;
 
     // Wi-Fi Configuration Settings (SPLC-SPEC-WIFI-004)
-    public bool WifiEnabled { get; set; } = false;
+    public bool WifiEnabled { get; set; } = true;
     public bool WifiAutoReconnect { get; set; } = true;
     public string WifiSsid { get; set; } = string.Empty;
     public string WifiPassword { get; set; } = string.Empty;

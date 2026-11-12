@@ -1,4 +1,4 @@
-﻿namespace SimplePLC.Protocol.Constants;
+namespace SimplePLC.Protocol.Constants;
 
 /// <summary>
 /// Nguồn chân lý duy nhất (R3) cho bản đồ địa chỉ thanh ghi Modbus V1 theo Data Contract V1.7.
@@ -42,7 +42,7 @@ public static class ModbusRegisterMap
     /// Tính TagLayoutMap động từ số lượng tài nguyên thực của thiết bị.
     /// DiBase = 0, DoBase = diCount, AiBase = diCount+doCount, ...
     /// </summary>
-    public static SimplePLC.Protocol.Models.TagLayoutMap ComputeLayout(
+    public static SimplePLC.Domain.Models.TagLayoutMap ComputeLayout(
         ushort diCount, ushort doCount, ushort aiCount,
         ushort vflagCount, ushort vregCount, ushort vregRetainCount, ushort counterCount)
         => new(diCount, doCount, aiCount, vflagCount, vregCount, vregRetainCount, counterCount);
@@ -51,8 +51,8 @@ public static class ModbusRegisterMap
     /// Layout mặc định đầy đủ (8 DI, 8 DO, 4 AI, 32 VFLAG, 32 VREG, 32 VREG_RETAIN, 8 COUNTER).
     /// Dùng khi chưa có DeviceResourceInfo từ MCU.
     /// </summary>
-    public static SimplePLC.Protocol.Models.TagLayoutMap DefaultLayout
-        => SimplePLC.Protocol.Models.TagLayoutMap.Default;
+    public static SimplePLC.Domain.Models.TagLayoutMap DefaultLayout
+        => SimplePLC.Domain.Models.TagLayoutMap.Default;
 
     /// <summary>
     /// Magic number ghi vào COMMIT_COMMAND (0xA000) để MCU xác minh CRC và commit Rule Table.
@@ -116,17 +116,17 @@ public static class ModbusRegisterMap
     /// </summary>
     public const ushort SystemRegistersBaseAddress = 0x0820;
     public const ushort SystemRegistersLength = 8;
-    public const ushort SystemTagBaseIndex = 1000;
-    public const ushort SystemTagCount = 8;
+    public const ushort SystemTagBaseIndex = SimplePLC.Domain.Constants.SystemTagConstants.SystemTagBaseIndex;
+    public const ushort SystemTagCount = SimplePLC.Domain.Constants.SystemTagConstants.SystemTagCount;
 
-    public const ushort SysIndexFirstScan = 1000;
-    public const ushort SysIndexAlwaysOn = 1001;
-    public const ushort SysIndexAlwaysOff = 1002;
-    public const ushort SysIndexClock1S = 1003;
-    public const ushort SysIndexClock100Ms = 1004;
-    public const ushort SysIndexRtcHour = 1005;
-    public const ushort SysIndexRtcMinute = 1006;
-    public const ushort SysIndexCommOk = 1007;
+    public const ushort SysIndexFirstScan = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexFirstScan;
+    public const ushort SysIndexAlwaysOn = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexAlwaysOn;
+    public const ushort SysIndexAlwaysOff = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexAlwaysOff;
+    public const ushort SysIndexClock1S = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexClock1S;
+    public const ushort SysIndexClock100Ms = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexClock100Ms;
+    public const ushort SysIndexRtcHour = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexRtcHour;
+    public const ushort SysIndexRtcMinute = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexRtcMinute;
+    public const ushort SysIndexCommOk = SimplePLC.Domain.Constants.SystemTagConstants.SysIndexCommOk;
 
     public const ushort RuntimeTagValuesBaseAddress = 0x0900;
     public const ushort RuntimeTagValuesMaxLength = MaxRuntimeTags * RegistersPerRuntimeTag; // 256 registers

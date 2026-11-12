@@ -533,7 +533,7 @@
                                     <TextBlock Text="{Binding [MqttWillPayloadLabel], Source={x:Static services:LocalizationService.Instance}}"
                                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                                     <TextBox Text="{Binding WillPayload, UpdateSourceTrigger=PropertyChanged}" MaxLength="30"
-                                             Padding="8,5" FontSize="12" FontFamily="Consolas" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
+                                             Padding="8,5" FontSize="11.5" Height="28" VerticalContentAlignment="Center" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>

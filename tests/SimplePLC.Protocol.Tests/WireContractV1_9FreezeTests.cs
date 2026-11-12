@@ -2,7 +2,7 @@ using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
-using SimplePLC.Protocol.Models;
+using SimplePLC.Domain.Models;
 using Xunit;
 
 namespace SimplePLC.Protocol.Tests;

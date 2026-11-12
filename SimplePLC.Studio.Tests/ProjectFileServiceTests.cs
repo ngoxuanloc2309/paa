@@ -5,6 +5,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử đơn vị cho ProjectFileService quản lý lưu trữ, nạp tệp và danh sách dự án gần đây theo chuẩn IEC 61508-3.
+/// </summary>
 public class ProjectFileServiceTests
 {
     [Fact]
@@ -110,7 +113,9 @@ public class ProjectFileServiceTests
     [Fact]
     public void RecentProjects_AddAndRetrieve_WorksCorrectly()
     {
+        string tempJson = Path.Combine(Path.GetTempPath(), $"recent_json_{Guid.NewGuid():N}.json");
         string tempFile = Path.Combine(Path.GetTempPath(), $"recent_test_{Guid.NewGuid():N}.synx");
+        ProjectFileService.CustomRecentProjectsFilePath = tempJson;
         try
         {
             File.WriteAllText(tempFile, "{}");
@@ -121,7 +126,9 @@ public class ProjectFileServiceTests
         }
         finally
         {
+            ProjectFileService.CustomRecentProjectsFilePath = null;
             if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempJson)) File.Delete(tempJson);
         }
     }
 

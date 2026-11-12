@@ -82,8 +82,8 @@ public class FullDeviceUploadRoundtripTests
             // 5. Gọi UploadFromDeviceAsync()
             await mainVM.UploadFromDeviceAsync();
 
-            // Đảm bảo giữ nguyên tại màn hình Rule Table (tab 2), không bị chuyển hướng sang Logic Canvas (tab 0)
-            Assert.Equal(AppTabIndices.RuleTable, mainVM.SelectedTabIndex);
+            // Đảm bảo chuyển hướng trực quan sang màn hình Logic Canvas (FBD Graph) để kỹ sư lập trình
+            Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
 
             // 6. Kiểm tra Bảng Rule đã phục hồi đủ 2 rules
             Assert.Equal(2, mainVM.RuleTableVM.Rules.Count);
@@ -202,6 +202,78 @@ public class FullDeviceUploadRoundtripTests
             await mainVM.UploadFromDeviceAsync();
 
             Assert.False(mainVM.IsProjectDirty, "IsProjectDirty must be reset to false after successful upload.");
+        }
+        finally
+        {
+            if (mainVM.IsConnected)
+                await mainVM.ToggleConnect();
+        }
+    }
+
+    [Fact]
+    public async Task Test_FullDeviceUpload_Synchronizes_Wifi_And_Zigbee_Subsystems()
+    {
+        var (mainVM, client) = await CreateConnectedStudioFixtureAsync();
+
+        try
+        {
+            // Seed Wi-Fi registers in simulator: 0x1300..0x133F
+            var mem = client.Simulator.Memory;
+
+            // Wi-Fi at 0x1300: Seed using official Protocol Codec
+            var wifiDto = new WifiConfigDto
+            {
+                Enabled = true,
+                AutoReconnect = true,
+                Ssid = "Factory_IoT",
+                IsDhcp = true
+            };
+            var wifiRegs = new ushort[ModbusRegisterMap.WifiConfigRegisters];
+            SimplePLC.Protocol.Codec.WifiCodec.EncodeConfig(wifiDto, wifiRegs);
+            for (int i = 0; i < wifiRegs.Length; i++)
+            {
+                mem.WriteSingleRegister((ushort)(0x1300 + i), wifiRegs[i]);
+            }
+
+            // Zigbee at 0x1700: Seed using official Protocol Codec
+            var zbDto = new ZigbeeConfigDto
+            {
+                Enabled = true,
+                Role = ZigbeeRole.Master,
+                SlaveId = 5,
+                PanId = 0xABCD,
+                Channel = 20,
+                Antenna = ZigbeeAntenna.External,
+                SecurityEnabled = true
+            };
+            var zbRegs = new ushort[ModbusRegisterMap.ZigbeeConfigRegisters];
+            SimplePLC.Protocol.Codec.ZigbeeConfigCodec.Encode(zbDto, zbRegs);
+            for (int i = 0; i < zbRegs.Length; i++)
+            {
+                mem.WriteSingleRegister((ushort)(0x1700 + i), zbRegs[i]);
+            }
+
+            // Execute Upload
+            await mainVM.UploadFromDeviceAsync();
+
+            // Verify Wi-Fi metadata synchronized
+            Assert.True(mainVM.CurrentProjectMetadata.WifiEnabled);
+            Assert.True(mainVM.CurrentProjectMetadata.WifiAutoReconnect);
+            Assert.Equal("Factory_IoT", mainVM.CurrentProjectMetadata.WifiSsid);
+
+            // Verify Zigbee metadata synchronized
+            Assert.True(mainVM.CurrentProjectMetadata.ZigbeeConfig.Enabled);
+            Assert.Equal("Master", mainVM.CurrentProjectMetadata.ZigbeeConfig.Role);
+            Assert.Equal((byte)5, mainVM.CurrentProjectMetadata.ZigbeeConfig.SlaveId);
+            Assert.Equal("ABCD", mainVM.CurrentProjectMetadata.ZigbeeConfig.PanIdHex);
+            Assert.Equal((ushort)20, mainVM.CurrentProjectMetadata.ZigbeeConfig.Channel);
+            Assert.Equal("External", mainVM.CurrentProjectMetadata.ZigbeeConfig.Antenna);
+            Assert.True(mainVM.CurrentProjectMetadata.ZigbeeConfig.SecurityEnabled);
+
+            // Verify DTU Gateway Studio ViewModel reflects changes
+            Assert.Equal("Factory_IoT", mainVM.DtuGatewayStudioVM.WifiVM.Ssid);
+            Assert.Equal("ABCD", mainVM.DtuGatewayStudioVM.ZigbeeVM.PanIdHex);
+            Assert.Equal((ushort)20, mainVM.DtuGatewayStudioVM.ZigbeeVM.Channel);
         }
         finally
         {

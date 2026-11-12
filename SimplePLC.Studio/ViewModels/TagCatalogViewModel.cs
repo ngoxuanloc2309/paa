@@ -13,7 +13,6 @@ using SimplePLC.Studio.Services;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Application.Models;
-using SimplePLC.Protocol.Models;
 using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Studio.ViewModels;

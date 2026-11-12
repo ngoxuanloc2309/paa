@@ -99,8 +99,7 @@ public class TcpClientConfigDialogViewModelTests
         _dialogVm.RegistrationPayload = "AUTH_KEY_123";
         _dialogVm.HeartbeatIntervalSec = 10;
         _dialogVm.HeartbeatPayload = "KEEPALIVE";
-        _dialogVm.PayloadMode = "Custom";
-        _dialogVm.CustomTemplate = "{tag}:{val}";
+        _dialogVm.PayloadMode = "Raw";
         _dialogVm.DataTag = new TagModel { Name = "FLOW_SENSOR" };
 
         // Assert
@@ -110,6 +109,57 @@ public class TcpClientConfigDialogViewModelTests
         Assert.Contains("[TX AUTH] -> AUTH_KEY_123", _dialogVm.PreviewStreamText);
         Assert.Contains("[TX PING] -> KEEPALIVE", _dialogVm.PreviewStreamText);
         Assert.Contains("FLOW_SENSOR", _dialogVm.PreviewStreamText);
+    }
+
+    [Fact]
+    public void CustomJsonMode_ValidJson_SetsIsJsonValidTrueAndIndents()
+    {
+        // Arrange
+        _dialogVm.PayloadMode = "Custom";
+        _dialogVm.CustomTemplate = "{\"device\":\"{device}\",\"tag\":\"{tag}\",\"val\":{val}}";
+        _dialogVm.DataTag = new TagModel { Name = "AI0" };
+
+        // Assert
+        Assert.True(_dialogVm.IsJsonMode);
+        Assert.True(_dialogVm.IsJsonValid);
+        Assert.False(_dialogVm.HasJsonError);
+        Assert.Empty(_dialogVm.JsonValidationError);
+        Assert.Contains("\"device\": \"SPLC-DTU-01\"", _dialogVm.PreviewStreamText);
+        Assert.Contains("\"tag\": \"AI0\"", _dialogVm.PreviewStreamText);
+        Assert.Contains("\"val\": 25.5", _dialogVm.PreviewStreamText);
+        Assert.Contains("bytes", _dialogVm.PayloadByteSizeText);
+    }
+
+    [Fact]
+    public void CustomJsonMode_InvalidJson_SetsHasJsonErrorTrue()
+    {
+        // Arrange: Missing closing brace
+        _dialogVm.PayloadMode = "Custom";
+        _dialogVm.CustomTemplate = "{\"device\":\"{device}\",\"tag\":";
+
+        // Assert
+        Assert.True(_dialogVm.IsJsonMode);
+        Assert.False(_dialogVm.IsJsonValid);
+        Assert.True(_dialogVm.HasJsonError);
+        Assert.NotEmpty(_dialogVm.JsonValidationError);
+    }
+
+    [Fact]
+    public void RawMode_ShowsStructuredStreamPreview()
+    {
+        // Arrange
+        _dialogVm.PayloadMode = "Raw";
+        _dialogVm.FramingDelimiter = "CRLF";
+        _dialogVm.HeartbeatIntervalSec = 30;
+
+        // Assert
+        Assert.True(_dialogVm.IsRawMode);
+        Assert.False(_dialogVm.IsJsonMode);
+        Assert.Contains("=== TCP SOCKET STREAM PROTOCOL ===", _dialogVm.PreviewStreamText);
+        Assert.Contains("• Target Host   :", _dialogVm.PreviewStreamText);
+        Assert.Contains("• Framing (EOL) :", _dialogVm.PreviewStreamText);
+        Assert.Contains("=== REAL-TIME PACKET STREAM ===", _dialogVm.PreviewStreamText);
+        Assert.Contains("bytes", _dialogVm.PayloadByteSizeText);
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -11,6 +11,7 @@ using Microsoft.Win32;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Domain.Models;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
@@ -199,17 +200,53 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     }
 
     // Status Badges for Sidebar Navigation
+    /// <summary>
+    /// Huy hiệu trạng thái tóm tắt cấu hình RS-485 Modbus hiển thị trên thanh điều hướng bên trái (Sidebar).
+    /// Phản ánh trung thực số cổng vật lý đang bật (ví dụ: "2 cổng" / "2 ports") hoặc tổng số kênh truyền (ví dụ: "3 kênh" / "3 channels").
+    /// Tuân thủ Tiên đề 2 (Visual Truth): Giao diện phản ánh chính xác trạng thái cấu hình thực tế.
+    /// </summary>
     public string Rs485StatusBadge
     {
         get
         {
-            if (ModbusPortConfigVM?.SelectedPort?.IsSlaveMode ?? (SerialMode == "ModbusSlave"))
+            if (ModbusPortConfigVM != null && ModbusPortConfigVM.Ports.Count > 0)
+            {
+                var ports = ModbusPortConfigVM.Ports;
+                var activePorts = ports.Where(p => p.Enabled).ToList();
+                if (activePorts.Count == 0)
+                {
+                    return LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled";
+                }
+
+                if (ModbusPortConfigVM.SelectedPort?.IsSlaveMode ?? (SerialMode == "ModbusSlave"))
+                {
+                    return "Slave";
+                }
+
+                int totalChannels = activePorts.Sum(p => p.MasterChannels.Count);
+                if (totalChannels > 0)
+                {
+                    return LocalizationService.Instance.IsVietnamese
+                        ? $"{totalChannels} kênh"
+                        : (totalChannels == 1 ? "1 channel" : $"{totalChannels} channels");
+                }
+
+                return LocalizationService.Instance.IsVietnamese
+                    ? $"{activePorts.Count} cổng"
+                    : (activePorts.Count == 1 ? "1 port" : $"{activePorts.Count} ports");
+            }
+
+            if (SerialMode == "ModbusSlave")
                 return "Slave";
+
             int count = FastRegisters.Count;
             if (count > 0)
             {
-                return LocalizationService.Instance.IsVietnamese ? $"{count} kênh" : $"{count} regs";
+                return LocalizationService.Instance.IsVietnamese
+                    ? $"{count} kênh"
+                    : (count == 1 ? "1 channel" : $"{count} channels");
             }
+
             return $"{BaudRate} bps";
         }
     }
@@ -243,7 +280,30 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(FormattedRssi))]
     [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
     [NotifyPropertyChangedFor(nameof(WifiActiveDisplay))]
-    private bool _wifiEnabled;
+    [NotifyPropertyChangedFor(nameof(IsWifiRequiredNoticeVisible))]
+    private bool _wifiEnabled = true;
+
+    /// <summary>
+    /// Cho biết có hiển thị banner nhắc nhở bật Wi-Fi trong tab MQTT hay không
+    /// (chỉ xuất hiện khi thiết bị có Wi-Fi nhưng Wi-Fi đang tắt trong khi MQTT lại đang bật).
+    /// </summary>
+    public bool IsWifiRequiredNoticeVisible =>
+        HasWifiCapability &&
+        !WifiEnabled &&
+        (MqttBrokerConfigVM?.IsEnabled ?? false);
+
+    /// <summary>
+    /// Lệnh kích hoạt nhanh Wi-Fi từ banner gợi ý trong tab MQTT.
+    /// </summary>
+    [RelayCommand]
+    public void EnableWifi()
+    {
+        WifiEnabled = true;
+        if (WifiVM != null)
+        {
+            WifiVM.IsEnabled = true;
+        }
+    }
 
     /// <summary>
     /// Chuỗi hiển thị trạng thái kích hoạt Wi-Fi (Đã bật / Đã tắt).
@@ -360,7 +420,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     public bool IsCurrentStepValid => CurrentStepIndex switch
     {
-        1 => FastRegisters.Count > 0 || SerialMode == "ModbusSlave",
+        1 => (ModbusPortConfigVM?.Ports.Any(p => p.MasterChannels.Count > 0 || p.IsSlaveMode) ?? false) || FastRegisters.Count > 0 || SerialMode == "ModbusSlave",
         2 => !string.IsNullOrWhiteSpace(UplinkTargetHost),
         3 => PublishIntervalSec > 0,
         _ => true
@@ -395,9 +455,27 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     {
         get
         {
-            string src = SerialMode == "ModbusMaster"
-                ? $"Modbus Master ({FastRegisters.Count} regs)"
-                : "Modbus Slave";
+            string src;
+            if (SerialMode == "ModbusSlave" || (ModbusPortConfigVM?.SelectedPort?.IsSlaveMode ?? false))
+            {
+                src = "Modbus Slave";
+            }
+            else if (FastRegisters.Count > 0)
+            {
+                src = $"Modbus Master ({FastRegisters.Count} regs)";
+            }
+            else if (ModbusPortConfigVM != null && ModbusPortConfigVM.Ports.Count > 0)
+            {
+                int totalChannels = ModbusPortConfigVM.Ports.Sum(p => p.MasterChannels.Count);
+                src = totalChannels > 0
+                    ? $"Modbus Master ({totalChannels} channels)"
+                    : $"Modbus Master ({ModbusPortConfigVM.Ports.Count(p => p.Enabled)} ports)";
+            }
+            else
+            {
+                src = "Modbus Master";
+            }
+
             string dest = UplinkMode switch
             {
                 "Http" => $"HTTP POST -> {HttpUrl}",
@@ -826,7 +904,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     // HTTP REST API
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HttpSidebarBadgeText))]
-    private bool _httpEnabled = true;
+    private bool _httpEnabled = false;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(UplinkTargetHost))]
@@ -1017,9 +1095,55 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     public Action? OpenMqttBrokerConfigRequested { get; set; }
 
     /// <summary>
-    /// ViewModel c?u h?nh ?a c?ng RS-485 Modbus Master & Slave (Single Source of Truth).
+    /// ViewModel cấu hình đa cổng RS-485 Modbus Master & Slave (Single Source of Truth).
     /// </summary>
     public ModbusPortConfigViewModel ModbusPortConfigVM { get; }
+
+    private SPLC_HardwareCapabilities? _hardwareOverrideCapabilities;
+    private int? _hardwareOverridePortLimit;
+
+    /// <summary>
+    /// Đồng bộ năng lực phần cứng thực tế và số cổng RS-485 từ MCU khi kết nối.
+    /// Truyền null khi ngắt kết nối để phục hồi năng lực theo ProjectMetadata.
+    /// </summary>
+    /// <param name="product">Hồ sơ thiết bị ProductDefinition từ MCU, hoặc null khi offline.</param>
+    public void SyncWithHardwareProduct(ProductDefinition? product)
+    {
+        if (product != null)
+        {
+            _hardwareOverrideCapabilities = product.HardwareCapabilities;
+            _hardwareOverridePortLimit = product.PhysicalRs485PortCount;
+            ModbusPortConfigVM?.SyncHardwarePortLimit(product.PhysicalRs485PortCount);
+        }
+        else
+        {
+            _hardwareOverrideCapabilities = null;
+            _hardwareOverridePortLimit = null;
+            ModbusPortConfigVM?.SyncHardwarePortLimit(null);
+        }
+
+        NotifyAllCapabilities();
+        SelectFirstAvailableSection();
+    }
+
+    /// <summary>
+    /// Bắn thông báo cập nhật toàn bộ thuộc tính năng lực phần cứng (Capabilities).
+    /// </summary>
+    public void NotifyAllCapabilities()
+    {
+        OnPropertyChanged(nameof(CurrentCapabilities));
+        OnPropertyChanged(nameof(HasRs485Capability));
+        OnPropertyChanged(nameof(HasWifiCapability));
+        OnPropertyChanged(nameof(HasMqttCapability));
+        OnPropertyChanged(nameof(HasMqttTlsCapability));
+        OnPropertyChanged(nameof(HasHttpCapability));
+        OnPropertyChanged(nameof(HasTcpSocketCapability));
+        OnPropertyChanged(nameof(HasEthernetCapability));
+        OnPropertyChanged(nameof(HasSdDatalogCapability));
+        OnPropertyChanged(nameof(HasZigbeeCapability));
+        OnPropertyChanged(nameof(HasSystemCapability));
+        OnPropertyChanged(nameof(IsWifiRequiredNoticeVisible));
+    }
 
     /// <summary>
     /// Năng lực phần cứng hiện tại được ánh xạ từ DevicePreset hoặc ProjectMetadata.
@@ -1028,6 +1152,9 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     {
         get
         {
+            if (_hardwareOverrideCapabilities.HasValue)
+                return _hardwareOverrideCapabilities.Value;
+
             if (_metadata.HardwareCapabilities != 0)
                 return (SPLC_HardwareCapabilities)_metadata.HardwareCapabilities;
 
@@ -1346,7 +1473,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         MqttBrokerConfigVM = new MqttBrokerConfigViewModel(_metadata);
         MqttBrokerConfigVM.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MqttBrokerConfigVM.IsEnabled)) { OnPropertyChanged(nameof(MqttSidebarBadgeText)); }
+            if (e.PropertyName == nameof(MqttBrokerConfigVM.IsEnabled)) { OnPropertyChanged(nameof(MqttSidebarBadgeText)); OnPropertyChanged(nameof(IsWifiRequiredNoticeVisible)); }
             else if (e.PropertyName == nameof(MqttBrokerConfigVM.Host)) MqttHost = MqttBrokerConfigVM.Host;
             else if (e.PropertyName == nameof(MqttBrokerConfigVM.Port)) MqttPort = MqttBrokerConfigVM.Port;
             else if (e.PropertyName == nameof(MqttBrokerConfigVM.ClientId)) MqttClientId = MqttBrokerConfigVM.ClientId;
@@ -1495,6 +1622,8 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             if (e.PropertyName == nameof(ModbusPortConfigViewModel.SelectedPort))
             {
                 SyncFromSelectedPort();
+                OnPropertyChanged(nameof(Rs485StatusBadge));
+                OnPropertyChanged(nameof(SummaryTopologyText));
             }
             if (e.PropertyName == nameof(ModbusPortConfigViewModel.SelectedFixedRegisterItem))
             {
@@ -1505,12 +1634,15 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             }
         };
 
-        // Mẫu mặc định 1 thanh ghi Modbus
+        WireModbusPortEvents();
+
+        // Mẫu mặc định 1 thanh ghi Modbus phục vụ DTU Quick Wizard
         FastRegisters.Add(new DtuFastRegisterItem(1, 40001, ModbusDataType.Real, "NhietDo_C", "Cảm biến nhiệt độ"));
         FastRegisters.CollectionChanged += (s, e) =>
         {
             OnPropertyChanged(nameof(CanGoNext));
             OnPropertyChanged(nameof(SummaryTopologyText));
+            OnPropertyChanged(nameof(Rs485StatusBadge));
             UpdateSummaryAndPreview();
         };
 
@@ -1546,12 +1678,64 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         OnPropertyChanged(nameof(ZigbeeSidebarBadgeText));
     }
 
+    private readonly HashSet<ModbusPortItemViewModel> _wiredPorts = new();
+
+    /// <summary>
+    /// Đăng ký theo dõi sự kiện thay đổi cổng và kênh truyền Modbus để cập nhật trạng thái huy hiệu Sidebar.
+    /// </summary>
+    private void WireModbusPortEvents()
+    {
+        if (ModbusPortConfigVM == null) return;
+
+        void SubscribePort(ModbusPortItemViewModel port)
+        {
+            if (!_wiredPorts.Add(port)) return;
+
+            port.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName is nameof(ModbusPortItemViewModel.Enabled)
+                    or nameof(ModbusPortItemViewModel.Role)
+                    or nameof(ModbusPortItemViewModel.BaudRate))
+                {
+                    OnPropertyChanged(nameof(Rs485StatusBadge));
+                    OnPropertyChanged(nameof(SummaryTopologyText));
+                }
+            };
+            port.MasterChannels.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(Rs485StatusBadge));
+                OnPropertyChanged(nameof(SummaryTopologyText));
+            };
+        }
+
+        foreach (var port in ModbusPortConfigVM.Ports)
+        {
+            SubscribePort(port);
+        }
+
+        ModbusPortConfigVM.Ports.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null)
+            {
+                foreach (ModbusPortItemViewModel port in e.NewItems)
+                {
+                    SubscribePort(port);
+                }
+            }
+            OnPropertyChanged(nameof(Rs485StatusBadge));
+            OnPropertyChanged(nameof(SummaryTopologyText));
+        };
+    }
+
     /// <summary>
     /// Tải lại toàn bộ các tham số cấu hình từ ProjectMetadata vào các thuộc tính giao diện.
     /// </summary>
     public void ReloadFromMetadata()
     {
         ModbusPortConfigVM?.ReloadPortsFromMetadata();
+        WireModbusPortEvents();
+        OnPropertyChanged(nameof(Rs485StatusBadge));
+        OnPropertyChanged(nameof(SummaryTopologyText));
         MqttBrokerConfigVM?.ReloadFromMetadata();
 
         // Reload Telemetry Publish
@@ -1607,18 +1791,9 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             }
         }
 
-        OnPropertyChanged(nameof(CurrentCapabilities));
-        OnPropertyChanged(nameof(HasMqttCapability));
+        NotifyAllCapabilities();
         NotifyMqttPubSummary();
         NotifyMqttSubSummary();
-        OnPropertyChanged(nameof(HasMqttTlsCapability));
-        OnPropertyChanged(nameof(HasHttpCapability));
-        OnPropertyChanged(nameof(HasTcpSocketCapability));
-        OnPropertyChanged(nameof(HasRs485Capability));
-        OnPropertyChanged(nameof(HasWifiCapability));
-        OnPropertyChanged(nameof(HasEthernetCapability));
-        OnPropertyChanged(nameof(HasSdDatalogCapability));
-        OnPropertyChanged(nameof(HasSystemCapability));
         SelectFirstAvailableSection();
         var dtu = _metadata.DtuConfig;
         SelectedPortIndex = dtu.PortIndex;
@@ -1784,6 +1959,11 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             TcpVM.HeartbeatPayload = TcpHeartbeatPayload;
             TcpVM.RegistrationType = TcpRegistrationType;
             TcpVM.RegistrationPayload = TcpRegistrationPayload;
+        }
+
+        if (_metadata.ZigbeeConfig != null && ZigbeeVM != null)
+        {
+            ZigbeeVM.LoadFromModel(_metadata.ZigbeeConfig);
         }
     }
 
@@ -2961,3 +3141,4 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         LogicEditor.CompileAndSaveRules(true);
     }
 }
+

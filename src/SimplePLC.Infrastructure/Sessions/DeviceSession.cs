@@ -33,7 +33,7 @@ public sealed class DeviceSession : IDeviceSession
     public IRtcClockClient RtcClock { get; }
     public IWifiClient Wifi { get; }
 
-    public bool IsActive => !_isDisposed && (_transport != null ? _transport.IsOpen : _modbusClient.IsConnected);
+    public bool IsActive => !_isDisposed && (_transport != null && Endpoint is not SimulatorEndpoint ? _transport.IsOpen : _modbusClient.IsConnected);
 
     // Internal access for test inspection or composition root if needed
     internal IUsbCdcTransport? Transport => _transport;

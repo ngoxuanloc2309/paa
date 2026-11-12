@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
-using SimplePLC.Protocol.Enums;
-using SimplePLC.Protocol.Models;
 
 namespace SimplePLC.Domain.Builders;
 

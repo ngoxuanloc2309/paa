@@ -393,6 +393,48 @@ public sealed class RuleTableReader : IRuleTableReader
         }
     }
 
+    private async Task<WifiConfigDto?> ReadActiveWifiConfigAsync(byte slaveId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var data = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.WifiConfigBaseAddress,
+                ModbusRegisterMap.WifiConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+            if (data != null && data.Length >= ModbusRegisterMap.WifiConfigRegisters)
+            {
+                return WifiCodec.DecodeConfig(data);
+            }
+        }
+        catch
+        {
+            // Graceful fallback if device does not support Wi-Fi or registers are unmapped
+        }
+        return null;
+    }
+
+    private async Task<ZigbeeConfigDto?> ReadActiveZigbeeConfigAsync(byte slaveId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var data = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                ModbusRegisterMap.ZigbeeConfigBaseAddress,
+                ModbusRegisterMap.ZigbeeConfigRegisters,
+                cancellationToken).ConfigureAwait(false);
+            if (data != null && data.Length >= ModbusRegisterMap.ZigbeeConfigRegisters)
+            {
+                return ZigbeeConfigCodec.Decode(data);
+            }
+        }
+        catch
+        {
+            // Graceful fallback if device does not support Zigbee or registers are unmapped
+        }
+        return null;
+    }
+
     public async Task<FullDeviceConfigurationDto> ReadFullDeviceConfigurationAsync(byte slaveId = 1, CancellationToken cancellationToken = default)
     {
         var rules = await ReadActiveRulesAsync(slaveId, cancellationToken).ConfigureAwait(false);
@@ -406,6 +448,8 @@ public sealed class RuleTableReader : IRuleTableReader
         var brokerConfig = await ReadActiveMqttBrokerConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var willConfig = await ReadActiveMqttWillConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var dtuConfig = await ReadActiveDtuConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
+        var wifiConfig = await ReadActiveWifiConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
+        var zigbeeConfig = await ReadActiveZigbeeConfigAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var modbusPorts = await ReadActiveModbusPortsAsync(slaveId, cancellationToken).ConfigureAwait(false);
         var slaveMaps = await ReadActiveModbusSlaveMapConfigsAsync(slaveId, cancellationToken).ConfigureAwait(false);
 
@@ -422,6 +466,8 @@ public sealed class RuleTableReader : IRuleTableReader
             BrokerConfig = brokerConfig,
             MqttWillConfig = willConfig,
             DtuConfig = dtuConfig,
+            WifiConfig = wifiConfig,
+            ZigbeeConfig = zigbeeConfig,
             ModbusPorts = modbusPorts,
             ModbusSlaveMaps = slaveMaps
         };

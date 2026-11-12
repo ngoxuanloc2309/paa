@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SimplePLC.Domain.Builders;
+using SimplePLC.Domain.Constants;
 using SimplePLC.Domain.Enums;
-using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Domain.Models;
 
@@ -199,14 +199,14 @@ public sealed class ProductDefinition
     /// </summary>
     public static readonly IReadOnlyList<TagDefinition> StandardSystemTags = new TagDefinition[]
     {
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexFirstScan, "SYS_FIRST_SCAN", TagKind.System, TagDataType.Boolean, isReadOnly: true, "First Scan pulse (active only on cycle #1)"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOn, "SYS_ON", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always ON logical true constant"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexAlwaysOff, "SYS_OFF", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always OFF logical false constant"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock1S, "SYS_CLOCK_1S", TagKind.System, TagDataType.Boolean, isReadOnly: true, "1-Second Clock square pulse (1.0 Hz, 500ms ON / 500ms OFF)"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexClock100Ms, "SYS_CLOCK_100MS", TagKind.System, TagDataType.Boolean, isReadOnly: true, "100-Millisecond Clock square pulse (10.0 Hz, 50ms ON / 50ms OFF)"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcHour, "SYS_RTC_HOUR", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current hour (0..23)"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexRtcMinute, "SYS_RTC_MINUTE", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current minute (0..59)"),
-        new TagDefinition(SimplePLC.Protocol.Constants.ModbusRegisterMap.SysIndexCommOk, "SYS_COMM_OK", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Hardware / Simulator communication health status")
+        new TagDefinition(SystemTagConstants.SysIndexFirstScan, "SYS_FIRST_SCAN", TagKind.System, TagDataType.Boolean, isReadOnly: true, "First Scan pulse (active only on cycle #1)"),
+        new TagDefinition(SystemTagConstants.SysIndexAlwaysOn, "SYS_ON", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always ON logical true constant"),
+        new TagDefinition(SystemTagConstants.SysIndexAlwaysOff, "SYS_OFF", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Always OFF logical false constant"),
+        new TagDefinition(SystemTagConstants.SysIndexClock1S, "SYS_CLOCK_1S", TagKind.System, TagDataType.Boolean, isReadOnly: true, "1-Second Clock square pulse (1.0 Hz, 500ms ON / 500ms OFF)"),
+        new TagDefinition(SystemTagConstants.SysIndexClock100Ms, "SYS_CLOCK_100MS", TagKind.System, TagDataType.Boolean, isReadOnly: true, "100-Millisecond Clock square pulse (10.0 Hz, 50ms ON / 50ms OFF)"),
+        new TagDefinition(SystemTagConstants.SysIndexRtcHour, "SYS_RTC_HOUR", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current hour (0..23)"),
+        new TagDefinition(SystemTagConstants.SysIndexRtcMinute, "SYS_RTC_MINUTE", TagKind.System, TagDataType.Int32, isReadOnly: true, "Real-Time Clock current minute (0..59)"),
+        new TagDefinition(SystemTagConstants.SysIndexCommOk, "SYS_COMM_OK", TagKind.System, TagDataType.Boolean, isReadOnly: true, "Hardware / Simulator communication health status")
     };
 
     /// <summary>
@@ -216,10 +216,10 @@ public sealed class ProductDefinition
     /// <returns>Đối tượng TagDefinition nếu tìm thấy, hoặc null nếu không tồn tại.</returns>
     public TagDefinition? FindTagByIndex(ushort index)
     {
-        if (index >= SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex &&
-            index < SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex + SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagCount)
+        if (index >= SystemTagConstants.SystemTagBaseIndex &&
+            index < SystemTagConstants.SystemTagBaseIndex + SystemTagConstants.SystemTagCount)
         {
-            return StandardSystemTags[index - SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex];
+            return StandardSystemTags[index - SystemTagConstants.SystemTagBaseIndex];
         }
         return _tagsByIndex.GetValueOrDefault(index);
     }
@@ -242,8 +242,8 @@ public sealed class ProductDefinition
     /// <param name="index">Chỉ số tag cần kiểm tra.</param>
     /// <returns>True nếu tag tồn tại trong danh mục.</returns>
     public bool ContainsTag(ushort index) =>
-        (index >= SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex &&
-         index < SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagBaseIndex + SimplePLC.Protocol.Constants.ModbusRegisterMap.SystemTagCount) ||
+        (index >= SystemTagConstants.SystemTagBaseIndex &&
+         index < SystemTagConstants.SystemTagBaseIndex + SystemTagConstants.SystemTagCount) ||
         _tagsByIndex.ContainsKey(index);
 
     /// <summary>
@@ -295,7 +295,7 @@ public sealed class ProductDefinition
         return new ProductDefinition(
             "SynaptiX DTU Gateway (RS-485)",
             deviceClass: (ushort)SPLC_DeviceClass.DTU,
-            productVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            productVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
             maxRules: 50,
             resources: profile,
             tags: tags,

@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -9,7 +12,14 @@ namespace SimplePLC.Studio.ViewModels;
 /// </summary>
 public partial class TcpClientConfigDialogViewModel : ObservableObject
 {
+    /// <summary>
+    /// Node ViewModel được liên kết trong FBD Canvas.
+    /// </summary>
     public TcpClientNodeViewModel Node { get; }
+
+    /// <summary>
+    /// Danh mục tag toàn cục để chọn nguồn dữ liệu.
+    /// </summary>
     public TagCatalogViewModel? TagCatalog { get; }
 
     [ObservableProperty]
@@ -39,6 +49,7 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRegistrationEnabled))]
+    [NotifyPropertyChangedFor(nameof(SummaryRegistrationText))]
     private string _registrationType = "None";
 
     /// <summary>
@@ -52,10 +63,36 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRawMode))]
     [NotifyPropertyChangedFor(nameof(IsCustomMode))]
+    [NotifyPropertyChangedFor(nameof(IsJsonMode))]
+    [NotifyPropertyChangedFor(nameof(HasJsonError))]
     private string _payloadMode = "Raw";
 
+    /// <summary>
+    /// Chế độ Raw Passthrough (dòng byte thô).
+    /// </summary>
     public bool IsRawMode => string.Equals(PayloadMode, "Raw", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Chế độ Custom Payload Template (chuỗi tùy biến / JSON).
+    /// </summary>
     public bool IsCustomMode => string.Equals(PayloadMode, "Custom", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Chỉ báo chế độ JSON / Custom Payload có đang được kích hoạt.
+    /// </summary>
+    public bool IsJsonMode => IsCustomMode;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasJsonError))]
+    private bool _isJsonValid = true;
+
+    /// <summary>
+    /// Cờ báo hiệu template JSON có lỗi cú pháp hay không (chỉ áp dụng ở JSON mode).
+    /// </summary>
+    public bool HasJsonError => IsJsonMode && !IsJsonValid;
+
+    [ObservableProperty]
+    private string _jsonValidationError = string.Empty;
 
     [ObservableProperty]
     private string _customTemplate = "{val}";
@@ -65,6 +102,9 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SummaryFramingText))]
     private string _framingDelimiter = "CRLF"; // "CRLF", "LF", "None", "Custom"
 
+    /// <summary>
+    /// Chỉ báo người dùng đang sử dụng ký tự phân cách tùy biến.
+    /// </summary>
     public bool IsCustomDelimiter => string.Equals(FramingDelimiter, "Custom", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
@@ -102,10 +142,22 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PayloadByteSizeText))]
     private string _previewStreamText = string.Empty;
 
+    /// <summary>
+    /// Chuỗi kích thước byte của dòng dữ liệu stream trong khung preview.
+    /// </summary>
+    public string PayloadByteSizeText => $"{System.Text.Encoding.UTF8.GetByteCount(PreviewStreamText ?? string.Empty)} bytes";
+
+    /// <summary>
+    /// Tóm tắt địa chỉ máy chủ từ xa socket.
+    /// </summary>
     public string SummarySocketText => $"tcp://{RemoteHost}:{RemotePort}";
 
+    /// <summary>
+    /// Tóm tắt gói tin và chu kỳ Heartbeat PING.
+    /// </summary>
     public string SummaryHeartbeatText
     {
         get
@@ -119,6 +171,19 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Tóm tắt chế độ gói tin báo danh (Registration).
+    /// </summary>
+    public string SummaryRegistrationText => RegistrationType switch
+    {
+        "OnConnect" => (Services.LocalizationService.Instance.IsVietnamese ? "Gửi khi kết nối (OnConnect)" : "OnConnect"),
+        "PrependToEveryPacket" => (Services.LocalizationService.Instance.IsVietnamese ? "Đính kèm đầu gói tin" : "Prepend to packet"),
+        _ => (Services.LocalizationService.Instance.IsVietnamese ? "Không dùng (None)" : "None")
+    };
+
+    /// <summary>
+    /// Tóm tắt ký tự kết thúc dòng / phân khung (Framing delimiter).
+    /// </summary>
     public string SummaryFramingText
     {
         get
@@ -130,6 +195,9 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Khởi tạo ViewModel hộp thoại cấu hình TCP Client với dữ liệu từ Node và TagCatalog.
+    /// </summary>
     public TcpClientConfigDialogViewModel(TcpClientNodeViewModel node, TagCatalogViewModel? tagCatalog = null)
     {
         Node = node;
@@ -176,6 +244,7 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
         UpdateStreamPreview();
         OnPropertyChanged(nameof(SummaryHeartbeatText));
         OnPropertyChanged(nameof(SummaryFramingText));
+        OnPropertyChanged(nameof(SummaryRegistrationText));
     }
 
     partial void OnRemoteHostChanged(string value) => UpdateStreamPreview();
@@ -194,27 +263,11 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
         UpdateStreamPreview();
     }
 
+    /// <summary>
+    /// Cập nhật hiển thị dòng byte truyền nhận socket mô phỏng dựa trên cấu hình hiện tại.
+    /// </summary>
     public void UpdateStreamPreview()
     {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"[CONNECT] -> {RemoteHost}:{RemotePort}");
-
-        if (RegistrationType == "OnConnect" && !string.IsNullOrWhiteSpace(RegistrationPayload))
-        {
-            sb.AppendLine($"[TX AUTH] -> {RegistrationPayload}");
-        }
-
-        if (HeartbeatIntervalSec > 0)
-        {
-            string ping = string.IsNullOrWhiteSpace(HeartbeatPayload) ? "PING" : HeartbeatPayload;
-            sb.AppendLine($"[TX PING] -> {ping} (Every {HeartbeatIntervalSec}s)");
-        }
-        else
-        {
-            string disabledText = Services.LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled";
-            sb.AppendLine($"[TX PING] -> {disabledText}");
-        }
-
         string tagDesc = DataTag != null 
             ? $"{DataTag.DisplayName} ({DataTag.DataTypeText})" 
             : (Services.LocalizationService.Instance.IsVietnamese ? "Chân cắm DataIn (FBD Auto-link)" : "DataIn Pin (FBD Auto-link)");
@@ -227,33 +280,73 @@ public partial class TcpClientConfigDialogViewModel : ObservableObject
             _ => string.Empty // "None"
         };
 
-        string dataContent;
-        if (IsRawMode)
-        {
-            dataContent = $"Raw Bytes Stream: <{tagDesc}>";
-        }
-        else
+        if (IsCustomMode)
         {
             string tmpl = string.IsNullOrWhiteSpace(CustomTemplate) ? "{val}" : CustomTemplate;
-            dataContent = tmpl
+            string rendered = tmpl
                 .Replace("{val}", "25.5")
                 .Replace("{tag}", DataTag?.Name ?? "VREG0")
                 .Replace("{device}", "SPLC-DTU-01")
                 .Replace("{ts}", "1714800000");
-        }
 
-        if (RegistrationType == "PrependToEveryPacket" && !string.IsNullOrWhiteSpace(RegistrationPayload))
-        {
-            sb.AppendLine($"[TX DATA] -> [{RegistrationPayload}] + {dataContent}{delimiterSuffix}");
+            try
+            {
+                using var doc = JsonDocument.Parse(rendered);
+                IsJsonValid = true;
+                JsonValidationError = string.Empty;
+                string formatted = JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+                PreviewStreamText = string.IsNullOrEmpty(delimiterSuffix) ? formatted : $"{formatted} {delimiterSuffix}";
+            }
+            catch (Exception ex)
+            {
+                bool looksLikeJson = rendered.TrimStart().StartsWith("{") || rendered.TrimStart().StartsWith("[");
+                IsJsonValid = !looksLikeJson;
+                JsonValidationError = looksLikeJson ? ex.Message : string.Empty;
+                PreviewStreamText = string.IsNullOrEmpty(delimiterSuffix) ? rendered : $"{rendered}{delimiterSuffix}";
+            }
         }
         else
         {
-            sb.AppendLine($"[TX DATA] -> {dataContent}{delimiterSuffix}");
-        }
+            IsJsonValid = true;
+            JsonValidationError = string.Empty;
 
-        PreviewStreamText = sb.ToString().TrimEnd();
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== TCP SOCKET STREAM PROTOCOL ===");
+            sb.AppendLine($"• Target Host   : tcp://{RemoteHost}:{RemotePort}");
+            sb.AppendLine($"• Framing (EOL) : {SummaryFramingText}");
+            sb.AppendLine($"• Registration  : {SummaryRegistrationText}");
+            sb.AppendLine($"• Keepalive     : {SummaryHeartbeatText}");
+            sb.AppendLine();
+            sb.AppendLine("=== REAL-TIME PACKET STREAM ===");
+            sb.AppendLine($"[CONNECT] -> {RemoteHost}:{RemotePort}");
+            if (RegistrationType == "OnConnect" && !string.IsNullOrWhiteSpace(RegistrationPayload))
+            {
+                sb.AppendLine($"[TX AUTH] -> {RegistrationPayload}");
+            }
+            if (RegistrationType == "PrependToEveryPacket" && !string.IsNullOrWhiteSpace(RegistrationPayload))
+            {
+                sb.AppendLine($"[TX DATA] -> [{RegistrationPayload}] + Raw Bytes Stream: <{tagDesc}>{delimiterSuffix}");
+            }
+            else
+            {
+                sb.AppendLine($"[TX DATA] -> Raw Bytes Stream: <{tagDesc}>{delimiterSuffix}");
+            }
+            if (HeartbeatIntervalSec > 0)
+            {
+                string ping = string.IsNullOrWhiteSpace(HeartbeatPayload) ? "PING" : HeartbeatPayload;
+                sb.AppendLine($"[TX PING] -> {ping} (Every {HeartbeatIntervalSec}s)");
+            }
+            else
+            {
+                sb.AppendLine("[TX PING] -> Disabled");
+            }
+            PreviewStreamText = sb.ToString().TrimEnd();
+        }
     }
 
+    /// <summary>
+    /// Đặt lại các thông số cấu hình về giá trị mặc định chuẩn công nghiệp.
+    /// </summary>
     [RelayCommand]
     public void ResetDefaults()
     {

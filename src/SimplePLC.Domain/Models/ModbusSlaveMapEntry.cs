@@ -1,6 +1,6 @@
 namespace SimplePLC.Domain.Models;
 
-using SimplePLC.Protocol.Enums;
+using SimplePLC.Domain.Enums;
 
 /// <summary>
 /// Thực thể Domain đại diện cho một mục ánh xạ thanh ghi Modbus Slave.

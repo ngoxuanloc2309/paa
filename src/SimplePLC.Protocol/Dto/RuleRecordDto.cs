@@ -28,6 +28,18 @@ public sealed class RuleRecordDto
     public byte Flags { get; set; }
 
     /// <summary>
+    /// Tham số phụ cho Action (Offset b trong SCALE_TAG, hoặc toán hạng thứ 2 trong khối Math),
+    /// lưu tại 2 thanh ghi cuối [Reg 14..15] (4 bytes) của cấu trúc chuẩn 32-byte.
+    /// </summary>
+    public int AuxParam { get; set; }
+
+    public float AuxParamFloat
+    {
+        get => BitConverter.Int32BitsToSingle(AuxParam);
+        set => AuxParam = BitConverter.SingleToInt32Bits(value);
+    }
+
+    /// <summary>
     /// Bit 0 của Flags: 1 = Dữ liệu ngưỡng Trigger (ThresholdLo, ThresholdHi) là số thực Float32 IEEE-754.
     /// </summary>
     public bool IsTriggerFloat

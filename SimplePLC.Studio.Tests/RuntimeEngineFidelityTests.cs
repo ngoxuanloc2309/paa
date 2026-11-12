@@ -284,4 +284,72 @@ public class RuntimeEngineFidelityTests
         Assert.True(status.Status == RuleEvaluationStatus.Pass, $"Expected Pass but got {status.Status}: {status.SummaryLine}");
         Assert.Equal(1, do0.Value);
     }
+
+    [Fact]
+    public void Scan_WhenAddTagWithRealTagsInStudioEngine_AddsIeee754FloatingPointValuesAccurately()
+    {
+        var tags = new TagCatalogViewModel();
+        var vreg0 = tags.AllTags.First(t => t.Name == "VREG0");
+        var vreg1 = tags.AllTags.First(t => t.Name == "VREG1");
+        vreg0.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+        vreg1.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+
+        vreg0.Value = BitConverter.SingleToInt32Bits(0.0f);
+        vreg1.Value = BitConverter.SingleToInt32Bits(100.25f);
+
+        var rule = new RuleItemModel
+        {
+            Index = 0,
+            Id = "R_ADD_REAL",
+            TriggerType = TriggerType.ON_CHANGE,
+            TriggerTag = vreg0,
+            ActionType = ActionType.ADD_TAG,
+            ActionTag = vreg1
+        };
+
+        var engine = new RuntimeEngine(tags.AllTags.ToList());
+        engine.Scan(new[] { rule }, 0);
+
+        vreg0.Value = BitConverter.SingleToInt32Bits(12.5f);
+        var snap = engine.Scan(new[] { rule }, 10);
+
+        Assert.Equal(RuleEvaluationStatus.Pass, snap.Evaluations[0].Status);
+        float actual = BitConverter.Int32BitsToSingle(vreg1.Value);
+        Assert.Equal(112.75f, actual, precision: 4);
+    }
+
+    [Fact]
+    public void Scan_WhenScaleTagMixedIntToRealInStudioEngine_ScalesAccurately()
+    {
+        var tags = new TagCatalogViewModel();
+        var ai0 = tags.AllTags.First(t => t.Name == "AI0");
+        var vreg0 = tags.AllTags.First(t => t.Name == "VREG0");
+        ai0.DataType = SimplePLC.Domain.Enums.TagDataType.Int32;
+        vreg0.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+
+        ai0.Value = 0;
+        vreg0.Value = BitConverter.SingleToInt32Bits(0.0f);
+
+        var rule = new RuleItemModel
+        {
+            Index = 0,
+            Id = "R_SCALE_MIXED",
+            TriggerType = TriggerType.ON_CHANGE,
+            TriggerTag = ai0,
+            ThresholdHi = 1.25,
+            ActionType = ActionType.SCALE_TAG,
+            ActionTag = vreg0,
+            ActionParam = BitConverter.SingleToInt32Bits(0.005f)
+        };
+
+        var engine = new RuntimeEngine(tags.AllTags.ToList());
+        engine.Scan(new[] { rule }, 0);
+
+        ai0.Value = 2000;
+        var snap = engine.Scan(new[] { rule }, 10);
+
+        Assert.Equal(RuleEvaluationStatus.Pass, snap.Evaluations[0].Status);
+        float actual = BitConverter.Int32BitsToSingle(vreg0.Value);
+        Assert.Equal(11.25f, actual, precision: 4);
+    }
 }

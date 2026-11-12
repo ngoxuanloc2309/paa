@@ -559,3 +559,546 @@ Theo chỉ đạo kỹ thuật từ người dùng và nguyên tắc First Princ
 - **Backend Architecture Validator:** `[PASS]` 0 vi phạm Clean Architecture & IEC 61508-3.
 - **QA, TDD & Living Documentation Validator:** `[PASS]` 0 vi phạm quy chuẩn XML doc comments, 100% tỷ lệ đỗ bài kiểm thử.
 - **Bộ Kiểm thử Tự động:** **1,977 / 1,977 unit tests PASS (100%)** trên toàn bộ solution SimplePLC (bao gồm các test mới `ShowDeviceInfo_WhenOffline_SeparatesTargetModelAndHardwareVersion` và `ShowDeviceInfo_WhenOnline_HardwareVersionFromDescriptor`).
+
+---
+
+## 18. Màn hình Khởi động Tiêu chuẩn Quốc tế (Startup Hub / Welcome Window) & Đọc Toàn Diện Thiết Bị (Full Device Reverse Upload)
+
+### 18.1. Bối cảnh & Mục tiêu
+- **Startup Hub / Welcome Window:** Thay thế luồng mở thẳng IDE hoặc popup New Project đơn điệu bằng màn hình khởi động 2 cột hiện đại theo phong cách Visual Studio / JetBrains Rider:
+  - Cột trái: Quản lý danh sách dự án mở gần đây (`Recent Projects`) với bộ lọc tìm kiếm thời gian thực, huy hiệu mã phần cứng (`[SYNX-RIO-884]`, `[SYNX-DTU-485]`, `[XLINK-ZB-44]`), thời gian tương đối (`Hôm nay, 14:32`, `2 ngày trước`), chức năng Ghim (`Pin`) và Xóa (`Remove`).
+  - Cột phải: 4 thẻ hành động công nghiệp Fluent 2:
+    1. ➕ **Tạo dự án mới** (`Create a New Project`)
+    2. 📂 **Mở dự án từ máy tính** (`Open Local Project`)
+    3. ⚡ **Đọc cấu hình từ thiết bị** (`Upload from Connected Device`) - tích hợp trực tiếp chọn cổng COM và nút Tải lên ngay
+    4. 👉 **Bỏ qua & bắt đầu ngay** (`Continue without a project`)
+  - Cho phép mở lại bất cứ lúc nào qua Menu `File -> Start Page...` (`Trang khởi động...`).
+- **Đọc Toàn Diện Thiết Bị (Full Device Reverse Upload):**
+  - Tuân thủ tiên đề *Chân lý Thị giác (Visual Truth)* và *Chân lý Phần cứng (Hardware Ground Truth)*.
+  - Tự động đảo ngược 100% hình ảnh thiết bị từ phần cứng MCU: Wi-Fi (SSID, Password, DHCP, Static IP, Gateway, Subnet, DNS), Zigbee (Channel, PAN ID, Station ID, Antenna, AES-128, Role), RS-485 Modbus Multi-Ports, DTU Gateway (HTTP/TCP/MQTT Will), Toàn bộ Bảng Quy tắc (Rule Table) và tái dựng sơ đồ đồ họa khối FBD.
+
+### 18.2. Các Thành phần Đã Triển khai & Tích hợp
+1. **Mô hình Dữ liệu & Quản lý Dự án Gần đây:**
+   - [`RecentProjectEntry.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Models/RecentProjectEntry.cs): Model dữ liệu lưu trữ `FilePath`, `ProjectName`, `HardwareTarget`, `HardwareBadge`, `LastOpened`, `IsPinned`.
+   - [`ProjectFileService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/ProjectFileService.cs): Cập nhật hàm `GetRecentProjectEntries()`, `AddRecentProject()`, `RemoveRecentProject()`, `TogglePinRecentProject()`, `DeriveHardwareBadge()` với khả năng tương thích ngược hoàn toàn với định dạng chuỗi cũ.
+2. **ViewModel Điều khiển:**
+   - [`RecentProjectItemViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/RecentProjectItemViewModel.cs): Quản lý từng mục dự án gần đây, định dạng thời gian tương đối song ngữ Anh/Việt (`RelativeTimeText`).
+   - [`StartupHubViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/StartupHubViewModel.cs): Quản lý danh sách tìm kiếm, quét cổng kết nối COM/USB tự động, xử lý 4 hành động chính và phát tín hiệu đóng cửa sổ.
+   - [`MainViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MainViewModel.cs):
+     - Bổ sung `PromptStartupHub()` và delegate hook `ShowStartupHubDialogHandler` phục vụ kiểm thử tự động không giao diện.
+     - Đồng bộ toàn diện Wi-Fi và Zigbee trong `UploadFromDeviceAsync()` và làm mới `DtuGatewayStudioVM.ReloadFromMetadata()`.
+3. **Giao diện Người dùng XAML Tiêu chuẩn:**
+   - [`StartupHubWindow.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/StartupHubWindow.xaml) & [`.xaml.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/StartupHubWindow.xaml.cs):
+     - Microsoft Fluent 2 Desktop geometry (`CornerRadius="4"` cho inputs/buttons, `6` cho action cards, `8` cho container window).
+     - Tuân thủ nguyên tắc 90/10 ANSI/ISA-101 (The Gray Principle).
+     - 100% tài nguyên màu tham chiếu `{DynamicResource ...}` từ `Colors.xaml`. Tuyệt đối 0 mã màu hex cứng.
+     - 100% biểu tượng vector SVG StreamGeometry từ `Icons.xaml` (`IconSysUpload`, `IconSysPin`, `IconSysClear`, `IconSysSearch`, `IconSysPlus`, `IconSysFolderOpen`). Tuyệt đối 0 ký tự Unicode emoji.
+   - [`MainWindow.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/MainWindow.xaml): Tích hợp mục menu `Trang khởi động...` (`MenuStartPage`).
+   - [`MainWindow.xaml.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/MainWindow.xaml.cs): Gọi `vm.PromptStartupHub()` khi nạp ứng dụng chưa mở dự án.
+4. **Hạ tầng Giao thức & Phần cứng:**
+   - [`FullDeviceConfigurationDto.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Dto/FullDeviceConfigurationDto.cs): Bổ sung `WifiConfigDto? WifiConfig` và `ZigbeeConfigDto? ZigbeeConfig`.
+   - [`RuleTableReader.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Devices/RuleTableReader.cs): Bổ sung `ReadActiveWifiConfigAsync()` và `ReadActiveZigbeeConfigAsync()`.
+
+### 18.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:** `[PASS]` 0 vi phạm thiết kế trên `StartupHubWindow.xaml` và `MainWindow.xaml`.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc Clean Architecture & IEC 61508-3.
+- **QA, TDD & Living Documentation Validator:** `[PASS]` 0 vi phạm tài liệu XML Summary, 100% tỷ lệ pass bài kiểm thử.
+- **Bộ Kiểm thử Đơn vị & Tích hợp:**
+  - [`StartupHubViewModelTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio.Tests/StartupHubViewModelTests.cs): 6/6 test PASS (Tải danh sách, tìm kiếm lọc thời gian thực, ghim/xóa dự án, thực thi các lệnh hành động, kiểm tra format thời gian tương đối song ngữ, tích hợp với MainViewModel).
+  - [`FullDeviceUploadRoundtripTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio.Tests/FullDeviceUploadRoundtripTests.cs): 3/3 test PASS (Bao gồm test tích hợp mới `Test_FullDeviceUpload_Synchronizes_Wifi_And_Zigbee_Subsystems` xác nhận roundtrip toàn diện Wi-Fi và Zigbee từ Modbus Holding Registers vào Studio ViewModels).
+
+---
+
+## 19. Nâng cấp Bảng Khởi Động Toàn Màn Hình Trong Ứng Dụng (In-App Fullscreen Welcome Dashboard) & Khởi Động Maximized
+
+### 19.1. Bối cảnh & Phản hồi Thực tế
+- Sau khi vận hành thử nghiệm popup khởi động modal `StartupHubWindow`, một số bất cập về mặt trải nghiệm thị giác (Visual UX) theo phản ánh từ người dùng bao gồm:
+  1. **Hiện tượng "Cửa sổ lồng trong cửa sổ" (Double Window Frame / Double Close Button):** Mở một popup modal che lấp cửa sổ chính tạo cảm giác thô, xuất hiện 2 thanh tiêu đề và 2 nút đóng cửa sổ (X).
+  2. **Hội chứng mỏi viền khung (Border Fatigue):** Việc bọc mỗi dòng dự án gần đây trong một hình chữ nhật viền cứng 1px tạo cảm giác rối mắt, nặng nề, thiếu tính tối giản theo phong cách hiện đại của Microsoft Fluent 2 và VS Code / Codesys.
+  3. **Rác tệp tạm thời từ Unit Test:** Quá trình chạy kiểm thử tự động `StartupHubViewModelTests` ghi đè các tệp dự án tạm thời (`C:\Users\...\AppData\Local\Temp\...`) vào danh sách dự án gần đây thực tế của người dùng `%APPDATA%\SynaptiX\recent_projects.json`.
+  4. **Kích thước mở mặc định:** Người dùng mong muốn khi mở SynaptiX IDE, ứng dụng phải mặc định mở toàn màn hình (`WindowState="Maximized"`).
+
+### 19.2. Giải pháp Kỹ thuật Triệt để (First Principles Engineering)
+1. **Chuyển đổi thành Màn hình Toàn bộ Trong Ứng dụng (`StartPageView.xaml` UserControl):**
+   - Loại bỏ hoàn toàn cửa sổ popup modal `StartupHubWindow.xaml` và `.xaml.cs`.
+   - Tạo mới [`StartPageView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/StartPageView.xaml) và [`StartPageView.xaml.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/StartPageView.xaml.cs) dưới dạng một `UserControl`.
+   - Tích hợp trực tiếp vào vùng `ContentControl Content="{Binding CurrentView}"` của `MainWindow.xaml` thông qua `DataTemplate DataType="{x:Type vm:StartupHubViewModel}"`.
+   - Tự động ẩn thanh điều hướng Tab phân hệ và thanh kết nối (Row 1) khi Start Page đang kích hoạt (`IsStartPageActive = true`), mang lại không gian khởi động cực kỳ tập trung, khoáng đạt và thanh lịch giống 100% Visual Studio / VS Code.
+2. **Thiết kế Danh sách Phẳng (Flat-List) Chống Mỏi Viền:**
+   - Thay thế các ô viền bao quanh từng dòng bằng thiết kế phẳng `RecentProjectFlatRowStyle` (`Background="Transparent"`, `BorderThickness="0"`, `CornerRadius="4"`).
+   - Tương tác di chuột (Hover): Tô màu nền tinh tế `{DynamicResource SelectionHoverBrush}`.
+   - Nút Xóa (X) và nút Ghim (Pin) chỉ làm nổi bật hoặc hiển thị khi trỏ chuột vào dòng tương ứng, giữ cho giao diện luôn thoáng đãng.
+3. **Mặc định Cửa sổ Maximized:**
+   - Cấu hình `WindowState="Maximized"` ngay trên thẻ gốc `<Window ...>` của `MainWindow.xaml`.
+4. **Cô lập Môi trường Kiểm thử (Hermetic Test Isolation - IEC 61508-3):**
+   - Bổ sung thuộc tính `ProjectFileService.CustomRecentProjectsFilePath` cho phép các bộ kiểm thử tự động chuyển hướng đường dẫn lưu trữ vào thư mục riêng của test session.
+   - Bổ sung bộ lọc trong `ProjectFileService.GetRecentProjectEntries()` và `AddRecentProject()` để loại bỏ hoàn toàn các đường dẫn nằm trong `Path.GetTempPath()`, đảm bảo danh sách dự án gần đây của người dùng thực không bao giờ bị ô nhiễm bởi các tệp sinh ra từ unit test.
+   - Triển khai `IDisposable` trong `StartupHubViewModelTests` để xóa sạch dữ liệu sau mỗi lượt chạy.
+5. **Đồng bộ Lệnh Điều khiển Menu & Khắc phục Race Condition Khởi động:**
+   - Khắc phục triệt để hiện tượng mở nhầm vào Tab Cấu hình Thiết bị (System / RS-485 Modbus) khi khởi động: Trong hàm khởi tạo của `MainViewModel`, khi nạp metadata mặc định ban đầu `CurrentProjectMetadata = new ProjectMetadata()`, bộ lắng nghe `OnCurrentProjectMetadataChanged` trước đây tự động kích hoạt chuyển Tab sang `DtuGatewayStudioVM` do `SelectedTabIndex == 0`. Đã bổ sung cơ chế guard `if (CurrentView is StartupHubViewModel) return;` và gán tường minh `CurrentView = StartupHubVM`, đảm bảo khi khởi động ứng dụng luôn hiển thị 100% màn hình Start Page toàn màn hình.
+   - Bổ sung lệnh `CloseProjectCommand` trong `MainViewModel.cs` kèm nhãn song ngữ `"Đóng dự án"` / `"Close Project"` trong Menu File (`Ctrl+W` hoặc chọn từ menu), cho phép đóng dự án hiện tại và lập tức quay về màn hình Start Page.
+   - Mở Start Page bất cứ lúc nào qua Menu `File -> Start Page...` (`OpenStartPageCommand`).
+6. **Chuẩn hóa Định danh Logo & Thuật ngữ Thiết bị (Device Naming Standard):**
+   - Thay thế icon vi mạch trừu tượng trên Header của Start Page bằng Logo SynaptiX chính thức ([`Assets/app.png`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Assets/app.png)) với container Fluent 2 bo góc 6px.
+   - Loại bỏ hoàn toàn thuật ngữ vi mạch nội bộ `MCU` trong toàn bộ giao diện người dùng và Localization (`LocalizationService.cs`), chuẩn hóa 100% sang thuật ngữ công nghiệp chuẩn **Thiết bị** (**Device**).
+   - Đổi nhãn Card 3 thành **Đọc dự án từ thiết bị** (`Read Project from Device`), mô tả rõ ràng: *"Kết nối cổng COM/USB và đọc 100% logic FBD, RS-485, Wi-Fi, MQTT từ thiết bị"*.
+   - Nâng cấp nút bấm thành **⚡ Kết nối & Đọc** (`⚡ Connect & Read`) với icon vector `IconSysConnect` thay cho nhãn dễ gây nhầm lẫn "Upload Now" / "Tải lên ngay".
+7. **Thiết kế Hình học Đối xứng & Neo Thị giác Chân trang (Visual Anchoring & Grounded Layout):**
+   - Loại bỏ hoàn toàn cảm giác "lơ lửng" bằng cách bọc toàn bộ cột Dự án Gần đây (Recent Projects) vào một thẻ **Container Panel** Fluent 2 chuẩn mực (`Background="{DynamicResource BgPanelBrush}"`, `CornerRadius="6"`, viền `IndustrialBorderDefaultBrush`), cân bằng đối xứng trọng lượng thị giác 1:1 với các Action Cards bên phải.
+   - Bổ sung thanh tìm kiếm với màu nền chìm `IndustrialSurfaceInsetBrush` đặt ngay ngắn ở đầu panel.
+   - Thêm trục phân cách trung tâm mỏng 1px (`IndustrialBorderSubtleBrush`) giữa hai cột.
+   - Căn lề trên chuẩn Ergonomics (`VerticalAlignment="Top"`, `Margin="40,56,40,40"`): Loại bỏ khoảng hụt mắt quá xa từ Menu bar xuống Header, tạo luồng quét mắt tự nhiên từ trên xuống dưới.
+   - Giới hạn hiển thị tối đa 5 dự án gần đây (`MaxRecentProjectsDisplay = 5`): Ngăn ngừa danh sách quá dài gây rối mắt, đồng thời giữ cho chiều cao Cột Trái (~340px) và Cột Phải (~355px) cân bằng đối xứng hoàn hảo trên cùng một đường đáy ngang.
+8. **Thống nhất 100% Điều hướng vào Sơ đồ Khối Logic (Hero Workspace Navigation):**
+   - Bất kể kỹ sư khởi tạo từ hành động nào trong Get Started: **Tạo dự án mới** (`New Project`), **Mở tệp dự án** (`Open Project`), **Kết nối & Đọc** (`Connect & Read`), hoặc **Bỏ qua & bắt đầu ngay** (`Continue without a project`), hệ thống đều nhất quán đưa kỹ sư vào thẳng màn hình **Logic Graph** (`AppTabIndices.LogicGraph`).
+   - Khẳng định vai trò trung tâm và bản sắc của SynaptiX IDE là môi trường lập trình logic FBD chuyên nghiệp, giúp kỹ sư bắt tay ngay vào thiết kế thuật toán điều khiển mà không bị phân tán. Tab `Hệ thống` (`System`) luôn sẵn sàng bên cạnh (`Ctrl+1`) khi cần tinh chỉnh thông số cổng.
+
+### 19.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:** `[PASS]` 0 vi phạm thiết kế trên cả `StartPageView.xaml` và `MainWindow.xaml`.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm Clean Architecture & IEC 61508-3.
+- **QA, TDD & Living Documentation Validator:** `[PASS]` 0 vi phạm tài liệu XML Summary, 100% tỷ lệ pass bài kiểm thử.
+- **Toàn bộ Solution:** **2,024 / 2,024 unit tests PASS (100%)** với độ cô lập hoàn toàn giữa môi trường test và dữ liệu người dùng thực tế. Biến cảnh báo CS8601 = 0, lỗi CS = 0.
+
+---
+
+## 20. Khắc phục Hiện tượng Báo ảo Badge "1 regs" tại Thanh Điều hướng RS-485 Modbus
+
+### 20.1. Bối cảnh & Nguyên lý Thiết kế (First Principles)
+- **Tiên đề 2 (Axiom 2 — The Visual Truth / Single Source of Truth):**
+  Giao diện công nghiệp SynaptiX IDE phải là sự phản ánh trung thực 1:1 trạng thái cấu hình thực tế trong bộ nhớ.
+- **Hiện tượng khuyết tật:** Khi người dùng mở dự án và vào mục `RS-485 Modbus` trong workspace System, thanh Sidebar điều hướng hiển thị huy hiệu `1 regs`, trong khi bảng cấu hình Modbus Master bên phải thông báo rõ ràng *"No Modbus channels configured"* (0 kênh đọc/ghi).
+- **Nguyên nhân gốc rễ (Root Cause):**
+  Thuộc tính `Rs485StatusBadge` trong `DtuGatewayStudioViewModel.cs` trước đây được lập trình đọc trực tiếp `FastRegisters.Count` (danh sách thanh ghi nhanh dùng riêng cho wizard DTU trước khi hệ thống hỗ trợ cấu hình đa cổng Modbus Port). Khi `ModbusPortConfigVM` với cấu trúc đa cổng vật lý (Port 1, Port 2) và danh sách `MasterChannels` được tích hợp làm bảng cấu hình chính thức, `Rs485StatusBadge` chưa được đồng bộ sang `ModbusPortConfigVM`, dẫn đến sự sai lệch thị giác giữa huy hiệu Sidebar và nội dung thực tế của bảng Modbus.
+
+### 20.2. Các Thay đổi Triển khai
+1. **ViewModel ([`DtuGatewayStudioViewModel.cs`](file:///SimplePLC.Studio/ViewModels/DtuGatewayStudioViewModel.cs)):**
+   - Tái cấu trúc logic thuộc tính `Rs485StatusBadge` để ưu tiên lắng nghe và tính toán trực tiếp từ `ModbusPortConfigVM.Ports`:
+     - Nếu không có kênh truyền nào (`totalChannels == 0`) và các cổng đang bật: Hiển thị trung thực số lượng cổng vật lý sẵn sàng (ví dụ Tiếng Việt: `"2 cổng"`, Tiếng Anh: `"2 ports"` hoặc `"1 port"`).
+     - Nếu đã cấu hình kênh truyền (`totalChannels > 0`): Hiển thị chính xác tổng số kênh truyền đọc/ghi (ví dụ Tiếng Việt: `"1 kênh"`, `"2 kênh"`, Tiếng Anh: `"1 channel"`, `"2 channels"`).
+     - Nếu chế độ Slave được chọn (`IsSlaveMode`): Hiển thị huy hiệu `"Slave"`.
+     - Nếu tất cả các cổng bị tắt (`activePorts == 0`): Hiển thị `"Đã tắt"` (Tiếng Việt) / `"Disabled"` (Tiếng Anh).
+   - Triển khai cơ chế lắng nghe phản ứng nhanh (`WireModbusPortEvents`): Tự động lắng nghe sự kiện `MasterChannels.CollectionChanged`, `port.PropertyChanged` (`Enabled`, `Role`, `BaudRate`) và `Ports.CollectionChanged` để bắn thông báo `OnPropertyChanged(nameof(Rs485StatusBadge))` và `SummaryTopologyText` theo thời gian thực ngay khi người dùng thao tác thêm/xóa kênh hoặc bật/tắt cổng.
+   - Bổ sung XML Summary chuẩn tài liệu kỹ thuật cho thuộc tính `Rs485StatusBadge` và phương thức `WireModbusPortEvents`.
+2. **Unit Tests ([`DtuGatewayStudioViewModelTests.cs`](file:///SimplePLC.Studio.Tests/DtuGatewayStudioViewModelTests.cs)):**
+   - Viết 6 unit tests mới tuân thủ nghiêm ngặt chuẩn IEC 61508-3 SIL2/3 TDD:
+     - `Rs485StatusBadge_OnDefaultInitialization_ReflectsActiveModbusPortsCount_NotFastRegistersCount`: Khẳng định khởi tạo mặc định hiển thị đúng số cổng (`2 ports` / `2 cổng`), xóa bỏ hoàn toàn hiện tượng báo ảo `1 regs`.
+     - `Rs485StatusBadge_WhenNoChannelsConfigured_DisplaysActivePortsCount`: Kiểm tra song ngữ khi chưa có kênh nào.
+     - `Rs485StatusBadge_WhenChannelsAdded_DisplaysChannelCount`: Kiểm tra tăng số lượng kênh chính xác khi bấm "Add Modbus Channel".
+     - `Rs485StatusBadge_WhenAllPortsSlave_DisplaysSlave`: Kiểm tra chế độ Slave.
+     - `Rs485StatusBadge_WhenAllPortsDisabled_DisplaysDisabled`: Kiểm tra trạng thái tắt toàn bộ cổng.
+     - `Rs485StatusBadge_WhenChannelsChanged_RaisesPropertyChangedReactively`: Kiểm tra tính phản ứng (reactive update) của ViewModel qua sự kiện `PropertyChanged`.
+   - Áp dụng mẫu cô lập ngôn ngữ `try { ... } finally { LocalizationService.Instance.CurrentLanguage = originalLang; }` để loại bỏ 100% rò rỉ trạng thái giữa các bài kiểm thử.
+
+### 20.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:** `[PASS]` 0 vi phạm thiết kế.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc Clean Architecture & IEC 61508-3.
+- **QA, TDD & Living Documentation Validator:** `[PASS]` 0 vi phạm tài liệu XML Summary, 100% tỷ lệ pass bài kiểm thử.
+- **Toàn bộ Solution:** **2,030 / 2,030 unit tests PASS (100%)** (tăng thêm 6 tests, 0 warnings, 0 errors).
+- **Trải nghiệm thực tế:** Huy hiệu Sidebar RS-485 Modbus phản ánh chính xác 100% số lượng cổng (`2 cổng` / `2 ports`) khi chưa có kênh, và tự động chuyển sang số lượng kênh (`1 kênh`, `2 kênh`...) khi người dùng thêm kênh polling/command.
+
+---
+
+## 21. Chuẩn hóa Giao diện Header & Dropdown/Popup theo Microsoft Fluent 2 Desktop & Tích hợp Liên kết Web Wiki VitePress
+
+### 21.1. Bối cảnh & Nguyên lý Thiết kế (First Principles)
+- **Chuẩn hóa Màu sắc Header & Khắc phục Dải Băng Xám:**
+  Thanh Menu ngang trên cùng (`MainWindow.xaml:125`) trước đây dùng màu nền `BgWindowBrush` (`#ECEFF1` - màu xám xi măng đục của IDE công nghiệp cũ). Khi đặt ngay phía trên không gian làm việc trắng sáng của Start Page hoặc FBD Canvas, dải xám này tạo cảm giác một thanh xà ngang tối đè nặng, gây chia cắt giao diện và mỏi mắt.
+- **Hệ thống Dropdown & Popup Phẳng (Fluent 2 Flyout Card):**
+  Các menu thả xuống (`MenuItem`), chuột phải (`ContextMenu`), và danh sách chọn (`ComboBoxItem`) cần đồng bộ sang phong cách Fluent 2 hiện đại: nền phẳng trắng `{DynamicResource BgPanelBrush}` (`#FFFFFF`), bo góc `CornerRadius="6"` cho khung ngoài, `CornerRadius="4"` cho từng mục bên trong, viền mỏng 1px `{DynamicResource IndustrialBorderDefaultBrush}` (`#CBD5E1`), loại bỏ cột icon xám đục của Windows Aero cũ.
+- **Đồng bộ Liên kết Tài liệu Chính thống (Web Wiki `docs-portal`):**
+  Lệnh Menu `Help -> SynaptiX IDE Technical Specifications & Docs...` trước đây trỏ về README GitHub. Cần chuyển hướng chính xác đến cổng Web Wiki tài liệu kỹ thuật **VitePress Portal** song ngữ (`/` cho Tiếng Anh, `/vi/` cho Tiếng Việt).
+
+### 21.2. Các Thay đổi Triển khai
+1. **Từ điển Màu sắc ([`SimplePLC.Studio/Styles/Colors.xaml`](file:///SimplePLC.Studio/Styles/Colors.xaml)):**
+   - Bổ sung định nghĩa `BgMenuBarBrush` ánh xạ màu `ColorBgMenuBar` (`#F8FAFC` - Slate siêu sáng 98% độ sáng).
+   - Khai báo chuẩn `BgAppBrush` ánh xạ `ColorBgPanel` (`#FFFFFF`), giải quyết triệt để cảnh báo thiếu token.
+2. **Hệ thống ControlTemplate ([`SimplePLC.Studio/Styles/Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml)):**
+   - **`Style TargetType="{x:Type Menu}"`:** Nền `{DynamicResource BgMenuBarBrush}` (`#F8FAFC`), viền đáy mảnh 1px `{DynamicResource IndustrialBorderSubtleBrush}` (`#E2E8F0`).
+   - **`Style TargetType="{x:Type MenuItem}"`:** Hỗ trợ đầy đủ 4 Roles:
+     - `TopLevelHeader`: Nút menu trên thanh bar (`File`, `Edit`, `View`...), nền trong suốt, khi rê chuột hoặc mở menu bật nền `{DynamicResource SelectionHoverBrush}` (`#F1F5F9`), bo góc 4px.
+     - `TopLevelItem`: Nút lệnh trực tiếp trên thanh bar.
+     - `SubmenuItem`: Các mục lệnh bên trong dropdown (`New Project`, `Open`...), bo góc 4px, icon 16x16, phím tắt (`InputGestureText`) căn phải màu `{DynamicResource TextMutedBrush}`, hover mượt mà với `{DynamicResource SelectionHoverBrush}`.
+     - `SubmenuHeader`: Các mục có menu con cấp 2 (`Import ▸`, `Export ▸`...), tự động vẽ mũi tên chỉ hướng vector Fluent 2 `›` tinh tế.
+     - Loại bỏ hoàn toàn thẻ `<ScrollViewer>` bên trong popup menu: Ngăn chặn thanh ScrollBar dọc xuất hiện thừa thãi trên các danh sách menu ngắn (`Tools`, `Help`...), giúp toàn bộ dropdown co giãn ôm sát nội dung (compact & snug).
+   - **`Style TargetType="{x:Type ContextMenu}"`:** Khung Flyout Card bo góc 6px, nền trắng `#FFFFFF`, viền mỏng 1px `#CBD5E1`, đệm `Padding="4"`, loại bỏ thẻ `ScrollViewer` thừa.
+   - **`Style TargetType="{x:Type Separator}"`:** Đường phân cách phẳng 1px `{DynamicResource IndustrialBorderSubtleBrush}` (`#E2E8F0`), đệm `Margin="4,3"`.
+   - **`Style TargetType="{x:Type ComboBoxItem}"`:** Bo góc 4px, hover mượt mà với `{DynamicResource SelectionHoverBrush}`.
+3. **Cấu trúc Cửa sổ Chính ([`SimplePLC.Studio/MainWindow.xaml`](file:///SimplePLC.Studio/MainWindow.xaml)):**
+   - Dòng 0 (`<Menu>`): Xóa bỏ các thuộc tính override cục bộ `Background="{DynamicResource BgWindowBrush}"` và `BorderBrush`, chuyển sang kế thừa 100% style Menu Fluent 2 toàn cục.
+   - Dòng 1 (`Navigation Tabs & Quick Connect`): Đổi nền sang `{DynamicResource IndustrialSurfaceInsetBrush}` (`#F8FAFC`), viền đáy `{DynamicResource IndustrialBorderSubtleBrush}` (`#E2E8F0`), tạo thành khối Header liền mạch hoàn hảo.
+   - Các `ItemContainerStyle` động cho danh sách dự án gần đây và danh sách cổng COM: Kế thừa chuẩn `BasedOn="{StaticResource {x:Type MenuItem}}"`.
+4. **Điều hướng Web Wiki ([`SimplePLC.Studio/ViewModels/MainViewModel.cs`](file:///SimplePLC.Studio/ViewModels/MainViewModel.cs) & [`AppUpdateService.cs`](file:///SimplePLC.Studio/Services/AppUpdateService.cs)):**
+   - Trong `AppUpdateService`: Khai báo hằng số cấu hình:
+     ```csharp
+     public const string DocumentationPortalUrl = "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/";
+     ```
+   - Trong `MainViewModel`: Bổ sung phương thức `GetDocumentationUrl()` tự động phân luồng theo ngôn ngữ giao diện đang hoạt động (`/vi/` khi là Tiếng Việt, `/` khi là Tiếng Anh). Lệnh `OpenDocSpecCommand` mở liên kết này qua trình duyệt mặc định của hệ điều hành.
+5. **Unit Tests ([`SimplePLC.Studio.Tests/MainViewModelIntegrationTests.cs`](file:///SimplePLC.Studio.Tests/MainViewModelIntegrationTests.cs)):**
+   - Bổ sung 2 bài kiểm thử tự động xác thực URL tài liệu song ngữ:
+     - `GetDocumentationUrl_WhenLanguageIsEnglish_ReturnsRootDocumentationPortalUrl`
+     - `GetDocumentationUrl_WhenLanguageIsVietnamese_ReturnsVietnameseDocumentationPortalUrl`
+   - Bổ sung XML Summary chuẩn cho `UpdateInfo` và `AppUpdateService`.
+
+### 21.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:** `[PASS]` 0 vi phạm trên cả 3 tệp `Colors.xaml`, `Controls.xaml`, `MainWindow.xaml`.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm Clean Architecture & IEC 61508-3.
+- **QA, TDD & Living Documentation Validator:** `[PASS]` 0 vi phạm tài liệu XML Summary, 100% tỷ lệ pass bài kiểm thử.
+- **Toàn bộ Solution:** **2,032 / 2,032 unit tests PASS (100%)** (tăng thêm 2 tests, 0 warnings, 0 errors).
+- **Trải nghiệm thực tế:** Thanh Header trên cùng trở nên thanh thoát, đồng điệu tuyệt đối với Start Page và FBD workspace; menu dropdown và context menu bung mở mượt mà như một Flyout Card hiện đại; lệnh Help mở thẳng đến cổng Web Wiki VitePress chuyên nghiệp.
+
+---
+
+## 22. Tái cấu trúc Toàn diện Lõi SimplePLC Core: Clean Architecture Inversion, Wire Contract AuxParam (32-byte) & Phân rã Modular Trình biên dịch RuleCompiler
+
+### 22.1. Bối cảnh & Yêu cầu Kỹ thuật
+Sau đợt tổng rà soát toàn bộ phần core của dự án, 3 lỗi kiến trúc cốt lõi (Điểm 3, 4, 5) đã được phân tích và lập kế hoạch xử lý triệt để:
+1. **Điểm 3 — Lộn ngược phụ thuộc Clean Architecture (Inverted Dependency):**
+   - Dự án `SimplePLC.Domain` trước đây chứa `<ProjectReference Include="..\SimplePLC.Protocol\SimplePLC.Protocol.csproj" />`.
+   - Vi phạm nghiêm trọng Nguyên lý Clean Architecture: Tầng Domain (Domain Layer) phải là trung tâm nội tại bất biến, có **zero dependencies**, tuyệt đối không được tham chiếu ra các tầng ngoại vi (Protocol, Infrastructure hay Application).
+2. **Điểm 4 — Khai thác 4 Bytes Dư thừa trong Wire Contract `SPLC_RuleRecord_t` (32 bytes):**
+   - Struct canonical `SPLC_RuleRecord_t` trên đường truyền Modbus RTU / Native USB CDC chiếm đúng 16 thanh ghi (32 bytes).
+   - Trước đây struct có 5 bytes reserved tại thanh ghi 13 Low và thanh ghi 14..15 (`reserved[5]`).
+   - Khối `SCALE_TAG` trước đó phải "mượn tạm" `threshold_hi` để lưu giá trị `Offset`, gây xung đột nếu sau này khối Scale hoặc các khối Toán học (Math block: ADD, SUB, MUL, DIV) cần dùng Trigger so sánh ngưỡng.
+   - Chuyển đổi thanh ghi 14..15 thành trường `aux_param` (Int32 / Float32), giữ lại 1 byte reserved tại thanh ghi 13 Low. Tổng dung lượng giữ bit-exact 32 bytes, không phá vỡ wire layout.
+3. **Điểm 5 — Phân rã Trình biên dịch Nguyên khối `RuleCompiler.cs` (~1,615 dòng):**
+   - `RuleCompiler.Compile()` trước đây ôm đồm tất cả các trách nhiệm: kiểm tra an toàn cổng Modbus Slave, trích xuất cấu hình MQTT/DTU/DirectWrite, duyệt ngược AST hành động, sinh FB Timer/Counter chuyên dụng, hạ cấp (macro expansion) cho TON/TOF/TP/Cycle, CTU/CTD, Linear Scaler, Modbus Read Status, phân tích xung đột ghi và sắp xếp Topo.
+   - Cần phân rã thành các Passes và Lowering strategies độc lập theo đúng nguyên lý SRP (Single Responsibility Principle) và OCP (Open/Closed Principle).
+
+---
+
+### 22.2. Các Thay đổi Triển khai Chi tiết
+
+#### A. Triệt tiêu Phụ thuộc Ngược trong `SimplePLC.Domain` (Điểm 3)
+1. **Gỡ bỏ ProjectReference:** Xóa hoàn toàn tham chiếu `SimplePLC.Protocol.csproj` trong `src/SimplePLC.Domain/SimplePLC.Domain.csproj`. `SimplePLC.Domain` hiện tại có **0 project references**.
+2. **Di chuyển Hằng số & Kiểu Liệt kê về Domain:**
+   - Tạo [`src/SimplePLC.Domain/Constants/SystemTagConstants.cs`](file:///SimplePLC.Domain/Constants/SystemTagConstants.cs): Định nghĩa `SystemTagBaseIndex = 1000`, `SystemTagCount = 8`, và các chỉ số `SysIndexScanTimeMs`, `SysIndexRuleExecCount`, `SysIndexErrorCode`, v.v.
+   - Tạo [`src/SimplePLC.Domain/Enums/SPLC_HardwareCapabilities.cs`](file:///SimplePLC.Domain/Enums/SPLC_HardwareCapabilities.cs): Định nghĩa cờ bit năng lực phần cứng chuẩn MCU.
+   - Tạo [`src/SimplePLC.Domain/Enums/DeviceEnums.cs`](file:///SimplePLC.Domain/Enums/DeviceEnums.cs): Định nghĩa `SPLC_DeviceClass`, `SPLC_RemoteIoVariant`, `SPLC_DataloggerVariant`, `SPLC_GatewayVariant`, `SPLC_DtuVariant`.
+   - Tạo [`src/SimplePLC.Domain/Enums/ModbusSlaveAccessRight.cs`](file:///SimplePLC.Domain/Enums/ModbusSlaveAccessRight.cs) và [`MqttDataType.cs`](file:///SimplePLC.Domain/Enums/MqttDataType.cs).
+   - Di chuyển [`TagLayoutMap.cs`](file:///SimplePLC.Domain/Models/TagLayoutMap.cs) vào `SimplePLC.Domain.Models`.
+3. **Thiết lập Chiều Phụ thuộc Đúng chuẩn:**
+   - Thêm `<ProjectReference Include="..\SimplePLC.Domain\SimplePLC.Domain.csproj" />` vào `src/SimplePLC.Protocol/SimplePLC.Protocol.csproj` (Protocol phụ thuộc vào Domain, tuân thủ Clean Architecture).
+   - Thêm [`GlobalUsings.cs`](file:///SimplePLC.Protocol/GlobalUsings.cs) trong Protocol chuyển tiếp các kiểu enum cho người dùng thư viện Protocol.
+
+#### B. Nâng cấp Wire Contract `AuxParam` 32-Byte (Điểm 4)
+1. **C Header Firmware ([`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h)):**
+   ```c
+   /* Reg 13 (byte 26..27): Flags & Reserved Byte */
+   uint8_t flags;            /* Byte 26: SPLC_RULE_FLAG_* */
+   uint8_t reserved_byte;    /* Byte 27: Reserved for future byte-level routing */
+   /* Reg 14..15 (byte 28..31): Aux Param (Int32 / Float32) */
+   union {
+       int32_t aux_param;    /* Signed 32-bit auxiliary parameter */
+       float aux_param_f;    /* IEEE 754 32-bit floating point auxiliary parameter */
+   };
+   ```
+2. **DTO & Codec ([`RuleRecordDto.cs`](file:///SimplePLC.Protocol/Dto/RuleRecordDto.cs) & [`RegisterCodec.cs`](file:///SimplePLC.Protocol/Codec/RegisterCodec.cs)):**
+   - Bổ sung `AuxParam` và `AuxParamFloat` vào `RuleRecordDto`.
+   - `RegisterCodec.EncodeRuleRecord`: Mã hóa `AuxParam` vào 2 thanh ghi cuối `Slice(14, 2)`.
+   - `RegisterCodec.DecodeRuleRecord`: Giải mã `AuxParam` từ `Slice(14, 2)`.
+3. **Mô hình Miền & Hạ cấp ([`ActionModel.cs`](file:///SimplePLC.Domain/Models/ActionModel.cs) & [`RuleMapper.cs`](file:///SimplePLC.Application/Mapping/RuleMapper.cs)):**
+   - `ActionModel`: Bổ sung thuộc tính `AuxParameter` (double) và constructor hỗ trợ tham số này.
+   - `RuleMapper`: Ánh xạ `Action.AuxParameter` $\leftrightarrow$ `dto.AuxParam` / `dto.AuxParamFloat`.
+   - `McuReferenceSimulator`: Khối `SCALE_TAG` ưu tiên đọc `AuxParam` trước, fallback về `ThresholdHi` nếu bằng 0 (đảm bảo tương thích ngược 100%).
+
+#### C. Phân rã Modular Trình biên dịch `RuleCompiler.cs` (Điểm 5)
+1. **Mô hình Dữ liệu Ứng viên Luật ([`CandidateRule.cs`](file:///SimplePLC.Application/Logic/Compilation/CandidateRule.cs)):**
+   - Record đại diện cho một candidate rule độc lập trước khi qua phân tích truy cập và sắp xếp thứ tự topo.
+2. **Bộ Tiện ích Biên dịch ([`CompilationHelpers.cs`](file:///SimplePLC.Application/Logic/Compilation/CompilationHelpers.cs)):**
+   - Tập trung các phương thức: `InvertCompareOp`, `IsFloatThreshold`, `GetNodeLabel`, `ResolveSourcePortTagIndex`.
+3. **Trích xuất Cấu hình Ngoại vi ([`PeripheralConfigExtractor.cs`](file:///SimplePLC.Application/Logic/Compilation/PeripheralConfigExtractor.cs)):**
+   - Xử lý kiểm tra an toàn cổng Modbus Slave (Safety Gate).
+   - Trích xuất cấu hình MQTT Publish/Subscribe, Modbus Master Read/Write, Direct Physical Write, DTU HTTP & TCP Client.
+4. **Truy vết Đường đi Hành động ([`ActionPathTracer.cs`](file:///SimplePLC.Application/Logic/Compilation/ActionPathTracer.cs)):**
+   - Duyệt ngược dòng từ Action terminal qua Guard, Trigger, Comparator, Input và sinh các chẩn đoán (diagnostics) chuẩn xác.
+5. **Các Chiến lược Hạ cấp Macro ([`src/SimplePLC.Application/Logic/Compilation/MacroLowering/`](file:///SimplePLC.Application/Logic/Compilation/MacroLowering/)):**
+   - [`TimerMacroLowering.cs`](file:///SimplePLC.Application/Logic/Compilation/MacroLowering/TimerMacroLowering.cs): Mở rộng TON, TOF, TP, CYCLE thành các cặp luật khởi động, duy trì và ngắt an toàn.
+   - [`CounterMacroLowering.cs`](file:///SimplePLC.Application/Logic/Compilation/MacroLowering/CounterMacroLowering.cs): Mở rộng CTU, CTD thành các luật đếm xung, reset, trip và clear ngưỡng.
+   - [`ScaleMacroLowering.cs`](file:///SimplePLC.Application/Logic/Compilation/MacroLowering/ScaleMacroLowering.cs): Mở rộng khối Scale, gán `Offset` vào `AuxParameter` (đồng thời duy trì `ThresholdHi` cho legacy runtime).
+   - [`ModbusStatusMacroLowering.cs`](file:///SimplePLC.Application/Logic/Compilation/MacroLowering/ModbusStatusMacroLowering.cs): Mở rộng các cờ Valid / Error của Modbus Master Read.
+6. **Bộ Điều phối Thu gọn ([`RuleCompiler.cs`](file:///SimplePLC.Application/Logic/Compilation/RuleCompiler.cs)):**
+   - Giảm dung lượng từ ~1,615 dòng xuống còn ~260 dòng. Đóng vai trò Pipeline Orchestrator sạch sẽ, dễ bảo trì, sẵn sàng mở rộng các khối Math trong tương lai.
+
+---
+
+### 22.3. Kết quả Kiểm thử & Nghiệm thu
+- **Biên dịch Toàn bộ Solution:** `dotnet build SimplePLC.sln` đạt **0 errors, 0 warnings** trên cả 12/12 projects.
+- **Backend Architecture Validation:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-backend-arch/scripts/validate-backend-arch.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm thread/exception.
+- **QA, TDD & Living Documentation Validation:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-qa-tdd/scripts/validate-tdd-docs.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm XML summary, 100% Code-to-Test mapping.
+- **Toàn bộ Test Suite:** **2,052 / 2,052 unit tests PASS (100%)**:
+  - `SimplePLC.Domain.Tests`: 55 passed
+  - `SimplePLC.Protocol.Tests`: 232 passed (bổ sung 9 bài kiểm thử chuyên sâu cho `AuxParam` Int/Float boundary)
+  - `SimplePLC.Infrastructure.Tests`: 182 passed
+  - `SimplePLC.Application.Tests`: 249 passed (bổ sung 7 bài kiểm thử cho `RuleCompilerModularizationTests`)
+  - `SimplePLC.Studio.Tests`: 1,334 passed
+
+
+
+
+---
+
+## 23. Chuẩn hóa Lề & Dóng Hàng Sát Lề Cho Menu Dropdown Flyout (Microsoft Fluent 2 Desktop)
+
+### 23.1. Bối cảnh & Vấn đề Cần Khắc Phục
+- **Khoảng thụt đầu dòng 34px bất thường:** Trong [`SimplePLC.Studio/Styles/Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml), cột Icon trước đây được định nghĩa với kích thước cố định `Width="22"` kèm `Padding="8,5"` và `Margin="4,0,10,0"`. Ngay cả khi menu con không có icon nào (như `File`, `Tools`, `Help`), cột này vẫn chiếm không gian 22px, khiến nhãn text (`Start Page...`, `New Project`, `Open Project`) bị thụt sâu vào giữa viên thuốc hover (~34px).
+- **Lệch trục với thanh Header:** Nút `File` trên thanh Menu Bar trên cùng có lề trái chỉ 8px + 4px viền ngoài = 12px. Sự chênh lệch 12px vs 34px khiến danh sách menu con trông lơ lửng, mất tính dóng hàng tự nhiên.
+- **Lệch trục mép phải giữa phím tắt và mũi tên submenu:** `SubmenuHeaderTemplate` dùng 5 cột với mũi tên ở cột 4, trong khi `SubmenuItemTemplate` dùng 4 cột với phím tắt ở cột 3. Điều này khiến các phím tắt (`Ctrl+N`, `Ctrl+O`) và mũi tên submenu (`›`) không dóng thẳng hàng ở mép phải.
+
+### 23.2. Giải pháp Triển khai (Fluent 2 Architecture)
+1. **Thu gọn Cột Icon Động (`Width="Auto"`):**
+   - Chuyển `ColumnDefinition Width="22"` sang `Width="Auto"` kết hợp `SharedSizeGroup="MenuItemIconColumnGroup"`.
+   - Khi mục không có icon (`Icon == null`) và không có dấu chọn (`IsChecked == false`), cả `Icon` và `Checkmark` đều có `Visibility="Collapsed"`, giúp cột 0 thu gọn tuyệt đối về **0px**.
+   - Chữ tiêu đề menu bắt đầu ngay ngắn tại lề trái `Padding="10,5"`, cách mép viên thuốc hover đúng 10px và dóng thẳng hàng tự nhiên với các nút trên thanh Header Menu.
+2. **Tích hợp Checkmark Vector `✓` Tinh tế:**
+   - Bổ sung `<Path x:Name="Checkmark" ... />` vector Fluent 2 với nét vẽ bo tròn (`StrokeRoundCap`) màu `{DynamicResource PrimaryBrush}` khi `IsChecked="True"`.
+   - Khi có mục được chọn (như ngôn ngữ, cổng COM), cột Icon mở rộng gọn gàng 14px + 8px margin và chia sẻ kích thước đều cho các mục trong cùng submenu.
+3. **Hợp nhất Mép Phải (Unified Right Column Alignment):**
+   - Đồng bộ cấu trúc Grid của cả `SubmenuItemTemplate` và `SubmenuHeaderTemplate` về đúng 3 cột:
+     - `Col 0 (Width="Auto" SharedSizeGroup="MenuItemIconColumnGroup")`: Chứa Icon / Checkmark.
+     - `Col 1 (Width="*")`: Chứa Header Text.
+     - `Col 2 (Width="Auto" SharedSizeGroup="MenuItemGestureColumnGroup")`: Chứa phím tắt hoặc mũi tên con `›`.
+   - Đặt `HorizontalAlignment="Right"` và `Margin="16,0,2,0"` cho cả `GestureText` và mũi tên `›`. Nhờ đó, tất cả phím tắt (`Ctrl+N`, `Ctrl+Shift+S`, `Alt+F4`) và mũi tên cấp 2 (`›`) dóng thẳng tắp mép phải trên cùng một đường trục đứng.
+   - Thêm Trigger ẩn `GestureText` khi rỗng/null, giúp các menu không có phím tắt (như menu `Help`) thu gọn hoàn toàn cột phải mà không tạo khoảng trống giả.
+4. **Phạm vi Chia sẻ Kích thước Độc lập (`Grid.IsSharedSizeScope="True"`):**
+   - Đặt `Grid.IsSharedSizeScope="True"` trực tiếp trên `StackPanel` bên trong mỗi `Popup`, đảm bảo việc tính toán kích thước cột được gói gọn độc lập cho từng popup riêng biệt.
+
+### 23.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Design Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm mã màu thô, 100% DynamicResource tokens.
+- **Backend Architecture Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-backend-arch/scripts/validate-backend-arch.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm kiến trúc.
+- **QA/TDD & Living Docs Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-qa-tdd/scripts/validate-tdd-docs.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm XML docs, 100% test pass rate.
+- **Biên dịch Toàn bộ Solution:** `dotnet build SimplePLC.sln` đạt **0 errors, 0 warnings**.
+
+---
+
+## 24. Chuẩn hóa Giao diện Toàn cầu Cho Dropdown / ComboBox (Microsoft Fluent 2 Desktop)
+
+### 24.1. Bối cảnh & Hiện tượng Đối nghịch
+- **Hiện tượng đối nghịch màu sắc:** Trên giao diện SynaptiX IDE, ô chọn `INT32` trong bảng Tag Catalog hiển thị rất hiện đại (nền trắng/slate phẳng, bo góc mềm `CornerRadius="4"`, mũi tên vector chevron thanh mảnh). Trong khi đó, các dropdown cấu hình truyền thông như `Data Bits: 8`, `Baud Rate`, `Parity`, `Stop Bits` lại bị loang màu xám gradient xi-măng cổ điển của Windows 7/Aero2 (`#E5E5E5`), viền bevel nhọn góc (`CornerRadius="0"`), và mũi tên tam giác đen đặc.
+- **Nguyên nhân gốc rễ:** Trong [`Controls.xaml:548`](file:///SimplePLC.Studio/Styles/Controls.xaml#L548), style toàn cục `<Style TargetType="ComboBox">` chỉ thiết lập các thuộc tính bề mặt mà không định nghĩa `ControlTemplate`. Khi không có template, WPF buộc phải dùng template mặc định của Windows (`Aero2.msstyles`). Template này nhúng một `ClassicToggleButton` có mã nhị phân tự vẽ nút xám gradient và bỏ qua thuộc tính `Background`.
+
+### 24.2. Giải pháp Kỹ thuật Triệt để (Fluent 2 Architecture)
+1. **Thiết kế Template Nút Bấm ToggleButton Chuẩn Fluent 2 (`FluentComboBoxToggleButton`):**
+   - Viền ngoài bo góc `CornerRadius="4"`, hỗ trợ token màu `{DynamicResource BgPanelBrush}` và `{DynamicResource IndustrialBorderDefaultBrush}`.
+   - Thay thế mũi tên tam giác đặc Windows bằng SVG vector Path: `<Path Data="M 0 0 L 3.5 3.5 L 7 0" Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />`.
+   - Hiệu ứng phản hồi trạng thái: Hover chuyển nền `{DynamicResource SelectionHoverBrush}` và viền `{DynamicResource BorderMediumBrush}`; khi flyout mở (`IsChecked="True"`), viền và mũi tên sáng màu thương hiệu `{DynamicResource PrimaryBrush}`.
+2. **Nâng cấp `<Style TargetType="ComboBox">` với `ControlTemplate` Hoàn chỉnh:**
+   - **Chống đè chữ lên mũi tên:** Bọc `ContentPresenter` và `PART_EditableTextBox` trong một subgrid có cột phải cố định `Width="18"`. Nhờ đó, bất kể nhãn dài đến đâu, chữ luôn kết thúc an toàn trước mũi tên chevron.
+   - **Flyout Dropdown Nổi:** Thẻ chứa danh sách mục con `DropDownBorder` có `CornerRadius="6"`, nền `{DynamicResource BgPanelBrush}` và viền `{DynamicResource IndustrialBorderDefaultBrush}`.
+   - **Hỗ trợ `IsEditable` an toàn:** Tích hợp `PART_EditableTextBox` ẩn và tự động hiển thị khi `IsEditable="True"`.
+3. **Kế thừa Tự động cho Toàn bộ Hệ thống:**
+   - Hơn **109 ComboBox** trên toàn bộ IDE (Modbus, DTU Gateway, MQTT QoS, HTTP Client, Logic Inspector, Timer/Counter Type, Simulator) tự động thừa hưởng template hiện đại này.
+
+### 24.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm mã màu thô, 100% DynamicResource tokens.
+- **Backend Architecture Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-backend-arch/scripts/validate-backend-arch.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm kiến trúc Clean Architecture.
+- **QA/TDD & Docs Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-qa-tdd/scripts/validate-tdd-docs.ps1
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm XML docs, 100% test suite pass rate.
+- **Biên dịch & Test Suite:**
+  - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
+  - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.
+
+---
+
+## 25. Chuẩn hóa Giao diện Ô Điền Text (TextBox) & Cụm Nút Phân Đoạn (Microsoft Fluent 2 Desktop)
+
+### 25.1. Bối cảnh & Hiện tượng Đối nghịch
+- **Lệch pha hình học giữa các control trên cùng một hàng:** Khi đặt ô chọn ComboBox (như `Periodic` đã bo góc 4px) cạnh ô nhập liệu TextBox (như `1000`) và cụm nút phân đoạn QoS `[ 0 ] [ 1 ] [ 2 ]`, ô TextBox và các nút bấm trước đó hiển thị dạng hình chữ nhật vuông nhọn hoắt 90° (`CornerRadius="0"`), tạo cảm giác chắp vá, thiếu đồng bộ của một IDE công nghiệp chuyên nghiệp.
+- **Nguyên nhân gốc rễ:** `<Style TargetType="TextBox">` trong [`Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml) trước đây không có `ControlTemplate` mà chỉ đặt các thuộc tính màu cục bộ, khiến WPF fallback về template Windows Aero2 với góc vuông và màu viền xám tĩnh. Các nút QoS cũng bị thiếu `ControlTemplate` bo góc.
+
+### 25.2. Giải pháp Kỹ thuật Triệt để (Fluent 2 Architecture)
+1. **Thiết kế `ControlTemplate` Hoàn chỉnh cho `<Style TargetType="{x:Type TextBox}">`:**
+   - Đặt `CornerRadius="4"` trên thẻ `Border` ngoài cùng, tạo góc bo mềm mại chuẩn Microsoft Fluent 2 (Rule 1.3).
+   - Tích hợp `PART_ContentHost` bên trong `ScrollViewer` không viền, `Padding="7,4"` thoáng đãng.
+   - Thêm Trigger phản hồi trực quan:
+     - `IsMouseOver="True"`: Đổi viền sang `{DynamicResource BorderMediumBrush}`.
+     - `IsKeyboardFocused="True"`: Đổi viền sang màu xanh nhận diện thương hiệu `{DynamicResource PrimaryBrush}` (Focus Ring).
+     - `IsEnabled="False"` / `IsReadOnly="True"`: Nền chuyển sang `{DynamicResource BgSubtleBrush}`, `Opacity="0.45"`.
+   - Toàn bộ token sử dụng `{DynamicResource ...}` triệt để theo Rule 1.1.
+2. **Đồng bộ Cụm Nút Phân Đoạn QoS (`MqttTelemetryPublishControl` & `MqttCommandSubscribeControl`):**
+   - Kế thừa `BasedOn="{StaticResource TactileToolbarBtnStyle}"` có `CornerRadius="4"`.
+   - Toàn bộ hàng ngang (Dropdown $\rightarrow$ TextBox $\rightarrow$ Nút chọn) giờ đây chia sẻ chung bán kính bo góc 4px và ngôn ngữ thiết kế nhất quán 100%.
+
+### 25.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttTelemetryPublishControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm mã màu thô trên tất cả các file.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc.
+- **QA/TDD & Docs Validator:** `[PASS]` 0 vi phạm XML docs, 100% test pass rate.
+- **Biên dịch & Test Suite:**
+  - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
+  - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.
+
+---
+
+## 26. Chuẩn hóa Toàn diện Bộ Điều Khiển Tương Tác (PasswordBox, CheckBox, Button Ngầm Định, RadioButton, ToolTip) theo Microsoft Fluent 2 Desktop
+
+### 26.1. Bối cảnh & Hiện tượng Đối nghịch
+- **Lệch pha giữa TextBox và PasswordBox:** Sau khi nâng cấp `TextBox` lên `CornerRadius="4"`, tại màn hình cấu hình Wi-Fi ([`WifiConfigControl.xaml`](file:///SimplePLC.Studio/Controls/WifiConfigControl.xaml)), ô `Wi-Fi Network Name (SSID)` đã bo góc `4px`, nhưng ô `Security Password (WPA2/WPA3)` ngay bên dưới vẫn bị **vuông nhọn 90° (`CornerRadius="0"`)** do `PasswordBox` là một lớp điều khiển riêng biệt trong WPF và chưa có style toàn cục.
+- **Hộp kiểm CheckBox & Nút bấm mặc định:** Các hộp kiểm `CheckBox` (như `Automatically reconnect on signal drop`, DHCP, Enable service) và các nút `Button` không khai báo style thủ công (nút Close trong DeviceInfo, Run Test, Cancel/Apply trong Dialogs) vẫn sử dụng template mặc định Windows Aero2 cổ điển.
+
+### 26.2. Giải pháp Kỹ thuật Triệt để (Fluent 2 Architecture)
+1. **Chuẩn hóa `<Style TargetType="{x:Type PasswordBox}">`:**
+   - Xây dựng `ControlTemplate` có `Border CornerRadius="4"`, màu nền `{DynamicResource BgPanelBrush}`, và Triggers viền Focus Ring `{DynamicResource PrimaryBrush}` đồng nhất 100% với `TextBox`.
+   - Cập nhật [`WifiConfigControl.xaml`](file:///SimplePLC.Studio/Controls/WifiConfigControl.xaml) sử dụng `BasedOn="{StaticResource {x:Type PasswordBox}}"` để kế thừa góc bo tròn `4px` và viền mới.
+2. **Chuẩn hóa `<Style TargetType="{x:Type CheckBox}">`:**
+   - Hộp kiểm 16x16 bo góc nhẹ `CornerRadius="3"`, viền `{DynamicResource IndustrialBorderDefaultBrush}`.
+   - Khi `IsChecked="True"`: Nền và viền chuyển sang màu xanh nhận diện thương hiệu `{DynamicResource PrimaryBrush}`, dấu tick vector SVG `✓` (`Data="M 3 7.5 L 6 10.5 L 12 3.5"`) màu trắng sắc nét thay thế dấu tick răng cưa của Windows.
+   - Hỗ trợ trạng thái ba trạng thái (Indeterminate) với đường gạch ngang `M 4 8 L 12 8`.
+3. **Chuẩn hóa `<Style TargetType="{x:Type Button}">` Ngầm Định Toàn Cục:**
+   - Gán `BasedOn="{StaticResource BtnSecondary}"` để tất cả các nút bấm không có style chỉ định tự động sở hữu góc bo `CornerRadius="4"`, nền phẳng và hiệu ứng hover mượt mà.
+4. **Chuẩn hóa `<Style TargetType="{x:Type RadioButton}">`:**
+   - Vòng tròn phẳng 16x16, viền xám tinh tế; khi checked hiển thị chấm tròn xanh 8x8 ở trung tâm.
+5. **Chuẩn hóa `<Style TargetType="{x:Type ToolTip}">`:**
+   - Bo góc `CornerRadius="4"`, nền `{DynamicResource BgPanelBrush}`, viền xám công nghiệp và padding thoáng đãng `8,4`.
+
+### 26.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/WifiConfigControl.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm mã màu thô trên tất cả các file.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc.
+- **QA/TDD & Docs Validator:** `[PASS]` 0 vi phạm XML docs, 100% test pass rate.
+- **Biên dịch & Test Suite:**
+  - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
+  - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.
+
+
+---
+
+## 27. Tinh chỉnh UI/UX Fluent 2: Đồng bộ kích thước Controls, Căn lề Payload Top, Căn giữa CheckMark & Sửa lỗi Icon Quick Connect
+
+### 27.1. Bối cảnh & Hiện tượng phát hiện từ người dùng
+1. **Lệch kích thước ô nhập liệu (24px, 25px, 26px, 28px, 30px):** Các ô form fields (TextBox, ComboBox, segmented buttons) trên các màn hình MQTT, Wi-Fi và bảng dữ liệu có chiều cao không đồng đều.
+2. **Payload JSON nằm lơ lửng ở giữa card:** Các ô xem trước/kiểm thử Payload (Payload Preview & Payload Test) bị thuộc tính `VerticalContentAlignment="Center"` đẩy toàn bộ nội dung JSON vào giữa dọc, tạo khoảng trống thừa ở trên và dưới.
+3. **Mất icon nút Refresh trên thanh Quick Connect:** Nút Refresh cổng COM kích thước 26x26px bị Style `BtnSecondary` áp `Padding="12,6"`, dẫn đến bề rộng còn lại cho `ContentPresenter` bị ép về 0px ($26 - 24 - 2 = 0$), khiến icon vector 12x12 bị triệt tiêu hoàn toàn.
+4. **Dấu tick CheckBox bị lệch tâm:** Nét vẽ checkmark `✓` trong CheckBox 16x16 bị lệch sang trái và lên trên do thiếu `Stretch="Uniform"` và kích thước hình học chuẩn.
+
+### 27.2. Giải pháp kỹ thuật triệt để
+1. **Đồng bộ chiều cao Controls chuẩn Fluent 2 Desktop:**
+   - Trong [`SimplePLC.Studio/Styles/Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml): Thiết lập `<Setter Property="MinHeight" Value="28" />` cho `TextBox`, `PasswordBox`, và `ComboBox`.
+   - Trong [`MqttCommandSubscribeControl.xaml`](file:///SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml): Đồng bộ Topic TextBox (`Height="28"`), nút Clean (`Height="28"`), Grid QoS buttons (`Height="28"`), ComboBox Queue Mode (`Height="28"`).
+   - Trong [`WifiConfigControl.xaml`](file:///SimplePLC.Studio/Controls/WifiConfigControl.xaml): Chuẩn hóa các ô SSID, Password, ComboBox APs, Show Password CheckBox, và các ô IP tĩnh từ 30px về đồng nhất `Height="28"`.
+2. **Căn lề trên (`Top`) cho Payload Preview & Test:**
+   - Trong [`Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml): Bổ sung trigger trong Style toàn cục `TextBox`:
+     ```xaml
+     <Style.Triggers>
+         <Trigger Property="AcceptsReturn" Value="True">
+             <Setter Property="VerticalContentAlignment" Value="Top" />
+         </Trigger>
+     </Style.Triggers>
+     ```
+   - Trong [`MqttTelemetryPublishControl.xaml`](file:///SimplePLC.Studio/Controls/MqttTelemetryPublishControl.xaml), [`MqttCommandSubscribeControl.xaml`](file:///SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml), và [`HttpClientConfigControl.xaml`](file:///SimplePLC.Studio/Controls/HttpClientConfigControl.xaml): Thêm tường minh `VerticalContentAlignment="Top"` và `AcceptsReturn="True"`.
+3. **Khôi phục Icon nút Refresh trên Quick Connect:**
+   - Trong [`MainWindow.xaml`](file:///SimplePLC.Studio/MainWindow.xaml): Cập nhật nút Refresh sang `Style="{StaticResource TactileToolbarBtnStyle}"` và gán `Padding="0"`, bảo đảm toàn bộ không gian 24x24px khả dụng cho icon vector `IconIecTimerCycle`.
+4. **Căn giữa toán học cho CheckMark trong CheckBox:**
+   - Trong [`Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml): Đặt `Width="9" Height="7"`, `Stretch="Uniform"`, `HorizontalAlignment="Center"`, `VerticalAlignment="Center"` và chuẩn hóa tọa độ vector `Data="M 1 4.5 L 3.5 7 L 8 1.5"` với `Round` caps.
+   - Trạng thái Indeterminate: `Width="8" Height="2" Stretch="Uniform" Data="M 1 1 L 7 1"`.
+   - Tạo ra lề ngang $2.5\text{px}$ và lề dọc $3.5\text{px}$ đối xứng toán học tuyệt đối trong khung 14x14px.
+
+### 27.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/MainWindow.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttTelemetryPublishControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/HttpClientConfigControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/WifiConfigControl.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm trên tất cả các file.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc.
+- **QA/TDD & Docs Validator:** `[PASS]` 0 vi phạm XML docs, 100% test pass rate.
+- **Biên dịch & Test Suite:**
+  - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
+  - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.
+
+
+---
+
+## 28. Chuẩn hóa Toàn diện Typography theo Phương án A (Microsoft Fluent 2 Desktop: 100% Segoe UI cho Form Inputs)
+
+### 28.1. Bối cảnh & Hiện tượng bất đồng bộ phông chữ
+- **Hiện tượng:** Tại màn hình cấu hình HTTP ([`HttpClientConfigControl.xaml`](file:///SimplePLC.Studio/Controls/HttpClientConfigControl.xaml)) và các màn hình MQTT, Wi-Fi:
+  - Ô ComboBox bên trái (`POST (Create / Push Telemetry)`) hiển thị phông chữ hệ thống **`Segoe UI`** (tỷ lệ tự nhiên).
+  - Ô TextBox bên phải (`https://api.factory-cloud.io/v1/telemetry`) bị gán cứng **`FontFamily="Consolas"`** (phông đơn khoảng monospace).
+  - Hai ô nằm cạnh nhau trên cùng một hàng nhưng mang hai kiểu phông chữ và khoảng cách chữ hoàn toàn khác nhau, gây mất đồng nhất giao diện nghiêm trọng.
+  - Tương tự, ô `Timeout (seconds)` và các ô IP tĩnh trong Wi-Fi, MQTT Topic, Field Name cũng bị gán cứng `Consolas`.
+
+### 28.2. Giải pháp Kỹ thuật Triệt để (Phương án A)
+1. **Thiết lập chuẩn mực tại Style Toàn cục ([`Controls.xaml`](file:///SimplePLC.Studio/Styles/Controls.xaml)):**
+   - Thêm `<Setter Property="FontFamily" Value="Segoe UI" />` vào:
+     - `<Style TargetType="{x:Type TextBox}">`
+     - `<Style TargetType="{x:Type PasswordBox}">`
+     - `<Style TargetType="{x:Type ComboBox}">`
+     - `<Style x:Key="BtnSecondary" TargetType="Button">`
+   - Đảm bảo toàn bộ controls dạng form khi không gán phông thủ công sẽ mặc định 100% sử dụng `Segoe UI`.
+2. **Loại bỏ triệt để `FontFamily="Consolas"` trên toàn bộ Form Inputs:**
+   - [`HttpClientConfigControl.xaml`](file:///SimplePLC.Studio/Controls/HttpClientConfigControl.xaml): URL, Custom Headers, TimeoutSec, PeriodicIntervalSec, Key, Method ComboBox (chuẩn hóa toàn bộ về `Segoe UI` và đồng bộ `Height="28"`).
+   - [`MqttCommandSubscribeControl.xaml`](file:///SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml): Topic TextBox, FieldName TextBox.
+   - [`MqttTelemetryPublishControl.xaml`](file:///SimplePLC.Studio/Controls/MqttTelemetryPublishControl.xaml): Topic TextBox, IntervalMs TextBox, DeadbandText TextBox, Key TextBox.
+   - [`MqttBrokerConfigControl.xaml`](file:///SimplePLC.Studio/Controls/MqttBrokerConfigControl.xaml): WillPayload TextBox.
+   - [`TcpClientConfigControl.xaml`](file:///SimplePLC.Studio/Controls/TcpClientConfigControl.xaml): RemoteHost, RemotePort, ReconnectDelaySec, Delimiter, PollIntervalMs, TxTimeoutMs, RxTimeoutMs (chuẩn hóa về `Segoe UI` và `Height="28"`).
+   - [`ModbusPortConfigControl.xaml`](file:///SimplePLC.Studio/Controls/ModbusPortConfigControl.xaml): SlaveId, Address, ScaleText trong bảng kênh Modbus Master.
+   - [`WifiConfigControl.xaml`](file:///SimplePLC.Studio/Controls/WifiConfigControl.xaml): Static IP inputs (`StaticIp`, `StaticSubnet`, `StaticGateway`, `StaticDns`).
+3. **Bảo vệ nghiêm ngặt vùng kỹ thuật đặc thù (Protected Monospace Zones):**
+   - Giữ nguyên `Consolas` cho:
+     - Khung hiển thị Payload JSON Preview & Test (`PreviewPayloadText`, `SimulationInput`, `TemplatePreviewText`).
+     - Khung soạn thảo Body Template đa dòng (`BodyTemplate`, `StreamPayloadTemplate`).
+     - Chuỗi byte nhị phân thô (`RawHex` trong `RuleTableView`).
+     - Cột địa chỉ Modbus trong DataGrid `TagCatalogView`.
+
+### 28.3. Kết quả Kiểm thử & Nghiệm thu
+- **XAML Token Validator:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/Controls.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/HttpClientConfigControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttCommandSubscribeControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttTelemetryPublishControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/MqttBrokerConfigControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/TcpClientConfigControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/ModbusPortConfigControl.xaml"
+  powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-ui-ux/scripts/validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Controls/WifiConfigControl.xaml"
+  ```
+  $\rightarrow$ **PASS**: 0 vi phạm trên toàn bộ 8 tệp tin XAML.
+- **Backend Architecture Validator:** `[PASS]` 0 vi phạm kiến trúc.
+- **QA/TDD & Docs Validator:** `[PASS]` 0 vi phạm XML docs, 100% test pass rate.
+- **Biên dịch & Test Suite:**
+  - `dotnet build SimplePLC.sln`: **0 Warning(s), 0 Error(s)**.
+  - `dotnet test SimplePLC.sln --no-build`: **2,055 / 2,055 tests PASS (100%)**.

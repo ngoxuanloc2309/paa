@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SimplePLC.Protocol\SimplePLC.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\SimplePLC.Domain\SimplePLC.Domain.csproj" />
   </ItemGroup>
 
 </Project>

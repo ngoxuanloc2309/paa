@@ -1,4 +1,4 @@
-using System.IO;
+ï»¿using System.IO;
 using System.Text.Json;
 using SimplePLC.Protocol.Codec;
 using SimplePLC.Protocol.Constants;
@@ -11,8 +11,8 @@ namespace SimplePLC.Protocol.Tests;
 
 /// <summary>
 /// Phase E: Cross-Language Verification & Conformance Tests.
-/// Ð?m b?o tính toàn v?n tuy?t d?i gi?a C Header (simpleplc_protocol_v1_7.h),
-/// DTOs, RegisterCodec và Golden Vectors.
+/// ï¿½?m b?o tï¿½nh toï¿½n v?n tuy?t d?i gi?a C Header (simpleplc_protocol_v1_7.h),
+/// DTOs, RegisterCodec vï¿½ Golden Vectors.
 /// </summary>
 public class FirmwareConformanceTests
 {
@@ -23,7 +23,7 @@ public class FirmwareConformanceTests
     [Fact]
     public void ProtocolConstants_MustMatchCHeaderSpecification()
     {
-        // Kích thu?c thanh ghi & b? d?m
+        // Kï¿½ch thu?c thanh ghi & b? d?m
         Assert.Equal(16, ModbusRegisterMap.RegistersPerRule);
         Assert.Equal(32, ModbusRegisterMap.BytesPerRule);
         Assert.Equal(100, ModbusRegisterMap.MaxRules);
@@ -79,7 +79,7 @@ public class FirmwareConformanceTests
         var descriptor = new DeviceDescriptorDto
         {
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884,
             HwVersionMajor = 1,
             HwVersionMinor = 2,
             HwVersionPatch = 0,
@@ -93,7 +93,7 @@ public class FirmwareConformanceTests
         Span<ushort> regs = stackalloc ushort[10];
         RegisterCodec.EncodeDeviceDescriptor(descriptor, regs);
 
-        // Chuy?n thành byte wire format (Big-Endian per register)
+        // Chuy?n thï¿½nh byte wire format (Big-Endian per register)
         byte[] payloadBytes = new byte[20];
         for (int i = 0; i < 10; i++)
         {
@@ -119,7 +119,7 @@ public class FirmwareConformanceTests
         // Decode ngu?c l?i
         var decoded = RegisterCodec.DecodeDeviceDescriptor(regs);
         Assert.Equal(SPLC_DeviceClass.REMOTE_IO, decoded.DeviceClass);
-        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, decoded.DeviceVariant);
+        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884, decoded.DeviceVariant);
         Assert.Equal("1.2.0", decoded.HwVersionString);
         Assert.Equal("1.7.0", decoded.FwVersionString);
         Assert.Equal(1, decoded.ProtocolVersion);
@@ -257,7 +257,7 @@ public class FirmwareConformanceTests
             Assert.Equal(0x00, ruleBytes[r]);
         }
 
-        // Tính CRC-16 c?a kh?i rule này
+        // Tï¿½nh CRC-16 c?a kh?i rule nï¿½y
         ushort ruleCrc = Crc16Modbus.Compute(ruleBytes);
         Assert.NotEqual(0, ruleCrc);
     }
@@ -265,7 +265,7 @@ public class FirmwareConformanceTests
     [Fact]
     public void GenerateAndVerify_GoldenVectorsJsonFile()
     {
-        // Kh?i t?o t?p h?p golden vectors hoàn ch?nh
+        // Kh?i t?o t?p h?p golden vectors hoï¿½n ch?nh
         var vectors = new
         {
             metadata = new
@@ -312,3 +312,4 @@ public class FirmwareConformanceTests
         Assert.True(json.Length > 200);
     }
 }
+

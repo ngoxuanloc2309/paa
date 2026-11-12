@@ -163,6 +163,21 @@ If a physical **SynaptiX Edge Device** is already connected via **USB CDC** or *
 - Hardware revision, firmware version, exact I/O channel counts, retentive capacity, and maximum rule limits are imported automatically.
 - The microcontroller acts as the **Single Source of Truth**, eliminating manual preset mismatch errors during field commissioning.
 
+### Hardware Variant Identification (`DeviceClass` & `DeviceVariant`) & Safety Gate
+
+Inside the microcontroller firmware, every device exposes an immutable binary descriptor pair:
+- **`DeviceClass` (Category):** Defines the primary role: Remote I/O (`1`), Datalogger (`2`), Gateway (`3`), Controller (`4`), DTU (`5`).
+- **`DeviceVariant` (Hardware Variant):** Identifies the specific model SKU and physical I/O layout:
+  - *Remote I/O:* Variant `1` (SYNX-RIO-884: `8DI / 8DO / 4AI`), Variant `2` (SYNX-RIO-440-WF: `4DI / 4DO Relay Wi-Fi`), Variant `3` (SYNX-RIO-440: `4DI / 4DO Compact`), Variant `4` (SYNX-RIO-880: `8DI / 8DO Relay`), Variant `5` (SYNX-RIO-440-ZB: `4DI / 4DO Relay Zigbee`).
+  - *Datalogger:* Variant `1` (`8AI` instrumentation — SYNX-DL-8AI).
+  - *Gateway:* Variant `1` (RS-485 to Ethernet bridge — SYNX-GW-485-ETH).
+  - *Controller:* Variant `1` (Programmable real-time logic controller).
+  - *DTU:* Variant `1` (RS-485 to Cellular/Network MQTT/HTTP/TCP bridge).
+
+::: tip Safety Gate Against Incompatible Hardware Deploys
+When deploying bytecode to a field panel (`Ctrl+F5`), **SynaptiX IDE** automatically verifies the target `DeviceVariant`. If the active project is configured for a 16 DI/DO variant but you attempt to deploy to a 4 DI/DO controller, the software triggers an `UnsupportedDeviceVariant` safety interlock and blocks the deploy to prevent electrical or logical damage.
+:::
+
 ::: warning Active Session Required for Auto-Detect
 If no active communication session is open when clicking **Detect from Connected Device**, the dialog displays a non-blocking status warning prompting you to connect via the top connection bar (`F4`) first, or continue offline using a standard preset.
 :::

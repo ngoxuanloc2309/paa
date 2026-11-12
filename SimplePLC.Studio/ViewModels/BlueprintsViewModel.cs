@@ -5,6 +5,11 @@ using System.Windows;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
+using System;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows.Data;
+using SimplePLC.Domain.Models;
 using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
@@ -14,12 +19,45 @@ public partial class BlueprintsViewModel : ObservableObject
     private readonly LogicEditorViewModel _logicEditor;
     private readonly Action _navigateToEditor;
 
+    private ProductDefinition? _currentProduct;
+
     public ObservableCollection<BlueprintModel> Blueprints { get; } = new();
+
+    public ICollectionView FilteredBlueprints { get; }
+
+    [ObservableProperty]
+    private bool _filterCompatibleOnly = true;
+
+    partial void OnFilterCompatibleOnlyChanged(bool value)
+    {
+        FilteredBlueprints?.Refresh();
+        UpdateCompatibilitySummary();
+    }
+
+    [ObservableProperty]
+    private string _compatibilitySummary = string.Empty;
+
+    [ObservableProperty]
+    private string _filterCheckboxText = string.Empty;
+
+    [ObservableProperty]
+    private string _filterCheckboxToolTip = string.Empty;
+
+    [ObservableProperty]
+    private int _compatibleCount;
+
+    [ObservableProperty]
+    private int _totalCount;
 
     public BlueprintsViewModel(LogicEditorViewModel logicEditor, Action navigateToEditor)
     {
         _logicEditor = logicEditor;
         _navigateToEditor = navigateToEditor;
+
+        FilteredBlueprints = CollectionViewSource.GetDefaultView(Blueprints);
+        FilteredBlueprints.Filter = FilterBlueprintPredicate;
+
+        LocalizationService.Instance.LanguageChanged += UpdateCompatibilitySummary;
 
         // =========================================================================
         // NHÓM 1: ĐIỀU KHIỂN LOGIC SỐ & LIÊN KHÓA AN TOÀN (DISCRETE & SAFETY)
@@ -29,6 +67,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "andon",
+            MinDigitalInputs = 1,
+            MinDigitalOutputs = 1,
             TitleVi = "Hệ Thống Báo Động Andon",
             TitleEn = "Andon Alert System",
             SubtitleVi = "Máy dừng > 15 giây trong ca sản xuất",
@@ -48,6 +88,9 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "counter",
+            MinDigitalInputs = 3,
+            MinRetentiveRegisters = 3,
+            RequiredCapabilities = SPLC_HardwareCapabilities.RETENTIVE,
             TitleVi = "Đếm Sản Lượng Dây Chuyền (Retain)",
             TitleEn = "Production Line Counter (Retain)",
             SubtitleVi = "Cộng dồn 2 nguồn vào bộ đếm tổng",
@@ -67,6 +110,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "feed",
+            MinDigitalInputs = 2,
+            MinDigitalOutputs = 2,
             TitleVi = "Gọi Cấp Liệu & Đảo Trạng Thái",
             TitleEn = "Material Call & State Toggle",
             SubtitleVi = "Bấm nút đảo trạng thái đèn/van cấp liệu",
@@ -86,6 +131,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "sump_pump",
+            MinDigitalInputs = 6,
+            MinDigitalOutputs = 5,
             TitleVi = "Tự Động Bơm Thoát Nước (Sump Pump)",
             TitleEn = "Automatic Sump Pump Control",
             SubtitleVi = "Phao mức cao kích hoạt bơm xả buồng máy",
@@ -105,6 +152,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "safety_door",
+            MinDigitalInputs = 8,
+            MinDigitalOutputs = 6,
             TitleVi = "Liên Khóa Cửa An Toàn (Safety Door)",
             TitleEn = "Safety Door Interlock",
             SubtitleVi = "Chỉ cho phép chạy băng tải khi Cửa Đang ĐÓNG",
@@ -124,6 +173,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "interlock",
+            MinDigitalInputs = 7,
+            MinDigitalOutputs = 8,
             TitleVi = "Liên Khóa Cắt Nguồn Cửa (Safety Interlock)",
             TitleEn = "Power Cutoff Interlock",
             SubtitleVi = "Mở cửa bảo vệ ngắt ngay lập tức relay nguồn",
@@ -143,6 +194,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "tower_light",
+            MinDigitalInputs = 1,
+            MinDigitalOutputs = 3,
             TitleVi = "Đèn Tháp Trạng Thái Máy (Tower Light)",
             TitleEn = "Machine Status Tower Light",
             SubtitleVi = "Bật đèn xanh khi máy chạy, tắt đèn đỏ",
@@ -162,6 +215,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "e_stop",
+            MinDigitalInputs = 5,
+            MinDigitalOutputs = 5,
             TitleVi = "Mạch Cắt Khẩn Cấp E-Stop (Emergency Stop)",
             TitleEn = "Emergency Stop Circuit (E-Stop)",
             SubtitleVi = "Nhấn nút E-Stop dừng băng tải và bật còi",
@@ -185,6 +240,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "overheat",
+            MinAnalogInputs = 2,
+            MinDigitalOutputs = 3,
             TitleVi = "Bảo Vệ Quá Nhiệt Động Cơ (Thermal Guard)",
             TitleEn = "Thermal Overheat Protection",
             SubtitleVi = "Nhiệt độ bể > 85°C kích hoạt quạt làm mát",
@@ -204,6 +261,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "air_press",
+            MinAnalogInputs = 1,
+            MinDigitalOutputs = 4,
             TitleVi = "Giám Sát Áp Suất Khí Nén & Thủy Lực",
             TitleEn = "Pneumatic & Hydraulic Pressure Monitor",
             SubtitleVi = "Áp suất dầu/khí dưới 40 bar cảnh báo còi",
@@ -223,6 +282,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "press_window",
+            MinAnalogInputs = 1,
+            MinDigitalOutputs = 7,
             TitleVi = "Giám Sát Dải Áp Suất Tiêu Chuẩn (Pressure Window)",
             TitleEn = "Standard Pressure Range Window",
             SubtitleVi = "Duy trì van cấp DO6 khi áp suất trong dải 40 - 80 bar",
@@ -242,6 +303,7 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "scale_pressure",
+            MinAnalogInputs = 1,
             TitleVi = "Quy Đổi Áp Suất Khí Nén 0-10V Sang Bar (Khối SCALE)",
             TitleEn = "Pneumatic Pressure Scaler 0-10V to Bar (SCALE)",
             SubtitleVi = "Quy đổi điện áp AI0 0..10,000 mV sang 0..16.0 bar",
@@ -261,6 +323,7 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "scale_temp",
+            MinAnalogInputs = 2,
             TitleVi = "Hiệu Chuẩn Cảm Biến Nhiệt Độ 4-20mA Sang °C (Khối SCALE)",
             TitleEn = "Temperature Transmitter Scaler 4-20mA to °C (SCALE)",
             SubtitleVi = "Calib 2-điểm: 4mA (-20°C) đến 20mA (100°C) đưa vào VREG1",
@@ -280,6 +343,7 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "scale_tank_level",
+            MinAnalogInputs = 1,
             TitleVi = "Đo Mức Nước Bồn Chứa 0-10V Sang Mét (Khối SCALE)",
             TitleEn = "Tank Liquid Level Scaler 0-10V to Meters (SCALE)",
             SubtitleVi = "Quy đổi cảm biến mức siêu âm AI0 sang 0..5.00 mét",
@@ -299,6 +363,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "float_temp_alarm",
+            MinAnalogInputs = 1,
+            MinDigitalOutputs = 1,
             TitleVi = "Cảnh Báo Quá Nhiệt Float32 (75.5°C)",
             TitleEn = "Analog Float32 Temp Alarm (75.5°C)",
             SubtitleVi = "Cảm biến AI0 >= 75.5°C tự động kích hoạt quạt DO0",
@@ -318,6 +384,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "alarm_press",
+            MinAnalogInputs = 1,
+            MinDigitalOutputs = 4,
             TitleVi = "Cảnh Báo Sự Cố Áp Suất Khẩn (Send Alarm)",
             TitleEn = "Emergency Pressure Failure Alarm",
             SubtitleVi = "Phát mã cảnh báo #101 khi áp suất sụt dưới 20 bar",
@@ -341,6 +409,7 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "lube_cycle",
+            MinDigitalOutputs = 7,
             TitleVi = "Bơm Tra Dầu Bôi Trơn Định Kỳ (Lube Cycle)",
             TitleEn = "Periodic Lubrication Cycle",
             SubtitleVi = "Kích hoạt chu kỳ bơm dầu ray trượt mỗi 60s",
@@ -360,6 +429,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "ton_delay",
+            MinDigitalInputs = 1,
+            MinDigitalOutputs = 1,
             TitleVi = "Trễ Bật Bơm Bôi Trơn (TON On-Delay)",
             TitleEn = "Lube Pump On-Delay Timer (TON)",
             SubtitleVi = "Nhấn giữ nút chạy 5s mới kích hoạt bơm",
@@ -379,6 +450,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "tof_cooling",
+            MinDigitalInputs = 2,
+            MinDigitalOutputs = 2,
             TitleVi = "Trễ Ngắt Quạt Tản Nhiệt (TOF Off-Delay)",
             TitleEn = "Cooling Fan Off-Delay Timer (TOF)",
             SubtitleVi = "Máy tắt, quạt duy trì làm mát thêm 10s",
@@ -398,6 +471,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "tp_air_blow",
+            MinDigitalInputs = 4,
+            MinDigitalOutputs = 4,
             TitleVi = "Xung Khí Nén Thổi Phôi (TP Pulse)",
             TitleEn = "Part Ejection Air Pulse Timer (TP)",
             SubtitleVi = "Phát xung van khí đúng 1.5s khi phát hiện phôi",
@@ -421,6 +496,10 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "ctu_batch",
+            MinDigitalInputs = 4,
+            MinDigitalOutputs = 3,
+            MinRetentiveRegisters = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.RETENTIVE,
             TitleVi = "Đóng Thùng Tự Động (CTU Batch Counter)",
             TitleEn = "Automatic Boxing Batch Counter (CTU)",
             SubtitleVi = "Đếm đủ 10 sản phẩm bật đèn báo thùng đầy",
@@ -440,6 +519,10 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "ctd_batch",
+            MinDigitalInputs = 2,
+            MinDigitalOutputs = 6,
+            MinRetentiveRegisters = 2,
+            RequiredCapabilities = SPLC_HardwareCapabilities.RETENTIVE,
             TitleVi = "Đếm Lùi Cấp Phôi (CTD Countdown)",
             TitleEn = "Feeder Blank Countdown Counter (CTD)",
             SubtitleVi = "Cảnh báo còi khi khay nạp còn 0 phôi",
@@ -463,6 +546,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "rtc_morning_shift",
+            MinDigitalOutputs = 2,
+            RequiredCapabilities = SPLC_HardwareCapabilities.RTC,
             TitleVi = "Chiếu Sáng Vào Ca Sáng (RTC Morning Shift)",
             TitleEn = "Morning Shift Illumination (RTC)",
             SubtitleVi = "Bật đèn xưởng DO1 đúng 07:00 sáng mỗi ngày",
@@ -482,6 +567,9 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "rtc_night_security",
+            MinDigitalInputs = 5,
+            MinDigitalOutputs = 8,
+            RequiredCapabilities = SPLC_HardwareCapabilities.RTC,
             TitleVi = "Chiếu Sáng An Ninh Ca Đêm (RTC Night Security)",
             TitleEn = "Night Security Illumination (RTC)",
             SubtitleVi = "Bật đèn an ninh DO7 trong khung giờ 18:00 - 06:00 khi có người",
@@ -505,6 +593,10 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "mqtt_pub",
+            MinDigitalInputs = 1,
+            MinAnalogInputs = 1,
+            MinDigitalOutputs = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MQTT_PUB,
             TitleVi = "Xuất Bản Đo Lường IIoT (MQTT Publish)",
             TitleEn = "IIoT Telemetry Publisher (MQTT Publish)",
             SubtitleVi = "Đẩy dữ liệu cảm biến lên Cloud Broker khi có sự kiện",
@@ -524,6 +616,8 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "mqtt_sub",
+            MinDigitalOutputs = 8,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MQTT_SUB,
             TitleVi = "Nhận Lệnh Điều Khiển Từ Xa (MQTT Subscribe)",
             TitleEn = "Remote Command Dispatcher (MQTT Subscribe)",
             SubtitleVi = "Tiếp nhận bản tin điều khiển từ Cloud xuống thiết bị",
@@ -547,6 +641,10 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "mb_read",
+            MinDigitalInputs = 1,
+            MinDigitalOutputs = 7,
+            MinPhysicalRs485Ports = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MODBUS_MASTER,
             TitleVi = "Thu Thập Cảm Biến RS-485 (MB_READ)",
             TitleEn = "RS-485 Sensor Ingestion (MB_READ)",
             SubtitleVi = "Đọc định kỳ cảm biến áp suất qua FC04 cập nhật vào VREG0",
@@ -566,6 +664,10 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "mb_write_vfd",
+            MinDigitalInputs = 1,
+            MinDigitalOutputs = 1,
+            MinPhysicalRs485Ports = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MODBUS_MASTER,
             TitleVi = "Điều Khiển Biến Tần VFD (MB_WRITE)",
             TitleEn = "VFD Speed Controller (MB_WRITE)",
             SubtitleVi = "Ghi tần số đặt 50.00 Hz vào thanh ghi biến tần 40001 (FC06)",
@@ -585,6 +687,9 @@ public partial class BlueprintsViewModel : ObservableObject
         Blueprints.Add(new BlueprintModel
         {
             Id = "spx_sort_to_light",
+            MinDigitalOutputs = 5,
+            MinPhysicalRs485Ports = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MQTT_SUB,
             TitleVi = "SPX Sort-to-Light 18 Ô Phân Loại (PULSE_OUT)",
             TitleEn = "SPX 18-Bin Sort-to-Light (PULSE_OUT)",
             SubtitleVi = "Nhận lệnh WMS qua MQTT SUB, phát xung bus điều khiển dải LED 18 ô trên ngõ ra DO3",
@@ -616,13 +721,116 @@ public partial class BlueprintsViewModel : ObservableObject
             Icon = "⚡",
             RuleCount = 2,
             TagsSummaryVi = "RS-485 #1, VREG0 (V), VREG1 (A), VREG2 (kW), VREG_RETAIN0 (kWh), MQTT PUB",
-            TagsSummaryEn = "RS-485 #1, VREG0 (V), VREG1 (A), VREG2 (kW), VREG_RETAIN0 (kWh), MQTT PUB"
+            TagsSummaryEn = "RS-485 #1, VREG0 (V), VREG1 (A), VREG2 (kW), VREG_RETAIN0 (kWh), MQTT PUB",
+            MinDigitalOutputs = 8,
+            MinRetentiveRegisters = 1,
+            MinPhysicalRs485Ports = 1,
+            RequiredCapabilities = SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MQTT_PUB
         });
+    }
+
+    private bool FilterBlueprintPredicate(object obj)
+    {
+        if (!FilterCompatibleOnly) return true;
+        if (obj is BlueprintModel bp)
+        {
+            return bp.IsCompatible;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Làm mới tính tương thích của toàn bộ danh mục Blueprints theo phần cứng mục tiêu.
+    /// </summary>
+    public void RefreshHardwareCompatibility(ProductDefinition? product)
+    {
+        _currentProduct = product ?? AppServices.Instance.CurrentProduct;
+        int compCount = 0;
+        foreach (var bp in Blueprints)
+        {
+            bp.IsCompatible = bp.CheckCompatibility(_currentProduct, out var reasonVi, out var reasonEn);
+            bp.IncompatibleReasonVi = reasonVi;
+            bp.IncompatibleReasonEn = reasonEn;
+            if (bp.IsCompatible) compCount++;
+        }
+
+        CompatibleCount = compCount;
+        TotalCount = Blueprints.Count;
+        UpdateCompatibilitySummary();
+        FilteredBlueprints?.Refresh();
+    }
+
+    /// <summary>
+    /// Chuyển đổi ProductDefinition thành tên hiển thị thân thiện kèm tóm tắt cấu hình I/O công nghiệp (ví dụ: "SYNX-RIO-884 (8DI/8DO/4AI)").
+    /// </summary>
+    /// <param name="product">Hồ sơ thiết bị phần cứng mục tiêu.</param>
+    /// <returns>Tên ngắn gọn và thông số I/O thực tế.</returns>
+    public static string GetFriendlyDeviceName(ProductDefinition? product)
+    {
+        if (product == null)
+        {
+            return LocalizationService.Instance.IsVietnamese ? "Thiết bị hiện tại" : "Current device";
+        }
+
+        // 1. Đối soát Preset chuẩn đã định nghĩa
+        var matchingPreset = HardwareDevicePreset.BuiltInPresets
+            .FirstOrDefault(p => (ushort)p.DeviceClass == product.DeviceClass && p.DeviceVariant == product.ProductVariant);
+
+        string mcuName;
+        if (matchingPreset != null)
+        {
+            mcuName = matchingPreset.McuTarget.Replace("SynaptiX ", "");
+        }
+        else
+        {
+            mcuName = (SPLC_DeviceClass)product.DeviceClass switch
+            {
+                SPLC_DeviceClass.REMOTE_IO => "Remote I/O",
+                SPLC_DeviceClass.GATEWAY => "Gateway",
+                SPLC_DeviceClass.DATALOGGER => "Datalogger",
+                SPLC_DeviceClass.CONTROLLER => LocalizationService.Instance.IsVietnamese ? "Bộ điều khiển" : "Controller",
+                SPLC_DeviceClass.DTU => "DTU Gateway",
+                _ => LocalizationService.Instance.IsVietnamese ? "Thiết bị" : "Device"
+            };
+        }
+
+        // 2. Tạo chuỗi tóm tắt I/O súc tích
+        var ioParts = new System.Collections.Generic.List<string>(3);
+        if (product.Resources.DigitalInputs > 0) ioParts.Add($"{product.Resources.DigitalInputs}DI");
+        if (product.Resources.DigitalOutputs > 0) ioParts.Add($"{product.Resources.DigitalOutputs}DO");
+        if (product.Resources.AnalogInputs > 0) ioParts.Add($"{product.Resources.AnalogInputs}AI");
+
+        string ioSummary = ioParts.Count > 0
+            ? string.Join("/", ioParts)
+            : (product.PhysicalRs485PortCount > 0 ? $"{product.PhysicalRs485PortCount}x RS-485" : string.Empty);
+
+        return string.IsNullOrEmpty(ioSummary) ? mcuName : $"{mcuName} ({ioSummary})";
+    }
+
+    private void UpdateCompatibilitySummary()
+    {
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        string friendlyHw = GetFriendlyDeviceName(_currentProduct);
+
+        CompatibilitySummary = isVi
+            ? $"Hiển thị {CompatibleCount}/{TotalCount} mẫu tương thích với {friendlyHw}"
+            : $"Showing {CompatibleCount}/{TotalCount} blueprints compatible with {friendlyHw}";
+
+        FilterCheckboxText = isVi
+            ? $"Chỉ hiện mẫu tương thích ({CompatibleCount}/{TotalCount}) · {friendlyHw}"
+            : $"Compatible only ({CompatibleCount}/{TotalCount}) · {friendlyHw}";
+
+        FilterCheckboxToolTip = isVi
+            ? $"Hiển thị {CompatibleCount}/{TotalCount} mẫu có thể chạy trực tiếp trên {friendlyHw}.\nBỏ chọn để xem toàn bộ {TotalCount} mẫu trong thư viện."
+            : $"Showing {CompatibleCount}/{TotalCount} blueprints compatible with {friendlyHw}.\nUncheck to view all {TotalCount} library blueprints.";
     }
 
     [RelayCommand]
     public void ApplyBlueprint(BlueprintModel bp)
     {
+        if (bp == null) return;
+        if (!bp.IsCompatible) return;
+
         _logicEditor.NewRuleCanvas();
         var tags = _logicEditor.TagCatalog.AllTags;
 

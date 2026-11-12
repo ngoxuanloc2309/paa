@@ -8,6 +8,9 @@ using System.Windows;
 
 namespace SimplePLC.Studio.Services;
 
+/// <summary>
+/// Chứa thông tin chi tiết về phiên bản cập nhật phần mềm SynaptiX IDE từ máy chủ từ xa.
+/// </summary>
 public class UpdateInfo
 {
     public bool HasUpdate { get; set; }
@@ -32,12 +35,20 @@ public class UpdateInfo
     }
 }
 
+/// <summary>
+/// Dịch vụ kiểm tra và cập nhật phiên bản phần mềm SynaptiX IDE qua GitHub Releases API.
+/// </summary>
 public class AppUpdateService
 {
     private readonly HttpClient _httpClient;
     public const string GitHubRepoOwner = "hoanv-synaptix";
     public const string GitHubRepoName = "SynaptiX-IDE-Releases";
     public const string ReleasesApiUrl = $"https://api.github.com/repos/{GitHubRepoOwner}/{GitHubRepoName}/releases/latest";
+
+    /// <summary>
+    /// Địa chỉ cổng Web Wiki tài liệu kỹ thuật trực tuyến của nền tảng SynaptiX (VitePress Portal).
+    /// </summary>
+    public const string DocumentationPortalUrl = "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/";
 
     public string CurrentVersion { get; }
 

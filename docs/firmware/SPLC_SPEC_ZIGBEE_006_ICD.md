@@ -154,4 +154,110 @@ _Static_assert(sizeof(SPLC_ZigbeeConfigRecord_t) == 128, "ZigbeeConfigRecord mus
    - Khi Deploy logic FBD mới mà không thay đổi Zigbee, Studio sẽ không ghi vùng `0x1700`; nếu thay đổi tham số mà không đổi key, Studio sẽ set cờ `PRESERVE_KEY = 1` để Firmware không ghi đè mất khóa trong Flash.
 
 ---
+
+## 6. SƠ ĐỒ KẾT NỐI PHẦN CỨNG STM32 VỚI MODULE ZIGBEE RF
+
+### 6.1. Sơ đồ chân tín hiệu (Hardware Pinout)
+
+Vi điều khiển STM32 kết nối với Module Zigbee (DRF1609H / CC2530 / E18) thông qua cổng USART chuyên dụng và các chân GPIO điều khiển logic:
+
+| Tên chân Module | Tên chân STM32 | Hướng | Chế độ GPIO / Ngoại vi | Chức năng kỹ thuật |
+| :--- | :--- | :---: | :--- | :--- |
+| **VCC** | `+3.3V` | Nguồn | Cung cấp nguồn sạch | Điện áp hoạt động 3.0V – 3.6V, đỉnh dòng phát RF $\le 120$ mA. |
+| **GND** | `GND` | Nguồn | Mặt mass chung | Nối mass đồng nhất với bo mạch vi điều khiển. |
+| **RXD** | `USARTx_TX` | Out | Alternate Function Push-Pull | STM32 truyền dữ liệu và lệnh cấu hình sang module RF. |
+| **TXD** | `USARTx_RX` | In | Alternate Function Floating/Pull-up | STM32 nhận khung Modbus và phản hồi viễn trắc từ module. |
+| **RESET** | `ZIGBEE_RST` | Out | GPIO Output Push-Pull | Kéo mức Thấp (LOW) tối thiểu 50 ms để Reset cứng module. |
+| **SET / CFG** | `ZIGBEE_CFG` | Out | GPIO Output Push-Pull | Mức CAO: Chế độ truyền trong suốt (Transparent Data).<br>Mức THẤP: Chế độ nạp tham số cấu hình AT/Hex. |
+| **AUX / LINK**| `ZIGBEE_AUX` | In | GPIO Input Pull-up | Trạng thái bận của bộ đệm RF (Mức THẤP: Module đang phát sóng; Mức CAO: Nhàn rỗi, sẵn sàng nhận dữ liệu tiếp theo). |
+
+---
+
+## 7. GIAO THỨC ĐIỀU KHIỂN & BẢNG LỆNH CẤU HÌNH MODULE RF
+
+### 7.1. Giải thích Lý do Cấm Trạm Modbus ID 236 (`0xEC`) và 237 (`0xED`)
+Trong các module Zigbee công nghiệp họ DRF1609H / DTK-ZIGBEE:
+- Byte tiền tố **`0xEC`** là mã lệnh đọc tham số nội bộ: `[0xEC, CMD, LEN, CRC]`.
+- Byte tiền tố **`0xED`** là mã lệnh ghi tham số mạng: `[0xED, CMD, LEN, DATA..., CRC]`.
+
+Nếu một thiết bị Modbus Slave được cấu hình mang địa chỉ trạm `236 (0xEC)` hoặc `237 (0xED)`, khi khung Modbus RTU được phát ra UART, module Zigbee sẽ nhận nhầm byte địa chỉ trạm thành byte lệnh cấu hình module, dẫn tới việc rớt mạng, treo vi điều khiển module RF hoặc cấu hình sai kênh sóng. Do đó, trường `slave_id` tại thanh ghi `0x170D` **tuyệt đối cấm** hai giá trị này.
+
+### 7.2. Trình tự Khởi tạo & Cấu hình Module khi Khởi động (Boot Sequence)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as STM32 Main Core
+    participant UART as STM32 USARTx (DMA)
+    participant RF as Module Zigbee RF
+
+    Note over App,RF: 1. Khởi động phần cứng
+    App->>RF: Kéo ZIGBEE_RST = LOW (50 ms) rồi thả HIGH
+    App->>App: Delay 200 ms chờ RF Module Bootloader ổn định
+    
+    Note over App,RF: 2. Chuyển chế độ Cấu hình
+    App->>RF: Kéo ZIGBEE_CFG = LOW (Vào Command Mode)
+    App->>App: Chờ ZIGBEE_AUX = HIGH (Sẵn sàng)
+    
+    Note over App,RF: 3. Nạp Tham số Vô tuyến (Channel, PAN ID, Key)
+    App->>UART: Gửi chuỗi thiết lập (Channel: 0x1701, PAN ID: 0x1702, Power: 0x1705)
+    UART->>RF: Gói lệnh cấu hình (Hex Packet / AT Command)
+    RF-->>UART: Phản hồi ACK (0x00 / "OK")
+    
+    alt Có nạp AES-128 Key mới (control_flags.Bit5 == 0)
+        App->>UART: Nạp 16 bytes Network Key (0x1710..0x1717)
+        UART->>RF: Lệnh ghi khóa bảo mật AES-128
+        RF-->>UART: Phản hồi ACK
+    end
+    
+    Note over App,RF: 4. Chuyển sang Chế độ Truyền trong suốt (Transparent Mode)
+    App->>RF: Kéo ZIGBEE_CFG = HIGH
+    App->>App: Cập nhật status_flags.KEY_SET = 1, link_state = JOINING (1)
+```
+
+---
+
+## 8. ĐỊNH TUYẾN KHUNG TRUYỀN MODBUS TRONG EMBEDDED FIRMWARE
+
+### 8.1. Luồng Nhận Khung Không Dây (Inbound Modbus Slave Bridge)
+Khi thiết bị hoạt động ở chế độ Slave (mạng Mesh thu thập dữ liệu về bộ điều khiển trung tâm):
+1. STM32 mở cổng nhận UART ngắt luồng thông qua **DMA Circular Buffer kết hợp ngắt Idle Line (`IDLEIE`)**.
+2. Khi có khoảng lặng trên đường truyền vượt quá thời gian 3.5 ký tự ($t_{3.5}$ theo chuẩn Modbus RTU), ngắt `USARTx_IRQHandler` kích hoạt:
+   - Vi điều khiển kiểm tra byte đầu tiên (Slave Address):
+     - Nếu khớp với `slave_id` (tại `0x170D`) hoặc địa chỉ Broadcast `0x00`: Khung được chuyển sang hàm phân tích cú pháp cố định `splc_modbus_slave_process_frame(rx_buf, rx_len)`.
+     - Nếu không khớp: Khung bị loại bỏ ngay lập tức (zero-copy drop) để tiết kiệm thời gian chu kỳ quét PLC.
+3. Khi hàm xử lý Modbus Slave hoàn tất, khung phản hồi Modbus RTU được nạp vào bộ đệm phát DMA và bắn trực tiếp ra `USARTx_TX` về module Zigbee để phát sóng vô tuyến.
+4. Cập nhật bộ đếm viễn trắc: tăng `rx_packets` (hoặc `rx_errors` nếu kiểm tra CRC-16 thất bại) và tăng `tx_packets` sau khi gửi phản hồi xong.
+
+### 8.2. Luồng Phát Lệnh Không Dây (Outbound Modbus Master Bridge)
+Khi bộ điều khiển logic FBD thực thi khối phát lệnh đọc/ghi mạng không dây:
+- Khối **`MB_READ`** hoặc **`MB_WRITE`** được nạp tham số với giá trị cờ cổng:
+  $$\mathbf{PortIndex = 4} \quad (\text{Quy ước: } 0..3 = \text{RS-485 \#1..\#4}, \; 4 = \text{Zigbee Wireless})$$
+- Task Modbus Master của Firmware nhận lệnh:
+  1. Kiểm tra bit `control_flags.ENABLE` tại `0x1700`. Nếu phân hệ đang tắt (`ENABLE = 0`), khối FBD lập tức báo lỗi ngõ ra `ERROR = TRUE`, `STATUS = 0x0004` (Cổng chưa sẵn sàng).
+  2. Kiểm tra tín hiệu chân `ZIGBEE_AUX`. Nếu module đang bận phát sóng (mức THẤP), chờ tối đa theo `response_timeout_ms` (`0x170A`).
+  3. Đóng gói khung Modbus RTU và phát qua kênh DMA của cổng USART kết nối module Zigbee.
+  4. Lắng nghe phản hồi từ trạm tớ từ xa qua sóng vô tuyến. Nếu quá thời gian `response_timeout_ms` mà không có phản hồi, thử lại tối đa `retry_count` (`0x170C`) lần trước khi đánh cờ lỗi truyền thông.
+
+---
+
+## 9. QUẢN LÝ LƯU TRỮ FLASH VÀ BẢO VỆ KHÓA BẢO MẬT AES-128
+
+### 9.1. Phân vùng Flash NVS dành cho Zigbee
+Để đảm bảo sau khi mất điện hệ thống tự động tái lập mạng Mesh mà không cần nạp lại từ máy tính:
+- Toàn bộ cấu trúc `SPLC_ZigbeeConfigRecord_t` (128 bytes) được lưu trữ tại một Sector NVS chuyên biệt trong Flash nội của STM32 (tách biệt hoàn toàn với vùng chứa Rule Table logic `0x9000`).
+- Khi khởi động, Firmware đọc cấu hình từ Flash vào vùng nhớ RAM ánh xạ Holding Registers `0x1700..0x173F`.
+
+### 9.2. Quy tắc Xử lý Cờ `PRESERVE_KEY` (Bit 5) & `KEY_SET` (Bit 0 tại `+36`)
+1. **Bảo mật tuyệt đối (Write-Only):**
+   - Vùng 16 bytes `network_key` (`0x1710..0x1717`) là vùng chỉ ghi.
+   - Khi Master phát hàm `FC03` đọc vùng này, MCU bắt buộc điền toàn bộ byte trả về là `0x00`.
+2. **Cờ `PRESERVE_KEY` (Bit 5 của `control_flags` tại `+0`):**
+   - Khi kỹ sư nạp lại chương trình FBD mới hoặc thay đổi các thông số RF (Channel, Baud rate) mà không thay đổi mật mã mạng, Studio sẽ bật bit `PRESERVE_KEY = 1`.
+   - Khi nhận được bit này, trình ghi Flash của Firmware **chỉ cập nhật 112 bytes tham số thông thường**, giữ nguyên 16 bytes khóa AES-128 đang có trong Flash, tránh việc người dùng vô tình ghi đè khóa làm mất liên kết của toàn mạng Mesh.
+3. **Cờ `KEY_SET` (Bit 0 của `status_flags` tại `+36`):**
+   - Nếu trong Flash đã có khóa AES hợp lệ (khác toàn bộ 0xFF hoặc toàn bộ 0x00), Firmware set `KEY_SET = 1`.
+   - Studio dựa vào cờ này để hiển thị thông báo trạng thái `[ ĐÃ BẢO VỆ BẰNG KHÓA AES ]` cho người dùng mà không cần biết nội dung thô của khóa.
+
+---
 *Tài liệu này là căn cứ kỹ thuật chính thức duy nhất cho cả Đội ngũ Firmware và Đội ngũ SynaptiX Studio.*

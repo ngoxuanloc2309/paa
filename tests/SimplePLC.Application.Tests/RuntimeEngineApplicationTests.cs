@@ -192,4 +192,65 @@ public class RuntimeEngineApplicationTests
         float scaledResult = BitConverter.Int32BitsToSingle(store.GetValue(52));
         Assert.Equal(60.5f, scaledResult, precision: 4);
     }
+
+    [Fact]
+    public void Scan_WhenAddTagOnFloat32Tags_AddsIeee754FloatingPointValuesCorrectly()
+    {
+        // Tag 16 (FlowRate = 12.5f), Tag 52 (TotalVolume = 100.25f)
+        // Expected after ADD_TAG: 100.25f + 12.5f = 112.75f
+        int initialFlowBits = BitConverter.SingleToInt32Bits(0.0f);
+        int initialTotalBits = BitConverter.SingleToInt32Bits(100.25f);
+        var store = new InMemoryTagStore((16, initialFlowBits), (52, initialTotalBits));
+        var engine = new RuntimeEngine(store);
+
+        var tagIn = new TagDefinition(16, "FlowRate", TagKind.AnalogInput, TagDataType.Float32, true);
+        var tagOut = new TagDefinition(52, "TotalVolume", TagKind.VirtualRegister, TagDataType.Float32, false);
+
+        var trigger = new TriggerModel(tagIn, TriggerKind.OnChange) { IsFloat = true };
+        var action = new ActionModel(tagOut, ActionKind.AddTag, 0) { IsFloat = true };
+        var rule = new Rule(0, "R_Accumulate_Float", trigger, action);
+
+        // Initial scan
+        engine.Scan(new[] { rule }, 0);
+
+        // FlowRate updates to 12.5f
+        store.SetValue(16, BitConverter.SingleToInt32Bits(12.5f));
+        var snap = engine.Scan(new[] { rule }, 10);
+
+        Assert.Equal(RuleEvaluationStatus.Pass, snap.Evaluations[0].Status);
+        float resultFloat = BitConverter.Int32BitsToSingle(store.GetValue(52));
+        Assert.Equal(112.75f, resultFloat, precision: 4);
+    }
+
+    [Fact]
+    public void Scan_WhenScaleTagFromInt32InputToFloat32Output_ScalesAccurately()
+    {
+        // Tag 16 (RawAdc Int32 = 2000), Tag 52 (VoltageReal Float32)
+        // y = 0.005f * 2000 + 1.25f = 10.0f + 1.25f = 11.25f
+        var store = new InMemoryTagStore((16, 0), (52, 0));
+        var engine = new RuntimeEngine(store);
+
+        var tagIn = new TagDefinition(16, "RawAdc", TagKind.AnalogInput, TagDataType.Int32, true);
+        var tagOut = new TagDefinition(52, "VoltageReal", TagKind.VirtualRegister, TagDataType.Float32, false);
+
+        var trigger = new TriggerModel(tagIn, TriggerKind.OnChange)
+        {
+            ThresholdHi = 1.25,
+            IsFloat = true
+        };
+        var action = new ActionModel(tagOut, ActionKind.ScaleTag, 0.005)
+        {
+            IsFloat = true
+        };
+        var rule = new Rule(0, "R_Scale_IntToFloat", trigger, action);
+
+        engine.Scan(new[] { rule }, 0);
+
+        store.SetValue(16, 2000);
+        var snap = engine.Scan(new[] { rule }, 10);
+
+        Assert.Equal(RuleEvaluationStatus.Pass, snap.Evaluations[0].Status);
+        float resultFloat = BitConverter.Int32BitsToSingle(store.GetValue(52));
+        Assert.Equal(11.25f, resultFloat, precision: 4);
+    }
 }

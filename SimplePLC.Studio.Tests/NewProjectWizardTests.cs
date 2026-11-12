@@ -16,7 +16,7 @@ namespace SimplePLC.Studio.Tests;
 /// Kiểm thử hành vi của wizard tạo dự án mới và đồng bộ phần cứng.
 /// </summary>
 [Collection("AppServicesDeployTests")]
-public class NewProjectWizardTests : IDisposable
+public class NewProjectWizardTests : IAsyncLifetime
 {
     [Fact]
     public void NewProjectViewModel_DefaultState_LoadsStandardRemoteIoPreset()
@@ -28,7 +28,7 @@ public class NewProjectWizardTests : IDisposable
         Assert.Equal("Project_1", vm.ProjectName);
         Assert.Equal("SynaptiX Engineer", vm.Author);
         Assert.NotNull(vm.SelectedPreset);
-        Assert.Equal("REMOTE_IO_8DI_8DO_4AI", vm.SelectedPreset.Id);
+        Assert.Equal("SYNX_RIO_884", vm.SelectedPreset.Id);
         Assert.Equal(8, vm.PreviewDigitalInputs);
         Assert.Equal(8, vm.PreviewDigitalOutputs);
         Assert.Equal(4, vm.PreviewAnalogInputs);
@@ -50,7 +50,7 @@ public class NewProjectWizardTests : IDisposable
         var vm = new NewProjectViewModel();
 
         // Act: Chọn Compact 4DI/4DO
-        var compact = vm.Presets.First(p => p.Id == "REMOTE_IO_4DI_4DO");
+        var compact = vm.Presets.First(p => p.Id == "SYNX_RIO_440");
         vm.SelectStandardPreset(compact);
 
         // Assert Compact
@@ -63,7 +63,7 @@ public class NewProjectWizardTests : IDisposable
         Assert.Contains("DI0 – DI3", vm.PreviewDiText);
 
         // Act: Chọn Datalogger 4DI/2DO/4AI
-        var datalogger = vm.Presets.First(p => p.Id == "DATALOGGER_4DI_2DO_4AI");
+        var datalogger = vm.Presets.First(p => p.Id == "SYNX_DL_424");
         vm.SelectStandardPreset(datalogger);
 
         // Assert Datalogger
@@ -140,7 +140,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "Compact_Substation_01";
-            var compact = wizardVm.Presets.First(p => p.Id == "REMOTE_IO_4DI_4DO");
+            var compact = wizardVm.Presets.First(p => p.Id == "SYNX_RIO_440");
             wizardVm.SelectStandardPreset(compact);
             return true;
         };
@@ -171,7 +171,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "Datalogger_Station";
-            var dl = wizardVm.Presets.First(p => p.Id == "DATALOGGER_4DI_2DO_4AI");
+            var dl = wizardVm.Presets.First(p => p.Id == "SYNX_DL_424");
             wizardVm.SelectStandardPreset(dl);
             return true;
         };
@@ -227,7 +227,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "DTU_Station_01";
-            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "SYNX_DTU_485");
             wizardVm.SelectStandardPreset(dtuPreset);
             return true;
         };
@@ -239,7 +239,8 @@ public class NewProjectWizardTests : IDisposable
         Assert.Equal("DTU_Station_01", mainVM.CurrentProjectName);
         Assert.True(mainVM.IsDtuProject);
         Assert.True(mainVM.HasSystemTab);
-        Assert.Equal(0, mainVM.SelectedTabIndex); // Tab 0 (System) must be active for DTU
+        Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex); // All projects default to LogicGraph (Hero Screen)
+        Assert.Same(mainVM.LogicEditorVM, mainVM.CurrentView);
         Assert.Equal(4, mainVM.CurrentProjectMetadata.PhysicalRs485PortCount);
         Assert.NotEqual(0u, mainVM.CurrentProjectMetadata.HardwareCapabilities);
         Assert.True(mainVM.CurrentProjectMetadata.DtuConfig.Enabled);
@@ -266,7 +267,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "DTU_Persist_Test";
-            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "SYNX_DTU_485");
             wizardVm.SelectStandardPreset(dtuPreset);
             return true;
         };
@@ -290,7 +291,8 @@ public class NewProjectWizardTests : IDisposable
             Assert.Equal("DTU_Persist_Test", freshVM.CurrentProjectName);
             Assert.True(freshVM.IsDtuProject);
             Assert.True(freshVM.HasSystemTab);
-            Assert.Equal(0, freshVM.SelectedTabIndex);
+            Assert.Equal(AppTabIndices.LogicGraph, freshVM.SelectedTabIndex);
+            Assert.Same(freshVM.LogicEditorVM, freshVM.CurrentView);
             Assert.Equal(4, freshVM.CurrentProjectMetadata.PhysicalRs485PortCount);
             Assert.NotEqual(0u, freshVM.CurrentProjectMetadata.HardwareCapabilities);
             Assert.True(freshVM.CurrentProjectMetadata.DtuConfig.Enabled);
@@ -311,7 +313,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "Gateway_Station_01";
-            var gw = wizardVm.Presets.First(p => p.Id == "GATEWAY_RS485_ETH");
+            var gw = wizardVm.Presets.First(p => p.Id == "SYNX_GW_220");
             wizardVm.SelectStandardPreset(gw);
             return true;
         };
@@ -339,7 +341,7 @@ public class NewProjectWizardTests : IDisposable
         mainVM.ShowNewProjectDialogHandler = (wizardVm) =>
         {
             wizardVm.ProjectName = "DL_Station_01";
-            var dl = wizardVm.Presets.First(p => p.Id == "DATALOGGER_4DI_2DO_4AI");
+            var dl = wizardVm.Presets.First(p => p.Id == "SYNX_DL_424");
             wizardVm.SelectStandardPreset(dl);
             return true;
         };
@@ -350,8 +352,8 @@ public class NewProjectWizardTests : IDisposable
         // Assert
         Assert.Equal("DL_Station_01", mainVM.CurrentProjectName);
         Assert.True(mainVM.HasSystemTab);
-        Assert.Equal(0, mainVM.SelectedTabIndex);
-        Assert.Same(mainVM.DtuGatewayStudioVM, mainVM.CurrentView);
+        Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
+        Assert.Same(mainVM.LogicEditorVM, mainVM.CurrentView);
         Assert.Equal(2, mainVM.CurrentProjectMetadata.PhysicalRs485PortCount);
         Assert.Equal(2, mainVM.DtuGatewayStudioVM.ModbusPortConfigVM.Ports.Count);
         Assert.True(mainVM.DtuGatewayStudioVM.HasWifiCapability);
@@ -362,9 +364,10 @@ public class NewProjectWizardTests : IDisposable
     }
 
     [Fact]
-    public void NewProjectViewModel_DetectFromConnectedDevice_WhenNoActiveSession_SetsWarning()
+    public async Task NewProjectViewModel_DetectFromConnectedDevice_WhenNoActiveSession_SetsWarning()
     {
         // Arrange
+        await AppServices.Instance.SessionManager.CloseCurrentSessionAsync(CancellationToken.None);
         var wizardVm = new NewProjectViewModel();
 
         // Act
@@ -380,7 +383,7 @@ public class NewProjectWizardTests : IDisposable
     public async Task NewProjectViewModel_DetectFromConnectedDevice_WithActiveSession_AutoSelectsPreset()
     {
         // Arrange
-        var dtuPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "DTU_RS485_NET");
+        var dtuPreset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_DTU_485");
         var testProduct = dtuPreset.BuildProductDefinition();
         var fakeSession = new FakeTestSession(testProduct);
         await AppServices.Instance.SessionManager.SetCurrentSessionAsync(fakeSession);
@@ -388,7 +391,7 @@ public class NewProjectWizardTests : IDisposable
         try
         {
             var wizardVm = new NewProjectViewModel();
-            var initialPreset = wizardVm.Presets.First(p => p.Id == "REMOTE_IO_8DI_8DO_4AI");
+            var initialPreset = wizardVm.Presets.First(p => p.Id == "SYNX_RIO_884");
             wizardVm.SelectStandardPreset(initialPreset);
 
             // Act
@@ -396,7 +399,7 @@ public class NewProjectWizardTests : IDisposable
 
             // Assert
             Assert.True(wizardVm.IsStatusSuccess);
-            Assert.Equal("DTU_RS485_NET", wizardVm.SelectedPreset.Id);
+            Assert.Equal("SYNX_DTU_485", wizardVm.SelectedPreset.Id);
             Assert.Contains("SYNX-DTU-485", wizardVm.SelectedPreset.DisplayName);
             Assert.Contains(LocalizationService.Tr("NewProjectDeviceDetectedSuccess"), wizardVm.StatusMessage);
         }
@@ -413,7 +416,7 @@ public class NewProjectWizardTests : IDisposable
         var mainVm = new MainViewModel();
         mainVm.ShowNewProjectDialogHandler = wizardVm =>
         {
-            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "SYNX_DTU_485");
             wizardVm.SelectStandardPreset(dtuPreset);
             wizardVm.ProjectName = "StartupDtuProject";
             return true;
@@ -426,7 +429,8 @@ public class NewProjectWizardTests : IDisposable
         Assert.NotNull(mainVm.CurrentProjectMetadata);
         Assert.Equal("StartupDtuProject", mainVm.CurrentProjectMetadata.ProjectName);
         Assert.Equal((ushort)SPLC_DeviceClass.DTU, mainVm.CurrentProjectMetadata.DeviceClass);
-        Assert.Equal(AppTabIndices.Device, mainVm.SelectedTabIndex);
+        Assert.Equal(AppTabIndices.LogicGraph, mainVm.SelectedTabIndex);
+        Assert.Same(mainVm.LogicEditorVM, mainVm.CurrentView);
         Assert.True(mainVm.IsDtuProject);
     }
 
@@ -439,7 +443,7 @@ public class NewProjectWizardTests : IDisposable
         var initialDeviceClass = mainVm.CurrentProjectMetadata?.DeviceClass;
         mainVm.ShowNewProjectDialogHandler = wizardVm =>
         {
-            var dtuPreset = wizardVm.Presets.First(p => p.Id == "DTU_RS485_NET");
+            var dtuPreset = wizardVm.Presets.First(p => p.Id == "SYNX_DTU_485");
             wizardVm.SelectStandardPreset(dtuPreset);
             wizardVm.ProjectName = "StartupDtuProject";
             return false;
@@ -463,7 +467,7 @@ public class NewProjectWizardTests : IDisposable
         public SimplePLC.Application.Models.DeviceEndpoint Endpoint => new SimplePLC.Application.Models.UsbCdcEndpoint("COM99");
         public SimplePLC.Protocol.Dto.DeviceDescriptorDto Descriptor => new()
         {
-            DeviceClass = (SimplePLC.Protocol.Enums.SPLC_DeviceClass)Product.DeviceClass,
+            DeviceClass = (SimplePLC.Domain.Enums.SPLC_DeviceClass)Product.DeviceClass,
             DeviceVariant = Product.ProductVariant,
             HwVersionMajor = 1,
             HwVersionMinor = 0,
@@ -497,8 +501,11 @@ public class NewProjectWizardTests : IDisposable
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    public void Dispose()
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
     {
+        await AppServices.Instance.SessionManager.CloseCurrentSessionAsync(CancellationToken.None);
         AppServices.Instance.CurrentProduct = ProductDefinition.CreateRemoteIo8Di8Do4Ai();
     }
 }

@@ -17,8 +17,8 @@ public class ZigbeeStudioIntegrationTests
     [Fact]
     public void DtuGatewayStudioViewModel_WhenDeviceHasZigbeeCapability_EnablesZigbeeSection()
     {
-        // Arrange: XLINK_ZIGBEE_44 có SPLC_HardwareCapabilities.ZIGBEE
-        var preset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "XLINK_ZIGBEE_44");
+        // Arrange: SYNX_RIO_440_ZB có SPLC_HardwareCapabilities.ZIGBEE
+        var preset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_RIO_440_ZB");
         var metadata = new ProjectMetadata
         {
             DeviceClass = (ushort)preset.DeviceClass,
@@ -44,8 +44,8 @@ public class ZigbeeStudioIntegrationTests
     [Fact]
     public void DtuGatewayStudioViewModel_WhenDeviceLacksZigbeeCapability_HidesZigbeeAndFallsBackSafely()
     {
-        // Arrange: REMOTE_IO_8DI_8DO_4AI không có Zigbee
-        var preset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "REMOTE_IO_8DI_8DO_4AI");
+        // Arrange: SYNX_RIO_884 không có Zigbee
+        var preset = HardwareDevicePreset.BuiltInPresets.First(p => p.Id == "SYNX_RIO_884");
         var metadata = new ProjectMetadata
         {
             DeviceClass = (ushort)preset.DeviceClass,

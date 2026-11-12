@@ -393,7 +393,7 @@ public sealed class RuntimeEngine : IRuntimeEngine
 
                 case TriggerType.ON_CHANGE:
                 default:
-                    bool compareMet = Compare(rule.CompareOp, current, rule.ThresholdLo, rule.ThresholdHi, rule.IsFloat);
+                    bool compareMet = Compare(rule.CompareOp, current, rule.ThresholdLo, rule.ThresholdHi, rule.IsTriggerFloat);
                     if (rule.CompareOp != CompareOp.NONE)
                     {
                         conditionMet = compareMet;
@@ -624,14 +624,32 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{(int)Math.Round(rule.Action.Parameter)})";
                 break;
             case SimplePLC.Domain.Enums.ActionKind.AddTag:
-                afterVal = beforeVal + sourceValue;
-                Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
+                if (rule.Action.IsFloat || target?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+                {
+                    float tValF = (rule.Trigger.IsFloat || rule.Trigger.Tag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
+                    float aValF = BitConverter.Int32BitsToSingle(beforeVal);
+                    float sumF = aValF + tValF;
+                    afterVal = BitConverter.SingleToInt32Bits(sumF);
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {aValF:0.##} → {sumF:0.##} (+{tValF:0.##})";
+                }
+                else
+                {
+                    afterVal = beforeVal + sourceValue;
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
+                }
                 break;
             case SimplePLC.Domain.Enums.ActionKind.ScaleTag:
-                if (rule.Action.IsFloat)
+                if (rule.Action.IsFloat || rule.Trigger.IsFloat ||
+                    target?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32 ||
+                    rule.Trigger.Tag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
                 {
-                    float rawF = BitConverter.Int32BitsToSingle(sourceValue);
+                    float rawF = rule.Trigger.Tag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
                     float slopeF = (float)rule.Action.Parameter;
                     float offsetF = (float)rule.Trigger.ThresholdHi;
                     float outF = slopeF * rawF + offsetF;
@@ -701,14 +719,30 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{rule.ActionParam})";
                 break;
             case ActionType.ADD_TAG:
-                afterVal = beforeVal + sourceValue;
-                Write(target!, afterVal);
-                formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
+                if (rule.IsActionFloat)
+                {
+                    float tValF = (rule.TriggerTag?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
+                    float aValF = BitConverter.Int32BitsToSingle(beforeVal);
+                    float sumF = aValF + tValF;
+                    afterVal = BitConverter.SingleToInt32Bits(sumF);
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {aValF:0.##} → {sumF:0.##} (+{tValF:0.##})";
+                }
+                else
+                {
+                    afterVal = beforeVal + sourceValue;
+                    Write(target!, afterVal);
+                    formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (+{sourceValue})";
+                }
                 break;
             case ActionType.SCALE_TAG:
                 if (rule.IsFloat)
                 {
-                    float rawF = BitConverter.Int32BitsToSingle(sourceValue);
+                    float rawF = (rule.TriggerTag?.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+                        ? BitConverter.Int32BitsToSingle(sourceValue)
+                        : (float)sourceValue;
                     float slopeF = BitConverter.Int32BitsToSingle(rule.ActionParam);
                     float offsetF = (float)rule.ThresholdHi;
                     float outF = slopeF * rawF + offsetF;
@@ -718,7 +752,7 @@ public sealed class RuntimeEngine : IRuntimeEngine
                 }
                 else
                 {
-                    afterVal = sourceValue * rule.ActionParam / 1000 + (int)rule.ThresholdHi;
+                    afterVal = (int)((long)sourceValue * rule.ActionParam / 1000 + (long)Math.Round(rule.ThresholdHi));
                     Write(target!, afterVal);
                     formattedDelta = $"{target!.Name}: {beforeVal} → {afterVal} (SCALE)";
                 }

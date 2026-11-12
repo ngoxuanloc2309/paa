@@ -24,8 +24,24 @@ public class ProtocolNumericContractTests
     public void RemoteIoVariant_Values_MatchExactLiterals()
     {
         Assert.Equal((ushort)0, (ushort)SPLC_RemoteIoVariant.UNKNOWN);
-        Assert.Equal((ushort)1, (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI);
-        Assert.Equal((ushort)2, (ushort)SPLC_RemoteIoVariant.VARIANT_16DI_16DO);
+        Assert.Equal((ushort)1, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884);
+        Assert.Equal((ushort)2, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_WF);
+        Assert.Equal((ushort)3, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440);
+        Assert.Equal((ushort)4, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_880);
+        Assert.Equal((ushort)5, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_ZB);
+    }
+
+    [Fact]
+    public void OtherDeviceVariants_Values_MatchExactLiterals()
+    {
+        Assert.Equal((ushort)0, (ushort)SPLC_DataloggerVariant.UNKNOWN);
+        Assert.Equal((ushort)1, (ushort)SPLC_DataloggerVariant.VARIANT_DL_424);
+
+        Assert.Equal((ushort)0, (ushort)SPLC_GatewayVariant.UNKNOWN);
+        Assert.Equal((ushort)1, (ushort)SPLC_GatewayVariant.VARIANT_GW_220);
+
+        Assert.Equal((ushort)0, (ushort)SPLC_DtuVariant.UNKNOWN);
+        Assert.Equal((ushort)1, (ushort)SPLC_DtuVariant.VARIANT_DTU_485);
     }
 
     [Fact]

@@ -24,19 +24,6 @@ public partial class MainWindow : Window
                 UpdateAiChatColumnWidth(vm.AiChatVM.IsPanelOpen);
             }
         };
-
-        Loaded += OnWindowLoaded;
-    }
-
-    private void OnWindowLoaded(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel vm && string.IsNullOrEmpty(vm.CurrentProjectPath))
-        {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                vm.PromptStartupNewProject();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
-        }
     }
 
     private void UpdateAiChatColumnWidth(bool isOpen)

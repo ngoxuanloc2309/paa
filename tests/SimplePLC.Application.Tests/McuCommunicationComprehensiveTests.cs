@@ -75,7 +75,7 @@ public class McuCommunicationComprehensiveTests
             // 1. Đọc Device Descriptor (0x0000..0x0009)
             var descriptor = session.Descriptor;
             Assert.Equal(SPLC_DeviceClass.REMOTE_IO, descriptor.DeviceClass);
-            Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, descriptor.DeviceVariant);
+            Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884, descriptor.DeviceVariant);
             Assert.Equal(1, descriptor.HwVersionMajor);
             Assert.Equal(0, descriptor.HwVersionMinor);
             Assert.Equal(2, descriptor.FwVersionMajor);

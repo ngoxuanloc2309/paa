@@ -7,6 +7,7 @@
         Title="{Binding WindowTitle}" 
         Icon="Assets/app.png"
         Height="820" Width="1340"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing"
         AllowDrop="True"
@@ -76,6 +77,9 @@
         <converters:ComparisonConverter x:Key="CompareConverter" />
 
         <!-- View Mappings -->
+        <DataTemplate DataType="{x:Type vm:StartupHubViewModel}">
+            <views:StartPageView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:AiChatViewModel}">
             <views:AiChatView />
         </DataTemplate>
@@ -118,11 +122,13 @@
         </Grid.RowDefinitions>
 
         <!-- 0. WINDOWS STANDARD MENU BAR -->
-        <Menu Grid.Row="0" Background="{DynamicResource BgWindowBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="4,2">
+        <Menu Grid.Row="0">
             <!-- 1. TỆP (FILE) -->
             <MenuItem Header="{Binding Loc[MenuFile]}">
+                <MenuItem Header="{Binding Loc[MenuStartPage]}" Command="{Binding OpenStartPageCommand}" />
                 <MenuItem Header="{Binding Loc[MenuNewProject]}" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
                 <MenuItem Header="{Binding Loc[ToolOpen]}" Command="{Binding OpenProjectCommand}" InputGestureText="Ctrl+O" />
+                <MenuItem Header="{Binding Loc[MenuCloseProject]}" Command="{Binding CloseProjectCommand}" />
                 <MenuItem Header="{Binding Loc[MenuSaveProject]}" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S" />
                 <MenuItem Header="{Binding Loc[MenuSaveProjectAs]}" Command="{Binding SaveProjectAsCommand}" InputGestureText="Ctrl+Shift+S" />
                 <Separator />
@@ -142,7 +148,7 @@
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuRecentProjects]}" ItemsSource="{Binding RecentProjects}">
                     <MenuItem.ItemContainerStyle>
-                        <Style TargetType="MenuItem">
+                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Header" Value="{Binding}" />
                             <Setter Property="Command" Value="{Binding DataContext.OpenRecentProjectCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
                             <Setter Property="CommandParameter" Value="{Binding}" />
@@ -208,7 +214,7 @@
                 <Separator />
                 <MenuItem Header="{Binding PortMenuHeader}" ItemsSource="{Binding PortOptions}">
                     <MenuItem.ItemContainerStyle>
-                        <Style TargetType="MenuItem">
+                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                             <Setter Property="Header" Value="{Binding Name}" />
                             <Setter Property="IsCheckable" Value="True" />
                             <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
@@ -254,7 +260,8 @@
         </Menu>
 
         <!-- 1. NAVIGATION TABS BAR & QUICK CONNECT -->
-        <Border Grid.Row="1" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+        <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,4"
+                Visibility="{Binding IsStartPageActive, Converter={StaticResource InverseBoolToVis}}">
             <DockPanel LastChildFill="False">
                 <Border Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="2" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
@@ -326,7 +333,8 @@
                                               IsEnabled="{Binding CanSelectPort}" />
                                     <Button Grid.Column="1"
                                             Command="{Binding RefreshPortsCommand}"
-                                            Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
+                                            Style="{StaticResource TactileToolbarBtnStyle}"
+                                            Padding="0"
                                             Width="26" Height="26" Cursor="Hand"
                                             ToolTip="{Binding Loc[MenuRefreshPorts]}">
                                         <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconIecTimerCycle}" Stroke="{DynamicResource TextSecondaryBrush}" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -479,6 +487,9 @@
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="2">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="3">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="4">

@@ -2,7 +2,6 @@ using System.Linq;
 using SimplePLC.Domain.Builders;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
-using SimplePLC.Protocol.Models;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 using SimplePLC.Studio.ViewModels;
@@ -10,6 +9,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử phân giải địa chỉ và bố cục Tag Layout trong quá trình biên dịch động.
+/// </summary>
 public class DynamicTagLayoutCompilerResolutionTests
 {
     [Fact]

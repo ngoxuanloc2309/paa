@@ -1,0 +1,611 @@
+<UserControl x:Class="SimplePLC.Studio.Views.StartPageView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:SimplePLC.Studio.Services"
+             xmlns:viewmodels="clr-namespace:SimplePLC.Studio.ViewModels"
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
+             Background="{DynamicResource BgAppBrush}"
+             FontFamily="Segoe UI, Segoe UI Variable, system-ui"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="Auto"
+             RenderOptions.ClearTypeHint="Enabled">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Styles/Colors.xaml" />
+                <ResourceDictionary Source="../Styles/Controls.xaml" />
+                <ResourceDictionary Source="../Styles/Icons.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+
+            <!-- Action Card Fluent 2 Interactive Style -->
+            <Style x:Key="StartPageActionCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="16,14" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Flat Recent Project Row Style (Eliminates Outlined Box Fatigue) -->
+            <Style x:Key="RecentProjectFlatRowStyle" TargetType="Border">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Padding" Value="10,8" />
+                <Setter Property="Margin" Value="0,0,0,2" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource SelectionHoverBrush}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- Centered Fullscreen Container with MaxWidth to prevent ultrawide stretching -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Top" MaxWidth="1120" Width="1120" Margin="40,56,40,40">
+            <Grid.RowDefinitions>
+                <!-- 0. Brand Header -->
+                <RowDefinition Height="Auto" />
+                <!-- 1. Content Two-Column Workspace -->
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 0. BRAND HEADER -->
+            <Grid Grid.Row="0" Margin="0,0,0,32">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Brand Emblem: SynaptiX Official Brand Logo -->
+                <Border Grid.Column="0"
+                        Width="48" Height="48"
+                        Background="{DynamicResource BgPanelBrush}"
+                        BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Margin="0,0,16,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Image Source="../Assets/app.png"
+                           Width="34" Height="34"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Brand Typography -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Loc[StartupHubTitle]}"
+                               FontWeight="Bold"
+                               FontSize="22"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="{Binding Loc[StartupHubSubtitle]}"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </Grid>
+
+            <!-- 1. TWO-COLUMN DASHBOARD WORKSPACE -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <!-- Left: Recent Projects -->
+                    <ColumnDefinition Width="*" MinWidth="480" />
+                    <!-- Subtle Vertical Divider -->
+                    <ColumnDefinition Width="48" />
+                    <!-- Right: Get Started Actions -->
+                    <ColumnDefinition Width="420" />
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT COLUMN: RECENT PROJECTS -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <!-- Section Title -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Projects Card Container -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Section Header -->
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding Loc[StartupRecentProjectsTitle]}"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,14" />
+
+                    <!-- Projects Card Container -->
+                    <Border Grid.Row="1"
+                            Background="{DynamicResource BgPanelBrush}"
+                            BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="14,14">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <!-- Search Bar -->
+                                <RowDefinition Height="Auto" />
+                                <!-- Scrollable List -->
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Search Input Bar with Inset Surface -->
+                            <Border Grid.Row="0"
+                                    Background="{DynamicResource IndustrialSurfaceInsetBrush}"
+                                    BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Height="36"
+                                    Margin="0,0,0,12"
+                                    Padding="10,0">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Search Icon -->
+                                    <Path Grid.Column="0"
+                                          Data="{StaticResource IconSysSearch}"
+                                          Stroke="{DynamicResource TextMutedBrush}"
+                                          Width="14" Height="14"
+                                          StrokeThickness="1.6"
+                                          Stretch="Uniform"
+                                          Margin="0,0,10,0"
+                                          VerticalAlignment="Center" />
+
+                                    <!-- Search Input Box -->
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             FontSize="13"
+                                             VerticalContentAlignment="Center"
+                                             CaretBrush="{DynamicResource TextPrimaryBrush}" />
+
+                                    <!-- Placeholder Text -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Loc[StartupSearchPlaceholder]}"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               FontSize="12.5"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False"
+                                               Visibility="{Binding SearchText.Length, Converter={StaticResource InverseBoolToVis}, FallbackValue=Visible}" />
+
+                                    <!-- Clear Button -->
+                                    <Button Grid.Column="2"
+                                            Command="{Binding SearchText, Mode=OneWay}"
+                                            Click="OnClearSearchClick"
+                                            Visibility="{Binding SearchText.Length, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
+                                            Width="22" Height="22"
+                                            Padding="0"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Style="{StaticResource TactileToolbarBtnStyle}">
+                                        <Path Data="{StaticResource IconSysClear}"
+                                              Stroke="{DynamicResource TextMutedBrush}"
+                                              Width="10" Height="10"
+                                              StrokeThickness="1.6"
+                                              Stretch="Uniform" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <!-- Scrollable Recent Projects Flat List -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="380">
+                                <StackPanel>
+                                    <ItemsControl ItemsSource="{Binding FilteredRecentProjects}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type viewmodels:RecentProjectItemViewModel}">
+                                                <Border Style="{StaticResource RecentProjectFlatRowStyle}"
+                                                        MouseLeftButtonUp="OnRecentItemClick">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <!-- Pin Button -->
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <!-- Project Info -->
+                                                            <ColumnDefinition Width="*" />
+                                                            <!-- Remove Button (Visible on hover) -->
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Pin Toggle Action -->
+                                                        <Button Grid.Column="0"
+                                                                Command="{Binding TogglePinCommand}"
+                                                                Width="26" Height="26"
+                                                                Padding="0"
+                                                                Margin="0,0,10,0"
+                                                                Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Style="{StaticResource TactileToolbarBtnStyle}"
+                                                                ToolTip="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.Loc[StartupPinTooltip]}">
+                                                            <Path Data="{StaticResource IconSysPin}"
+                                                                  Stroke="{DynamicResource TextMutedBrush}"
+                                                                  Fill="{Binding IsPinned, Converter={StaticResource BoolToVis}}"
+                                                                  Width="13" Height="13"
+                                                                  StrokeThickness="1.4"
+                                                                  Stretch="Uniform" />
+                                                        </Button>
+
+                                                        <!-- Project Name, Badge, Path and Timestamp -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <!-- Top Row: Name + Hardware Badge -->
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding ProjectName}"
+                                                                           FontWeight="SemiBold"
+                                                                           FontSize="13.5"
+                                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxWidth="320" />
+
+                                                                <!-- Hardware Badge -->
+                                                                <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}"
+                                                                        BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="3"
+                                                                        Margin="8,0,0,0"
+                                                                        Padding="5,1"
+                                                                        VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding HardwareBadge}"
+                                                                               FontFamily="Consolas, Cascadia Code"
+                                                                               FontSize="10.5"
+                                                                               FontWeight="SemiBold"
+                                                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Bottom Row: File Path + Relative Time -->
+                                                            <Grid Margin="0,3,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="{Binding FilePath}"
+                                                                           FontFamily="Consolas, Cascadia Code"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding FilePath}"
+                                                                           Margin="0,0,12,0" />
+
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RelativeTimeText}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                                            </Grid>
+                                                        </StackPanel>
+
+                                                        <!-- Remove From List Action -->
+                                                        <Button Grid.Column="2"
+                                                                Command="{Binding RemoveCommand}"
+                                                                Width="24" Height="24"
+                                                                Padding="0"
+                                                                Margin="8,0,0,0"
+                                                                Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Style="{StaticResource TactileToolbarBtnStyle}"
+                                                                ToolTip="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.Loc[StartupRemoveTooltip]}">
+                                                            <Path Data="{StaticResource IconSysClear}"
+                                                                  Stroke="{DynamicResource TextMutedBrush}"
+                                                                  Width="11" Height="11"
+                                                                  StrokeThickness="1.5"
+                                                                  Stretch="Uniform" />
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Empty State: No Recent Projects -->
+                                    <Border Visibility="{Binding HasRecentProjects, Converter={StaticResource InverseBoolToVis}}"
+                                            Background="Transparent"
+                                            Padding="24,36"
+                                            Margin="0,10,0,0">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource IconFolder}"
+                                                  Stroke="{DynamicResource TextMutedBrush}"
+                                                  Width="32" Height="32"
+                                                  StrokeThickness="1.5"
+                                                  Stretch="Uniform"
+                                                  HorizontalAlignment="Center"
+                                                  Margin="0,0,0,10" />
+                                            <TextBlock Text="{Binding Loc[StartupNoRecentProjects]}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       FontSize="13"
+                                                       HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Empty State: No Search Matches -->
+                                    <Border Visibility="{Binding HasFilteredResults, Converter={StaticResource InverseBoolToVis}}"
+                                            Background="Transparent"
+                                            Padding="20,24"
+                                            Margin="0,10,0,0">
+                                        <TextBlock Text="{Binding Loc[StartupNoSearchMatches]}"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   FontSize="12.5"
+                                                   HorizontalAlignment="Center" />
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Subtle Center Divider -->
+                <Border Grid.Column="1"
+                        Width="1"
+                        HorizontalAlignment="Center"
+                        Background="{DynamicResource IndustrialBorderSubtleBrush}"
+                        Margin="0,28,0,0" />
+
+                <!-- RIGHT COLUMN: GET STARTED ACTION CARDS -->
+                <StackPanel Grid.Column="2">
+                    <!-- Section Header -->
+                    <TextBlock Text="{Binding Loc[StartupGetStartedTitle]}"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,14" />
+
+                    <!-- Card 1: Create a New Project -->
+                    <Border Style="{StaticResource StartPageActionCardStyle}"
+                            Margin="0,0,0,12"
+                            MouseLeftButtonUp="OnCreateNewProjectClick">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Width="38" Height="38"
+                                    Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Margin="0,0,14,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconSysPlus}"
+                                      Stroke="{DynamicResource PrimaryBrush}"
+                                      Width="18" Height="18"
+                                      StrokeThickness="2"
+                                      Stretch="Uniform" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Loc[StartupActionNewProject]}"
+                                           FontWeight="SemiBold"
+                                           FontSize="13.5"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Loc[StartupActionNewProjectDesc]}"
+                                           FontSize="11.5"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Card 2: Open Local Project -->
+                    <Border Style="{StaticResource StartPageActionCardStyle}"
+                            Margin="0,0,0,12"
+                            MouseLeftButtonUp="OnOpenLocalProjectClick">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Width="38" Height="38"
+                                    Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Margin="0,0,14,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconSysFolderOpen}"
+                                      Stroke="{DynamicResource PrimaryBrush}"
+                                      Width="18" Height="18"
+                                      StrokeThickness="1.8"
+                                      Stretch="Uniform" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Loc[StartupActionOpenProject]}"
+                                           FontWeight="SemiBold"
+                                           FontSize="13.5"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Loc[StartupActionOpenProjectDesc]}"
+                                           FontSize="11.5"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Card 3: Upload from Connected Device -->
+                    <Border Background="{DynamicResource BgPanelBrush}"
+                            BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="16,14"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <!-- Header -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Width="38" Height="38"
+                                        Background="{DynamicResource BgSubtleBrush}"
+                                        BorderBrush="{DynamicResource BorderLightBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Margin="0,0,14,0"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconSysConnect}"
+                                          Stroke="{DynamicResource PrimaryBrush}"
+                                          Width="18" Height="18"
+                                          StrokeThickness="1.8"
+                                          Stretch="Uniform" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Loc[StartupActionUploadDevice]}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13.5"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Loc[StartupActionUploadDeviceDesc]}"
+                                               FontSize="11.5"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Port Selector & Upload Button Strip -->
+                            <Border Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="10,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Label -->
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding Loc[StartupPortLabel]}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+
+                                    <!-- COM Port ComboBox -->
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding AvailablePorts}"
+                                              SelectedItem="{Binding SelectedPort}"
+                                              Height="28"
+                                              FontSize="12"
+                                              FontFamily="Consolas, Cascadia Code"
+                                              VerticalContentAlignment="Center"
+                                              Margin="0,0,6,0" />
+
+                                    <!-- Refresh Ports Button -->
+                                    <Button Grid.Column="2"
+                                            Command="{Binding RefreshPortsCommand}"
+                                            Width="28" Height="28"
+                                            Padding="0"
+                                            Margin="0,0,8,0"
+                                            Background="Transparent"
+                                            BorderBrush="{DynamicResource BorderLightBrush}"
+                                            BorderThickness="1"
+                                            Style="{StaticResource TactileToolbarBtnStyle}"
+                                            ToolTip="{Binding Loc[ToolDetectDevice]}">
+                                        <Path Data="{StaticResource IconSysReset}"
+                                              Stroke="{DynamicResource TextSecondaryBrush}"
+                                              Width="12" Height="12"
+                                              StrokeThickness="1.6"
+                                              Stretch="Uniform" />
+                                    </Button>
+
+                                    <!-- Trigger Connect & Read Button -->
+                                    <Button Grid.Column="3"
+                                            Command="{Binding UploadFromDeviceCommand}"
+                                            Height="28"
+                                            Padding="12,0"
+                                            Style="{StaticResource BtnPrimary}">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource IconSysConnect}"
+                                                  Stroke="{DynamicResource BgPanelBrush}"
+                                                  Width="12" Height="12"
+                                                  StrokeThickness="1.8"
+                                                  Stretch="Uniform"
+                                                  Margin="0,0,6,0" />
+                                            <TextBlock Text="{Binding Loc[StartupActionUploadButton]}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource BgPanelBrush}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 4: Continue Blank / Empty Workspace -->
+                    <Border Style="{StaticResource StartPageActionCardStyle}"
+                            MouseLeftButtonUp="OnContinueBlankClick">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Width="38" Height="38"
+                                    Background="{DynamicResource BgSubtleBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Margin="0,0,14,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconSysChevronRight}"
+                                      Stroke="{DynamicResource TextSecondaryBrush}"
+                                      Width="16" Height="16"
+                                      StrokeThickness="2"
+                                      Stretch="Uniform" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Loc[StartupActionContinueBlank]}"
+                                           FontWeight="SemiBold"
+                                           FontSize="13.5"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding Loc[StartupActionContinueBlankDesc]}"
+                                           FontSize="11.5"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

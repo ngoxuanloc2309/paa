@@ -171,14 +171,14 @@ public partial class RuleTableViewModel : ObservableObject
         {
             OnEditRuleRequested?.Invoke(target);
         }
-        _navigateToTab?.Invoke(0);
+        _navigateToTab?.Invoke(AppTabIndices.LogicGraph);
     }
 
     [RelayCommand]
     public void CreateNewRule()
     {
         OnNewRuleRequested?.Invoke();
-        _navigateToTab?.Invoke(0);
+        _navigateToTab?.Invoke(AppTabIndices.LogicGraph);
     }
 
     [RelayCommand]
@@ -295,7 +295,7 @@ public partial class RuleTableViewModel : ObservableObject
     [RelayCommand]
     public void NavigateToBlueprints()
     {
-        _navigateToTab?.Invoke(3);
+        _navigateToTab?.Invoke(AppTabIndices.Blueprints);
     }
 
     [RelayCommand]

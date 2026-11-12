@@ -80,7 +80,7 @@ public class McuVirtualComAutomationTests
 
         // Kiểm tra Descriptor và ProductDefinition động
         Assert.Equal(SPLC_DeviceClass.REMOTE_IO, session.Descriptor.DeviceClass);
-        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI, session.Descriptor.DeviceVariant);
+        Assert.Equal((ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884, session.Descriptor.DeviceVariant);
         Assert.Equal(8, session.Product.Tags.Count(t => t.Kind == TagKind.DiscreteInput));
         Assert.Equal(8, session.Product.Tags.Count(t => t.Kind == TagKind.DiscreteOutput));
         Assert.Equal(4, session.Product.Tags.Count(t => t.Kind == TagKind.AnalogInput));

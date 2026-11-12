@@ -40,7 +40,7 @@ public static class DeviceProfileMapper
         DeviceResourceInfoDto resourceInfo,
         out ProductDefinition? product,
         out string? errorMessage,
-        SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities hardwareCapabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE,
+        SimplePLC.Domain.Enums.SPLC_HardwareCapabilities hardwareCapabilities = SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.NONE,
         ushort? physicalRs485PortCount = null)
     {
         ArgumentNullException.ThrowIfNull(descriptor);

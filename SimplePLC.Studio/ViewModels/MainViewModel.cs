@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Application.Models;
 using SimplePLC.Studio.Services;
@@ -42,10 +42,17 @@ public partial class MainViewModel : ObservableObject
     public SimulatorViewModel SimulatorVM { get; }
     public LiveWatchViewModel LiveWatchVM { get; }
     public AiChatViewModel AiChatVM { get; }
+    public StartupHubViewModel StartupHubVM { get; }
+
     [ObservableProperty]
     private DtuGatewayStudioViewModel _dtuGatewayStudioVM;
 
-    public bool IsDtuProject => CurrentProjectMetadata?.DeviceClass == (ushort)SimplePLC.Protocol.Enums.SPLC_DeviceClass.DTU;
+    /// <summary>
+    /// Cho biết màn hình hiện tại có phải là Dashboard Khởi động (Start Page) hay không.
+    /// </summary>
+    public bool IsStartPageActive => CurrentView is StartupHubViewModel;
+
+    public bool IsDtuProject => CurrentProjectMetadata?.DeviceClass == (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.DTU;
 
 
     public bool HasSystemTab => DtuGatewayStudioVM?.HasSystemCapability ?? false;
@@ -63,7 +70,7 @@ public partial class MainViewModel : ObservableObject
                                     (DtuGatewayStudioVM?.HasRs485Capability ?? false);
 
     public bool IsRtcClockSupported => (AppServices.Instance.CurrentProduct?.SupportsRtcClock ?? false) || 
-                                       (DtuGatewayStudioVM?.CurrentCapabilities.HasFlag(SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.RTC) ?? false);
+                                       (DtuGatewayStudioVM?.CurrentCapabilities.HasFlag(SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.RTC) ?? false);
 
     public void NotifyHardwareCapabilities()
     {
@@ -72,6 +79,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsWifiSupported));
         OnPropertyChanged(nameof(IsRs485Supported));
         OnPropertyChanged(nameof(IsRtcClockSupported));
+        BlueprintsVM?.RefreshHardwareCompatibility(AppServices.Instance.CurrentProduct);
     }
 
     public ObservableCollection<string> AvailablePorts { get; } = new();
@@ -179,8 +187,25 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _connectButtonBorderBrush = "#0E6B37";
 
-    [ObservableProperty]
-    private object _currentView;
+    private object? _currentView;
+
+    /// <summary>
+    /// View đang hoạt động trên màn hình chính của ứng dụng.
+    /// </summary>
+    public object? CurrentView
+    {
+        get => _currentView;
+        set
+        {
+            if (!ReferenceEquals(_currentView, value))
+            {
+                _currentView = value;
+                OnPropertyChanged(nameof(CurrentView));
+                OnPropertyChanged(nameof(IsStartPageActive));
+                UpdateTagPollingState();
+            }
+        }
+    }
 
     [ObservableProperty]
     private int _selectedTabIndex = 0;
@@ -251,6 +276,11 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public Action<DeviceInfoViewModel>? ShowDeviceInfoDialogHandler { get; set; }
 
+    /// <summary>
+    /// Delegate hook to intercept Startup Hub dialog in headless tests.
+    /// </summary>
+    public Func<StartupHubViewModel, bool?>? ShowStartupHubDialogHandler { get; set; }
+
     public string WindowTitle
     {
         get
@@ -295,7 +325,7 @@ public partial class MainViewModel : ObservableObject
         RuleTableVM.OnUploadFromDeviceRequested = () => UploadFromDeviceAsync();
         RuleTableVM.OnOpenModbusPortSettingsRequested = () => OpenModbusPortConfig();
         RuleTableVM.OnOpenMqttBrokerSettingsRequested = () => OpenMqttBrokerConfig();
-        BlueprintsVM = new BlueprintsViewModel(LogicEditorVM, () => SelectTab(0));
+        BlueprintsVM = new BlueprintsViewModel(LogicEditorVM, () => SelectTab(AppTabIndices.LogicGraph));
         DeployVM = new DeployViewModel(deployUseCase: null, RuleTableVM, LogicEditorVM, (tabIndex) => SelectTab(tabIndex), () => CurrentProjectMetadata);
         SimulatorVM = new SimulatorViewModel(TagCatalogVM, RuleTableVM, LogicEditorVM);
         LiveWatchVM = new LiveWatchViewModel(AppServices.Instance.StateStore)
@@ -320,7 +350,10 @@ public partial class MainViewModel : ObservableObject
         AiChatVM.OnApplyRulesRequested = (specs, msg) => ApplyAiRulesToTable(specs, msg);
         AiChatVM.OnNavigateToTab = (tabIndex) => SelectTab(tabIndex);
 
-        _currentView = DtuGatewayStudioVM;
+        StartupHubVM = new StartupHubViewModel();
+        StartupHubVM.RequestClose += () => ExecuteStartupHubAction(StartupHubVM);
+
+        _currentView = StartupHubVM;
 
         RefreshPorts();
         RefreshRecentProjects();
@@ -408,6 +441,9 @@ public partial class MainViewModel : ObservableObject
         RuleTableVM.ApplyFilter();
         IsProjectDirty = false;
         UpdateDeviceProductInfo();
+        NotifyHardwareCapabilities();
+
+        CurrentView = StartupHubVM;
     }
 
 
@@ -619,6 +655,15 @@ public partial class MainViewModel : ObservableObject
                 {
                     UpdateDeviceProductInfo(null);
                 }
+
+                if (session?.Product != null)
+                {
+                    AppServices.Instance.CurrentProduct = session.Product;
+                    TagCatalogVM.SyncWithProductDefinition(session.Product);
+                    DtuGatewayStudioVM?.SyncWithHardwareProduct(session.Product);
+                }
+                DtuGatewayStudioVM?.UpdateHardwareConnectionState(true, SelectedPort, DeviceProductBadgeText);
+                NotifyHardwareCapabilities();
 
                 // Subscribe health updates từ monitor
                 AppServices.Instance.MonitorService.HealthUpdated += OnRuntimeHealthUpdated;
@@ -1331,15 +1376,17 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(DtuGatewayStudioVM));
         OnPropertyChanged(nameof(IsDtuProject));
         NotifyHardwareCapabilities();
-        if (IsDtuProject && HasSystemTab)
+
+        if (CurrentView is StartupHubViewModel)
         {
-            SelectTab(0);
+            return;
         }
-        else if (!HasSystemTab && SelectedTabIndex == 0)
+
+        if (!HasSystemTab && SelectedTabIndex == AppTabIndices.Device)
         {
             SelectTab(AppTabIndices.LogicGraph);
         }
-        else if (SelectedTabIndex == 0)
+        else if (SelectedTabIndex == AppTabIndices.Device)
         {
             CurrentView = DtuGatewayStudioVM;
         }
@@ -1380,8 +1427,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenModbusPortConfig()
     {
-        // ?i?u h??ng tr?c ti?p t?i Tab 0: Thi?t b? -> Ph?n v?ng RS-485 Modbus (Single Source of Truth)
-        SelectTab(0);
+        // Điều hướng trực tiếp tới Tab Thiết bị -> Phân vùng RS-485 Modbus (Single Source of Truth)
+        SelectTab(AppTabIndices.Device);
         DtuGatewayStudioVM?.SelectSection(0);
     }
 
@@ -1642,12 +1689,137 @@ public partial class MainViewModel : ObservableObject
         else
         {
             // Headless / automated testing fallback
+            if (wizardVm.HasConnectedDevice)
+            {
+                wizardVm.DetectFromConnectedDevice();
+            }
             shouldApply = true;
         }
 
         if (!shouldApply) return;
 
         ApplyNewProject(wizardVm);
+    }
+
+    /// <summary>
+    /// Mở màn hình Start Page toàn màn hình (In-App Fullscreen Dashboard).
+    /// </summary>
+    [RelayCommand]
+    public void OpenStartPage()
+    {
+        StartupHubVM.LoadRecentProjects();
+        StartupHubVM.RefreshPorts();
+        CurrentView = StartupHubVM;
+    }
+
+    /// <summary>
+    /// Hiển thị màn hình khởi động tiêu chuẩn quốc tế (Startup Hub / Welcome Window).
+    /// Hỗ trợ cả delegate hook cho unit test và điều hướng toàn màn hình trực tiếp.
+    /// </summary>
+    [RelayCommand]
+    public void PromptStartupHub()
+    {
+        if (ShowStartupHubDialogHandler != null)
+        {
+            var hubVm = new StartupHubViewModel();
+            ShowStartupHubDialogHandler(hubVm);
+            ExecuteStartupHubAction(hubVm);
+            return;
+        }
+
+        OpenStartPage();
+    }
+
+    /// <summary>
+    /// Đóng dự án hiện tại, lưu thay đổi nếu cần và quay lại màn hình Start Page.
+    /// </summary>
+    [RelayCommand]
+    public void CloseProject()
+    {
+        if (PromptSaveIfDirty() == false) return;
+
+        CurrentProjectPath = null;
+        CurrentProjectName = Loc.IsVietnamese ? "Dự án mới" : "Untitled";
+        CurrentProjectMetadata = new ProjectMetadata();
+        LogicEditorVM.ClearCanvas();
+        RuleTableVM.Rules.Clear();
+        RuleTableVM.ApplyFilter();
+        LiveWatchVM.ClearWatchlist();
+        IsProjectDirty = false;
+
+        OpenStartPage();
+    }
+
+    /// <summary>
+    /// Thực thi hành động được chọn từ Startup Hub (Tạo mới, Mở tệp, Mở gần đây, Nạp từ thiết bị, Bỏ qua).
+    /// </summary>
+    public void ExecuteStartupHubAction(StartupHubViewModel hubVm)
+    {
+        ArgumentNullException.ThrowIfNull(hubVm);
+
+        switch (hubVm.SelectedAction)
+        {
+            case StartupHubAction.NewProject:
+                NewProject();
+                break;
+
+            case StartupHubAction.OpenLocalProject:
+                OpenProject();
+                break;
+
+            case StartupHubAction.OpenRecentProject:
+                if (!string.IsNullOrWhiteSpace(hubVm.SelectedRecentProjectPath) && System.IO.File.Exists(hubVm.SelectedRecentProjectPath))
+                {
+                    LoadProjectFile(hubVm.SelectedRecentProjectPath);
+                }
+                break;
+
+            case StartupHubAction.UploadFromDevice:
+                if (!string.IsNullOrWhiteSpace(hubVm.SelectedPort))
+                {
+                    SelectedPort = hubVm.SelectedPort;
+                }
+                _ = Task.Run(async () =>
+                {
+                    if (!IsConnected)
+                    {
+                        if (System.Windows.Application.Current?.Dispatcher != null)
+                        {
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                            {
+                                await ToggleConnect();
+                            });
+                        }
+                        else
+                        {
+                            await ToggleConnect();
+                        }
+                    }
+                    if (IsConnected || CanDoDeviceAction)
+                    {
+                        if (System.Windows.Application.Current?.Dispatcher != null)
+                        {
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                            {
+                                await UploadFromDeviceAsync();
+                            });
+                        }
+                        else
+                        {
+                            await UploadFromDeviceAsync();
+                        }
+                    }
+                });
+                break;
+
+            case StartupHubAction.ContinueBlank:
+                SelectTab(AppTabIndices.LogicGraph);
+                break;
+
+            case StartupHubAction.None:
+            default:
+                break;
+        }
     }
 
     /// <summary>
@@ -1684,7 +1856,7 @@ public partial class MainViewModel : ObservableObject
 
         var product = wizardVm.BuildProductDefinition();
         ushort devClass = (ushort)(wizardVm.IsCustomMode ? 1 : (ushort)wizardVm.SelectedPreset.DeviceClass);
-        bool isDtu = devClass == (ushort)SimplePLC.Protocol.Enums.SPLC_DeviceClass.DTU;
+        bool isDtu = devClass == (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.DTU;
 
         AppServices.Instance.CurrentProduct = product;
 
@@ -1706,6 +1878,8 @@ public partial class MainViewModel : ObservableObject
             MaxRules = product.MaxRules,
             PhysicalRs485PortCount = product.PhysicalRs485PortCount,
             HardwareCapabilities = (uint)product.HardwareCapabilities,
+            WifiEnabled = product.SupportsWifi,
+            MqttBrokerEnabled = product.SupportsMqttPublish || product.SupportsMqttSubscribe || product.SupportsWifi,
             DtuConfig = new DtuConfigModel { Enabled = isDtu },
             CreatedAt = DateTime.UtcNow,
             LastModified = DateTime.UtcNow
@@ -1724,6 +1898,9 @@ public partial class MainViewModel : ObservableObject
         IsProjectDirty = false;
 
         UpdateDeviceProductInfo();
+        NotifyHardwareCapabilities();
+
+        SelectTab(AppTabIndices.LogicGraph);
 
         bool isVi = Loc.IsVietnamese;
         LogicEditorVM.SaveStatusMessage = isVi
@@ -1775,7 +1952,7 @@ public partial class MainViewModel : ObservableObject
                 resources: resources,
                 out var product,
                 out _,
-                hardwareCapabilities: (SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities)CurrentProjectMetadata.HardwareCapabilities,
+                hardwareCapabilities: (SimplePLC.Domain.Enums.SPLC_HardwareCapabilities)CurrentProjectMetadata.HardwareCapabilities,
                 physicalRs485PortCount: CurrentProjectMetadata.PhysicalRs485PortCount) && product != null)
             {
                 AppServices.Instance.CurrentProduct = product;
@@ -1835,6 +2012,9 @@ public partial class MainViewModel : ObservableObject
             IsProjectDirty = false;
             RefreshRecentProjects();
             UpdateDeviceProductInfo();
+        NotifyHardwareCapabilities();
+
+            SelectTab(AppTabIndices.LogicGraph);
 
             bool isVi = Loc.IsVietnamese;
             LogicEditorVM.SaveStatusMessage = isVi 
@@ -1850,7 +2030,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void LoadExample5FloatAlarm()
     {
-        SelectTab(0);
+        SelectTab(AppTabIndices.LogicGraph);
         LogicEditorVM.ClearCanvas();
 
         var tags = TagCatalogVM.AllTags;
@@ -2249,6 +2429,33 @@ public partial class MainViewModel : ObservableObject
                 }).ToList();
             }
 
+            // Đồng bộ cấu hình Wi-Fi (SPLC-SPEC-WIFI-004)
+            if (fullConfig.WifiConfig != null)
+            {
+                CurrentProjectMetadata.WifiEnabled = fullConfig.WifiConfig.Enabled;
+                CurrentProjectMetadata.WifiAutoReconnect = fullConfig.WifiConfig.AutoReconnect;
+                CurrentProjectMetadata.WifiSsid = fullConfig.WifiConfig.Ssid ?? string.Empty;
+                CurrentProjectMetadata.WifiPassword = fullConfig.WifiConfig.Password ?? string.Empty;
+                CurrentProjectMetadata.WifiDhcpEnabled = fullConfig.WifiConfig.IsDhcp;
+                CurrentProjectMetadata.WifiStaticIp = string.IsNullOrWhiteSpace(fullConfig.WifiConfig.StaticIp) ? "192.168.1.50" : fullConfig.WifiConfig.StaticIp;
+                CurrentProjectMetadata.WifiGateway = string.IsNullOrWhiteSpace(fullConfig.WifiConfig.StaticGateway) ? "192.168.1.1" : fullConfig.WifiConfig.StaticGateway;
+                CurrentProjectMetadata.WifiSubnetMask = string.IsNullOrWhiteSpace(fullConfig.WifiConfig.StaticSubnet) ? "255.255.255.0" : fullConfig.WifiConfig.StaticSubnet;
+                CurrentProjectMetadata.WifiDns = string.IsNullOrWhiteSpace(fullConfig.WifiConfig.StaticDns) ? "8.8.8.8" : fullConfig.WifiConfig.StaticDns;
+            }
+
+            // Đồng bộ cấu hình Zigbee (SPLC-SPEC-ZIGBEE-006)
+            if (fullConfig.ZigbeeConfig != null)
+            {
+                CurrentProjectMetadata.ZigbeeConfig.Enabled = fullConfig.ZigbeeConfig.Enabled;
+                CurrentProjectMetadata.ZigbeeConfig.Role = fullConfig.ZigbeeConfig.Role.ToString();
+                CurrentProjectMetadata.ZigbeeConfig.SlaveId = fullConfig.ZigbeeConfig.SlaveId;
+                CurrentProjectMetadata.ZigbeeConfig.PanIdHex = fullConfig.ZigbeeConfig.PanId.ToString("X4");
+                CurrentProjectMetadata.ZigbeeConfig.Channel = fullConfig.ZigbeeConfig.Channel;
+                CurrentProjectMetadata.ZigbeeConfig.Antenna = fullConfig.ZigbeeConfig.Antenna.ToString();
+                CurrentProjectMetadata.ZigbeeConfig.SecurityEnabled = fullConfig.ZigbeeConfig.SecurityEnabled;
+                CurrentProjectMetadata.ZigbeeConfig.PreserveKeyOnDeploy = fullConfig.ZigbeeConfig.PreserveKey;
+            }
+
             // Đồng bộ cấu hình DTU Gateway khi thiết bị có cấu hình DTU (SPLC-SPEC-DTU-001)
             if (fullConfig.DtuConfig != null)
             {
@@ -2301,21 +2508,18 @@ public partial class MainViewModel : ObservableObject
                     CurrentProjectMetadata.MqttWillRetain = dtu.MqttWillConfig.Retain;
                 }
 
-                DtuGatewayStudioVM.ReloadFromMetadata();
+                DtuGatewayStudioVM?.ReloadFromMetadata();
+            }
+            else
+            {
+                DtuGatewayStudioVM?.ReloadFromMetadata();
             }
 
             RuleTableVM.LoadFromDomainRuleTable(domainTable);
             RuleTableVM.UpdateSubsystemsFromDevice(fullConfig);
             LogicEditorVM?.ReconstructFullGraphFromDevice(fullConfig, RuleTableVM.Rules);
             IsProjectDirty = false;
-            if (IsDtuProject)
-            {
-                SelectTab(0); // Tự động chuyển về màn DTU Studio khi thiết bị là DTU Gateway
-            }
-            else
-            {
-                SelectTab(AppTabIndices.RuleTable); // Giữ nguyên màn hình Bảng quy tắc (Rule Table) cho PLC Controller
-            }
+            SelectTab(AppTabIndices.LogicGraph); // Luôn chuyển về màn Logic Graph để kỹ sư lập trình
 
             ShowNotification(
                 string.Format(Loc["UploadSuccessMessage"], domainTable.Count),
@@ -2524,7 +2728,7 @@ public partial class MainViewModel : ObservableObject
         CurrentProjectPath = null;
         CurrentProjectName = Loc.IsVietnamese ? "Demo Giám Sát" : "Demo Graph";
         IsProjectDirty = false;
-        SelectTab(0);
+        SelectTab(AppTabIndices.LogicGraph);
     }
 
 
@@ -2628,12 +2832,25 @@ public partial class MainViewModel : ObservableObject
             System.Windows.MessageBoxImage.Information);
     }
 
+    /// <summary>
+    /// Tạo URL mở cổng Web Wiki tài liệu kỹ thuật dựa trên ngôn ngữ giao diện đang hoạt động.
+    /// </summary>
+    /// <returns>URL trang tài liệu Tiếng Việt (/vi/) hoặc Tiếng Anh (gốc).</returns>
+    public string GetDocumentationUrl()
+    {
+        string baseUrl = AppUpdateService.DocumentationPortalUrl;
+        return Loc.IsVietnamese ? $"{baseUrl}vi/" : baseUrl;
+    }
+
+    /// <summary>
+    /// Mở cổng Web Wiki tài liệu kỹ thuật trực tuyến của SynaptiX trong trình duyệt mặc định của hệ điều hành.
+    /// </summary>
     [RelayCommand]
     public void OpenDocSpec()
     {
         try
         {
-            string url = $"https://github.com/{AppUpdateService.GitHubRepoOwner}/{AppUpdateService.GitHubRepoName}#readme";
+            string url = GetDocumentationUrl();
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = url,
@@ -2666,9 +2883,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void ToggleSimulation()
     {
-        if (SelectedTabIndex != 1)
+        if (SelectedTabIndex != AppTabIndices.LogicGraph)
         {
-            SelectTab(1);
+            SelectTab(AppTabIndices.LogicGraph);
         }
         LogicEditorVM.ToggleSimPlayPauseCommand.Execute(null);
     }
@@ -2912,3 +3129,4 @@ public partial class PortOption : ObservableObject
     [ObservableProperty]
     private bool _isEnabled = true;
 }
+

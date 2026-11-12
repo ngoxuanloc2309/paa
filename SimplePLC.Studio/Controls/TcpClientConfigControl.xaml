@@ -1,4 +1,4 @@
-<UserControl x:Class="SimplePLC.Studio.Controls.TcpClientConfigControl"
+﻿<UserControl x:Class="SimplePLC.Studio.Controls.TcpClientConfigControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:services="clr-namespace:SimplePLC.Studio.Services"
@@ -61,7 +61,7 @@
                                 <TextBlock Text="{Binding [TcpClientFieldHost], Source={x:Static services:LocalizationService.Instance}}" 
                                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Text="{Binding RemoteHost.Length, StringFormat='{}{0}/48'}" 
-                                           FontSize="10.5" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                           FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
                             </DockPanel>
 
                             <TextBlock Grid.Row="0" Grid.Column="2" 
@@ -78,17 +78,17 @@
                             <TextBox Grid.Row="1" Grid.Column="0" 
                                      Text="{Binding RemoteHost, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [TcpClientFieldHostTip], Source={x:Static services:LocalizationService.Instance}}" 
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" />
 
                             <TextBox Grid.Row="1" Grid.Column="2" 
                                      Text="{Binding RemotePort, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [TcpClientFieldPortTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" TextAlignment="Right" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" TextAlignment="Right" />
 
                             <TextBox Grid.Row="1" Grid.Column="4" 
                                      Text="{Binding ReconnectDelaySec, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [TcpClientFieldReconnectTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" TextAlignment="Right" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" TextAlignment="Right" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -142,7 +142,7 @@
                                     </ComboBox>
                                     <TextBox Grid.Column="1" Text="{Binding CustomDelimiterText, UpdateSourceTrigger=PropertyChanged}" 
                                              Visibility="{Binding IsCustomDelimiter, Converter={StaticResource BoolToVis}}" 
-                                             Width="75" Height="30" Margin="6,0,0,0" Padding="6,2" FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Center"
+                                             Width="75" Height="28" Margin="6,0,0,0" Padding="6,2" FontSize="11.5" VerticalContentAlignment="Center"
                                              ToolTip="Ký tự ngắt khung tùy chọn (ví dụ: ; hoặc | hoặc \0)" />
                                 </Grid>
                             </StackPanel>
@@ -252,7 +252,7 @@
                                      Text="{Binding RegistrationPayload, UpdateSourceTrigger=PropertyChanged}" 
                                      IsEnabled="{Binding IsRegistrationEnabled}"
                                      ToolTip="{Binding [TcpClientFieldRegPayloadTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" />
                         </Grid>
 
                         <!-- Section 2: Heartbeat Keep-Alive -->
@@ -295,13 +295,13 @@
                             <TextBox Grid.Row="1" Grid.Column="0" 
                                      Text="{Binding HeartbeatIntervalSec, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="{Binding [TcpClientFieldHeartbeatSecTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" TextAlignment="Right" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" TextAlignment="Right" />
 
                             <TextBox Grid.Row="1" Grid.Column="2" 
                                      Text="{Binding HeartbeatPayload, UpdateSourceTrigger=PropertyChanged}" 
                                      IsEnabled="{Binding IsHeartbeatEnabled}"
                                      ToolTip="{Binding [TcpClientFieldHeartbeatPayloadTip], Source={x:Static services:LocalizationService.Instance}}"
-                                     FontFamily="Consolas" FontSize="11" Padding="8,4" Height="30" VerticalContentAlignment="Center" />
+                                     FontSize="11.5" Padding="8,4" Height="28" VerticalContentAlignment="Center" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -320,38 +320,66 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Row 0: Preview Header -->
+                <!-- Row 0: Preview Header with Status Badges -->
                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                    <!-- Badges on Right -->
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- JSON Valid Badge (Custom mode) -->
+                        <Border Visibility="{Binding IsJsonValid, Converter={StaticResource BoolToVis}}" 
+                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysCheck}" Stroke="{DynamicResource SuccessBrush}" Width="11" Height="11" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [TcpClientJsonValidBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- JSON Invalid Badge (Custom mode) -->
+                        <Border Visibility="{Binding HasJsonError, Converter={StaticResource BoolToVis}}" 
+                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysClear}" Stroke="{DynamicResource DangerBrush}" Width="11" Height="11" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [TcpClientJsonInvalidBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Raw Mode Badge -->
+                        <Border Visibility="{Binding IsRawMode, Converter={StaticResource BoolToVis}}" 
+                                Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="{Binding [TcpClientRawBadge], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Title on Left -->
                     <TextBlock Text="{Binding [TcpClientPreviewTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                 </DockPanel>
 
-                <!-- Row 1: Full-Height Monospace Stream Viewer -->
-                <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12"
-                        ToolTip="{Binding [TcpClientPreviewTip], Source={x:Static services:LocalizationService.Instance}}">
+                <!-- Row 1: Full-Height Monospace Stream & Payload Viewer (Clean, no hovering tooltip) -->
+                <Border Grid.Row="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,12" MinHeight="180">
                     <TextBox Text="{Binding PreviewStreamText, Mode=OneWay}" 
-                             IsReadOnly="True" Background="Transparent" BorderThickness="0" 
+                             IsReadOnly="True" AcceptsReturn="True" VerticalContentAlignment="Top"
+                             Background="Transparent" BorderThickness="0" 
                              FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" 
                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" 
                              TextWrapping="NoWrap" Padding="10,8" />
                 </Border>
 
-                <!-- Row 2: Socket Diagnostics Summary Box -->
+                <!-- Row 2: Payload Diagnostics Summary Box (Non-duplicate technical metrics) -->
                 <Border Grid.Row="2" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10">
                     <StackPanel>
-                        <TextBlock Text="{Binding [TcpClientDiagTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                        <TextBlock Text="{Binding [TcpClientDiagPayloadSummary], Source={x:Static services:LocalizationService.Instance}}" 
                                    FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" />
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock Text="{Binding [TcpClientDiagRemoteSocket], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SummarySocketText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding [TcpClientDiagPayloadSize], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding PayloadByteSizeText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock Text="{Binding [TcpClientDiagFraming], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SummaryFramingText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding [TcpClientDiagRegistrationMode], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SummaryRegistrationText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                         <DockPanel>
-                            <TextBlock Text="{Binding [TcpClientDiagHeartbeat], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding SummaryHeartbeatText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding [TcpClientDiagFraming], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding SummaryFramingText}" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" />
                         </DockPanel>
                     </StackPanel>
                 </Border>

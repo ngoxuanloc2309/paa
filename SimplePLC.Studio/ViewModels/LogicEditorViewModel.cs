@@ -4223,7 +4223,7 @@ public partial class LogicEditorViewModel : ObservableObject
             ReconstructGraphFromRule(rule);
         }
 
-        _navigateToTab?.Invoke(0);
+        _navigateToTab?.Invoke(AppTabIndices.LogicGraph);
     }
 
     /// <summary>
@@ -5027,13 +5027,13 @@ public partial class LogicEditorViewModel : ObservableObject
     [RelayCommand]
     public void ViewRuleTable()
     {
-        _navigateToTab?.Invoke(2);
+        _navigateToTab?.Invoke(AppTabIndices.RuleTable);
     }
 
     [RelayCommand]
     public void DeployNow()
     {
-        _navigateToTab?.Invoke(4);
+        _navigateToTab?.Invoke(AppTabIndices.Deploy);
     }
 
     public void NotifyGraphModified()

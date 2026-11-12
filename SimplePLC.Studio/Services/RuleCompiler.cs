@@ -49,7 +49,7 @@ public sealed class RuleCompiler : IRuleCompiler
         int effectivePhysicalPorts = product != null
             ? (int)targetProduct.PhysicalRs485PortCount
             : (portList != null && portList.Count > 0 ? Math.Max((int)targetProduct.PhysicalRs485PortCount, portList.Count) : (int)targetProduct.PhysicalRs485PortCount);
-        if (targetProduct.HardwareCapabilities != SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE)
+        if (targetProduct.HardwareCapabilities != SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.NONE)
         {
             foreach (var node in nodeList)
             {

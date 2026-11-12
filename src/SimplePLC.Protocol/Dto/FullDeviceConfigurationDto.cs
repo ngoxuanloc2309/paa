@@ -18,6 +18,8 @@ public sealed class FullDeviceConfigurationDto
     public MqttBrokerConfigDto? BrokerConfig { get; init; }
     public MqttWillConfigDto? MqttWillConfig { get; init; }
     public DtuConfigDto? DtuConfig { get; init; }
+    public WifiConfigDto? WifiConfig { get; init; }
+    public ZigbeeConfigDto? ZigbeeConfig { get; init; }
     public IReadOnlyList<ModbusPortConfigDto> ModbusPorts { get; init; } = Array.Empty<ModbusPortConfigDto>();
     public IReadOnlyList<ModbusSlaveMapEntryDto> ModbusSlaveMaps { get; init; } = Array.Empty<ModbusSlaveMapEntryDto>();
 }

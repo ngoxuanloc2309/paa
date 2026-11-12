@@ -1,4 +1,4 @@
-<UserControl x:Class="SimplePLC.Studio.Views.DtuGatewayStudioView"
+﻿<UserControl x:Class="SimplePLC.Studio.Views.DtuGatewayStudioView"
 
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 
@@ -723,7 +723,24 @@
 
 
 
-                        <!-- MQTT Sub-navigation Segmented Bar -->
+                                                <!-- Notice Banner when Wi-Fi is Disabled while MQTT is enabled on Wi-Fi capable device -->
+                        <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+                                BorderThickness="1" CornerRadius="4" Padding="12,8" Margin="0,0,0,14"
+                                Visibility="{Binding IsWifiRequiredNoticeVisible, Converter={StaticResource BoolToVis}}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" 
+                                        Content="{Binding [ActionEnableWifiNow], Source={x:Static services:LocalizationService.Instance}}"
+                                        Command="{Binding EnableWifiCommand}"
+                                        Style="{StaticResource BtnSecondary}" Padding="10,3" FontSize="11" VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysInfo}" 
+                                          Stroke="{DynamicResource PrimaryBrush}" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding [NoticeWifiRequiredForMqtt], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+<!-- MQTT Sub-navigation Segmented Bar -->
 
                         <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
 

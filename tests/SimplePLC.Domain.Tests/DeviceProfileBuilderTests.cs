@@ -83,7 +83,7 @@ public class DeviceProfileBuilderTests
     public void SmallProduct_VFlag0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
-        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
+        var layout = new SimplePLC.Domain.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var vflag0 = tags.FirstOrDefault(t => t.Name == "VFLAG0");
@@ -96,7 +96,7 @@ public class DeviceProfileBuilderTests
     public void SmallProduct_VReg0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
-        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
+        var layout = new SimplePLC.Domain.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var vreg0 = tags.FirstOrDefault(t => t.Name == "VREG0");
@@ -109,7 +109,7 @@ public class DeviceProfileBuilderTests
     public void SmallProduct_Retain0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
-        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
+        var layout = new SimplePLC.Domain.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var retain0 = tags.FirstOrDefault(t => t.Name == "VREG_RETAIN0");
@@ -122,7 +122,7 @@ public class DeviceProfileBuilderTests
     public void SmallProduct_Counter0_MatchesDynamicLayout()
     {
         var small = new ProductResourceProfile(4, 4, 2, 8, 8, 8, 4);
-        var layout = new SimplePLC.Protocol.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
+        var layout = new SimplePLC.Domain.Models.TagLayoutMap(small.DigitalInputs, small.DigitalOutputs, small.AnalogInputs, small.VirtualFlags, small.VirtualRegisters, small.RetentiveRegisters, small.Counters);
         var tags = DeviceProfileBuilder.GenerateTags(small);
 
         var counter0 = tags.FirstOrDefault(t => t.Name == "COUNTER0");

@@ -1,16 +1,11 @@
 namespace SimplePLC.Protocol.Enums;
 
+using MqttDataType = SimplePLC.Domain.Enums.MqttDataType;
+
 /// <summary>
 /// Kiểu dữ liệu hỗ trợ cho các chân động (Dynamic Pins) của khối MQTT IIoT.
 /// </summary>
-public enum MqttDataType
-{
-    Bool,    // Kiểu logic (hỗ trợ true/false, 1/0, "TRUE")
-    Int16,   // Số nguyên 16-bit (-32768 .. 32767)
-    Int32,   // Số nguyên 32-bit DINT
-    Float,   // Số thực REAL (32-bit IEEE 754)
-    String   // Chuỗi ký tự
-}
+// Forwarding to Domain
 
 /// <summary>
 /// Chế độ xử lý hàng đợi tin nhắn nhận được từ MQTT Broker.

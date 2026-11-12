@@ -1,5 +1,5 @@
+using SimplePLC.Domain.Models;
 using SimplePLC.Protocol.Constants;
-using SimplePLC.Protocol.Models;
 using Xunit;
 
 namespace SimplePLC.Protocol.Tests;

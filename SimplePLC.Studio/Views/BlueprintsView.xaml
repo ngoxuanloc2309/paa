@@ -9,16 +9,27 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,24">
-            <TextBlock Text="{Binding [BlueprintsTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-            <TextBlock Text="{Binding [BlueprintsDesc], Source={x:Static services:LocalizationService.Instance}}" 
-                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
-        </StackPanel>
+        <!-- Header with Smart Compatibility Filter -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,20" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="{Binding [BlueprintsTitle], Source={x:Static services:LocalizationService.Instance}}" 
+                           FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <TextBlock Text="{Binding [BlueprintsDesc], Source={x:Static services:LocalizationService.Instance}}" 
+                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
+            </StackPanel>
+
+            <!-- Hardware Filter Controls (Option A: Compact Dynamic Checkbox) -->
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox IsChecked="{Binding FilterCompatibleOnly}" VerticalAlignment="Center" Cursor="Hand"
+                          Content="{Binding FilterCheckboxText}"
+                          ToolTip="{Binding FilterCheckboxToolTip}"
+                          Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+        </DockPanel>
 
         <!-- Cards List with Smooth Scrolling -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
-            <ItemsControl ItemsSource="{Binding Blueprints}">
+            <ItemsControl ItemsSource="{Binding FilteredBlueprints}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal" />
@@ -28,11 +39,21 @@
                     <DataTemplate>
                         <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
                                 CornerRadius="6" Width="340" Margin="0,0,20,20" Padding="18">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCompatible}" Value="False">
+                                            <Setter Property="Opacity" Value="0.75" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
@@ -47,26 +68,49 @@
 
                                 <!-- Title & Subtitle -->
                                 <StackPanel Grid.Row="1" Margin="0,0,0,10">
-                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium" Margin="0,2,0,0" />
                                 </StackPanel>
 
                                 <!-- Description -->
-                                <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" 
+                                <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" 
                                            TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,16" MinHeight="54" />
 
                                 <!-- Tags Used Summary -->
-                                <Border Grid.Row="3" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,16">
+                                <Border Grid.Row="3" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding [BlueprintsUsedTags], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
-                                        <TextBlock Text="{Binding TagsSummary}" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="Medium" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding [BlueprintsUsedTags], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,2" />
+                                        <TextBlock Text="{Binding TagsSummary}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Medium" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Incompatible Warning Banner (Shown only when incompatible) -->
+                                <Border Grid.Row="4" Margin="0,0,0,12"
+                                        Background="{DynamicResource WarningLightBrush}"
+                                        BorderBrush="{DynamicResource WarningBrush}"
+                                        BorderThickness="1" CornerRadius="4" Padding="8,6">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCompatible}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="⚠ " Foreground="{DynamicResource WarningBrush}" FontSize="11" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding IncompatibleReason}" Foreground="{DynamicResource WarningBrush}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Apply Button -->
-                                <Button Grid.Row="4" Content="{Binding [BlueprintsApplyBtn], Source={x:Static services:LocalizationService.Instance}}" 
+                                <Button Grid.Row="5" Content="{Binding [BlueprintsApplyBtn], Source={x:Static services:LocalizationService.Instance}}" 
                                         Command="{Binding DataContext.ApplyBlueprintCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         CommandParameter="{Binding}"
+                                        IsEnabled="{Binding IsCompatible}"
+                                        ToolTip="{Binding IncompatibleReason}"
                                         Style="{StaticResource BtnPrimary}"
                                         HorizontalAlignment="Stretch"
                                         Padding="0,9" />

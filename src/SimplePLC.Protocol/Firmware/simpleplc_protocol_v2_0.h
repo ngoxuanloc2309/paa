@@ -558,8 +558,18 @@ typedef enum {
 } SPLC_DeviceClass_t;
 
 typedef enum {
+    SPLC_DL_VARIANT_UNKNOWN       = 0,
+    SPLC_DL_VARIANT_DL_424        = 1    /* SYNX-DL-424: 4DI, 2DO, 4AI (Data Logger) */
+} SPLC_DataloggerVariant_t;
+
+typedef enum {
+    SPLC_GW_VARIANT_UNKNOWN       = 0,
+    SPLC_GW_VARIANT_GW_220        = 1    /* SYNX-GW-220: 2DI, 2DO (Gateway) */
+} SPLC_GatewayVariant_t;
+
+typedef enum {
     SPLC_DTU_VARIANT_UNKNOWN      = 0,
-    SPLC_DTU_VARIANT_RS485_NET    = 1
+    SPLC_DTU_VARIANT_DTU_485      = 1    /* SYNX-DTU-485: 4x RS-485 (Industrial DTU) */
 } SPLC_DtuVariant_t;
 
 typedef enum {
@@ -588,8 +598,11 @@ typedef enum {
 
 typedef enum {
     SPLC_RIO_VARIANT_UNKNOWN      = 0,
-    SPLC_RIO_VARIANT_8DI_8DO_4AI  = 1,
-    SPLC_RIO_VARIANT_16DI_16DO    = 2
+    SPLC_RIO_VARIANT_RIO_884      = 1,   /* SYNX-RIO-884: 8DI, 8DO, 4AI (RS-485 Modbus RTU) */
+    SPLC_RIO_VARIANT_RIO_440_WF   = 2,   /* SYNX-RIO-440-WF: 4DI, 4DO Relay (Wi-Fi Wireless) */
+    SPLC_RIO_VARIANT_RIO_440      = 3,   /* SYNX-RIO-440: 4DI, 4DO Compact (RS-485 Modbus RTU) */
+    SPLC_RIO_VARIANT_RIO_880      = 4,   /* SYNX-RIO-880: 8DI, 8DO Relay (RS-485 Modbus RTU) */
+    SPLC_RIO_VARIANT_RIO_440_ZB   = 5    /* SYNX-RIO-440-ZB: 4DI, 4DO Relay (Zigbee Mesh Wireless) */
 } SPLC_RemoteIoVariant_t;
 
 typedef enum {
@@ -751,7 +764,7 @@ typedef enum {
  */
 typedef struct SPLC_PACKED {
     uint16_t device_class;        /* SPLC_DeviceClass_t (1 = REMOTE_IO) */
-    uint16_t device_variant;      /* SPLC_RemoteIoVariant_t (1 = 8DI_8DO_4AI) */
+    uint16_t device_variant;      /* SPLC_RemoteIoVariant_t (1 = RIO_884) */
     uint16_t hw_version_major;    /* e.g. 1 */
     uint16_t hw_version_minor;    /* e.g. 0 */
     uint16_t hw_version_patch;    /* e.g. 0 */
@@ -889,7 +902,11 @@ typedef struct SPLC_PACKED {
     uint8_t  compare_op;              /* [12H]  SPLC_CompareOp_t */
     uint8_t  action_type;             /* [12L]  SPLC_ActionType_t */
     uint8_t  flags;                   /* [13H]  SPLC_RuleFlags_t: Bit 0=TRIGGER_FLOAT (0x01), Bit 1=ACTION_FLOAT (0x02) */
-    uint8_t  reserved[5];             /* [13L..15] Reserved, sender writes 0x00 */
+    uint8_t  reserved_byte;           /* [13L]  Reserved padding byte, sender writes 0x00 */
+    union {
+        int32_t  aux_param;           /* [14..15] Auxiliary action parameter (Int32) e.g. Offset b */
+        float    aux_param_f;         /* [14..15] Auxiliary action parameter (Float32) */
+    };
 } SPLC_RuleRecord_t;
 
 /**

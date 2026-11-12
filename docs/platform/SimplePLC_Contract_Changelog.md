@@ -2,6 +2,31 @@
 
 # SimplePLC Platform Contract Changelog
 
+## [2.14.0 / Studio v2.14.0] - 2026-11-12 (STARTUP HUB & START PAGE, BLUEPRINTS HARDWARE COMPATIBILITY, RULECOMPILER MODULARIZATION & FLUENT 2 ERGONOMICS - GitHub Release v2.14.0)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Trung Tâm Khởi Động Hiện Đại (Startup Hub & Start Page)**:
+  - Bổ sung màn hình chào đón `StartPageView` chuẩn Fluent 2 Desktop khi khởi động IDE.
+  - Quản lý danh sách các dự án gần đây (Recent Projects) kèm đường dẫn, thời gian mở lần cuối và hỗ trợ ghim/mở nhanh.
+  - Cho phép tạo mới nhanh dự án theo mẫu phần cứng hoặc mở tệp `.splc` có sẵn trực tiếp từ Start Page.
+- **2. Thư Viện Bản Thiết Kế Mẫu & Bộ Lọc Tương Thích Phần Cứng (Blueprints Hardware Compatibility)**:
+  - Lọc động danh mục Blueprint theo năng lực phần cứng thực tế của thiết bị (`HasMqttCapability`, `HasWifiCapability`, `HasZigbeeCapability`).
+  - Hiển thị chi tiết số lượng I/O yêu cầu, nhãn phiên bản và thẻ tương thích trực quan trên `BlueprintsView`.
+- **3. Mô-đun Hóa Trình Biên Dịch Quy Tắc (RuleCompiler Modularization)**:
+  - Tách biệt kiến trúc biên dịch logic thành các mô-đun độc lập: `ActionPathTracer`, `CandidateRule`, `MacroLowering`, `PeripheralConfigExtractor`.
+  - Triệt tiêu độ phức tạp chu trình cyclomatic complexity, đảm bảo tính tất định và tuân thủ tiêu chuẩn an toàn IEC 61508-3.
+- **4. Tinh Chỉnh Công Thái Học Giao Diện Fluent 2 Desktop (Ergonomic Refinements)**:
+  - Chuẩn hóa toàn bộ chiều cao controls biểu mẫu (TextBox, ComboBox, segmented buttons) về đồng nhất `28px`.
+  - Căn lề trên (`Top`) cho các khung xem trước Payload nhiều dòng (`AcceptsReturn="True"`).
+  - Chuẩn hóa phông chữ biểu mẫu về `Segoe UI` và bảo vệ nghiêm ngặt phông `Consolas` cho vùng dữ liệu kỹ thuật (JSON preview, Hex dump, Modbus address).
+  - Căn giữa dấu kiểm CheckBox và khôi phục icon nút Refresh trên thanh Quick Connect.
+- **5. Tái Cấu Trúc Định Nghĩa Miền & Bản Đồ Thẻ (Clean Architecture Domain Refactoring)**:
+  - Di chuyển `TagLayoutMap`, `SPLC_HardwareCapabilities` và các enum thiết bị (`DeviceEnums`, `ModbusSlaveAccessRight`, `MqttDataType`) về tầng `SimplePLC.Domain`.
+  - Đảm bảo 100% nguyên tắc phụ thuộc một chiều trong Clean Architecture.
+- **6. Kiểm Thử Tự Động & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
+  - Toàn bộ **2,063 unit tests** trên toàn bộ giải pháp đạt 100% PASS (1,341 Studio, 252 Application, 233 Protocol, 182 Infrastructure, 55 Domain).
+  - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu Fluent 2 / IBM Carbon, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+
 ## [2.13.0 / Studio v2.13.0] - 2026-11-10 (ZIGBEE WIRELESS MODBUS, INDEPENDENT CLOUD UPLINKS, REUSABLE CONTROLS & HARDWARE HIERARCHY - GitHub Release v2.13.0)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

@@ -40,6 +40,17 @@ Toàn bộ hệ thống mã nguồn C# được tổ chức theo **Clean Archite
    - Quản lý Views, ViewModels, DataTemplate của Canvas đồ thị, và cơ chế bắt sự kiện giao diện.
    - Tuân thủ học thuyết thiết kế Microsoft Fluent 2 Desktop và ANSI/ISA-101.
 
+### 1.1. Khế Ước Nhận Diện Thiết Bị & Khóa An Toàn Tương Thích (`DeviceClass` & `DeviceVariant`)
+
+Để đảm bảo tính độc lập phần cứng và an toàn tuyệt đối khi triển khai hiện trường, hệ thống sử dụng cặp mã định danh nhị phân:
+- **`device_class` (`uint16_t`, thanh ghi `0x0000`):** Nhóm chủng loại thiết bị (`REMOTE_IO = 1`, `DATALOGGER = 2`, `GATEWAY = 3`, `CONTROLLER = 4`, `DTU = 5`).
+- **`device_variant` (`uint16_t`, thanh ghi `0x0001`):** Biến thể phần cứng/SKU chi tiết (ví dụ trong nhóm `REMOTE_IO`: `1 = 8DI_8DO_4AI`, `2 = 16DI_16DO`, `3 = 4DI_4DO`, `4 = 8DI_8DO Relay`).
+
+**Cơ chế hoạt động trong mã nguồn C#:**
+1. **Khám phá Tự động (Self-Describing Discovery):** Khi kết nối, `DeviceSessionCoordinator` đọc `DeviceDescriptorDto`. IDE tự động khớp với `HardwareDevicePreset.BuiltInPresets` để sinh ra đúng danh mục `TagCatalog` và số cổng RS-485 khả dụng.
+2. **Xác thực Tương thích Trước khi Nạp (`StandardDeviceCompatibilityValidator`):** Trước khi nạp bytecode, validator đối chiếu profile dự án với `SupportedDeviceProfile.Matches(descriptor)`. Nếu người dùng lập trình trên biến thể 16 DI/DO nhưng lại nạp vào phần cứng 4 DI/DO (`DeviceVariant` không khớp), IDE lập tức khóa chốt `DeploySafetyGate` và báo lỗi `UnsupportedDeviceVariant`.
+3. **Chân lý Thị giác (The Visual Truth):** ViewModel chuyển đổi `DeviceVariant` thành tên gọi thương mại trực quan (`DisplayName`) trên `DeviceInfoDialogView` và `NewProjectWizard`.
+
 ---
 
 ## 2. Chu Trình Biên Dịch Hạ Cấp Mã (Compilation Lowering Pipeline)

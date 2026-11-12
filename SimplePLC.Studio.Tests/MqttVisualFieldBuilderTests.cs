@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text.Json;
 using SimplePLC.Application.Services;
@@ -11,6 +11,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử bộ dựng trường viễn trắc trực quan và thẩm định định dạng Topic MQTT.
+/// </summary>
 public class MqttVisualFieldBuilderTests
 {
     [Fact]
@@ -414,9 +417,9 @@ public class MqttVisualFieldBuilderTests
 
         var catalog = new TagCatalogViewModel();
         var product = SimplePLC.Domain.Models.ProductDefinition.CreateRemoteIo8Di8Do4Ai(
-            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC |
-                                  SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_PUB |
-                                  SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.ETHERNET);
+            hardwareCapabilities: SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.BASE_LOGIC |
+                                  SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MQTT_PUB |
+                                  SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.ETHERNET);
 
         var node = new MqttPublishNodeViewModel
         {

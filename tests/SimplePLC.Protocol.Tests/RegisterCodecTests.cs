@@ -176,7 +176,7 @@ public class RegisterCodecTests
         var desc = new DeviceDescriptorDto
         {
             DeviceClass = SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            DeviceVariant = (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884,
             HwVersionMajor = 1,
             HwVersionMinor = 2,
             HwVersionPatch = 0,
@@ -336,6 +336,56 @@ public class RegisterCodecTests
         Assert.True(decoded.IsActionFloat);
         Assert.Equal(80, decoded.ThresholdLo);
         Assert.Equal(2.5f, decoded.ActionParamFloat, precision: 4);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(123456)]
+    [InlineData(-987654)]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void EncodeRuleRecord_AuxParamInt_EncodesAndDecodesCorrectly(int auxParam)
+    {
+        var rule = new RuleRecordDto
+        {
+            TriggerTag = 1,
+            ActionTag = 2,
+            AuxParam = auxParam
+        };
+
+        Span<ushort> registers = stackalloc ushort[16];
+        RegisterCodec.EncodeRuleRecord(rule, registers);
+
+        // Verify registers 14 and 15 hold the 32-bit auxParam in Big-Endian Word order
+        ushort hiWord = (ushort)((auxParam >> 16) & 0xFFFF);
+        ushort loWord = (ushort)(auxParam & 0xFFFF);
+        Assert.Equal(hiWord, registers[14]);
+        Assert.Equal(loWord, registers[15]);
+
+        var decoded = RegisterCodec.DecodeRuleRecord(registers);
+        Assert.Equal(auxParam, decoded.AuxParam);
+    }
+
+    [Theory]
+    [InlineData(0.0f)]
+    [InlineData(25.5f)]
+    [InlineData(-123.456f)]
+    [InlineData(3.14159f)]
+    public void EncodeRuleRecord_AuxParamFloat_EncodesAndDecodesCorrectly(float auxFloat)
+    {
+        var rule = new RuleRecordDto
+        {
+            Flags = (byte)SPLC_RuleFlags.ACTION_FLOAT,
+            TriggerTag = 1,
+            ActionTag = 2,
+            AuxParamFloat = auxFloat
+        };
+
+        Span<ushort> registers = stackalloc ushort[16];
+        RegisterCodec.EncodeRuleRecord(rule, registers);
+
+        var decoded = RegisterCodec.DecodeRuleRecord(registers);
+        Assert.Equal(auxFloat, decoded.AuxParamFloat, precision: 4);
     }
 
     [Fact]

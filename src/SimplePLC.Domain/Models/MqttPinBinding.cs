@@ -1,6 +1,6 @@
 namespace SimplePLC.Domain.Models;
 
-using SimplePLC.Protocol.Enums;
+using SimplePLC.Domain.Enums;
 
 /// <summary>
 /// Đại diện cho cấu hình một chân động (Dynamic Pin) của khối MQTT Subscribe.

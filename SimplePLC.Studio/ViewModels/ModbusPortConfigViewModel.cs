@@ -1567,13 +1567,27 @@ public partial class ModbusPortConfigViewModel : ObservableObject
     }
 
 
+    private int? _hardwarePortLimitOverride;
+
+    /// <summary>
+    /// Đồng bộ giới hạn số lượng cổng RS-485 vật lý thực tế từ MCU khi kết nối thiết bị.
+    /// Truyền null khi ngắt kết nối để phục hồi giới hạn theo ProjectMetadata.
+    /// </summary>
+    /// <param name="portLimit">Số cổng RS-485 vật lý báo từ MCU, hoặc null khi offline.</param>
+    public void SyncHardwarePortLimit(int? portLimit)
+    {
+        _hardwarePortLimitOverride = portLimit;
+        ReloadPortsFromMetadata();
+    }
+
     /// <summary>
     /// Tải lại danh sách cổng RS-485 từ ProjectMetadata (Single Source of Truth).
     /// </summary>
     public void ReloadPortsFromMetadata()
     {
-        int physicalLimit = _metadata.PhysicalRs485PortCount;
+        int physicalLimit = _hardwarePortLimitOverride ?? _metadata.PhysicalRs485PortCount;
         if (physicalLimit > 4) physicalLimit = 4;
+        if (physicalLimit < 0) physicalLimit = 0;
 
         if (_metadata.ModbusPorts == null || _metadata.ModbusPorts.Count == 0)
         {

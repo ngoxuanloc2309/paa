@@ -146,6 +146,7 @@ public sealed class AppServices
         // D3: Rebuild LifecycleManager với ConnectionFactory mới (cần thiết cho test injection)
         // Unsubscribe cũ trước để tránh double-subscription
         SessionManager.SessionChanged -= OnSessionChanged;
+        SessionManager = new SessionManager();
 
         LifecycleManager = new DeviceLifecycleManager(
             ConnectionFactory,
@@ -207,6 +208,10 @@ public sealed class AppServices
                 {
                     await _transport.OpenAsync(new UsbCdcOptions(usb.PortName), cancellationToken).ConfigureAwait(false);
                 }
+                if (endpoint is SimulatorEndpoint && _transport is FakeUsbCdcTransport fakeTrans)
+                {
+                    fakeTrans.IsOpen = true;
+                }
 
                 var descriptorReader = new DeviceDescriptorReader(_client);
                 var descriptor = await descriptorReader.ReadDescriptorAsync(slaveId, cancellationToken).ConfigureAwait(false);
@@ -218,12 +223,12 @@ public sealed class AppServices
                 }
 
                 var resourceInfo = await descriptorReader.ReadResourceInfoAsync(slaveId, cancellationToken).ConfigureAwait(false);
-                var capabilities = SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.NONE;
+                var capabilities = SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.NONE;
                 ushort? rs485PortCount = null;
                 if (resourceInfo.WireProfile >= 2)
                 {
                     capabilities = await descriptorReader.ReadHardwareCapabilitiesAsync(slaveId, cancellationToken).ConfigureAwait(false);
-                    bool hasModbus = (capabilities & SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
+                    bool hasModbus = (capabilities & SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
                     rs485PortCount = await descriptorReader.ReadPhysicalRs485PortCountAsync(slaveId, hasModbus, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -242,7 +247,7 @@ public sealed class AppServices
                     endpoint,
                     descriptor,
                     slaveId,
-                    _transport ?? new FakeUsbCdcTransport(),
+                    _transport ?? new FakeUsbCdcTransport { IsOpen = true },
                     _client,
                     ruleGateway,
                     tagReader,

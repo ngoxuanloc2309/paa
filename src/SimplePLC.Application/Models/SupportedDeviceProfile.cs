@@ -1,3 +1,4 @@
+using SimplePLC.Domain.Enums;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
@@ -25,51 +26,87 @@ public sealed record SupportedDeviceProfile(
     }
 
     /// <summary>
-    /// Profile chuẩn cho biến thể Remote I/O 8DI-8DO-4AI V2.0 (Wire Profile V2).
+    /// Profile chuẩn cho biến thể Remote I/O SYNX-RIO-884 V2.0 (Wire Profile V2).
     /// </summary>
-    public static SupportedDeviceProfile RemoteIo8Di8Do4AiV2_0 =>
+    public static SupportedDeviceProfile RemoteIoRio884V2_0 =>
         new(
             DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_8DI_8DO_4AI,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_884,
             ProtocolVersion: 2,
             RuleFormatVersion: 7,
-            ProfileName: "Remote I/O (8DI-8DO-4AI) V2.0"
+            ProfileName: "SynaptiX Remote I/O (SYNX-RIO-884) V2.0"
         );
 
     /// <summary>
-    /// Profile chuẩn cho biến thể Remote I/O 16DI-16DO V2.0 (Wire Profile V2).
+    /// Profile chuẩn cho biến thể Remote I/O Wi-Fi SYNX-RIO-440-WF V2.0 (Wire Profile V2).
     /// </summary>
-    public static SupportedDeviceProfile RemoteIo16Di16DoV2_0 =>
+    public static SupportedDeviceProfile RemoteIoRio440WfV2_0 =>
         new(
             DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
-            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_16DI_16DO,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_WF,
             ProtocolVersion: 2,
             RuleFormatVersion: 7,
-            ProfileName: "Remote I/O (16DI-16DO) V2.0"
+            ProfileName: "SynaptiX Wi-Fi I/O (SYNX-RIO-440-WF) V2.0"
         );
 
     /// <summary>
-    /// Profile chuẩn cho biến thể Gateway RS485-ETH V2.0 (Wire Profile V2 / simpleplc_protocol_v2_0.h).
+    /// Profile chuẩn cho biến thể Remote I/O Compact SYNX-RIO-440 V2.0 (Wire Profile V2).
     /// </summary>
-    public static SupportedDeviceProfile GatewayRs485EthV2_0 =>
+    public static SupportedDeviceProfile RemoteIoRio440V2_0 =>
+        new(
+            DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440,
+            ProtocolVersion: 2,
+            RuleFormatVersion: 7,
+            ProfileName: "SynaptiX Remote I/O (SYNX-RIO-440) V2.0"
+        );
+
+    /// <summary>
+    /// Profile chuẩn cho biến thể Remote I/O Relay SYNX-RIO-880 V2.0 (Wire Profile V2).
+    /// </summary>
+    public static SupportedDeviceProfile RemoteIoRio880V2_0 =>
+        new(
+            DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_880,
+            ProtocolVersion: 2,
+            RuleFormatVersion: 7,
+            ProfileName: "SynaptiX Remote I/O (SYNX-RIO-880) V2.0"
+        );
+
+    /// <summary>
+    /// Profile chuẩn cho biến thể Remote I/O Zigbee SYNX-RIO-440-ZB V2.0 (Wire Profile V2).
+    /// </summary>
+    public static SupportedDeviceProfile RemoteIoRio440ZbV2_0 =>
+        new(
+            DeviceClass: (ushort)SPLC_DeviceClass.REMOTE_IO,
+            DeviceVariant: (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_ZB,
+            ProtocolVersion: 2,
+            RuleFormatVersion: 7,
+            ProfileName: "SynaptiX Zigbee I/O (SYNX-RIO-440-ZB) V2.0"
+        );
+
+    /// <summary>
+    /// Profile chuẩn cho biến thể Gateway SYNX-GW-220 V2.0 (Wire Profile V2).
+    /// </summary>
+    public static SupportedDeviceProfile GatewayGw220V2_0 =>
         new(
             DeviceClass: (ushort)SPLC_DeviceClass.GATEWAY,
-            DeviceVariant: (ushort)SPLC_GatewayVariant.VARIANT_RS485_ETH,
+            DeviceVariant: (ushort)SPLC_GatewayVariant.VARIANT_GW_220,
             ProtocolVersion: 2,
             RuleFormatVersion: 7,
-            ProfileName: "Gateway (RS485-ETH) V2.0"
+            ProfileName: "SynaptiX Gateway (SYNX-GW-220) V2.0"
         );
 
     /// <summary>
-    /// Profile chuẩn cho biến thể Data Logger 8AI V2.0 (Wire Profile V2).
+    /// Profile chuẩn cho biến thể Data Logger SYNX-DL-424 V2.0 (Wire Profile V2).
     /// </summary>
-    public static SupportedDeviceProfile Datalogger8AiV2_0 =>
+    public static SupportedDeviceProfile DataloggerDl424V2_0 =>
         new(
             DeviceClass: (ushort)SPLC_DeviceClass.DATALOGGER,
-            DeviceVariant: (ushort)SPLC_DataloggerVariant.VARIANT_8AI,
+            DeviceVariant: (ushort)SPLC_DataloggerVariant.VARIANT_DL_424,
             ProtocolVersion: 2,
             RuleFormatVersion: 7,
-            ProfileName: "Data Logger (8AI) V2.0"
+            ProfileName: "SynaptiX Data Logger (SYNX-DL-424) V2.0"
         );
 
     /// <summary>
@@ -85,15 +122,15 @@ public sealed record SupportedDeviceProfile(
         );
 
     /// <summary>
-    /// Profile chuẩn cho thiết bị SynaptiX DTU Gateway (RS485 to Network: MQTT, HTTP, TCP).
+    /// Profile chuẩn cho thiết bị SynaptiX DTU SYNX-DTU-485 (4x RS-485 to Net: MQTT, HTTP, TCP).
     /// </summary>
-    public static SupportedDeviceProfile DtuGatewayRs485NetV2_0 =>
+    public static SupportedDeviceProfile Dtu485V2_0 =>
         new(
             DeviceClass: (ushort)SPLC_DeviceClass.DTU,
-            DeviceVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+            DeviceVariant: (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
             ProtocolVersion: 2,
             RuleFormatVersion: 7,
-            ProfileName: "SynaptiX DTU Gateway (RS485-NET) V2.0"
+            ProfileName: "SynaptiX DTU (SYNX-DTU-485) V2.0"
         );
 
     /// <summary>
@@ -101,11 +138,14 @@ public sealed record SupportedDeviceProfile(
     /// </summary>
     public static IReadOnlyList<SupportedDeviceProfile> DefaultProfiles => new[]
     {
-        RemoteIo8Di8Do4AiV2_0,
-        RemoteIo16Di16DoV2_0,
-        GatewayRs485EthV2_0,
-        Datalogger8AiV2_0,
+        RemoteIoRio884V2_0,
+        RemoteIoRio440WfV2_0,
+        RemoteIoRio440V2_0,
+        RemoteIoRio880V2_0,
+        RemoteIoRio440ZbV2_0,
+        GatewayGw220V2_0,
+        DataloggerDl424V2_0,
         ControllerV2_0,
-        DtuGatewayRs485NetV2_0
+        Dtu485V2_0
     };
 }

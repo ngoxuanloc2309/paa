@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using SimplePLC.Protocol.Constants;
@@ -17,10 +17,10 @@ public sealed class DtuGatewayStudioViewModelTests
     [Fact]
     public void BuiltInPresets_ShouldContainDtuPreset()
     {
-        var preset = HardwareDevicePreset.BuiltInPresets.FirstOrDefault(p => p.Id == "DTU_RS485_NET");
+        var preset = HardwareDevicePreset.BuiltInPresets.FirstOrDefault(p => p.Id == "SYNX_DTU_485");
         Assert.NotNull(preset);
         Assert.Equal(SPLC_DeviceClass.DTU, preset.DeviceClass);
-        Assert.Equal((ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET, preset.DeviceVariant);
+        Assert.Equal((ushort)SPLC_DtuVariant.VARIANT_DTU_485, preset.DeviceVariant);
         Assert.True((preset.HardwareCapabilities & SPLC_HardwareCapabilities.HTTP_CLIENT) != 0);
         Assert.True((preset.HardwareCapabilities & SPLC_HardwareCapabilities.TRANSPARENT_STREAM) != 0);
         var product = preset.BuildProductDefinition();
@@ -180,7 +180,7 @@ public sealed class DtuGatewayStudioViewModelTests
                 {
                     ProjectName = "DTU Factory Project",
                     DeviceClass = (ushort)SPLC_DeviceClass.DTU,
-                    ProductVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_RS485_NET,
+                    ProductVariant = (ushort)SPLC_DtuVariant.VARIANT_DTU_485,
                     MqttWillEnabled = true,
                     MqttWillTopic = "station/will",
                     DtuConfig = new DtuConfigModel
@@ -1298,8 +1298,16 @@ public sealed class DtuGatewayStudioViewModelTests
         vm.MqttTelemetryNode.PublishMode = "Event";
         Assert.Contains("Trigger", vm.MqttPublishModeDisplay);
 
-        LocalizationService.Instance.CurrentLanguage = "vi";
-        Assert.Contains("Theo xung kích hoạt", vm.MqttPublishModeDisplay);
+        var originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Contains("Theo xung kích hoạt", vm.MqttPublishModeDisplay);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
     }
 
     /// <summary>
@@ -1652,12 +1660,12 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Contains("Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị", vm.DeployStatusMessage);
 
         // 2. English test
-        LocalizationService.Instance.CurrentLanguage = "en-US";
+        LocalizationService.Instance.CurrentLanguage = "en";
         vm.SaveConfigurationCommand.Execute(null);
         Assert.Contains("Configuration committed to project — ready to deploy", vm.DeployStatusMessage);
 
         // Restore default
-        LocalizationService.Instance.CurrentLanguage = "vi-VN";
+        LocalizationService.Instance.CurrentLanguage = "en";
     }
 
     [Fact]
@@ -1684,5 +1692,210 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Equal("Even", metadata.ModbusPorts[0].Parity);
         Assert.Equal((uint)19200, vm.BaudRate);
         Assert.Equal("Even", vm.Parity);
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_OnDefaultInitialization_ReflectsActiveModbusPortsCount_NotFastRegistersCount()
+    {
+        // Arrange & Act
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        // Assert: Badge must reflect ModbusPortConfigVM (2 ports), NOT FastRegisters count (Axiom 2: Visual Truth)
+        string originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("2 ports", vm.Rs485StatusBadge);
+
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("2 cổng", vm.Rs485StatusBadge);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_WhenNoChannelsConfigured_DisplaysActivePortsCount()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        string originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            // Act & Assert (Vietnamese)
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("2 cổng", vm.Rs485StatusBadge);
+
+            // Act & Assert (English)
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("2 ports", vm.Rs485StatusBadge);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_WhenChannelsAdded_DisplaysChannelCount()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        var port1 = vm.ModbusPortConfigVM.Ports[0];
+        port1.AddMasterChannel();
+
+        string originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            // Act & Assert (Vietnamese)
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("1 kênh", vm.Rs485StatusBadge);
+
+            // Act & Assert (English)
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("1 channel", vm.Rs485StatusBadge);
+
+            // Add 2nd channel
+            port1.AddMasterChannel();
+            Assert.Equal("2 channels", vm.Rs485StatusBadge);
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("2 kênh", vm.Rs485StatusBadge);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_WhenAllPortsSlave_DisplaysSlave()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        foreach (var port in vm.ModbusPortConfigVM.Ports)
+        {
+            port.Role = "Slave";
+        }
+
+        // Assert
+        Assert.Equal("Slave", vm.Rs485StatusBadge);
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_WhenAllPortsDisabled_DisplaysDisabled()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        foreach (var port in vm.ModbusPortConfigVM.Ports)
+        {
+            port.Enabled = false;
+        }
+
+        string originalLang = LocalizationService.Instance.CurrentLanguage;
+        try
+        {
+            // Act & Assert (Vietnamese)
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("Đã tắt", vm.Rs485StatusBadge);
+
+            // Act & Assert (English)
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("Disabled", vm.Rs485StatusBadge);
+        }
+        finally
+        {
+            LocalizationService.Instance.CurrentLanguage = originalLang;
+        }
+    }
+
+    [Fact]
+    public void Rs485StatusBadge_WhenChannelsChanged_RaisesPropertyChangedReactively()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+        bool propertyChangedFired = false;
+        vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(DtuGatewayStudioViewModel.Rs485StatusBadge))
+            {
+                propertyChangedFired = true;
+            }
+        };
+
+        // Act
+        vm.ModbusPortConfigVM.Ports[0].AddMasterChannel();
+
+        // Assert
+        Assert.True(propertyChangedFired);
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_NewProject_WifiDefaultsToActive_ForWifiDevices()
+    {
+        // Arrange: Device with Wi-Fi capability
+        var metadata = new ProjectMetadata
+        {
+            HardwareCapabilities = (uint)SPLC_HardwareCapabilities.WIFI,
+            WifiEnabled = true
+        };
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        // Assert
+        Assert.True(vm.WifiEnabled);
+        Assert.True(vm.HasWifiCapability);
+        Assert.Contains(vm.WifiStatusBadge, new[] { "Hoạt động", "Active" });
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_HttpAndTcp_DefaultToDisabled()
+    {
+        // Arrange
+        var metadata = new ProjectMetadata();
+        var vm = new DtuGatewayStudioViewModel(metadata);
+
+        // Assert
+        Assert.False(vm.HttpEnabled);
+        Assert.False(vm.TcpEnabled);
+        Assert.Contains(vm.HttpSidebarBadgeText, new[] { "Đã tắt", "Disabled" });
+        Assert.Contains(vm.TcpSidebarBadgeText, new[] { "Đã tắt", "Disabled" });
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_MqttActive_WhenWifiDisabled_ShowsWifiNotice()
+    {
+        // Arrange: Wi-Fi capable device with MQTT enabled
+        var metadata = new ProjectMetadata
+        {
+            HardwareCapabilities = (uint)(SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB),
+            MqttBrokerEnabled = true,
+            WifiEnabled = true
+        };
+        var vm = new DtuGatewayStudioViewModel(metadata);
+        Assert.False(vm.IsWifiRequiredNoticeVisible);
+
+        // Act: User disables Wi-Fi
+        vm.WifiEnabled = false;
+
+        // Assert: Warning notice becomes visible
+        Assert.True(vm.IsWifiRequiredNoticeVisible);
+
+        // Act: User clicks 'Enable Wi-Fi Now' command
+        vm.EnableWifiCommand.Execute(null);
+
+        // Assert: Wi-Fi is enabled and notice disappears
+        Assert.True(vm.WifiEnabled);
+        Assert.False(vm.IsWifiRequiredNoticeVisible);
     }
 }

@@ -250,12 +250,14 @@ Tài liệu này xác lập đặc tả cấu trúc dữ liệu nhị phân cấ
 
 | `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Master/Slave vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port/Role, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName, Role, SlaveId). Host nạp xuống MCU khi deploy. |
 
-| `0x1440..0x147F` | **Zigbee Mesh Network Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình mạng không dây công nghiệp Zigbee (SPLC-SPEC-ZIGBEE-006): Role (Coordinator/Router/EndDevice), PanID (16B), Channel Mask (2.4GHz Kênh 11..26), BaudRate UART nội bộ, AES-128 Encryption Key. Host nạp xuống MCU khi deploy. |
+| `0x1440..0x14FF` | **Reserved / RS-485 Extended** | - | - | 192 regs (384 B)| Vùng dự phòng mở rộng giao tiếp nối tiếp RS-485. |
 
 | `0x1500..0x157F` | **Reserved / Legacy Slave Map** | - | - | 128 regs (256 B) | Phân vùng dự phòng. Từ V2.12+, Modbus Slave sử dụng Bản đồ địa chỉ bộ nhớ cố định (Industrial Fixed Memory Map, SPLC-SPEC-SLAVE-001) truy xuất trực tiếp RAM $O(1)$ mà không cần nạp bảng ánh xạ trung gian. |
 | `0x1600..0x163F` | **DTU HTTP REST Client Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình HTTP REST Client (SPLC-SPEC-DTU-001): Method (POST/PUT), Timeout (s), Trigger Mode (OnDataReceived/Periodic), Periodic Interval (s), URL (64B) và Custom Headers (56B). |
 | `0x1640..0x167F` | **DTU TCP Socket Client/Server Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình TCP Socket Client / Server (SPLC-SPEC-DTU-001): Mode (Client/Server), Remote/Local Port, Reconnect Delay, Heartbeat Frame & Interval, Registration Packet (None/OnConnect/Prepend). |
 | `0x1680..0x16BF` | **DTU Routing & Uplink Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình định tuyến DTU (SPLC-SPEC-DTU-001): Port RS-485 (#1..#4), Serial Mode (Transference, Modbus Master, Modbus Slave), Uplink Mode (MQTT, HTTP, TCP Client, TCP Server), Frame Timeout ngắt DMA t3.5 (ms), Max Packet Size (bytes), Payload Format Mode (Standard IEC, Custom, Raw) và Payload Flags mask. |
+
+| `0x1700..0x173F` | **Zigbee Wireless Modbus Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình mạng không dây công nghiệp Zigbee (SPLC-SPEC-ZIGBEE-006): Role (Coordinator/Router), PanID, Channel (11..26), BaudRate UART nội bộ, AES-128 Encryption Key (Write-Only), viễn trắc Link State/RSSI/LQI/Packets. Host nạp xuống MCU khi deploy. |
 
 | `0x9000..0x9005` | **Staging Handshake** | R/W | FC03/FC16 | 6 regs (12 B) | Trạng thái bắt tay nạp Rule: Status, ErrorCode, StagedCount, ExpectedCRC, ActiveCount, ActiveCRC. |
 
@@ -306,6 +308,34 @@ typedef struct SPLC_PACKED {
     uint16_t rule_format_version; /* 0x12: Bắt buộc = 7 (Bản ghi 32-byte) */
 
 } SPLC_DeviceDescriptor_t;
+
+#### Chi tiết Định danh Biến thể Phần cứng (`device_variant`)
+
+Trong kiến trúc **SimplePLC Platform V2.0** và **SynaptiX IDE**, trường **`device_variant`** (`uint16_t`, thanh ghi `0x0001`, offset byte `0x02`) là **mã định danh biến thể phần cứng cụ thể** nằm bên trong một nhóm chủng loại thiết bị (`device_class` tại thanh ghi `0x0000`).
+
+Cùng một dòng thiết bị (`device_class`), nhà sản xuất có thể phát hành nhiều model/SKU với cấu hình chân I/O vật lý hoặc chuẩn truyền thông khác nhau:
+
+| Device Class (`0x0000`) | Device Variant (`0x0001`) | Tên biến thể / Model | Cấu hình I/O & Truyền thông Thực tế |
+| :--- | :---: | :--- | :--- |
+| **`REMOTE_IO` (1)** | `1` | `VARIANT_RIO_884` (SYNX-RIO-884) | 8 Digital In, 8 Digital Out, 4 Analog In, 2x RS-485 |
+| | `2` | `VARIANT_RIO_440_WF` (SYNX-RIO-440-WF) | 4 Digital In, 4 Digital Out, Wi-Fi Modbus TCP + MQTT (SPLC-CAP-WIFI) |
+| | `3` | `VARIANT_RIO_440` (SYNX-RIO-440) | 4 Digital In, 4 Digital Out Compact |
+| | `4` | `VARIANT_RIO_880` (SYNX-RIO-880) | 8 Digital In, 8 Digital Out |
+| | `5` | `VARIANT_RIO_440_ZB` (SYNX-RIO-440-ZB) | 4 Digital In, 4 Digital Out, Zigbee Mesh 2.4GHz (SPLC-CAP-ZIGBEE) |
+| **`DATALOGGER` (2)**| `1` | `VARIANT_DL_424` (SYNX-DL-424) | 4 Digital In, 2 Digital Out, 4 Analog In, MicroSD + RTC + MQTT |
+| **`GATEWAY` (3)** | `1` | `VARIANT_GW_220` (SYNX-GW-220)| 2 Digital In, 2 Digital Out, RS-485, Ethernet, Wi-Fi, MQTT |
+| **`CONTROLLER` (4)**| `1` | `Programmable Controller V2.0` | Bộ điều khiển PLC chạy Logic Engine thời gian thực |
+| **`DTU` (5)** | `1` | `VARIANT_DTU_485` (SYNX-DTU-485) | Industrial DTU 4x RS-485 lên MQTT, HTTP REST, TCP Socket |
+
+#### Ba Vai trò Cốt lõi của `device_variant` trong Hệ thống:
+
+1. **Cơ chế Hồ sơ Tự mô tả (Self-Describing Device Profile):**
+   - Khi SynaptiX IDE kết nối tới MCU qua Serial USB CDC hoặc Modbus TCP, IDE lập tức đọc cặp `(device_class, device_variant)` từ thanh ghi `0x0000..0x0001`. Từ đó, hệ thống tự động nhận diện đúng sơ đồ chân I/O vật lý và nạp mẫu danh mục Tag (`TagCatalog`) tương thích 100% với phần cứng thực tế mà người dùng không cần thiết lập thủ công.
+2. **Khóa An toàn Chống Nạp Nhầm Logic (Hardware Compatibility Safety Gate):**
+   - Bộ kiểm tra tính tương thích `StandardDeviceCompatibilityValidator` sẽ đối chiếu thông số MCU đọc về với danh sách hồ sơ được hỗ trợ `SupportedDeviceProfile`.
+   - Nếu kỹ sư lập trình dự án cho dòng 16 DI / 16 DO nhưng lại cắm cáp nạp vào bo mạch chỉ có 4 DI / 4 DO (`device_variant` không khớp), IDE sẽ kích hoạt chốt chặn an toàn `UnsupportedDeviceVariant` và khóa nút nạp chương trình để triệt tiêu nguy cơ chập cháy hoặc điều khiển sai lệch cơ cấu chấp hành.
+3. **Chân lý Thị giác (The Visual Truth):**
+   - Trong hộp thoại thông tin thiết bị (`DeviceInfoDialogView`) và giao diện tạo dự án (`NewProjectWizard`), giá trị `device_variant` được chuyển đổi thành tên gọi thương mại tường minh (như *"8DI / 8DO / 4AI"*, *"16DI / 16DO Relay"*) thay vì các mã số nhị phân thô, giúp kỹ sư nhận biết chính xác thiết bị đang thao tác.
 
 ```
 

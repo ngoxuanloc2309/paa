@@ -37,23 +37,26 @@ Write-Host "=================================================================" -
 
 # 1. Determine Version
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    # Try git tag
-    try {
-        $gitTag = (git tag --points-at HEAD 2>$null | Select-Object -First 1)
-        if ($gitTag -and $gitTag -match '^v?(\d+\.\d+(\.\d+)?)') {
-            $Version = $matches[1]
-        }
-    } catch {
-        # Ignore git tag lookup failure
+    # Read from csproj first as primary source of truth for current project state
+    if (Test-Path "$RootDir\SimplePLC.Studio\SimplePLC.Studio.csproj") {
+        [xml]$proj = Get-Content "$RootDir\SimplePLC.Studio\SimplePLC.Studio.csproj"
+        $Version = $proj.Project.PropertyGroup.Version
     }
 
     if ([string]::IsNullOrWhiteSpace($Version)) {
-        # Read from csproj
-        [xml]$proj = Get-Content "$RootDir\SimplePLC.Studio\SimplePLC.Studio.csproj"
-        $Version = $proj.Project.PropertyGroup.Version
-        if ([string]::IsNullOrWhiteSpace($Version)) {
-            $Version = "2.0.0"
+        # Try git tag
+        try {
+            $gitTag = (git tag --points-at HEAD 2>$null | Select-Object -First 1)
+            if ($gitTag -and $gitTag -match '^v?(\d+\.\d+(\.\d+)?)') {
+                $Version = $matches[1]
+            }
+        } catch {
+            # Ignore git tag lookup failure
         }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Version)) {
+        $Version = "2.0.0"
     }
 }
 $Version = $Version.TrimStart('v')
@@ -160,15 +163,13 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.13.0)
-- **Tích hợp Chuẩn Giao tiếp Không dây Zigbee Modbus (Wire Contract V2.0 & SPLC-SPEC-ZIGBEE-006)**: Hỗ trợ mạng Zigbee Mesh 2.4 GHz với ``PortIndex = 4`` trên các khối FBD ``MB_READ`` và ``MB_WRITE``. Tích hợp Hardware Safety Gate chặn các địa chỉ Slave ID hạn chế (236, 237) tránh xung đột lệnh cấu hình RF.
-- **Tách biệt Độc lập các Giao thức Cloud Uplink (MQTT, HTTP Client, TCP Client)**: Nâng cấp DTU Gateway với 3 dịch vụ truyền tin chạy song song không loại trừ lẫn nhau, hỗ trợ Dynamic Hardware Capabilities lọc theo năng lực thực tế của phần cứng.
-- **Thống nhất Kiến trúc & Tái sử dụng UserControl (Reusable Controls)**: Đồng bộ hóa 1:1 các UserControl cấu hình (``HttpClientConfigControl``, ``TcpClientConfigControl``, ``ModbusPortConfigControl``, ``MqttBrokerConfigControl``) giữa màn hình Studio Thiết bị và Hộp thoại khối hàm FBD.
-- **Trình Thanh tra & Kiểm tra Trực tiếp Modbus (Modbus Live Test Inspector)**: Bổ sung công cụ kiểm tra trực tiếp kênh Modbus Master/Slave với bộ lọc thời gian thực và đồng bộ hai chiều.
-- **Hệ thống System Tags Runtime & Trình Biên dịch Kích hoạt Đa nguồn**: Bổ sung hỗ trợ System Tags (SYS_*) thời gian thực và biên dịch kích hoạt trigger đa nguồn linh hoạt.
-- **Cơ chế Bảo vệ Dữ liệu Công nghiệp (Industrial Form Input Defense)**: Thực thi nghiêm ngặt vòng đời LostFocus/Enter với tính năng Auto-Normalize và Auto-Revert trên toàn bộ các ViewModel nhập liệu.
-- **Chuẩn hóa Phân tầng Định danh Phần cứng (Hardware Hierarchy)**: Phân định rõ ràng 3 cấp độ: Device Class, Target Device Model, và Hardware/Firmware Version trên toàn bộ hộp thoại thông tin và New Project Wizard.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,001 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+## 🚀 Tính năng nổi bật & Nâng cấp (v2.14.0)
+- **Trung tâm Khởi động Hiện đại (Startup Hub & Start Page)**: Màn hình khởi động chuyên nghiệp chuẩn Fluent 2 Desktop, quản lý lịch sử dự án gần đây (Recent Projects), cho phép tạo dự án mới theo mẫu phần cứng hoặc mở tệp dự án sẵn có một cách nhanh chóng.
+- **Thư viện Bản thiết kế Mẫu & Bộ lọc Tương thích Phần cứng (Blueprints Hardware Compatibility)**: Lọc động danh mục Blueprint theo năng lực phần cứng thực tế của thiết bị, hiển thị chi tiết I/O, phiên bản và các thẻ phân loại trực quan.
+- **Mô-đun hóa Trình Biên dịch Quy tắc (RuleCompiler Modularization)**: Phân rã kiến trúc biên dịch logic thành các thành phần chuyên trách (`ActionPathTracer`, `CandidateRule`, `MacroLowering`, `PeripheralConfigExtractor`), nâng cao độ ổn định và độ tin cậy tất định theo chuẩn IEC 61508-3.
+- **Tinh chỉnh Công thái học Giao diện Fluent 2 Desktop**: Đồng bộ hóa chiều cao 28px cho toàn bộ controls nhập liệu, căn lề trên (`Top`) cho các khung xem trước Payload nhiều dòng, căn giữa dấu kiểm CheckBox, chuẩn hóa phông chữ biểu mẫu `Segoe UI` và bảo vệ nghiêm ngặt phông `Consolas` cho vùng dữ liệu kỹ thuật.
+- **Tái cấu trúc Tầng Định nghĩa Miền (Clean Architecture Domain Refactoring)**: Đưa `TagLayoutMap`, `SPLC_HardwareCapabilities` và các enum thiết bị về đúng tầng `SimplePLC.Domain`, đảm bảo triệt để nguyên tắc phụ thuộc một chiều.
+- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,063 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

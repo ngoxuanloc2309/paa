@@ -1,6 +1,6 @@
 using SimplePLC.Domain.Builders;
+using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
-using SimplePLC.Protocol.Enums;
 using Xunit;
 
 namespace SimplePLC.Domain.Tests;

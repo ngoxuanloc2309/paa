@@ -12,6 +12,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Kiểm thử các hành vi và giao diện kết nối của Node xuất bản MQTT.
+/// </summary>
 public class MqttPublishNodeTests
 {
     [Fact]
@@ -286,7 +289,7 @@ public class MqttPublishNodeTests
         var catalog = new TagCatalogViewModel();
         catalog.AllTags.Add(diTag);
         var product = ProductDefinition.CreateRemoteIo8Di8Do4Ai(
-            hardwareCapabilities: SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.BASE_LOGIC | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.MQTT_PUB | SimplePLC.Protocol.Enums.SPLC_HardwareCapabilities.ETHERNET);
+            hardwareCapabilities: SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.BASE_LOGIC | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.MQTT_PUB | SimplePLC.Domain.Enums.SPLC_HardwareCapabilities.ETHERNET);
         var result = compiler.Compile(nodes, connections, catalog, product);
 
         // Đảm bảo không có lỗi DiagUnsupportedNode

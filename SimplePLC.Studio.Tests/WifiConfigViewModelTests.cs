@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +11,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Unit tests verifying Wi-Fi configuration ViewModel behavior and defaults.
+/// </summary>
 public class WifiConfigViewModelTests
 {
     private sealed class FakeWifiClient : IWifiClient
@@ -95,7 +98,7 @@ public class WifiConfigViewModelTests
         using var vm = new WifiConfigViewModel(meta);
 
         // Assert
-        Assert.False(vm.IsEnabled);
+        Assert.True(vm.IsEnabled);
         Assert.True(vm.AutoReconnect);
         Assert.Equal(string.Empty, vm.Ssid);
         Assert.Equal(string.Empty, vm.Password);
