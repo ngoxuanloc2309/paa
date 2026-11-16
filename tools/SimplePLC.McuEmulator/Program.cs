@@ -3,6 +3,8 @@ using SimplePLC.Infrastructure.Simulator;
 using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Domain.Models;
+using SimplePLC.Domain.Enums;
+using SimplePLC.Protocol.Codec;
 
 namespace SimplePLC.McuEmulator;
 
@@ -81,6 +83,18 @@ internal class Program
             }
         }
 
+        bool isWifi = capsProfile == "wifi" || capsProfile == "wf" || capsProfile == "rio-wf" || capsProfile == "rio-440-wf";
+        bool isGateway = capsProfile == "gateway" || capsProfile == "iot-gateway" || (capsProfile != "remote-io" && capsProfile != "remoteio" && capsProfile != "no-mqtt" && !isWifi);
+
+        if (isWifi && !hasCustomProfile)
+        {
+            diCount = 4;
+            doCount = 4;
+            aiCount = 0;
+        }
+
+        string productTitle = isWifi ? "SYNX-RIO-440-WF (Wi-Fi Wireless Remote I/O)" : (isGateway ? "SYNX-GW-220 (IoT Gateway)" : "SYNX-RIO-884 (Remote I/O)");
+
         Console.Title = $"SimplePLC Virtual MCU Emulator [{portName} @ {baudRate} baud, Slave {slaveId}, WireProfile V{wireProfile}]";
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("==================================================================");
@@ -92,12 +106,13 @@ internal class Program
         Console.WriteLine($"Slave ID:     {slaveId}");
         Console.WriteLine($"Wire Profile: V{wireProfile} {(wireProfile == 2 ? "(Dedicated Function Blocks 0x0B00)" : "(Standard V1)")}");
         Console.WriteLine($"Firmware:     v2.0.0 (TinyUSB CDC + NanoModbus)");
+        Console.WriteLine($"Product:      {productTitle}");
         Console.WriteLine($"Profile:      DI={diCount}, DO={doCount}, AI={aiCount}");
-        Console.WriteLine($"Capabilities: {capsProfile.ToUpperInvariant()} (0x0A08 Feature Gating)");
+        Console.WriteLine($"Capabilities: {(isWifi ? "WIFI (Wi-Fi + MQTT + Modbus)" : (isGateway ? "IOT-GATEWAY (Ethernet + Wi-Fi + MQTT)" : "REMOTE-IO"))} (0x0A08 Feature Gating)");
         Console.WriteLine($"RS-485 Ports: {rs485PortCount} ports (0x0A0A Auto-Sync)");
         Console.WriteLine("------------------------------------------------------------------");
         Console.WriteLine("Controls:");
-        Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs (DI0..DI7)");
+        Console.WriteLine($"  [1..{Math.Min(8, (int)diCount)}]  Toggle Discrete Inputs (DI0..DI{Math.Max(0, (int)diCount - 1)})");
         Console.WriteLine("  [+/-]   Increase/Decrease Analog Input AI0 (step 200mV)");
         Console.WriteLine("  [</>]   Increase/Decrease Analog Input AI1 (step 200mV)");
         Console.WriteLine("  [A]     Toggle Auto Waveform Generator (All 23 App Blueprints)");
@@ -111,24 +126,55 @@ internal class Program
         Console.WriteLine("==================================================================");
 
         var simulator = new McuReferenceSimulator(wireProfile);
-        bool isGateway = capsProfile != "remote-io" && capsProfile != "remoteio" && capsProfile != "no-mqtt";
-        var initialCaps = isGateway
-            ? SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.RTC | SPLC_HardwareCapabilities.ETHERNET | SPLC_HardwareCapabilities.WIFI | SPLC_HardwareCapabilities.MQTT_PUB | SPLC_HardwareCapabilities.MQTT_SUB | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.MODBUS_SLAVE
-            : SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
-        simulator.SetHardwareCapabilities(initialCaps);
-        simulator.SetPhysicalRs485PortCount(rs485PortCount);
-        if (hasCustomProfile)
+
+        if (isWifi)
         {
-            ushort vflagCount = 32;
+            simulator.SetDeviceIdentity(SPLC_DeviceClass.REMOTE_IO, (ushort)SPLC_RemoteIoVariant.VARIANT_RIO_440_WF);
+            var wifiCaps = SPLC_HardwareCapabilities.BASE_LOGIC |
+                           SPLC_HardwareCapabilities.RETENTIVE |
+                           SPLC_HardwareCapabilities.RTC |
+                           SPLC_HardwareCapabilities.WIFI |
+                           SPLC_HardwareCapabilities.MODBUS_MASTER |
+                           SPLC_HardwareCapabilities.MODBUS_SLAVE |
+                           SPLC_HardwareCapabilities.MODBUS_TCP |
+                           SPLC_HardwareCapabilities.MQTT_PUB |
+                           SPLC_HardwareCapabilities.MQTT_SUB;
+            simulator.SetHardwareCapabilities(wifiCaps);
+        }
+        else if (isGateway)
+        {
+            simulator.SetDeviceIdentity(SPLC_DeviceClass.GATEWAY, (ushort)SPLC_GatewayVariant.VARIANT_GW_220);
+            var gatewayCaps = SPLC_HardwareCapabilities.BASE_LOGIC |
+                              SPLC_HardwareCapabilities.RETENTIVE |
+                              SPLC_HardwareCapabilities.RTC |
+                              SPLC_HardwareCapabilities.ETHERNET |
+                              SPLC_HardwareCapabilities.WIFI |
+                              SPLC_HardwareCapabilities.MQTT_PUB |
+                              SPLC_HardwareCapabilities.MQTT_SUB |
+                              SPLC_HardwareCapabilities.MODBUS_MASTER |
+                              SPLC_HardwareCapabilities.MODBUS_SLAVE;
+            simulator.SetHardwareCapabilities(gatewayCaps);
+        }
+        else
+        {
+            var rioCaps = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER;
+            simulator.SetHardwareCapabilities(rioCaps);
+        }
+
+        simulator.SetPhysicalRs485PortCount(rs485PortCount);
+
+        if (hasCustomProfile || isWifi || isGateway)
+        {
+            ushort vflagCount = isWifi ? (ushort)16 : (ushort)32;
             ushort vregCount = 32;
-            ushort vregRetainCount = 32;
-            ushort counterCount = 8;
+            ushort vregRetainCount = isWifi ? (ushort)16 : (ushort)32;
+            ushort counterCount = isWifi ? (ushort)4 : (ushort)8;
             ushort totalTags = (ushort)(diCount + doCount + aiCount + vflagCount + vregCount + vregRetainCount + counterCount);
 
-            simulator.Control.Faults.OverrideResourceInfo = new SimplePLC.Protocol.Dto.DeviceResourceInfoDto
+            var resInfo = new SimplePLC.Protocol.Dto.DeviceResourceInfoDto
             {
                 WireProfile = wireProfile,
-                MaxRules = 100,
+                MaxRules = isWifi ? (ushort)50 : (ushort)100,
                 RuntimeTagCount = totalTags,
                 DigitalInputCount = diCount,
                 DigitalOutputCount = doCount,
@@ -138,6 +184,7 @@ internal class Program
                 RetentiveRegisterCount = vregRetainCount,
                 CounterCount = counterCount
             };
+            simulator.Control.Faults.OverrideResourceInfo = resInfo;
         }
 
         var layout = simulator.GetTagLayout();

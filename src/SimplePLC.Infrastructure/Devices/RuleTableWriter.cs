@@ -152,13 +152,14 @@ public sealed class RuleTableWriter : IRuleTableWriter
         bool hasMqttPub = mqttConfigs != null && mqttConfigs.Count > 0;
         bool hasMqttSub = mqttSubConfigs != null && mqttSubConfigs.Count > 0;
         bool hasBroker = brokerConfig != null && brokerConfig.Enabled;
-        bool hasTlsWork = (brokerConfig != null && brokerConfig.UseTls) || (tlsCertificates != null && tlsCertificates.HasAnyCertificates);
+        bool hasTlsWork = brokerConfig != null && brokerConfig.UseTls && ((brokerConfig != null && brokerConfig.UseTls) || (tlsCertificates != null && tlsCertificates.HasAnyCertificates));
         bool hasMqttWork = hasMqttPub || hasMqttSub || hasBroker || hasTlsWork;
         bool hasMbRead = modbusMasterConfigs != null && modbusMasterConfigs.Count > 0;
         bool hasMbWrite = modbusMasterWriteConfigs != null && modbusMasterWriteConfigs.Count > 0;
         bool hasMbPorts = modbusPortConfigs != null && modbusPortConfigs.Count > 0;
         bool hasSlavePort = modbusPortConfigs != null && modbusPortConfigs.Any(p => p.Role == ModbusPortRole.Slave && p.Enabled);
         bool hasModbusWork = hasMbRead || hasMbWrite || hasMbPorts || hasSlavePort;
+        bool hasDtuWork = dtuConfig != null && dtuConfig.Enabled;
         ushort physicalRs485PortCount = 2;
 
         bool isMqttPubSupported = false;
@@ -167,7 +168,7 @@ public sealed class RuleTableWriter : IRuleTableWriter
         SPLC_HardwareCapabilities caps = SPLC_HardwareCapabilities.NONE;
         Exception? capsReadException = null;
 
-        if (hasMqttWork || hasModbusWork || mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
+        if (hasMqttWork || hasModbusWork || hasDtuWork || mqttConfigs != null || brokerConfig != null || mqttSubConfigs != null)
         {
             try
             {
@@ -592,46 +593,54 @@ public sealed class RuleTableWriter : IRuleTableWriter
         // 4.6 Nạp cấu hình DTU Gateway (0x1600 - 0x16BF) nếu có (SPLC-SPEC-DTU-001)
         if (dtuConfig != null && dtuConfig.Enabled)
         {
-            // A. HTTP REST Client (0x1600)
-            if (dtuConfig.HttpConfig != null && (dtuConfig.UplinkMode == DtuUplinkMode.Http || dtuConfig.HttpConfig.Enabled))
+            bool isDtuSupported = (caps & (SPLC_HardwareCapabilities.HTTP_CLIENT | SPLC_HardwareCapabilities.TRANSPARENT_STREAM)) != 0;
+            if (!isDtuSupported)
             {
-                var httpRegs = new ushort[ModbusRegisterMap.DtuHttpConfigRegisters];
-                DtuConfigCodec.EncodeHttp(dtuConfig.HttpConfig, httpRegs);
-                progressLogger?.Invoke($"[DTU HTTP] Writing {httpRegs.Length} registers to 0x{ModbusRegisterMap.DtuHttpConfigBaseAddress:X04} (Url: {dtuConfig.HttpConfig.Url})...");
-                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
-                    ModbusRegisterMap.DtuHttpConfigBaseAddress,
-                    httpRegs.AsMemory());
-                foreach (var (chunkAddress, chunkMemory) in chunks)
+                progressLogger?.Invoke($"[DTU NOTICE] Connected device does not declare DTU Gateway capability (Caps: 0x{(uint)caps:X8} at 0x{ModbusRegisterMap.HardwareCapabilitiesAddress:X04}). Safely skipping DTU partition 0x1600..0x16BF.");
+            }
+            else
+            {
+                // A. HTTP REST Client (0x1600)
+                if (dtuConfig.HttpConfig != null && (dtuConfig.UplinkMode == DtuUplinkMode.Http || dtuConfig.HttpConfig.Enabled))
+                {
+                    var httpRegs = new ushort[ModbusRegisterMap.DtuHttpConfigRegisters];
+                    DtuConfigCodec.EncodeHttp(dtuConfig.HttpConfig, httpRegs);
+                    progressLogger?.Invoke($"[DTU HTTP] Writing {httpRegs.Length} registers to 0x{ModbusRegisterMap.DtuHttpConfigBaseAddress:X04} (Url: {dtuConfig.HttpConfig.Url})...");
+                    var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                        ModbusRegisterMap.DtuHttpConfigBaseAddress,
+                        httpRegs.AsMemory());
+                    foreach (var (chunkAddress, chunkMemory) in chunks)
+                    {
+                        await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                // B. TCP Socket Client/Server (0x1640)
+                if (dtuConfig.TcpConfig != null && (dtuConfig.UplinkMode == DtuUplinkMode.TcpClient || dtuConfig.UplinkMode == DtuUplinkMode.TcpServer || dtuConfig.TcpConfig.Enabled))
+                {
+                    var tcpRegs = new ushort[ModbusRegisterMap.DtuTcpConfigRegisters];
+                    DtuConfigCodec.EncodeTcp(dtuConfig.TcpConfig, tcpRegs);
+                    progressLogger?.Invoke($"[DTU TCP] Writing {tcpRegs.Length} registers to 0x{ModbusRegisterMap.DtuTcpConfigBaseAddress:X04} ({dtuConfig.TcpConfig.SocketMode} Port: {dtuConfig.TcpConfig.RemotePort})...");
+                    var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                        ModbusRegisterMap.DtuTcpConfigBaseAddress,
+                        tcpRegs.AsMemory());
+                    foreach (var (chunkAddress, chunkMemory) in chunks)
+                    {
+                        await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                // C. Routing & Serial Mode (0x1680)
+                var routingRegs = new ushort[ModbusRegisterMap.DtuRoutingConfigRegisters];
+                DtuConfigCodec.EncodeRouting(dtuConfig, routingRegs);
+                progressLogger?.Invoke($"[DTU ROUTING] Writing {routingRegs.Length} registers to 0x{ModbusRegisterMap.DtuRoutingConfigBaseAddress:X04} (Serial: {dtuConfig.SerialMode}, Uplink: {dtuConfig.UplinkMode})...");
+                var routingChunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
+                    ModbusRegisterMap.DtuRoutingConfigBaseAddress,
+                    routingRegs.AsMemory());
+                foreach (var (chunkAddress, chunkMemory) in routingChunks)
                 {
                     await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
                 }
-            }
-
-            // B. TCP Socket Client/Server (0x1640)
-            if (dtuConfig.TcpConfig != null && (dtuConfig.UplinkMode == DtuUplinkMode.TcpClient || dtuConfig.UplinkMode == DtuUplinkMode.TcpServer || dtuConfig.TcpConfig.Enabled))
-            {
-                var tcpRegs = new ushort[ModbusRegisterMap.DtuTcpConfigRegisters];
-                DtuConfigCodec.EncodeTcp(dtuConfig.TcpConfig, tcpRegs);
-                progressLogger?.Invoke($"[DTU TCP] Writing {tcpRegs.Length} registers to 0x{ModbusRegisterMap.DtuTcpConfigBaseAddress:X04} ({dtuConfig.TcpConfig.SocketMode} Port: {dtuConfig.TcpConfig.RemotePort})...");
-                var chunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
-                    ModbusRegisterMap.DtuTcpConfigBaseAddress,
-                    tcpRegs.AsMemory());
-                foreach (var (chunkAddress, chunkMemory) in chunks)
-                {
-                    await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            // C. Routing & Serial Mode (0x1680)
-            var routingRegs = new ushort[ModbusRegisterMap.DtuRoutingConfigRegisters];
-            DtuConfigCodec.EncodeRouting(dtuConfig, routingRegs);
-            progressLogger?.Invoke($"[DTU ROUTING] Writing {routingRegs.Length} registers to 0x{ModbusRegisterMap.DtuRoutingConfigBaseAddress:X04} (Serial: {dtuConfig.SerialMode}, Uplink: {dtuConfig.UplinkMode})...");
-            var routingChunks = ModbusChunkPlanner.PlanWriteChunks<ushort>(
-                ModbusRegisterMap.DtuRoutingConfigBaseAddress,
-                routingRegs.AsMemory());
-            foreach (var (chunkAddress, chunkMemory) in routingChunks)
-            {
-                await _client.WriteMultipleRegistersAsync(slaveId, chunkAddress, chunkMemory, cancellationToken).ConfigureAwait(false);
             }
         }
 

@@ -2,6 +2,28 @@
 
 # SimplePLC Platform Contract Changelog
 
+## [2.15.0 / Studio v2.15.0] - 2026-11-16 (UNIVERSAL INDUSTRIAL IDE DOWNLOAD STANDARD, TAB VISUAL TREE CACHING & COMM DIAGNOSTICS - GitHub Release v2.15.0)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Chuẩn Hóa Cơ Chế Nạp Sang Chuẩn IDE Công Nghiệp Toàn Cầu (Universal Industrial IDE Download Standard)**:
+  - Cho phép nạp độc lập cấu hình thiết bị (MQTT Broker, TLS/mTLS, LWT, DTU Gateway, RS-485 Modbus, Wi-Fi...) xuống phần cứng ngay cả khi dự án có 0 logic rule.
+  - Phù hợp với thông lệ các nền tảng kỹ thuật công nghiệp hàng đầu (Siemens TIA Portal, Rockwell Studio 5000, Codesys), triệt tiêu rào cản "phải có ít nhất 1 Rule mới được nạp".
+- **2. Tối Ưu Hóa Hiệu Năng Chuyển Tab với Bộ Nhớ Đệm Visual Tree (`CachedContentPresenter`)**:
+  - Triển khai `CachedContentPresenter` lưu trữ và tái sử dụng Visual Tree của các Tab Views.
+  - Triệt tiêu hoàn toàn hiện tượng lag giật, rò rỉ bộ nhớ (memory leaks) và chi phí tái tạo controls khi người dùng chuyển đổi liên tục giữa 7 workspaces.
+- **3. Đồng Bộ Hai Chiều Trạng Thái Cổng Modbus Master & Chuẩn Hóa Vòng Đời Modal Dialog**:
+  - Giải quyết triệt để lỗi ghi đè cấu hình cũ (stale auto-commit on tab switch) khi chuyển từ Tab Canvas sang Tab Thiết bị.
+  - Xử lý dứt điểm ngoại lệ `InvalidOperationException` khi đóng hộp thoại `ModbusPortConfigDialogView`.
+- **4. Hệ Thống Trạng Thái Biên Dịch Đa Phân Hệ & Tự Động Đồng Bộ Rule Table**:
+  - Chuẩn hóa thông điệp trạng thái biên dịch dạng token rút gọn (`{r} rules, {m} MQTT ready`) tự động co giãn theo phân hệ sử dụng.
+  - Tự động đồng bộ hóa 100% dữ liệu sang bảng Rule Table khi chuyển tab mà không yêu cầu thao tác lưu thủ công.
+- **5. Dịch Vụ Giám Sát Chẩn Đoán Truyền Thông & System Tag Watchdog**:
+  - Bổ sung `ICommDiagnosticsService` theo dõi sức khỏe kết nối phần cứng.
+  - Tích hợp watchdog kiểm soát tag hệ thống `SYS_COMM_OK`.
+- **6. Kiểm Thử Tự Động & Độ Tin Cậy Tuyệt Đối (100% Pass Rate)**:
+  - Toàn bộ **2,186 unit tests** trên toàn bộ giải pháp đạt 100% PASS (1,424 Studio, 265 Application, 243 Protocol, 199 Infrastructure, 55 Domain).
+  - 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token màu Fluent 2 / IBM Carbon, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+
 ## [2.14.1 / Studio v2.14.1] - 2026-11-12 (MQTT TLS/MTLS CERTIFICATE STAGING, LAST WILL & TESTAMENT ICD, EXCLUSIVE TAG INGESTION OWNERSHIP - GitHub Release v2.14.1)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

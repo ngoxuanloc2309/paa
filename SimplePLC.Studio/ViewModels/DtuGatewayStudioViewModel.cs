@@ -73,6 +73,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         HardwarePortName = port;
         HardwareModelName = string.IsNullOrWhiteSpace(model) ? "SYNX-DTU-485" : model;
         LiveTestInspectorVM.UpdateDeviceConnection(isConnected, port, HardwareModelName);
+        WifiVM?.UpdateConnectionState(isConnected, AppServices.Instance.WifiClient);
 
         if (isConnected)
         {
@@ -349,6 +350,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
     [NotifyPropertyChangedFor(nameof(WifiIpAssignmentDisplay))]
+    [NotifyPropertyChangedFor(nameof(WifiIpAddressDisplay))]
     private bool _wifiDhcpEnabled = true;
 
     /// <summary>
@@ -360,7 +362,27 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveInspectorSubtitle))]
+    [NotifyPropertyChangedFor(nameof(WifiIpAddressDisplay))]
     private string _wifiStaticIp = "192.168.1.50";
+
+    /// <summary>
+    /// Địa chỉ IP hiển thị thời gian thực (Live IP khi online hoặc cấu hình tĩnh khi offline).
+    /// </summary>
+    public string WifiIpAddressDisplay
+    {
+        get
+        {
+            if (WifiVM != null && WifiVM.IsConnected && !string.IsNullOrWhiteSpace(WifiVM.CurrentIp) && WifiVM.CurrentIp != "0.0.0.0")
+            {
+                return WifiVM.CurrentIp;
+            }
+            if (!WifiDhcpEnabled && !string.IsNullOrWhiteSpace(WifiStaticIp))
+            {
+                return WifiStaticIp;
+            }
+            return "—";
+        }
+    }
 
     [ObservableProperty]
     private string _wifiSubnetMask = "255.255.255.0";
@@ -481,7 +503,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             {
                 "Http" => $"HTTP POST -> {HttpUrl}",
                 "TcpClient" => $"TCP Socket -> {TcpRemoteHost}:{TcpRemotePort}",
-                _ => $"MQTT -> {MqttHost}:{MqttPort} ({MqttPublishTopic})"
+                _ => $"MQTT Broker -> {MqttHost}:{MqttPort}"
             };
             return $"{src}  ===>  {dest}";
         }
@@ -756,105 +778,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Chuỗi hiển thị chế độ phát bản tin Telemetry Publish (định kỳ hoặc xung kích hoạt).
-    /// </summary>
-    public string MqttPublishModeDisplay
-    {
-        get
-        {
-            if (MqttTelemetryNode == null) return "—";
-            if (MqttTelemetryNode.IsEventMode)
-                return LocalizationService.Instance.IsVietnamese ? "Theo xung kích hoạt (Trig)" : "On Trigger (Trig)";
-            if (MqttTelemetryNode.IsCovMode)
-                return $"COV (Δ{MqttTelemetryNode.Deadband})";
-            return LocalizationService.Instance.IsVietnamese 
-                ? $"Định kỳ ({MqttTelemetryNode.IntervalMs}ms)" 
-                : $"Periodic ({MqttTelemetryNode.IntervalMs}ms)";
-        }
-    }
-
-    /// <summary>
-    /// Chuỗi hiển thị chế độ hàng đợi nhận lệnh MQTT Subscribe.
-    /// </summary>
-    public string MqttQueueModeDisplay => MqttCommandNode?.QueueModeSummaryText ?? "FIFO (16)";
-
-    /// <summary>
-    /// Chuỗi tổng quan số lượng trường dữ liệu xuất bản Telemetry Publish.
-    /// </summary>
-    public string MqttPublishFieldsSummaryText
-    {
-        get
-        {
-            int count = MqttTelemetryNode?.Fields?.Count ?? 0;
-            return LocalizationService.Instance.IsVietnamese ? $"{count} trường" : $"{count} fields";
-        }
-    }
-
-    /// <summary>
-    /// Chuỗi tổng quan số lượng cổng lệnh nhận về Command Subscribe.
-    /// </summary>
-    public string MqttSubscribePinsSummaryText
-    {
-        get
-        {
-            int count = MqttCommandNode?.Pins?.Count ?? 0;
-            return LocalizationService.Instance.IsVietnamese ? $"{count} lệnh" : $"{count} commands";
-        }
-    }
-
-    /// <summary>
-    /// Chuỗi hiển thị tỷ lệ pin đã được ánh xạ tới Tag ghi hợp lệ.
-    /// </summary>
-    public string MqttMappedTagsSummaryText
-    {
-        get
-        {
-            int mapped = MqttCommandNode?.Pins?.Count(p => p.TargetTag != null && p.TargetTag.Kind != TagKind.None) ?? 0;
-            int total = MqttCommandNode?.Pins?.Count ?? 0;
-            return $"{mapped}/{total} tags";
-        }
-    }
-
-    /// <summary>
-    /// Ước tính dung lượng payload JSON mỗi bản tin telemetry gửi đi.
-    /// </summary>
-    public string MqttEstimatedPayloadSizeText
-    {
-        get
-        {
-            int fieldCount = MqttTelemetryNode?.Fields?.Count ?? 0;
-            int estBytes = Math.Max(64, (fieldCount * 32) + 70);
-            return $"~{estBytes} bytes / msg";
-        }
-    }
-
-    /// <summary>
-    /// Tên chủ đề xuất bản MQTT Telemetry (Thuộc tính tương thích hai chiều của MqttPublishTopic).
-    /// </summary>
-    public string MqttTopic
-    {
-        get => MqttPublishTopic;
-        set => MqttPublishTopic = value;
-    }
-
-    public void NotifyMqttPubSummary()
-    {
-        OnPropertyChanged(nameof(MqttPublishTopic));
-        OnPropertyChanged(nameof(MqttTopic));
-        OnPropertyChanged(nameof(MqttPublishModeDisplay));
-        OnPropertyChanged(nameof(MqttPublishFieldsSummaryText));
-        OnPropertyChanged(nameof(MqttEstimatedPayloadSizeText));
-    }
-
-    public void NotifyMqttSubSummary()
-    {
-        OnPropertyChanged(nameof(MqttSubscribeTopic));
-        OnPropertyChanged(nameof(MqttQueueModeDisplay));
-        OnPropertyChanged(nameof(MqttSubscribePinsSummaryText));
-        OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
-    }
-
     [ObservableProperty]
     private string _clientCertSubject = string.Empty;
 
@@ -873,18 +796,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
 
     [ObservableProperty]
     private ushort _mqttKeepAlive = 60;
-
-    [ObservableProperty]
-    private string _mqttPublishTopic = "factory/dtu/data";
-
-    [ObservableProperty]
-    private string _mqttSubscribeTopic = "factory/dtu/command";
-
-    [ObservableProperty]
-    private int _mqttQos = 1;
-
-    [ObservableProperty]
-    private bool _mqttRetain = false;
 
     // MQTT LWT
     [ObservableProperty]
@@ -1115,12 +1026,30 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             _hardwareOverrideCapabilities = product.HardwareCapabilities;
             _hardwareOverridePortLimit = product.PhysicalRs485PortCount;
             ModbusPortConfigVM?.SyncHardwarePortLimit(product.PhysicalRs485PortCount);
+            WifiVM?.UpdateConnectionState(true, AppServices.Instance.WifiClient);
+
+            // Đồng bộ sạch: Vô hiệu hóa các cổng RS-485 vượt quá số lượng cổng vật lý thực tế của bo mạch
+            if (_metadata.ModbusPorts != null)
+            {
+                foreach (var port in _metadata.ModbusPorts.Where(p => p.PortIndex >= product.PhysicalRs485PortCount))
+                {
+                    port.Enabled = false;
+                }
+            }
+
+            // Nếu thiết bị không phải DTU và dự án không có khối FBD DTU chuyên dụng, dập tắt cờ DTU
+            bool hasFbdDtuNodes = LogicEditor?.Nodes.Any(n => n is HttpClientNodeViewModel or TcpClientNodeViewModel) == true;
+            if (!product.SupportsHttpClient && !product.SupportsTransparentStream && product.DeviceClass != (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.DTU && !hasFbdDtuNodes)
+            {
+                _metadata.DtuConfig.Enabled = false;
+            }
         }
         else
         {
             _hardwareOverrideCapabilities = null;
             _hardwareOverridePortLimit = null;
             ModbusPortConfigVM?.SyncHardwarePortLimit(null);
+            WifiVM?.UpdateConnectionState(false, null);
         }
 
         NotifyAllCapabilities();
@@ -1248,26 +1177,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     public WifiConfigViewModel WifiVM { get; }
 
     /// <summary>
-    /// ViewModel cấu hình xuất bản dữ liệu Telemetry MQTT (Topic, QoS, Retain, No-Code JSON Key to Tag mapping).
-    /// </summary>
-    public MqttConfigDialogViewModel MqttTelemetryVM { get; }
-
-    /// <summary>
-    /// Node MQTT Publish nền tảng cung cấp dữ liệu cho MqttTelemetryVM.
-    /// </summary>
-    public MqttPublishNodeViewModel MqttTelemetryNode { get; }
-
-    /// <summary>
-    /// ViewModel cấu hình nhận lệnh Command MQTT (Topic, QoS, Queue Mode, Output Pins list, Payload Test).
-    /// </summary>
-    public MqttSubConfigDialogViewModel MqttCommandVM { get; }
-
-    /// <summary>
-    /// Node MQTT Subscribe nền tảng cung cấp dữ liệu cho MqttCommandVM.
-    /// </summary>
-    public MqttSubscribeNodeViewModel MqttCommandNode { get; }
-
-    /// <summary>
     /// Node HTTP Client ná»n táº£ng cung cáº¥p dá»¯ liá»‡u cho HttpVM.
     /// </summary>
     public HttpClientNodeViewModel HttpNode { get; }
@@ -1298,44 +1207,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     public string ZigbeeSidebarBadgeText => (ZigbeeVM?.IsEnabled ?? false)
         ? (LocalizationService.Instance.IsVietnamese ? "Hoạt động" : "Active")
         : (LocalizationService.Instance.IsVietnamese ? "Đã tắt" : "Disabled");
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionBroker))]
-    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionTelemetry))]
-    [NotifyPropertyChangedFor(nameof(IsMqttSubSectionCommand))]
-    [NotifyPropertyChangedFor(nameof(IsMqttTabBroker))]
-    [NotifyPropertyChangedFor(nameof(IsMqttTabTelemetry))]
-    [NotifyPropertyChangedFor(nameof(IsMqttTabCommand))]
-    private int _mqttActiveSubSection = 0; // 0: Broker Server, 1: Telemetry Publish, 2: Command Subscribe
-
-    public bool IsMqttSubSectionBroker => MqttActiveSubSection == 0;
-    public bool IsMqttSubSectionTelemetry => MqttActiveSubSection == 1;
-    public bool IsMqttSubSectionCommand => MqttActiveSubSection == 2;
-
-    public bool IsMqttTabBroker
-    {
-        get => IsMqttSubSectionBroker;
-        set { if (value) MqttActiveSubSection = 0; }
-    }
-    public bool IsMqttTabTelemetry
-    {
-        get => IsMqttSubSectionTelemetry;
-        set { if (value) MqttActiveSubSection = 1; }
-    }
-    public bool IsMqttTabCommand
-    {
-        get => IsMqttSubSectionCommand;
-        set { if (value) MqttActiveSubSection = 2; }
-    }
-
-    [RelayCommand]
-    public void SelectMqttSubSection(string indexStr)
-    {
-        if (int.TryParse(indexStr, out int idx) && idx >= 0 && idx <= 2)
-        {
-            MqttActiveSubSection = idx;
-        }
-    }
 
     /// <summary>
     /// ViewModel quản lý công cụ đọc thử và chẩn đoán thiết bị thật qua cổng COM.
@@ -1503,61 +1374,44 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         WifiVM = new WifiConfigViewModel(_metadata, AppServices.Instance.WifiClient);
         WifiVM.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(WifiConfigViewModel.IsEnabled)) WifiEnabled = WifiVM.IsEnabled;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.AutoReconnect)) WifiAutoReconnect = WifiVM.AutoReconnect;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.Ssid)) WifiSsid = WifiVM.Ssid;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.Password)) WifiPassword = WifiVM.Password;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.IsDhcp)) WifiDhcpEnabled = WifiVM.IsDhcp;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticIp)) WifiStaticIp = WifiVM.StaticIp;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticSubnet)) WifiSubnetMask = WifiVM.StaticSubnet;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticGateway)) WifiGateway = WifiVM.StaticGateway;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.StaticDns)) WifiDns = WifiVM.StaticDns;
-            else if (e.PropertyName == nameof(WifiConfigViewModel.RssiDbm) || e.PropertyName == nameof(WifiConfigViewModel.SignalQualityPercent))
+            void ApplyWifiPropertyChanges()
             {
-                OnPropertyChanged(nameof(FormattedRssi));
-                OnPropertyChanged(nameof(SignalQualityPercent));
-            }
-            OnPropertyChanged(nameof(WifiStatusBadge));
-            OnPropertyChanged(nameof(WifiSsidDisplay));
-            OnPropertyChanged(nameof(WifiIpAssignmentDisplay));
-        };
-        MqttTelemetryNode = new MqttPublishNodeViewModel();
-        MqttTelemetryVM = new MqttConfigDialogViewModel(MqttTelemetryNode, TagCatalog ?? new TagCatalogViewModel());
-        MqttCommandNode = new MqttSubscribeNodeViewModel();
-        MqttTelemetryNode.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(MqttTelemetryNode.Topic)) MqttPublishTopic = MqttTelemetryNode.Topic;
-            NotifyMqttPubSummary();
-        };
-        MqttTelemetryNode.Fields.CollectionChanged += (s, e) => NotifyMqttPubSummary();
-
-        MqttCommandNode.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(MqttCommandNode.Topic)) MqttSubscribeTopic = MqttCommandNode.Topic;
-            NotifyMqttSubSummary();
-        };
-        MqttCommandNode.Pins.CollectionChanged += (s, e) =>
-        {
-            if (e.NewItems != null)
-            {
-                foreach (MqttPinBindingViewModel p in e.NewItems)
+                if (e.PropertyName == nameof(WifiConfigViewModel.IsEnabled)) WifiEnabled = WifiVM.IsEnabled;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.AutoReconnect)) WifiAutoReconnect = WifiVM.AutoReconnect;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.Ssid)) WifiSsid = WifiVM.Ssid;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.Password)) WifiPassword = WifiVM.Password;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.IsDhcp)) WifiDhcpEnabled = WifiVM.IsDhcp;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.StaticIp)) WifiStaticIp = WifiVM.StaticIp;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.StaticSubnet)) WifiSubnetMask = WifiVM.StaticSubnet;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.StaticGateway)) WifiGateway = WifiVM.StaticGateway;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.StaticDns)) WifiDns = WifiVM.StaticDns;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.MacAddress)) HardwareMacAddress = WifiVM.MacAddress;
+                else if (e.PropertyName == nameof(WifiConfigViewModel.RssiDbm) || e.PropertyName == nameof(WifiConfigViewModel.SignalQualityPercent))
                 {
-                    p.PropertyChanged += (sender, args) =>
-                    {
-                        if (args.PropertyName == nameof(p.TargetTag)) OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
-                    };
+                    OnPropertyChanged(nameof(FormattedRssi));
+                    OnPropertyChanged(nameof(SignalQualityPercent));
                 }
+                else if (e.PropertyName == nameof(WifiConfigViewModel.CurrentIp) || e.PropertyName == nameof(WifiConfigViewModel.IsConnected) || e.PropertyName == nameof(WifiConfigViewModel.ConnectionStatus))
+                {
+                    OnPropertyChanged(nameof(WifiIpAddressDisplay));
+                    OnPropertyChanged(nameof(WifiStatusBadge));
+                    OnPropertyChanged(nameof(ActiveInspectorSubtitle));
+                }
+                OnPropertyChanged(nameof(WifiStatusBadge));
+                OnPropertyChanged(nameof(WifiSsidDisplay));
+                OnPropertyChanged(nameof(WifiIpAssignmentDisplay));
             }
-            NotifyMqttSubSummary();
-        };
-        foreach (var p in MqttCommandNode.Pins)
-        {
-            p.PropertyChanged += (sender, args) =>
+
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                if (args.PropertyName == nameof(p.TargetTag)) OnPropertyChanged(nameof(MqttMappedTagsSummaryText));
-            };
-        }
-        MqttCommandVM = new MqttSubConfigDialogViewModel(MqttCommandNode, TagCatalog ?? new TagCatalogViewModel());
+                dispatcher.BeginInvoke(ApplyWifiPropertyChanges);
+            }
+            else
+            {
+                ApplyWifiPropertyChanges();
+            }
+        };
         HttpNode = new HttpClientNodeViewModel();
         HttpVM = new HttpClientConfigDialogViewModel(HttpNode, TagCatalog ?? new TagCatalogViewModel());
         HttpVM.PropertyChanged += (s, e) =>
@@ -1669,10 +1523,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         OnPropertyChanged(nameof(ConnectionStateText));
         OnPropertyChanged(nameof(MqttTlsSecurityDisplay));
         OnPropertyChanged(nameof(MqttAuthTypeDisplay));
-        OnPropertyChanged(nameof(MqttPublishModeDisplay));
-        OnPropertyChanged(nameof(MqttPublishFieldsSummaryText));
-        OnPropertyChanged(nameof(MqttSubscribePinsSummaryText));
-        OnPropertyChanged(nameof(MqttEstimatedPayloadSizeText));
         OnPropertyChanged(nameof(MqttSidebarBadgeText));
         OnPropertyChanged(nameof(HttpSidebarBadgeText));
         OnPropertyChanged(nameof(TcpSidebarBadgeText));
@@ -1739,62 +1589,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         OnPropertyChanged(nameof(SummaryTopologyText));
         MqttBrokerConfigVM?.ReloadFromMetadata();
 
-        // Reload Telemetry Publish
-        if (MqttTelemetryNode != null)
-        {
-            MqttTelemetryNode.Topic = string.IsNullOrEmpty(_metadata.MqttTopic) ? "synaptix/telemetry/data" : _metadata.MqttTopic;
-            MqttPublishTopic = MqttTelemetryNode.Topic;
-            MqttTelemetryNode.Qos = _metadata.MqttQos;
-            MqttTelemetryNode.Retain = _metadata.MqttRetain;
-            MqttTelemetryNode.PublishMode = string.IsNullOrEmpty(_metadata.MqttPublishMode) ? "Cyclic" : _metadata.MqttPublishMode;
-            MqttTelemetryNode.Fields.Clear();
-            if (_metadata.MqttFields != null)
-            {
-                foreach (var f in _metadata.MqttFields)
-                {
-                    var matchedTag = TagCatalog?.AllTags.FirstOrDefault(t => string.Equals(t.Name, f.TagName, StringComparison.OrdinalIgnoreCase))
-                                     ?? (!string.IsNullOrEmpty(f.TagName) ? new TagModel { Name = f.TagName } : null);
-                    MqttTelemetryNode.Fields.Add(new MqttPayloadFieldViewModel(f.Key, matchedTag));
-                }
-            }
-        }
-
-        // Reload Command Subscribe
-        if (MqttCommandNode != null)
-        {
-            MqttCommandNode.Topic = string.IsNullOrEmpty(_metadata.MqttSubTopic) ? "factory/dtu/command" : _metadata.MqttSubTopic;
-            MqttSubscribeTopic = MqttCommandNode.Topic;
-            MqttCommandNode.Qos = _metadata.MqttSubQos;
-            MqttCommandNode.QueueMode = string.Equals(_metadata.MqttSubQueueMode, "LatestWins", StringComparison.OrdinalIgnoreCase) 
-                ? MqttQueueMode.LatestWins : MqttQueueMode.Fifo;
-            MqttCommandNode.Pins.Clear();
-            if (_metadata.MqttSubPins != null)
-            {
-                foreach (var pin in _metadata.MqttSubPins)
-                {
-                    var dt = MqttDataType.Int16;
-                    if (Enum.TryParse<MqttDataType>(pin.DataType, true, out var parsedDt)) dt = parsedDt;
-                    var pinVm = new MqttPinBindingViewModel(pin.Label, pin.JsonPath, dt);
-                    if (TagCatalog != null)
-                    {
-                        pinVm.TagProvider = pDt => TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, pDt, includeNone: true);
-                    }
-                    if (!string.IsNullOrEmpty(pin.TargetTagName) && TagCatalog != null)
-                    {
-                        pinVm.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pin.TargetTagName, StringComparison.OrdinalIgnoreCase));
-                    }
-                    else if (pin.TargetTagIndex.HasValue && TagCatalog != null)
-                    {
-                        pinVm.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => t.Index == pin.TargetTagIndex.Value);
-                    }
-                    MqttCommandNode.Pins.Add(pinVm);
-                }
-            }
-        }
-
         NotifyAllCapabilities();
-        NotifyMqttPubSummary();
-        NotifyMqttSubSummary();
         SelectFirstAvailableSection();
         var dtu = _metadata.DtuConfig;
         SelectedPortIndex = dtu.PortIndex;
@@ -1869,7 +1664,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         MqttPassword = _metadata.MqttPassword;
         MqttUseTls = _metadata.MqttTlsEnabled;
         MqttKeepAlive = _metadata.MqttKeepAliveSec > 0 ? _metadata.MqttKeepAliveSec : (ushort)60;
-        MqttSubscribeTopic = string.IsNullOrEmpty(_metadata.MqttSubTopic) ? MqttSubscribeTopic : _metadata.MqttSubTopic;
         MqttWillEnabled = _metadata.MqttWillEnabled;
         MqttWillTopic = string.IsNullOrEmpty(_metadata.MqttWillTopic) ? MqttWillTopic : _metadata.MqttWillTopic;
         MqttWillPayload = string.IsNullOrEmpty(_metadata.MqttWillPayload) ? MqttWillPayload : _metadata.MqttWillPayload;
@@ -2014,43 +1808,11 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
             MqttBrokerConfigVM.Apply();
         }
 
-        // Save Telemetry Publish
-        if (MqttTelemetryNode != null)
-        {
-            if (!string.IsNullOrEmpty(MqttPublishTopic))
-                MqttTelemetryNode.Topic = MqttPublishTopic;
-            _metadata.MqttTopic = MqttTelemetryNode.Topic;
-            _metadata.MqttQos = MqttTelemetryNode.Qos;
-            _metadata.MqttRetain = MqttTelemetryNode.Retain;
-            _metadata.MqttPublishMode = MqttTelemetryNode.PublishMode;
-            _metadata.MqttFields = MqttTelemetryNode.Fields.Select(f => new MqttPayloadFieldData
-            {
-                Key = f.Key,
-                TagName = f.Tag?.Name ?? string.Empty,
-                Unit = string.Empty
-            }).ToList();
-        }
-
-        // Save Command Subscribe
-        if (MqttCommandNode != null)
-        {
-            if (!string.IsNullOrEmpty(MqttSubscribeTopic))
-                MqttCommandNode.Topic = MqttSubscribeTopic;
-            _metadata.MqttSubTopic = MqttCommandNode.Topic;
-            _metadata.MqttSubQos = MqttCommandNode.Qos;
-            _metadata.MqttSubQueueMode = MqttCommandNode.QueueMode.ToString();
-            _metadata.MqttSubPins = MqttCommandNode.Pins.Select(p => new MqttSubPinData
-            {
-                Id = p.Id,
-                Label = p.Label,
-                JsonPath = p.JsonPath,
-                DataType = p.DataType.ToString(),
-                TargetTagName = p.TargetTag?.Name ?? string.Empty,
-                TargetTagIndex = p.TargetTagIndex
-            }).ToList();
-        }
         var dtu = _metadata.DtuConfig;
-        dtu.Enabled = true;
+        bool isDtuHardware = _metadata.DeviceClass == (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.DTU;
+        bool hasFbdDtuNodes = LogicEditor?.Nodes.Any(n => n is HttpClientNodeViewModel or TcpClientNodeViewModel) == true;
+        bool isExplicitController = _metadata.DeviceClass == (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.CONTROLLER;
+        dtu.Enabled = !isExplicitController && (isDtuHardware || hasFbdDtuNodes || dtu.Enabled || (!string.IsNullOrEmpty(UplinkMode) && UplinkMode != "None"));
         dtu.PortIndex = (byte)SelectedPortIndex;
         dtu.SerialMode = SerialMode;
         dtu.PublishIntervalSec = PublishIntervalSec;
@@ -2128,7 +1890,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         MqttPassword = _metadata.MqttPassword;
         MqttUseTls = _metadata.MqttTlsEnabled;
         MqttKeepAlive = _metadata.MqttKeepAliveSec;
-        MqttSubscribeTopic = _metadata.MqttSubTopic;
         MqttWillEnabled = _metadata.MqttWillEnabled;
         MqttWillTopic = _metadata.MqttWillTopic;
         MqttWillPayload = _metadata.MqttWillPayload;
@@ -2573,8 +2334,8 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         switch (UplinkMode)
         {
             case "Mqtt":
-                AppendLog($"[{timestamp}] [UPLINK MQTT] Publishing {jsonPayload.Length}B to topic '{MqttPublishTopic}' (QoS {MqttQos}, TLS: {MqttUseTls})...");
-                AppendLog($"[{timestamp}] [MQTT BROKER ACK] Message PUBACK received from {MqttHost}:{MqttPort}.");
+                AppendLog($"[{timestamp}] [UPLINK MQTT] Connected to broker {MqttHost}:{MqttPort} (TLS: {MqttUseTls})...");
+                AppendLog($"[{timestamp}] [MQTT BROKER ACK] Connection established with {MqttHost}:{MqttPort}.");
                 break;
             case "Http":
                 AppendLog($"[{timestamp}] [UPLINK HTTP] {HttpMethod} {HttpUrl} ({jsonPayload.Length}B)...");
@@ -2600,13 +2361,6 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     }
 
     [RelayCommand]
-
-    partial void OnMqttPublishTopicChanged(string value) 
-    { 
-        if (MqttTelemetryNode != null && MqttTelemetryNode.Topic != value) MqttTelemetryNode.Topic = value; 
-        OnPropertyChanged(nameof(MqttTopic));
-    }
-    partial void OnMqttSubscribeTopicChanged(string value) { if (MqttCommandNode != null && MqttCommandNode.Topic != value) MqttCommandNode.Topic = value; }
     partial void OnMqttHostChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Host != value) MqttBrokerConfigVM.Host = value; }
     partial void OnMqttPortChanged(int value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.Port != value) MqttBrokerConfigVM.Port = value; }
     partial void OnWifiEnabledChanged(bool value) { if (WifiVM != null && WifiVM.IsEnabled != value) WifiVM.IsEnabled = value; }
@@ -2653,13 +2407,30 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
     partial void OnMqttTlsClientKeyPasswordChanged(string value) { if (MqttBrokerConfigVM != null && MqttBrokerConfigVM.ClientKeyPassword != value) MqttBrokerConfigVM.ClientKeyPassword = value; }
 
     /// <summary>
+    /// Tự động đồng bộ toàn bộ cấu hình thiết bị vào ProjectMetadata (RAM), đồng bộ sang các khối Logic Canvas và đánh dấu dự án có thay đổi.
+    /// </summary>
+    public void TriggerAutoCommitToProject()
+    {
+        SaveToMetadata();
+
+        // Tự động đồng bộ các thông số Cổng (Timeout, Baud) sang các khối MB_READ / MB_WRITE trên Canvas
+        if (ModbusPortConfigVM?.Ports != null && LogicEditor != null)
+        {
+            var readNodes = LogicEditor.Nodes.OfType<ModbusReadNodeViewModel>();
+            var writeNodes = LogicEditor.Nodes.OfType<ModbusWriteNodeViewModel>();
+            Services.Modbus.ModbusChannelSyncService.SyncSystemPortsToCanvasNodes(ModbusPortConfigVM.Ports, readNodes, writeNodes);
+        }
+
+        NotifyConfigurationCommitted?.Invoke();
+    }
+
+    /// <summary>
     /// Lưu toàn bộ cấu hình thiết bị vào ProjectMetadata (RAM), đánh dấu dự án đã thay đổi và thông báo sẵn sàng nạp thiết bị.
     /// </summary>
     [RelayCommand]
     public void SaveConfiguration()
     {
-        SaveToMetadata();
-        NotifyConfigurationCommitted?.Invoke();
+        TriggerAutoCommitToProject();
         RequestSaveProject?.Invoke();
         string statusText = LocalizationService.Instance["DeviceConfigAppliedStatus"];
         if (string.IsNullOrWhiteSpace(statusText))
@@ -3110,7 +2881,7 @@ public sealed partial class DtuGatewayStudioViewModel : ObservableObject
         {
             var mqttNode = new MqttPublishNodeViewModel
             {
-                Topic = MqttPublishTopic,
+                Topic = "factory/telemetry/data",
                 PayloadMode = "JSON",
                 Location = uplinkPos
             };

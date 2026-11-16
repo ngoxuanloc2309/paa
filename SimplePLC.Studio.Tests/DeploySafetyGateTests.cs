@@ -1,4 +1,4 @@
-using SimplePLC.Application.UseCases;
+﻿using SimplePLC.Application.UseCases;
 using SimplePLC.Infrastructure.Devices;
 using SimplePLC.Infrastructure.Transport;
 using SimplePLC.Studio.Models;
@@ -187,9 +187,13 @@ public class DeploySafetyGateTests : IDisposable
         Assert.Contains("Thiết bị chưa được kết nối", mainVm.LogicEditorVM.SaveStatusMessage);
     }
 
-    [Fact]
-    public void Deploy_WhenZeroRules_AndNoModbusChannels_CanDeployIsFalse()
+        [Fact]
+    public async Task Deploy_WhenZeroRules_AndNoModbusChannels_CanDeployIsTrue_AndPreflightIsCleanWipe()
     {
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
         var tagCatalog = new TagCatalogViewModel();
         var ruleTableVM = new RuleTableViewModel(tagCatalog);
         ruleTableVM.Rules.Clear();
@@ -203,8 +207,125 @@ public class DeploySafetyGateTests : IDisposable
 
         var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
 
+        Assert.True(deployVM.CanDeploy);
+        Assert.Contains(LocalizationService.Tr("DeployPreflightCleanWipe"), deployVM.PreflightSummary);
+    }
+
+    [Fact]
+    public void Deploy_WhenDisconnected_CanDeployIsFalse()
+    {
+        var fakeClient = new FakeModbusClient();
+        // Explicitly disconnected
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM);
+
         Assert.False(deployVM.CanDeploy);
-        Assert.Contains(LocalizationService.Tr("DeployPreflightNone"), deployVM.PreflightSummary);
+        Assert.Contains("Chưa kết nối thiết bị", deployVM.PreflightSummary);
+    }
+
+    [Fact]
+    public async Task Deploy_WhenZeroRules_WithMqttBrokerConfig_CanDeployIsTrue_AndDeploysBrokerToMcu()
+    {
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "192.168.1.50",
+            MqttBrokerPort = 1883,
+            MqttClientId = "TEST_CLIENT"
+        };
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+
+        Assert.True(deployVM.CanDeploy);
+        Assert.Contains("MQTT Broker", deployVM.PreflightSummary);
+        Assert.Contains("0 Rule logic", deployVM.ManifestRuleSummary);
+
+        await deployVM.StartDeployAsync();
+        Assert.True(deployVM.IsSuccess);
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+    }
+
+    [Fact]
+    public async Task Deploy_WhenZeroRules_WithMqttTls_ProvisionsCertificatesSuccessfully()
+    {
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var meta = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttBrokerHost = "broker.hivemq.com",
+            MqttBrokerPort = 8883,
+            MqttTlsEnabled = true,
+            MqttTlsCaCertPem = "-----BEGIN CERTIFICATE-----\nTEST_ROOT_CA\n-----END CERTIFICATE-----"
+        };
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+
+        Assert.True(deployVM.CanDeploy);
+        Assert.Contains("MQTT Broker (TLS)", deployVM.PreflightSummary);
+
+        await deployVM.StartDeployAsync();
+        Assert.True(deployVM.IsSuccess);
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+    }
+
+    [Fact]
+    public async Task Deploy_WhenZeroRules_BlankProject_WipesMcuRulesSuccessfully()
+    {
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        // Preload simulator with 1 existing rule
+        fakeClient.Simulator.Control.Flash.Commit(1, 1, 0x1234, new ushort[16]);
+        Assert.True(fakeClient.Simulator.Control.Flash.HasCommittedData);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.Rules.Clear();
+        var logicVM = new LogicEditorViewModel(tagCatalog, ruleTableVM, uiDispatcher: action => action());
+        logicVM.Nodes.Clear();
+        logicVM.Connections.Clear();
+        logicVM.CompileNow();
+
+        var meta = new ProjectMetadata();
+
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM, logicVM, getMetadata: () => meta);
+
+        Assert.True(deployVM.CanDeploy);
+        Assert.Contains(LocalizationService.Tr("DeployPreflightCleanWipe"), deployVM.PreflightSummary);
+
+        await deployVM.StartDeployAsync();
+        Assert.True(deployVM.IsSuccess);
+        Assert.Equal(DeployState.Success, deployVM.DeployState);
+        Assert.Equal(0, fakeClient.Simulator.Control.Flash.StoredRuleCount);
     }
 
     [Fact]

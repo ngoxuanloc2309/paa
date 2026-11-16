@@ -1,4 +1,4 @@
-using SimplePLC.Application.Models;
+﻿using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
 using SimplePLC.Infrastructure.Simulator;
@@ -194,22 +194,23 @@ public class McuStudioRoundtripAutomationTests
     }
 
     [Fact]
-    public async Task Test_03_Studio_DeploySafetyGate_BlocksEmptyOrStaleRules()
+    public async Task Test_03_Studio_DeploySafetyGate_ZeroRuleSucceeds_AndBlocksInvalidOrStale()
     {
         var (mainVM, client) = await CreateConnectedStudioFixtureAsync();
 
         try
         {
-            // Case 1: Bảng rule rỗng
+            // Case 1: Bảng rule rỗng (Zero-rule deploy chuẩn công nghiệp: cho phép nạp và làm sạch MCU)
             mainVM.RuleTableVM.Rules.Clear();
             mainVM.LogicEditorVM.NewRuleCanvas();
-            Assert.False(mainVM.DeployVM.CanDeploy);
+            mainVM.DeployVM.UpdatePreflightSummary();
+            Assert.True(mainVM.DeployVM.CanDeploy);
 
             await mainVM.DeployVM.StartDeployAsync();
-            Assert.False(mainVM.DeployVM.IsSuccess);
-            Assert.Equal(DeployState.Failed, mainVM.DeployVM.DeployState);
+            Assert.True(mainVM.DeployVM.IsSuccess);
+            Assert.Equal(DeployState.Success, mainVM.DeployVM.DeployState);
 
-            // Case 2: Sơ đồ bị Stale (chưa đồng bộ)
+            // Case 2: Sơ đồ bị Stale (chưa đồng bộ) - Chặn nạp đảm bảo Visual Truth
             mainVM.LogicEditorVM.CompileState = CompileState.Stale;
             Assert.False(mainVM.DeployVM.CanDeploy);
 
@@ -217,7 +218,7 @@ public class McuStudioRoundtripAutomationTests
             Assert.False(mainVM.DeployVM.IsSuccess);
             Assert.Equal(DeployState.Failed, mainVM.DeployVM.DeployState);
 
-            // Case 3: Sơ đồ bị Invalid (lỗi cú pháp)
+            // Case 3: Sơ đồ bị Invalid (lỗi cú pháp) - Chặn nạp theo Safety Gate
             mainVM.LogicEditorVM.CompileState = CompileState.Invalid;
             Assert.False(mainVM.DeployVM.CanDeploy);
 

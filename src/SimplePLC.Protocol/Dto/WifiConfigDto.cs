@@ -98,6 +98,11 @@ public sealed class WifiApInfoDto
         _ => "Unknown"
     };
 
+    /// <summary>
+    /// Hiển thị chuẩn bảo mật (nếu firmware cung cấp) hoặc kênh tần số phát sóng khi auth_mode chưa hỗ trợ (luôn = 0).
+    /// </summary>
+    public string SecurityOrChannelDisplay => AuthMode > 0 ? AuthModeDisplay : (Channel > 0 ? $"CH {Channel}" : "--");
+
     public int SignalQualityPercent
     {
         get
@@ -107,4 +112,29 @@ public sealed class WifiApInfoDto
             return 2 * (RssiDbm + 100);
         }
     }
+
+    /// <summary>
+    /// Cho biết mạng Wi-Fi này có mã hóa bảo mật hay là mạng mở không mật khẩu.
+    /// </summary>
+    public bool IsSecured => AuthMode > 0;
+
+    /// <summary>
+    /// Số vạch sóng hiển thị trực quan kiểu Windows 11 (1..4 vạch).
+    /// </summary>
+    public int SignalBars => RssiDbm switch
+    {
+        >= -55 => 4,
+        >= -68 => 3,
+        >= -78 => 2,
+        _ => 1
+    };
+
+    public bool HasBar2 => SignalBars >= 2;
+    public bool HasBar3 => SignalBars >= 3;
+    public bool HasBar4 => SignalBars >= 4;
+
+    /// <summary>
+    /// Chi tiết kỹ thuật hiển thị khi hover chuột (Tooltip).
+    /// </summary>
+    public string DetailsTooltip => $"{Ssid}\nTín hiệu: {RssiDbm} dBm ({SignalQualityPercent}%)\nBảo mật: {(AuthMode > 0 ? AuthModeDisplay : "Mạng mở (Open)")}{(Channel > 0 ? $"\nKênh: {Channel}" : "")}{(!string.IsNullOrWhiteSpace(Bssid) && Bssid != "00:00:00:00:00:00" ? $"\nBSSID: {Bssid}" : "")}";
 }

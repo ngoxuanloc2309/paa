@@ -110,6 +110,7 @@ extern "C" {
 #define SPLC_SYS_TAG_RTC_HOUR             1005
 #define SPLC_SYS_TAG_RTC_MINUTE           1006
 #define SPLC_SYS_TAG_COMM_OK              1007
+#define SPLC_COMM_WATCHDOG_DEFAULT_TIMEOUT_MS 3000 /* Default Modbus master silence watchdog: 3000ms */
 #define SPLC_LEN_RTC_CLOCK                4
 
 /* RTC Status Flags bitmask */
@@ -374,7 +375,7 @@ extern "C" {
 #define SPLC_WIFI_SCAN_STATE_COMPLETED    2
 #define SPLC_WIFI_SCAN_STATE_FAILED       3
 
-/* Wi-Fi Connection status at 0x133A */
+/* Wi-Fi Connection status at 0x1339 (Offset +57 in SPLC_WifiConfig_t) */
 #define SPLC_WIFI_CONN_DISCONNECTED       0
 #define SPLC_WIFI_CONN_CONNECTING         1
 #define SPLC_WIFI_CONN_CONNECTED          2
@@ -831,7 +832,7 @@ typedef struct SPLC_PACKED {
     uint16_t clock_100ms;  /* 0x08: Tag 1004 (10.0 Hz square wave, 50ms ON / 50ms OFF) */
     int16_t  rtc_hour;     /* 0x0A: Tag 1005 (0..23) */
     int16_t  rtc_minute;   /* 0x0C: Tag 1006 (0..59) */
-    uint16_t comm_ok;      /* 0x0E: Tag 1007 (1 if communications healthy) */
+    uint16_t comm_ok;      /* 0x0E: Tag 1007 (1 if Modbus request within 3s OR active MQTT link; 0 if timeout/offline) */
 } SPLC_SystemTagsBlock_t;
 
 /**

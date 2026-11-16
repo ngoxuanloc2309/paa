@@ -497,4 +497,171 @@ public class ModbusWriteConfigDialogViewModelTests
         Assert.NotEqual(restrictedId, node.SlaveId);
         Assert.Equal((byte)1, node.SlaveId);
     }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_FC06_EnforcesSinglePin_DisablesAddPin_AndCropsExtraPins()
+    {
+        // Arrange
+        var node = new ModbusWriteNodeViewModel
+        {
+            WriteMode = ModbusWriteMode.DirectRegisters,
+            FunctionCode = ModbusMasterWriteFunctionCode.WriteMultipleRegisters
+        };
+        node.Pins.Add(new ModbusPinBindingViewModel { Label = "In_1", DataType = ModbusDataType.Int16 });
+        node.Pins.Add(new ModbusPinBindingViewModel { Label = "In_2", DataType = ModbusDataType.Int16 });
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+        Assert.Equal(2, node.Pins.Count);
+        Assert.True(vm.CanAddPin);
+
+        // Act: Switch to FC06 (Single Register)
+        vm.FunctionCode = ModbusMasterWriteFunctionCode.WriteSingleRegister;
+
+        // Assert
+        Assert.False(vm.CanAddPin);
+        Assert.Single(node.Pins); // Trims down to 1 pin
+        Assert.Equal((ushort)1, vm.PointCount);
+        Assert.Contains("FC06", vm.SummaryBadgeText);
+        Assert.Contains("1 Regs", vm.SummaryBadgeText);
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_FC16_PointCountCalculatedFromPinSpans()
+    {
+        // Arrange
+        var node = new ModbusWriteNodeViewModel
+        {
+            WriteMode = ModbusWriteMode.DirectRegisters,
+            FunctionCode = ModbusMasterWriteFunctionCode.WriteMultipleRegisters
+        };
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel());
+        node.Pins.Clear();
+
+        // Act: Add Pin 1 (Int16 - 1 word) and Pin 2 (Real - 2 words) via ViewModel commands
+        vm.AddPin(); // Pin 1: Default Int16 (1 word)
+        vm.AddPin(); // Pin 2: Default Int16 -> switch to Real (2 words)
+        vm.Node.Pins[1].DataType = ModbusDataType.Real;
+
+        // Assert: Total words = 1 + 2 = 3 words
+        Assert.Equal((ushort)3, vm.PointCount);
+        Assert.Contains("3 Regs", vm.SummaryBadgeText);
+    }
+
+    [Fact]
+    public void ModbusPinBindingViewModel_EndiannessOptions_FiltersOptionsByDataType()
+    {
+        var pin = new ModbusPinBindingViewModel();
+
+        // 1. INT16 -> 2 options: Big-Endian (AB), Byte-Swap (BA)
+        pin.DataType = ModbusDataType.Int16;
+        Assert.True(pin.IsEndiannessEnabled);
+        Assert.Equal(2, pin.EndiannessOptions.Count);
+        Assert.Equal("Big-Endian (AB)", pin.EndiannessOptions[0].DisplayName);
+        Assert.Equal("Byte-Swap (BA)", pin.EndiannessOptions[1].DisplayName);
+
+        // 2. REAL -> 4 options: ABCD, CDAB, BADC, DCBA
+        pin.DataType = ModbusDataType.Real;
+        Assert.True(pin.IsEndiannessEnabled);
+        Assert.Equal(4, pin.EndiannessOptions.Count);
+        Assert.Contains("ABCD", pin.EndiannessOptions[0].DisplayName);
+
+        // 3. BOOL -> 1 option: — (N/A), Disabled
+        pin.DataType = ModbusDataType.Bool;
+        Assert.False(pin.IsEndiannessEnabled);
+        Assert.Single(pin.EndiannessOptions);
+        Assert.Contains("N/A", pin.EndiannessOptions[0].DisplayName);
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_PortRoleWarning_TriggersWhenPortIsSlaveOrDisabled()
+    {
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0 };
+        var ports = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Slave" },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = false, Role = "Master" },
+            new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = true, Role = "Master" }
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel(), ports);
+
+        // Port 0 is Slave -> Has Warning
+        vm.PortIndex = 0;
+        Assert.True(vm.HasPortRoleWarning);
+        Assert.Contains("Slave", vm.PortRoleWarningMessage, System.StringComparison.OrdinalIgnoreCase);
+
+        // Port 1 is Disabled -> Has Warning
+        vm.PortIndex = 1;
+        Assert.True(vm.HasPortRoleWarning);
+        Assert.True(vm.PortRoleWarningMessage.Contains("vô hiệu hóa", System.StringComparison.OrdinalIgnoreCase)
+                    || vm.PortRoleWarningMessage.Contains("disabled", System.StringComparison.OrdinalIgnoreCase));
+
+        // Port 2 is Master & Enabled -> No Warning
+        vm.PortIndex = 2;
+        Assert.False(vm.HasPortRoleWarning);
+        Assert.Empty(vm.PortRoleWarningMessage);
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_CanImportSystemChannels_ExposesCountAndFormattedLabel()
+    {
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0, WriteMode = ModbusWriteMode.DirectRegisters };
+        var port0 = new Models.ModbusPortConfigModel
+        {
+            PortIndex = 0,
+            PortName = "RS-485 #1",
+            Enabled = true,
+            Role = "Master",
+            MasterChannels = new System.Collections.Generic.List<Models.ModbusMasterChannelModel>
+            {
+                new() { FunctionCode = 3, Address = 40001, TargetTagName = "Read1" }, // Read FC03
+                new() { FunctionCode = 6, Address = 40002, TargetTagName = "Write1" }, // Write FC06
+                new() { FunctionCode = 16, Address = 40003, TargetTagName = "Write2" } // Write FC16
+            }
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel(), new[] { port0 });
+
+        Assert.True(vm.CanImportSystemChannels);
+        Assert.Equal(2, vm.AvailableSystemWriteChannelsCount); // Only FC06 and FC16
+        Assert.Contains("(2)", vm.ImportSystemChannelsText);
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_OptionC_HidesDisabledPortsAndExposesEmptyStateProperties()
+    {
+        // 1. Arrange: Node points to Port 1 (index 0) which is disabled. Port 2 (index 1) is Slave. Port 3 (index 2) is enabled Master.
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0 };
+        var ports = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = false, Role = "Master" },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Slave" },
+            new() { PortIndex = 2, PortName = "RS-485 #3", Enabled = true, Role = "Master" },
+            new() { PortIndex = 3, PortName = "RS-485 #4", Enabled = false, Role = "Master" }
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, new TagCatalogViewModel(), ports);
+
+        // Assert: Only Port 3 (index 2) is listed. Disabled ports 0, 3 and Slave port 1 are hidden completely.
+        Assert.Single(vm.AvailablePorts);
+        Assert.Equal((byte)2, vm.AvailablePorts[0].Value);
+        Assert.True(vm.HasAvailablePorts);
+        Assert.False(vm.HasNoAvailablePorts);
+        Assert.Equal((byte)2, vm.PortIndex); // Auto-switched to Port 3
+
+        // 2. Act: All ports disabled
+        var allDisabledPorts = new System.Collections.Generic.List<Models.ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = false, Role = "Master" },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = false, Role = "Master" }
+        };
+        vm.RefreshAvailablePorts(allDisabledPorts);
+
+        // Assert: Under Option C, AvailablePorts is empty and HasNoAvailablePorts triggers
+        Assert.Empty(vm.AvailablePorts);
+        Assert.False(vm.HasAvailablePorts);
+        Assert.True(vm.HasNoAvailablePorts);
+        Assert.False(string.IsNullOrWhiteSpace(vm.NoPortsAvailableMessage));
+        Assert.True(vm.NoPortsAvailableMessage.Contains("Chưa kích hoạt") || vm.NoPortsAvailableMessage.Contains("No RS-485 Master Ports Enabled"));
+    }
 }

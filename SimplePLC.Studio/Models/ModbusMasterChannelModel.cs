@@ -50,6 +50,20 @@ public class ModbusMasterChannelModel
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tên bí danh hoặc mô tả của Tag liên kết với kênh (đồng bộ trực tiếp với Description).
+    /// </summary>
+    public string TargetTagAlias
+    {
+        get => Description;
+        set => Description = value;
+    }
+
+    /// <summary>
+    /// ID của khối đồ họa MB_READ hoặc MB_WRITE đang liên kết với kênh này trên Canvas (nếu có).
+    /// </summary>
+    public string? LinkedNodeId { get; set; }
+
+    /// <summary>
     /// Tạo bản sao độc lập của đối tượng cấu hình kênh Modbus Master.
     /// </summary>
     /// <returns>Bản sao đối tượng ModbusMasterChannelModel.</returns>
@@ -64,7 +78,8 @@ public class ModbusMasterChannelModel
             Endianness = this.Endianness,
             Scale = this.Scale,
             TargetTagName = this.TargetTagName,
-            Description = this.Description
+            Description = this.Description,
+            LinkedNodeId = this.LinkedNodeId
         };
     }
 }

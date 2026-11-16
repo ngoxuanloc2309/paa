@@ -255,6 +255,11 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         {
             Port = 1883;
         }
+
+        if (!value)
+        {
+            UseMtls = false;
+        }
     }
 
 
@@ -724,8 +729,8 @@ public sealed partial class MqttBrokerConfigViewModel : ObservableObject
         _metadata.MqttTlsCaCertPem = CaCertPem ?? string.Empty;
         _metadata.MqttTlsAllowSelfSigned = AllowSelfSigned;
 
-        // Lưu thông số mTLS và cấu hình TLS nâng cao
-        _metadata.MqttTlsMtlsEnabled = UseMtls;
+        // Lưu thông số mTLS và cấu hình TLS nâng cao (Chỉ lưu mTLS khi UseTls thực sự = true)
+        _metadata.MqttTlsMtlsEnabled = UseTls && UseMtls;
         _metadata.MqttTlsClientCertPath = ClientCertPath ?? string.Empty;
         _metadata.MqttTlsClientCertPem = ClientCertPem ?? string.Empty;
         _metadata.MqttTlsClientKeyPath = ClientKeyPath ?? string.Empty;

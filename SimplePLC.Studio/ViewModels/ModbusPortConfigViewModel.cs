@@ -44,6 +44,12 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ExpectedResponseHex))]
     private byte _slaveId = 1;
 
+    /// <summary>
+    /// ID của khối MB_READ hoặc MB_WRITE đang liên kết trên Canvas.
+    /// </summary>
+    [ObservableProperty]
+    private string? _linkedNodeId;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReadOperation))]
     [NotifyPropertyChangedFor(nameof(IsWriteOperation))]
@@ -81,6 +87,24 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         OnPropertyChanged(nameof(FilteredAvailableTags));
         RefreshTagOptions();
         CoerceTargetTagCompatibility();
+
+        // Đồng bộ kiểu dữ liệu cho TargetTag nếu là thanh ghi ảo cho phép đổi kiểu (VREG)
+        if (TargetTag != null && TargetTag.Kind != TagKind.None && TargetTag.IsDataTypeEditable)
+        {
+            if (value == ModbusDataType.Real && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32)
+            {
+                TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+            }
+            else if (value == ModbusDataType.Bool && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Boolean;
+            }
+            else if (value is ModbusDataType.Int16 or ModbusDataType.Int32 or ModbusDataType.UInt16 or ModbusDataType.UInt32 && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32)
+            {
+                TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Int32;
+            }
+        }
+
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
@@ -412,9 +436,16 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
             {
                 DataType = ModbusDataType.Real;
             }
-            else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32 && DataType == ModbusDataType.Bool)
+            else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32)
             {
-                DataType = ModbusDataType.Int16;
+                if (DataType == ModbusDataType.Real && value.IsDataTypeEditable)
+                {
+                    value.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                }
+                else if (DataType == ModbusDataType.Bool)
+                {
+                    DataType = ModbusDataType.Int16;
+                }
             }
         }
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
@@ -923,7 +954,8 @@ public partial class ModbusPortItemViewModel : ObservableObject
                     Scale = ch.Scale == 0 ? 1.0 : ch.Scale,
                     ScaleText = (ch.Scale == 0 ? 1.0 : ch.Scale).ToString("G", System.Globalization.CultureInfo.InvariantCulture),
                     TargetTagName = ch.TargetTagName ?? string.Empty,
-                    Description = ch.Description ?? string.Empty
+                    Description = ch.Description ?? string.Empty,
+                    LinkedNodeId = ch.LinkedNodeId
                 };
                 if (tagCatalog != null)
                 {
@@ -974,6 +1006,9 @@ public partial class ModbusPortItemViewModel : ObservableObject
         for (int i = 0; i < MasterChannels.Count; i++)
         {
             var ch = MasterChannels[i];
+            // Kênh đã liên kết với khối MB_READ trên Canvas được miễn trừ xung đột nội bộ
+            if (!string.IsNullOrEmpty(ch.LinkedNodeId)) continue;
+
             if (ch.IsReadOperation && ch.TargetTag != null && ch.TargetTag.Kind != TagKind.None && !string.Equals(ch.TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
             {
                 list.Add(new TagClaimEntry(
@@ -1054,7 +1089,8 @@ public partial class ModbusPortItemViewModel : ObservableObject
             Endianness = c.Endianness,
             Scale = c.Scale,
             TargetTagName = c.TargetTagName,
-            Description = !string.IsNullOrWhiteSpace(c.TargetTagAlias) ? c.TargetTagAlias : c.Description
+            Description = !string.IsNullOrWhiteSpace(c.TargetTagAlias) ? c.TargetTagAlias : c.Description,
+            LinkedNodeId = c.LinkedNodeId
         }).ToList();
     }
 }
@@ -1239,7 +1275,10 @@ public partial class ModbusPortConfigViewModel : ObservableObject
 
     public bool HasExportNoticeMessage => !string.IsNullOrEmpty(ExportNoticeMessage);
 
-    public event Action? RequestClose;
+    /// <summary>
+    /// Thông báo đóng cửa sổ cấu hình cổng Modbus RS-485 (true nếu Apply thành công, false nếu Cancel).
+    /// </summary>
+    public event Action<bool>? RequestClose;
 
     public ModbusPortConfigViewModel(ProjectMetadata metadata, TagCatalogViewModel? tagCatalog = null)
     {
@@ -1732,13 +1771,13 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         }).ToList();
 
         _metadata.LastModified = DateTime.UtcNow;
-        RequestClose?.Invoke();
+        RequestClose?.Invoke(true);
     }
 
     [RelayCommand]
     public void Cancel()
     {
-        RequestClose?.Invoke();
+        RequestClose?.Invoke(false);
     }
 
 

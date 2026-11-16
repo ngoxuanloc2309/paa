@@ -47,6 +47,18 @@ public sealed partial class TagOptionItem : ObservableObject
     public bool HasConflict => !string.IsNullOrEmpty(ConflictBadge);
 
     /// <summary>
+    /// Nhãn thông tin liên kết với kênh đã khai báo trên cùng cổng tại System Tab (ví dụ: "[🔗 Kênh 1 · Addr 40001]").
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLinkBadge))]
+    private string _linkedBadge = string.Empty;
+
+    /// <summary>
+    /// True nếu Tag này đã được liên kết với kênh tương ứng ở System Tab.
+    /// </summary>
+    public bool HasLinkBadge => !string.IsNullOrEmpty(LinkedBadge);
+
+    /// <summary>
     /// Khởi tạo một đối tượng lựa chọn Tag trong Dropdown.
     /// </summary>
     /// <param name="tag">Đối tượng TagModel thực thể.</param>

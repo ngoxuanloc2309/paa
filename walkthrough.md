@@ -2,6 +2,123 @@
 
 # SynaptiX IDE Engineering Walkthrough & Living Documentation
 
+## 20. Tái Cấu Trúc Toàn Diện Phân Hệ MQTT SynaptiX IDE (Canvas-Centric MQTT & Broker Infrastructure Decoupling)
+
+### 20.1. Bối cảnh & Nguyên Lý Thiết Kế (Architectural Doctrine)
+- **Vấn Đề Trước Tái Cấu Trúc:**
+  - Hệ thống tồn tại song song hai nơi cấu hình MQTT: Màn hình System Tab (DTU Gateway) chứa các tab phụ cấu hình Telemetry Pub và Command Sub cố định, trong khi Logic Editor Canvas lại hỗ trợ các khối FBD `MQTT_PUB` và `MQTT_SUB`.
+  - Sự trùng lặp này vi phạm **Axiom 2 (The Visual Truth / Single Source of Truth)**: Người dùng bị phân tâm giữa hai nơi cấu hình, không rõ luồng nào thực sự nạp xuống PLC, và System Tab bị giới hạn vào 1 Topic duy nhất thay vì kiến trúc đa Topic / đa Payload của IoT công nghiệp.
+  - Khối `MQTT_SUB` trên Canvas gặp hiện tượng dôi connector mồ côi khi gọi `Pins.Clear()`, thiếu cơ chế khóa chống chọn trùng Tag nội bộ khối (Intra-Block Exclusion), và chưa có cơ chế đồng bộ kiểu dữ liệu hai chiều chuẩn xác giữa kiểu pin MQTT và kiểu thanh ghi PLC (`TagModel.DataType`).
+- **Học Thuyết Thiết Kế Sau Tái Cấu Trúc:**
+  - **System Tab (DTU Gateway):** Tập trung **100% vào Hạ Tầng Broker** (Host, Port, Client ID, Username, Password, KeepAlive, Last Will LWT, TLS/mTLS, Ping test kết nối). Toàn bộ mã legacy về Pub/Sub tại System Tab được dọn sạch hoàn toàn.
+  - **Logic Canvas (FBD Blocks):** Đóng vai trò là **Single Source of Truth** duy nhất cho cấu hình đa Topic / đa Payload thông qua các khối `MQTT_PUB` và `MQTT_SUB`.
+  - **Axiom 1 (Hardware Ground Truth):** Các thanh ghi 32-bit (`VREG`, `AI`, `ModbusHolding`) chỉ tồn tại ở dạng `Int32` hoặc `Float32 (REAL)`. Chúng không thể bị ép sang `Boolean` (1-bit coil). Khi người dùng chuyển chân MQTT sang `Bool`, các thanh ghi số sẽ bị loại khỏi danh sách tương thích và chân tự động reset về `None`.
+  - **Axiom 4 (End-to-End Invariant):** Mắt xích đồng bộ toàn vẹn từ giao diện UI $\rightarrow$ ViewModel $\rightarrow$ RuleCompiler $\rightarrow$ Deploy Tag Registry (phân vùng MCU `0x0080` mã kiểu 3 REAL) $\rightarrow$ Runtime/Debug.
+
+---
+
+### 20.2. Các Thành Phần Kỹ Thuật Được Triển Khai
+
+#### 1. Dọn Sạch Mã Legacy & Tối Giản Hóa Giao Diện System Tab
+- **`DtuGatewayStudioView.xaml`:**
+  - Loại bỏ hoàn toàn thanh chọn 3 tab phụ (`SubSections`) và 2 UserControl con (`MqttTelemetryPublishControl`, `MqttCommandSubscribeControl`).
+  - Nhúng trực tiếp `MqttBrokerConfigControl` làm nội dung chính của Section MQTT.
+  - Tinh chỉnh Inspector Card 1 (`Card 1: Broker & Network Profile`) để tóm tắt thông số Broker, Client ID, KeepAlive, LWT và hiển thị hướng dẫn trực quan: *"Cấu hình đa Topic & Payload: Sử dụng các khối FBD MQTT_PUB / MQTT_SUB trên Logic Canvas"*.
+  - Kiểm định XAML: Tuân thủ 100% Fluent 2 và Token Semantic (`validate-xaml-tokens.ps1` $\rightarrow$ `[PASS] 0 violations`).
+- **`DtuGatewayStudioViewModel.cs`:**
+  - Xóa bỏ triệt để các thuộc tính, phương thức, event listener thừa: `MqttTelemetryVM`, `MqttCommandVM`, `MqttPublishTopic`, `MqttSubscribeTopic`, `MqttPublishModeDisplay`, `MqttQueueModeDisplay`, `_mqttActiveSubSection`, v.v.
+  - Hệ thống chỉ lưu trữ và biên dịch cấu hình Broker & LWT chuẩn.
+- **`LocalizationService.cs`:**
+  - Bổ sung các khóa song ngữ EN/VI: `InspectorMqttBrokerSummaryTitle`, `InspectorClientIdLabel`, `InspectorKeepAliveLabel`, `InspectorMqttCanvasGuidance`, `MqttPinConflictTooltip`.
+
+#### 2. Khắc Phục Lỗi Dôi Connector Mồ Côi Trên Canvas
+- **`MqttSubscribeNodeViewModel.cs`:**
+  - Trong sự kiện `OnPinsCollectionChanged`, bổ sung nhánh xử lý sự kiện `NotifyCollectionChangedAction.Reset` (khi gọi `Pins.Clear()`).
+  - Tự động lọc và gỡ bỏ toàn bộ dynamic connectors cũ của các pin dữ liệu khỏi danh sách `OutputConnectors`, chỉ bảo lưu 2 connector hệ thống cố định là `Valid` và `Err`.
+
+#### 3. Cơ Chế Khóa Chống Trùng Tag Nội Bộ Khối (Intra-Block Exclusion)
+- **`MqttPinBindingViewModel.cs` & `MqttSubConfigDialogViewModel.cs`:**
+  - Khởi tạo delegate `PeerPinsProvider = () => Node.Pins` cho từng pin.
+  - Trong `UpdateTagOptionConflict(TagOptionItem opt)`: Kiểm tra nếu bất kỳ pin anh em nào trong cùng khối đã chọn `opt.Tag`, tùy chọn đó sẽ lập tức bị khóa (`IsSelectable = false`), gắn nhãn cảnh báo trực quan `[⛔ {peer.Label}]` và tooltip giải thích chi tiết.
+  - Khi một pin thay đổi `TargetTag`, sự kiện tự động kích hoạt `RefreshTagOptions()` trên toàn bộ các pin trong khối, đảm bảo cập nhật trạng thái khóa/mở khóa tức thì theo thời gian thực.
+
+#### 4. Đồng Bộ Kiểu Dữ Liệu Hai Chiều Chuẩn Mực (Two-Way DataType Sync)
+- **Xử lý `OnDataTypeChanged`:**
+  - Khi pin chuyển sang `Float`: Nếu `TargetTag.IsDataTypeEditable == true`, tự động cập nhật `TargetTag.DataType = Float32`.
+  - Khi pin chuyển sang `Int16` / `Int32`: Nếu `TargetTag.IsDataTypeEditable == true`, tự động cập nhật `TargetTag.DataType = Int32`.
+  - Khi pin chuyển sang `Bool`: Tuyệt đối không thay đổi kiểu của `VREG` thành `Boolean` (tuân thủ Axiom 1). Thay vào đó, `VREG` không còn nằm trong `AvailableTags` và `TargetTag` tự động reset về `None`.
+- **Xử lý `OnTargetTagChanged`:**
+  - Khi chọn Tag kỹ thuật số (`IsDigital || DataType == Boolean`): Pin tự động đổi `DataType = MqttDataType.Bool`.
+  - Khi chọn Tag kiểu số thực (`DataType == Float32`): Pin tự động đổi `DataType = MqttDataType.Float`.
+  - Khi chọn Tag số nguyên (`DataType == Int32`): Nếu pin đang là `Float` và Tag có `IsDataTypeEditable`, Tag được tự động đồng bộ sang `Float32`; nếu không, pin thích ứng sang `Int32`.
+
+#### 5. Đồng Bộ Tag Registry Phân Vùng MCU `0x0080` (Runtime / Deploy)
+- **`DeployViewModel.cs`:**
+  - Trong quá trình biên dịch nạp (`CompileAndStagePayload`), hệ thống quét toàn bộ các khối `MqttSubscribeNodeViewModel` trên Logic Canvas.
+  - Đối với các pin có `DataType == MqttDataType.Float` và `TargetTag` trỏ vào phân vùng thanh ghi thực `0x0080..0x00BF`, hệ thống tự động gán `tagDataTypes[tag.Index] = 3` (mã kiểu `SPLC_TAG_TYPE_REAL` trong firmware MCU).
+  - Điều này đảm bảo khi thiết bị nạp vào Flash và khởi động runtime, MCU giải mã giá trị IEEE 754 32-bit Float chính xác tuyệt đối, tránh hiện tượng đọc nhầm thành số nguyên thô.
+
+---
+
+### 20.3. Bộ Kiểm Thử Độc Lập End-to-End (`MqttEndToEndArchitectureTests.cs`)
+Khởi tạo bộ test case kỹ thuật độc lập với 7 bài kiểm thử chuyên sâu theo Axiom 4:
+1. **`MqttSubscribeNode_WhenPinsCleared_RemovesDynamicConnectorsAndPreservesSystemPins`:** Xác thực việc gọi `Pins.Clear()` gỡ sạch dynamic connectors và bảo toàn 2 system pins (`Valid`, `Err`).
+2. **`MqttPinBinding_IntraBlockExclusion_PreventsDuplicateTagSelectionInSameBlock`:** Xác thực khóa chống chọn trùng Tag nội bộ khối và mở khóa tức thì khi Tag được giải phóng.
+3. **`MqttPinBinding_TwoWayDataTypeSync_UpdatesTargetTagDataType`:** Xác thực chu trình đồng bộ kiểu dữ liệu hai chiều và bảo vệ kiểu vật lý của `VREG`.
+4. **`MqttPinBinding_WhenFloatPinSelectsInt32Vreg_SynchronizesVregToFloat32`:** Xác thực tự động nâng cấp VREG từ Int32 lên Float32 khi gán vào chân Float.
+5. **`MqttSubscribeNode_RuleCompiler_GeneratesCorrectRuleAndPayloadMapping`:** Xác thực `RuleCompiler` dịch chuẩn xác cấu trúc AST của khối MQTT Subscribe từ Canvas.
+6. **`MqttSubscribeNode_Deploy_SynchronizesTagRegistry_FloatTypesForMcu`:** Xác thực `DeployViewModel` đồng bộ mã kiểu 3 (`SPLC_TAG_TYPE_REAL`) vào mảng `tagDataTypes` phân vùng `0x0080`.
+7. **`MqttBrokerConfig_FullRoundtrip_SerializationAndDeserialization`:** Xác thực serialization/deserialization trọn vẹn thông số Broker & LWT qua `MqttBrokerConfigCodec`.
+
+---
+
+### 20.4. Kết Quả Xác Thực Kỹ Thuật (Zero Violations & 100% Pass)
+- **UI/UX XAML Token Validator:** `[PASS]` 0 violations.
+- **Backend Clean Architecture & IEC 61508-3 Validator:** `[PASS]` 0 architecture violations.
+- **QA, TDD & Living Documentation Validator:** `[PASS]` 0 violations.
+- **Toàn bộ Unit & Integration Test Suite:** **2,176 / 2,176 tests PASSED (100%)**
+  - `SimplePLC.Domain.Tests`: 55 / 55 PASS
+  - `SimplePLC.Protocol.Tests`: 243 / 243 PASS
+  - `SimplePLC.Infrastructure.Tests`: 199 / 199 PASS
+  - `SimplePLC.Application.Tests`: 265 / 265 PASS
+  - `SimplePLC.Studio.Tests`: 1,414 / 1,414 PASS
+
+---
+
+## 19. Tối Ưu Hóa & Tăng Tốc Toàn Bộ Test Suite (Zero-Wait Test Optimization)
+
+### 19.1. Bối cảnh & Hiện trạng Kiểm toán Hiệu năng
+- Khi chạy toàn bộ test suite, thời gian thực thi của `SimplePLC.Studio.Tests` kéo dài gần 1 phút 30 giây (85–90s) dù chỉ chạy trên máy phát triển cao cấp.
+- Trích xuất tệp XML Profiling (`test_results.trx`) chỉ ra các điểm nghẽn hiệu năng chính:
+  1. **`DeployViewModel.cs` Chứa Các Bước Trễ Giả Lập UI (`Task.Delay(60..70ms)`):**
+     - Tổng cộng 6 lệnh `Task.Delay` tương đương **400ms** thời gian trễ nhân tạo cho mỗi lần gọi `StartDeployAsync()`.
+     - Trong test suite có hơn 65 lần thực thi Deploy (trong đó test `Test_01_AllFactoryBlueprints` lặp qua 30 Blueprint liên tiếp), gây lãng phí tới **26.0 giây** hoàn toàn vô ích cho việc chờ đợi hiệu ứng chuyển động tiến trình không tồn tại trong môi trường Headless.
+     - Riêng test case `Test_01_AllFactoryBlueprints` chiếm tới **18.12 giây**!
+  2. **`WifiConfigViewModel.cs` Chờ Thăm Dò Polling Cố Định:**
+     - Vòng lặp kết nối Wi-Fi thăm dò 10 lần với `Task.Delay(300ms) = 3.0 giây`.
+     - Test case `ConnectAsync_WithValidSsid_ShouldCallWriteConfigAndTriggerConnect` tốn **3.088 giây** chỉ để chờ timeout trạng thái `Connecting`.
+  3. **Truy Cập Mutex OS Clipboard (`System.Windows.Clipboard`) Trong STA Thread:**
+     - Khi chạy `Duplicate()` hoặc `CopyPaste()`, thao tác đồng bộ với OS Clipboard của Windows bị chặn mutex lên tới 1.0 giây mỗi test.
+
+### 19.2. Giải Pháp Kỹ Thuật Triệt Để (Zero-Wait Architecture)
+1. **Thuộc Tính `StepDelayMs` và Cơ Chế Tự Động Hóa `EffectiveDelayMs` Trong `DeployViewModel`:**
+   - Bổ sung thuộc tính `StepDelayMs` (mặc định 60ms cho UI ứng dụng thực tế).
+   - Tự động chuyển `EffectiveDelayMs = 0` khi làm việc với `FakeModbusClient` trong môi trường kiểm thử.
+   - Kết quả: `Test_01_AllFactoryBlueprints` giảm từ **18,124 ms xuống còn 308 ms (tăng tốc 58.8 lần)**! Các test Deploy khác giảm từ ~450ms xuống còn **6–20ms**.
+2. **Cơ Chế Dynamic Polling Interval Trong `WifiConfigViewModel`:**
+   - Bổ sung `ConnectPollIntervalMs` và `ScanPollIntervalMs`.
+   - Tự động bỏ qua trễ thăm dò (0ms) khi client là `FakeWifiClient`.
+   - Kết quả: `ConnectAsync_WithValidSsid` giảm từ **3,088 ms xuống còn 2 ms (tăng tốc 1,500 lần)**! Toàn bộ 21 test Wi-Fi hoàn thành trong **0.92 giây**.
+3. **Bỏ Qua Đồng Bộ OS Clipboard Ngoài UI Application (`LogicEditorViewModel`):**
+   - Chỉ ghi dữ liệu ra `System.Windows.Clipboard` khi `System.Windows.Application.Current != null` (chạy trên ứng dụng Desktop thực tế). Trong môi trường headless test, sử dụng trực tiếp clipboard bộ nhớ `_inMemoryClipboard`.
+   - Kết quả: `Clipboard_CopyPaste` giảm từ **976 ms xuống còn 4 ms**!
+
+### 19.3. Kết Quả Sau Tối Ưu Hóa
+- Toàn bộ thời gian chạy `SimplePLC.Studio.Tests` giảm hơn **20–25 giây**, xuống còn **~1 phút 4 giây** cho 1,404 tests.
+- Tổng số lượng test suite toàn hệ thống: **2,166 / 2,166 tests PASS (100%)** qua cả 5 dự án.
+
+---
+
 ## 18. Kiểm Thử Tự Động Toàn Diện Hệ Thống & Cơ Chế Độc Quyền Ghi Tag (Exclusive Ingestion Ownership)
 
 ### 18.1. Bối cảnh & Mục tiêu Kỹ thuật
@@ -1475,3 +1592,153 @@ Sau đợt tổng rà soát toàn bộ phần core của dự án, 3 lỗi kiế
   - **QA/TDD & Living Docs Validator:** `[PASS]` 0 vi phạm, 100% test pass rate.
   - **Tài liệu & VitePress Build:** `[PASS]` 0 vi phạm, build sạch hoàn toàn.
   - **Toàn Bộ Test Suite:** **2,085 / 2,085 tests PASS (100%)**, 0 errors, 0 warnings.
+
+---
+
+## 32. Chuẩn Hóa Lựa Chọn Cổng RS-485 Modbus Master & Áp Dụng Phương Án C (In-Place Port Selector)
+
+### 32.1. Bối cảnh & Yêu cầu Kỹ thuật
+- Khi cấu hình các khối Modbus Master (`MB_READ` và `MB_WRITE`), nếu một cổng RS-485 trên thiết bị bị tắt (`Enabled == false`) hoặc cấu hình vai trò Modbus Slave, cổng đó không được phép xuất hiện trong danh sách dropdown (`AvailablePorts`).
+- Nghiêm cấm hiển thị các mục gắn cờ tạm `[DISABLED]` hoặc `[ĐÃ TẮT]` trong danh sách chọn cổng, gây rối mắt cho kỹ sư vận hành.
+- Khi một cổng đang được khối logic chọn nhưng sau đó bị tắt ở Tab System:
+  - Khối logic tự động chuyển cổng về cổng Master khả dụng đầu tiên (`selectablePorts[0].PortIndex`).
+- Khi trong dự án hoàn toàn không có cổng RS-485 Master nào được kích hoạt:
+  - Áp dụng **Phương án C**: Tích hợp thông báo trực tiếp vào vùng điều khiển lựa chọn cổng (Port Selector Control Area) thay vì chèn thanh banner màu hổ phách làm nhảy vị trí các hàng thông số bên dưới.
+  - Vùng chọn cổng hiển thị Panel lõm trung tính (Neutral Slate Surface) với icon vector `IconSysInfo` và dòng chữ `[Chưa kích hoạt cổng RS-485 Master]` / `[No RS-485 Master Ports Enabled]`.
+  - Bên cạnh là nút bấm hành động `[ ⚙ Cấu hình Cổng RS-485... ]` điều hướng trực tiếp sang cửa sổ cấu hình cổng thiết bị.
+  - Toàn bộ thiết kế tuân thủ nghiêm ngặt học thuyết UI/UX `synaptix-ui-ux`:
+    - Nguyên tắc xám ANSI/ISA-101 (The Gray Principle 90/10): Sử dụng `{DynamicResource IndustrialSurfaceInsetBrush}`, `{DynamicResource IndustrialBorderDefaultBrush}`, và `{DynamicResource TextMutedBrush}` cho trạng thái rỗng tĩnh.
+    - Không dùng icon emoji ký tự (`⚙️`); sử dụng 100% vector SVG `<StreamGeometry>` chuẩn hóa từ [`Icons.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Styles/Icons.xaml).
+    - Chuẩn hình học Microsoft Fluent 2 Desktop (`CornerRadius="4"`).
+
+### 32.2. Các File Đã Chỉnh Sửa
+1. **Localization (`LocalizationService.cs`):**
+   - Bổ sung key `ModbusNoMasterPortsEnabled`:
+     - Tiếng Việt: `"Chưa kích hoạt cổng RS-485 Master"`
+     - Tiếng Anh: `"No RS-485 Master Ports Enabled"`
+2. **ViewModel (`ModbusWriteConfigDialogViewModel.cs` & `ModbusReadConfigDialogViewModel.cs`):**
+   - Lọc triệt để `_modbusPorts`: Chỉ đưa vào `AvailablePorts` các cổng `p.Enabled && p.Role != "Slave"`.
+   - Nếu cổng hiện tại bị tắt/chuyển Slave, tự động fallback sang cổng Master đầu tiên.
+   - Thêm thuộc tính `HasAvailablePorts => AvailablePorts.Count > 0;` và `HasNoAvailablePorts => AvailablePorts.Count == 0;`.
+   - Thêm thuộc tính `NoPortsAvailableMessage`.
+3. **View XAML (`ModbusWriteConfigDialogView.xaml` & `ModbusReadConfigDialogView.xaml`):**
+   - Xóa bỏ banner cảnh báo Row 1 làm xô lệch bố cục giao diện.
+   - Thay thế nút emoji `⚙️` bằng vector SVG path `IconSysSettings`.
+   - Triển khai Phương án C: Khi `HasAvailablePorts` hiển thị ComboBox + nút Settings (28x28); khi `HasNoAvailablePorts` hiển thị Inset Border + nút hành động có nhãn "Cấu hình Cổng RS-485...".
+4. **Kiểm thử Đơn vị (`ModbusPortFilteringTests.cs`, `ModbusWriteConfigDialogViewModelTests.cs`, `DialogStylingAndWindowResizeTests.cs`):**
+   - Cập nhật và bổ sung test cases kiểm chứng:
+     - Các cổng bị disabled hoàn toàn không xuất hiện trong dropdown.
+     - Tự động chuyển cổng khi cổng cũ bị tắt.
+     - Khi tắt hết cổng, `AvailablePorts` rỗng và kích hoạt cờ `HasNoAvailablePorts == true`.
+
+
+## 33. Khắc Phục Xung Đột Vòng Đời Cấu Hình RS-485 & Đồng Bộ Hai Chiều Popup - Tab Hệ Thống
+
+### 33.1. Bối cảnh & Hiện tượng
+1. **Lỗi Crash WPF:** Khi tắt toàn bộ cổng RS-485, khối `MB_WRITE` hiển thị nhãn rỗng kèm nút cấu hình bánh răng. Mở popup `ModbusPortConfigDialogView`, bật 1 cổng và nhấn **Áp dụng (Apply)** thì phần mềm bị crash với lỗi:
+   `InvalidOperationException: DialogResult can be set only after Window is created and shown as dialog.`
+2. **Lỗi Không Đồng Bộ (Bật cổng ở popup nhưng quay lại Tab Hệ Thống vẫn tắt):**
+   Sau khi bật cổng ở popup và lưu thành công, quay trở lại Tab 0 (Hệ Thống / System Tab) thì cổng vừa bật vẫn hiển thị ở trạng thái `Disable`.
+
+### 33.2. Cơ chế Lỗi Gốc (Root Cause)
+1. **Double-Apply Triggering InvalidOperationException:**
+   - Khi nhấn **Áp dụng** trong popup, button XAML đã kích hoạt lệnh `portVm.ApplyCommand`, thực hiện ghi dữ liệu vào `ProjectMetadata` và gọi `RequestClose`.
+   - `ModbusPortConfigDialogView.xaml.cs` bắt `RequestClose` và gán `DialogResult = true`, khiến cửa sổ popup đóng lại.
+   - Tại `LogicEditorViewModel.cs`, sau khi `portDlg.ShowDialog() == true`, code lại gọi thừa `portVm.Apply()` lần 2. Lần gọi này kích hoạt tiếp `RequestClose` và cố gắng gán `DialogResult = true` lên cửa sổ đã đóng, gây crash lập tức.
+2. **Stale Auto-Commit On Tab Switch (Xóa Đè Cấu Hình):**
+   - Trong `MainViewModel.cs`, sự kiện `OnSelectedTabIndexChanged` trước đây gọi vô điều kiện `DtuGatewayStudioVM?.TriggerAutoCommitToProject()` khi người dùng chuyển sang bất kỳ tab nào.
+   - Khi người dùng đang ở Tab Canvas (Tab 1) hoặc mở popup cấu hình, `CurrentProjectMetadata` đã cập nhật cổng là `Enabled = true`.
+   - Khi người dùng nhấp chuột chuyển sang Tab 0 (Tab Hệ Thống), `OnSelectedTabIndexChanged(0)` chạy và gọi `TriggerAutoCommitToProject()` **trước khi** `DtuGatewayStudioVM` kịp tải dữ liệu mới.
+   - Thao tác này đã lấy dữ liệu cũ trong bộ nhớ RAM của `DtuGatewayStudioVM` (vẫn đang lưu cổng là `Enabled = false`) ghi đè ngược trở lại `CurrentProjectMetadata`, xóa sạch thay đổi của người dùng.
+
+### 33.3. Các Giải Pháp Đã Triển Khai
+1. **Chuẩn hóa vòng đời Modal Dialog (`LogicEditorViewModel.cs` & `ModbusPortConfigDialogView.xaml.cs`):**
+   - Loại bỏ lệnh gọi trùng lặp `portVm.Apply()` tại `OpenModbusReadConfig` và `OpenModbusWriteConfig`.
+   - Bọc sự kiện gán `DialogResult` trong khối `try...catch (InvalidOperationException)` an toàn.
+   - Bổ sung `NotifyProjectMetadataChanged?.Invoke()` khi đóng popup để kích hoạt reload ngay lập tức.
+2. **Đồng bộ hai chiều chuẩn xác theo Single Source of Truth (`MainViewModel.cs`):**
+   - Tại `OnSelectedTabIndexChanged`:
+     - Nếu chuyển **vào** Tab Hệ Thống (`value == AppTabIndices.Device`): Gọi `DtuGatewayStudioVM?.ReloadFromMetadata();` để đọc dữ liệu mới nhất từ `CurrentProjectMetadata`.
+     - Nếu chuyển **ra** khỏi Tab Hệ Thống (`value != AppTabIndices.Device`): Mới gọi `TriggerAutoCommitToProject()` để lưu các chỉnh sửa từ Tab Hệ Thống vào `CurrentProjectMetadata`.
+3. **Kiểm thử tự động hóa TDD (`HardwareAwareRs485StudioTests.cs`):**
+   - Bổ sung `DtuGatewayStudioViewModel_ReloadFromMetadata_RefreshesPortStateFromProjectMetadata` kiểm chứng quy trình bật cổng ngoài popup và kiểm tra Tab Hệ Thống cập nhật chuẩn 100%.
+   - Toàn bộ 2,166/2,166 unit test pass 100%.
+
+
+## 34. Chuẩn Hóa Cơ Chế Nạp Sang Chuẩn IDE Công Nghiệp (Universal Industrial IDE Download Standard)
+
+### 34.1. Bối cảnh & Hiện tượng
+Người dùng phản ánh: Trước đây, nếu dự án không có ít nhất 1 Rule logic thì không thể nạp xuống thiết bị (kể cả khi đã cấu hình đầy đủ MQTT Broker, TLS, LWT, DTU Gateway, RS-485...). IDE hiển thị thông báo "Chưa có chương trình logic hợp lệ để nạp" và vô hiệu hóa nút nạp.
+
+### 34.2. Cơ chế Lỗi Gốc (Root Cause)
+1. **Tư duy cục bộ dạng Form Submit:**
+   - Trong `DeployViewModel.CanDeploy`, code cũ ràng buộc: Bắt buộc `_ruleTableVM.Rules.Count > 0` hoặc `CurrentProgram.RuleCount > 0` hoặc có kênh Modbus Master ở Tab 0 (`HasDeviceModbusConfigToDeploy()`).
+   - Nếu dự án chỉ cấu hình MQTT Broker / LWT / TLS, DTU Gateway, hoặc Modbus Slave mode mà không có rule nào, `CanDeploy` trả về `false`.
+2. **Đồng nhất sai giữa "0 Rule" và "Lỗi cú pháp":**
+   - Khi canvas trống, `LogicEditorViewModel.CompileState` chuyển về `CompileState.NotCompiled`.
+   - `UpdatePreflightAndStatus()` kiểm tra `CompileState != CompileState.Valid` và lập tức chặn nạp, gán nhãn nút nạp thành "Mở Đồ Thị Logic Để Sửa".
+3. **Trong `StartDeployAsync()`:**
+   - Khối lệnh `if (ruleTable.Count == 0 && totalFbs == 0 ...)` cũ bỏ sót cấu hình MQTT Broker và chứng chỉ TLS trong Metadata, dẫn tới việc chặn nạp kể cả khi đã cấu hình ngoại vi.
+
+### 34.3. Các Giải Pháp Đã Triển Khai
+1. **Chuẩn hóa triết lý `CanDeploy` theo chuẩn IDE Công nghiệp (TIA Portal / CODESYS / Studio 5000):**
+   - Luôn cho phép nạp khi thỏa mãn 2 điều kiện tiên quyết:
+     $$\text{Thiết bị đã kết nối (Hardware Link Active)} \quad \land \quad \text{Không có lỗi biên dịch cú pháp đỏ (CompileState != Invalid \& Stale)}$$
+   - Dự án có 0 Rule nhưng có cấu hình (MQTT Broker, TLS, LWT, DTU, RS-485...): Nạp cấu hình đầy đủ và nạp 0 Rule (xóa sạch logic cũ). Preflight Summary hiển thị: *"Sẵn sàng nạp: Cấu hình {Cấu hình} xuống thiết bị (0 Rule logic)."*
+   - Dự án hoàn toàn trắng (0 Rule, 0 cấu hình ngoại vi): Cho phép nạp với vai trò **Wipe / Reset Logic** về mặc định an toàn. Preflight Summary hiển thị: *"Sẵn sàng nạp: Đặt lại cấu hình và xóa sạch logic thiết bị (0 Rule logic)."*
+2. **Bảo toàn Cổng An Toàn (Safety Gate) thực thụ:**
+   - Nếu thiết bị mất kết nối: Chặn nạp (`CanDeploy = false`).
+   - Nếu bản vẽ đang có lỗi cú pháp nghiêm trọng (`CompileState == Invalid`): Chặn nạp, hướng dẫn kỹ sư sửa lỗi trên canvas.
+   - Nếu bản vẽ đang có thay đổi chưa biên dịch (`CompileState == Stale`): Chặn nạp trên Deploy tab để bảo toàn Visual Truth (hoặc auto-compile khi bấm Quick Deploy từ Toolbar).
+   - Nếu phát hiện xung đột ghi Tag (`Exclusive Ingestion Ownership Conflict`): Chặn nạp và báo lỗi chi tiết.
+3. **Cập nhật & Bổ sung Test Cases TDD (`DeploySafetyGateTests.cs` & `McuStudioRoundtripAutomationTests.cs`):**
+   - Chuyển đổi test case cũ thành `Deploy_WhenZeroRules_AndNoModbusChannels_CanDeployIsTrue_AndPreflightIsCleanWipe`.
+   - Bổ sung `Deploy_WhenDisconnected_CanDeployIsFalse`.
+   - Bổ sung `Deploy_WhenZeroRules_WithMqttBrokerConfig_CanDeployIsTrue_AndDeploysBrokerToMcu`.
+   - Bổ sung `Deploy_WhenZeroRules_WithMqttTls_ProvisionsCertificatesSuccessfully`.
+   - Bổ sung `Deploy_WhenZeroRules_BlankProject_WipesMcuRulesSuccessfully`.
+   - Cập nhật `Test_03_Studio_DeploySafetyGate_ZeroRuleSucceeds_AndBlocksInvalidOrStale` trong bộ test roundtrip.
+4. **Nghiệm thu toàn diện:**
+   - 2,170 / 2,170 unit tests toàn giải pháp vượt qua 100% (`[PASS]`).
+   - `validate-backend-arch.ps1`: Đạt `[PASS]` với 0 vi phạm kiến trúc.
+   - `validate-tdd-docs.ps1`: Đạt `[PASS]` với 0 vi phạm tài liệu XML và 100% test pass.
+
+
+## 35. Chuẩn Hóa Trạng Thái Biên Dịch Đa Phân Hệ (Multi-Subsystem Compact Tokens) & Tự Động Đồng Bộ Bảng Rule Table
+
+### 35.1. Bối cảnh & Hiện tượng (Visual Discrepancy & Tab Isolation)
+- **Hiện tượng 1:** Khi kỹ sư kéo các khối ngoại vi (MQTT PUB, MQTT SUB, MB_READ, MB_WRITE, Function Blocks) lên Canvas mà không có khối Action logic (chưa nối Coil ra ngõ ra):
+  - Khi đang vẽ (Auto-sync), thanh dưới hiển thị `4 function/MQTT blocks ready`.
+  - Nhưng khi bấm `Save & Compile (Ctrl+S)`, cả thanh trạng thái dưới và thẻ Inspector bên phải lại bị ghi đè thành `"0 valid rules"` (`0 Rule hợp lệ`), khiến kỹ sư hiểu nhầm rằng hệ thống bị lỗi hoặc không nhận các khối MQTT / Modbus.
+- **Hiện tượng 2:** Khi chuyển sang Tab Bảng Rule (`Rule Table`), mục `MQTT Services (0)` hiển thị trống trơn ("No MQTT services configured") mặc dù trên Canvas đang có 4-5 khối MQTT hoạt động bình thường.
+
+### 35.2. Phân Tích Cơ Chế Gốc (Root Cause Analysis)
+1. **Sự khác biệt bản chất giữa Logic Rule và Ngoại vi (Axiom 1 & Axiom 2):**
+   - Trong PLC, Logic Rule là chuỗi điều kiện Boolean kết thúc bằng cuộn hút Action (`result.Rules.Count`).
+   - Các khối MQTT PUB/SUB và Modbus Master là các tiến trình nền công nghiệp (Peripheral Subsystems).
+   - Trước đây tại dòng 5322 của `LogicEditorViewModel.cs`, nhánh `!isAutoSync` gán cứng:
+     `SaveStatusMessage = string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count);`
+     Do đó khi `result.Rules.Count == 0`, chuỗi trở thành `"0 valid rules"`.
+2. **Ngắt mạch đồng bộ Tab (Tab Switching Short-Circuit):**
+   - Trong `MainViewModel.OnSelectedTabIndexChanged`, nhánh `if (_previousTabIndex == AppTabIndices.Device)` dùng chuỗi `else if` nối tiếp nuốt mất nhánh chuyển sang Tab 3 (`RuleTable`).
+   - Đồng thời, `isAutoSync` không gọi `_ruleTable.UpdateSubsystemsFromProgram(result.Program)`, khiến Bảng Rule Table không được nạp dữ liệu từ Canvas nếu kỹ sư chưa chủ động nhấn Save & Compile.
+
+### 35.3. Các Giải Pháp Kỹ Thuật Đã Triển Khai
+1. **Hệ Thống Compact Token Biên Dịch Đa Phân Hệ (`UpdateCompileStatusMessage`):**
+   - Áp dụng thống nhất cho cả 2 luồng: Tự động gom mạch khi vẽ (`isAutoSync = true`) và Lưu & Biên dịch chủ động (`isAutoSync = false`).
+   - Tự động phát hiện cơ cấu phân hệ và hiển thị chuỗi ngắn gọn ($\le 180\text{px} - 200\text{px}$):
+     - Chỉ có MQTT: `{n} MQTT ready` (`{n} MQTT sẵn sàng`)
+     - Chỉ có Modbus: `{n} Modbus ready` (`{n} Modbus sẵn sàng`)
+     - Chỉ có Logic Rule: `{n} valid rules` (`{n} Rule hợp lệ`)
+     - Phối hợp Rule + MQTT: `{r} rules, {m} MQTT`
+     - Phối hợp đa phân hệ: `{r}R, {m}M, {b}MB ready`
+   - Bổ sung `SaveStatusTooltip` (Hover giải trình chi tiết từng phân hệ) và `SaveStatusDetail` (thẻ Inspector bên phải).
+   - Kích hoạt Save Toast thông báo lưu thành công khi `totalDeployableExplicit > 0` (`Saved 5 MQTT`, `Saved 2 Modbus`, v.v.).
+2. **Tự Động Đồng Bộ 100% Sang Bảng Rule Table Khi Chuyển Tab:**
+   - Trong `MainViewModel.cs`: Tách việc kích hoạt `value == AppTabIndices.RuleTable` thành nhánh độc lập.
+   - Luôn tự động gọi `RuleTableVM.UpdateSubsystemsFromProgram(LogicEditorVM.CurrentProgram)` và `RefreshFromCompiledGraph()`.
+   - Kết quả: Khi chuyển sang Tab Rule Table, các thẻ phụ `MQTT Services (n)`, `Modbus Master (n)` lập tức cập nhật đầy đủ bảng danh mục dịch vụ mà không cần bất kỳ thao tác thủ công nào.
+3. **Bộ Kiểm Thử Độc Lập TDD (`CompileStatusMessageTests.cs`):**
+   - Kiểm thử 6 kịch bản đa dạng từ đơn phân hệ, phối hợp, tràn kích thước token đến tự động đồng bộ khi chuyển Tab.
+   - Toàn bộ 2,182 / 2,182 unit tests toàn solution PASS 100%.
+

@@ -119,4 +119,163 @@ public sealed class HardwareAwareRs485StudioTests
         var portError = result.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("vượt quá"));
         Assert.Null(portError);
     }
+
+    [Fact]
+    public void ModbusReadConfigDialogViewModel_WhenPhysicalPortCountIs1_ExposesOnlyPort1()
+    {
+        // TC-HW-MB-010: Bo mạch chỉ có 1 cổng RS-485, dù metadata có 4 cổng cấu hình, dropdown chỉ cho chọn đúng Cổng 1
+        var prevProduct = AppServices.Instance.CurrentProduct;
+        try
+        {
+            var resources = ProductResourceProfile.DefaultRemoteIo;
+            var tags = DeviceProfileBuilder.GenerateTags(resources);
+            var singlePortProduct = new ProductDefinition(
+                "Micro PLC 1-Port",
+                deviceClass: 1,
+                productVariant: 1,
+                maxRules: 100,
+                resources: resources,
+                tags: tags,
+                wireProfile: 2,
+                hardwareCapabilities: SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.MODBUS_MASTER,
+                physicalRs485PortCount: 1);
+
+            AppServices.Instance.CurrentProduct = singlePortProduct;
+
+            var mbReadNode = new ModbusReadNodeViewModel { PortIndex = 0 };
+            var tagCatalog = new TagCatalogViewModel();
+            var ports = new List<ModbusPortConfigModel>
+            {
+                new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = true, Role = "Master" },
+                new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = true, Role = "Master" } // Cổng 2 vẫn Enabled trong metadata cũ
+            };
+
+            var dialogVm = new ModbusReadConfigDialogViewModel(mbReadNode, tagCatalog, ports);
+
+            // Chỉ được phép hiển thị đúng 1 cổng vật lý
+            Assert.Single(dialogVm.AvailablePorts);
+            Assert.Equal((byte)0, dialogVm.AvailablePorts[0].Value);
+            Assert.Equal((byte)0, dialogVm.PortIndex);
+        }
+        finally
+        {
+            AppServices.Instance.CurrentProduct = prevProduct;
+        }
+    }
+
+    [Fact]
+    public void MqttBrokerConfigViewModel_WhenUseTlsIsToggledOff_ResetsUseMtlsToFalse()
+    {
+        // TC-HW-TLS-001: Khi người dùng đang chọn mTLS (UseMtls = true), việc bỏ chọn UseTls (UseTls = false)
+        // bắt buộc phải reset UseMtls về false và khi Apply() thì MqttTlsMtlsEnabled = false
+        var metadata = new ProjectMetadata
+        {
+            MqttBrokerEnabled = true,
+            MqttTlsEnabled = true,
+            MqttTlsMtlsEnabled = true
+        };
+
+        var vm = new MqttBrokerConfigViewModel(metadata)
+        {
+            UseTls = true,
+            UseMtls = true
+        };
+
+        Assert.True(vm.UseTls);
+        Assert.True(vm.UseMtls);
+
+        // Act: Bỏ chọn UseTls
+        vm.UseTls = false;
+
+        // Assert: UseMtls phải tự động về false
+        Assert.False(vm.UseMtls);
+
+        vm.Apply();
+        Assert.False(metadata.MqttTlsEnabled);
+        Assert.False(metadata.MqttTlsMtlsEnabled);
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_WhenDeviceIsPlc_DoesNotEnableDtuByDefault()
+    {
+        // TC-HW-DTU-002: Với thiết bị PLC (DeviceClass != DTU), hàm SaveToMetadata() không tự động bật cờ dtu.Enabled
+        var metadata = new ProjectMetadata
+        {
+            DeviceClass = (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.CONTROLLER,
+            DtuConfig = new DtuConfigModel { Enabled = false }
+        };
+
+        var vm = new DtuGatewayStudioViewModel(metadata);
+        vm.SaveToMetadata();
+
+        Assert.False(metadata.DtuConfig.Enabled);
+    }
+
+    [Fact]
+    public void ModbusPortConfigViewModel_RequestClose_PassesTrueOnApply_AndFalseOnCancel()
+    {
+        var metadata = new ProjectMetadata { PhysicalRs485PortCount = 2 };
+        var vm = new ModbusPortConfigViewModel(metadata);
+
+        bool? closeResult = null;
+        vm.RequestClose += success => closeResult = success;
+
+        vm.Apply();
+        Assert.True(closeResult);
+
+        closeResult = null;
+        vm.Cancel();
+        Assert.False(closeResult);
+    }
+
+    [Fact]
+    public void ModbusWriteConfigDialogViewModel_WhenAllPortsDisabled_AndThenReenabled_UpdatesAvailablePorts()
+    {
+        var node = new ModbusWriteNodeViewModel { PortIndex = 0 };
+        var tagCatalog = new TagCatalogViewModel();
+        var ports = new List<ModbusPortConfigModel>
+        {
+            new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = false, BaudRate = 9600 },
+            new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = false, BaudRate = 19200 }
+        };
+
+        var vm = new ModbusWriteConfigDialogViewModel(node, tagCatalog, ports);
+        Assert.True(vm.HasNoAvailablePorts);
+        Assert.False(vm.HasAvailablePorts);
+
+        // Giả lập sau khi người dùng mở popup cấu hình và bật 1 cổng
+        ports[0].Enabled = true;
+        vm.RefreshAvailablePorts(ports);
+
+        Assert.False(vm.HasNoAvailablePorts);
+        Assert.True(vm.HasAvailablePorts);
+        Assert.Single(vm.AvailablePorts);
+        Assert.Equal((byte)0, vm.AvailablePorts[0].Value);
+    }
+
+    [Fact]
+    public void DtuGatewayStudioViewModel_ReloadFromMetadata_RefreshesPortStateFromProjectMetadata()
+    {
+        // TC-HW-MB-012: Kiểm tra khi cổng RS-485 được bật từ popup cấu hình ngoài Canvas, Tab System cập nhật chuẩn xác
+        var metadata = new ProjectMetadata
+        {
+            PhysicalRs485PortCount = 2,
+            ModbusPorts = new List<ModbusPortConfigModel>
+            {
+                new() { PortIndex = 0, PortName = "RS-485 #1", Enabled = false },
+                new() { PortIndex = 1, PortName = "RS-485 #2", Enabled = false }
+            }
+        };
+
+        var dtuVm = new DtuGatewayStudioViewModel(metadata);
+        Assert.False(dtuVm.ModbusPortConfigVM.Ports[0].Enabled);
+
+        // Giả lập popup cấu hình bật cổng 1 và Apply vào metadata
+        metadata.ModbusPorts[0].Enabled = true;
+
+        // Khi người dùng chuyển sang Tab System, ReloadFromMetadata được gọi
+        dtuVm.ReloadFromMetadata();
+
+        Assert.True(dtuVm.ModbusPortConfigVM.Ports[0].Enabled);
+    }
 }

@@ -27,6 +27,11 @@ public partial class MqttPinBindingViewModel : ObservableObject
     [ObservableProperty]
     private string _id = Guid.NewGuid().ToString("N")[..8];
 
+    /// <summary>
+    /// Hàm cung cấp danh sách tất cả các Pin anh em trong cùng khối MQTT Subscribe để kiểm tra chống trùng Tag nội bộ.
+    /// </summary>
+    public Func<IEnumerable<MqttPinBindingViewModel>>? PeerPinsProvider { get; set; }
+
     [ObservableProperty]
     private string _label = "data";
 
@@ -38,6 +43,23 @@ public partial class MqttPinBindingViewModel : ObservableObject
 
     partial void OnDataTypeChanged(MqttDataType oldValue, MqttDataType newValue)
     {
+        if (TargetTag != null && TargetTag.IsDataTypeEditable)
+        {
+            switch (newValue)
+            {
+                case MqttDataType.Float:
+                    TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                    break;
+                case MqttDataType.Int16:
+                case MqttDataType.Int32:
+                    TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Int32;
+                    break;
+                // Lưu ý: Các thanh ghi IsDataTypeEditable (VREG, AI, Holding) là thanh ghi 32-bit,
+                // không thể chuyển thành Boolean (Axiom 1: Hardware Ground Truth).
+                // Do đó không đổi TargetTag.DataType thành Boolean khi chân đổi sang Bool.
+            }
+        }
+
         OnPropertyChanged(nameof(AvailableTags));
         RefreshTagOptions();
         if (TagProvider != null && TargetTag != null && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
@@ -45,7 +67,20 @@ public partial class MqttPinBindingViewModel : ObservableObject
             var available = AvailableTags;
             if (!available.Any(t => t == TargetTag || (t.Kind == TargetTag.Kind && t.Index == TargetTag.Index)))
             {
-                TargetTag = available.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+                var noneTag = available.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+                if (noneTag != null)
+                {
+                    TargetTag = noneTag;
+                }
+                else
+                {
+                    _targetTag = null;
+                    OnTargetTagChanged(TargetTag, null);
+                    OnPropertyChanged(nameof(TargetTag));
+                    OnPropertyChanged(nameof(HasTargetTag));
+                    OnPropertyChanged(nameof(TargetTagIndex));
+                    OnPropertyChanged(nameof(TargetTagName));
+                }
             }
         }
     }
@@ -88,15 +123,25 @@ public partial class MqttPinBindingViewModel : ObservableObject
         {
             if (newValue.IsDigital || newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
             {
-                if (DataType != MqttDataType.Bool) DataType = MqttDataType.Bool;
+                if (DataType != MqttDataType.Bool)
+                {
+                    DataType = MqttDataType.Bool;
+                }
             }
             else if (newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
             {
-                if (DataType != MqttDataType.Float) DataType = MqttDataType.Float;
+                if (DataType != MqttDataType.Float)
+                {
+                    DataType = MqttDataType.Float;
+                }
             }
             else if (newValue.DataType == SimplePLC.Domain.Enums.TagDataType.Int32)
             {
-                if (DataType != MqttDataType.Int16 && DataType != MqttDataType.Int32)
+                if (DataType == MqttDataType.Float && newValue.IsDataTypeEditable)
+                {
+                    newValue.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                }
+                else if (DataType != MqttDataType.Int16 && DataType != MqttDataType.Int32)
                 {
                     DataType = MqttDataType.Int32;
                 }
@@ -185,6 +230,21 @@ public partial class MqttPinBindingViewModel : ObservableObject
             opt.ConflictBadge = string.Empty;
             opt.ConflictTooltip = string.Empty;
             return;
+        }
+
+        // 1. Kiểm tra chống trùng Tag nội bộ khối (Intra-Block Exclusion)
+        if (PeerPinsProvider != null)
+        {
+            foreach (var peer in PeerPinsProvider())
+            {
+                if (!ReferenceEquals(peer, this) && TagWriteOwnershipService.IsSameTag(peer.TargetTag, opt.Tag))
+                {
+                    opt.IsSelectable = false;
+                    opt.ConflictBadge = $"[⛔ {peer.Label}]";
+                    opt.ConflictTooltip = LocalizationService.Tr("MqttPinConflictTooltip") ?? $"Tag này đang được gán cho chân '{peer.Label}' trong cùng khối MQTT.";
+                    return;
+                }
+            }
         }
 
         var claimant = TagWriteOwnershipService.Instance.GetClaimant(opt.Tag, this);

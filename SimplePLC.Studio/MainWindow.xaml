@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
         xmlns:views="clr-namespace:SimplePLC.Studio.Views"
+        xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
         xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
         Title="{Binding WindowTitle}" 
         Icon="Assets/app.png"
@@ -125,7 +126,6 @@
         <Menu Grid.Row="0">
             <!-- 1. TỆP (FILE) -->
             <MenuItem Header="{Binding Loc[MenuFile]}">
-                <MenuItem Header="{Binding Loc[MenuStartPage]}" Command="{Binding OpenStartPageCommand}" />
                 <MenuItem Header="{Binding Loc[MenuNewProject]}" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N" />
                 <MenuItem Header="{Binding Loc[ToolOpen]}" Command="{Binding OpenProjectCommand}" InputGestureText="Ctrl+O" />
                 <MenuItem Header="{Binding Loc[MenuCloseProject]}" Command="{Binding CloseProjectCommand}" />
@@ -444,8 +444,8 @@
                 <ColumnDefinition x:Name="AiChatColumn" Width="0" MaxWidth="0" />
             </Grid.ColumnDefinitions>
 
-            <!-- Main Active View -->
-            <ContentControl Grid.Column="0" Content="{Binding CurrentView}" />
+            <!-- Main Active View (High-Performance Cached Presenter) -->
+            <controls:CachedContentPresenter Grid.Column="0" Content="{Binding CurrentView}" />
 
             <!-- Draggable Splitter (Width 5px, SizeWE cursor, visual hover) -->
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
@@ -541,8 +541,8 @@
 
                         <!-- Syntax Validation Status Message (VS Code compact indicator with ToolTip) -->
                         <TextBlock Text="{Binding LogicEditorVM.SaveStatusMessage}" FontSize="11" FontWeight="SemiBold"
-                                   MaxWidth="180" TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding LogicEditorVM.SaveStatusMessage}"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding LogicEditorVM.SaveStatusTooltip}"
                                    VerticalAlignment="Center" Margin="0,0,8,0">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">

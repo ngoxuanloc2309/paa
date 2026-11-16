@@ -114,4 +114,52 @@ public sealed class MqttBrokerConfigCodecTests
         Assert.Equal(64, decoded.Host.Length);
         Assert.Equal(32, decoded.ClientId.Length);
     }
+
+    [Fact]
+    public void Encode_WhenUseTlsIsFalseAndUseMtlsIsTrue_ShouldForceAllSecurityBitsToZero()
+    {
+        // Arrange: Người dùng tắt UseTls nhưng cờ UseMtls, IgnoreHostname, AllowSelfSigned vẫn còn giá trị true ngầm
+        var config = new MqttBrokerConfigDto
+        {
+            Enabled = true,
+            UseTls = false,
+            CleanSession = true,
+            UseMtls = true,
+            IgnoreHostname = true,
+            AllowSelfSigned = true
+        };
+
+        var registers = new ushort[ModbusRegisterMap.MqttBrokerConfigRegisters];
+
+        // Act
+        MqttBrokerConfigCodec.Encode(config, registers);
+
+        // Assert: Bit 1 (UseTls 0x0002), Bit 5 (UseMtls 0x0020), Bit 6 (IgnoreHostname 0x0040), Bit 7 (AllowSelfSigned 0x0080)
+        // Tất cả bắt buộc phải bằng 0!
+        ushort control = registers[0];
+        Assert.Equal(0, control & ModbusRegisterMap.MqttBrokerControlBitUseTls);
+        Assert.Equal(0, control & ModbusRegisterMap.MqttBrokerControlBitUseMtls);
+        Assert.Equal(0, control & ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname);
+        Assert.Equal(0, control & ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned);
+    }
+
+    [Fact]
+    public void Decode_WhenUseTlsBitIsZero_ShouldDecodeSecurityFlagsAsFalse()
+    {
+        // Arrange: Wire data có bit 5, 6, 7 bẩn nhưng bit 1 (UseTls) = 0
+        var registers = new ushort[ModbusRegisterMap.MqttBrokerConfigRegisters];
+        registers[0] = (ushort)(ModbusRegisterMap.MqttBrokerControlBitEnabled |
+                                ModbusRegisterMap.MqttBrokerControlBitUseMtls |
+                                ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname |
+                                ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned);
+
+        // Act
+        var decoded = MqttBrokerConfigCodec.Decode(registers);
+
+        // Assert: Do UseTls = false, các thuộc tính bảo mật phải được giải mã là false
+        Assert.False(decoded.UseTls);
+        Assert.False(decoded.UseMtls);
+        Assert.False(decoded.IgnoreHostname);
+        Assert.False(decoded.AllowSelfSigned);
+    }
 }

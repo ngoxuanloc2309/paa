@@ -55,6 +55,11 @@ public sealed class McuReferenceSimulator
     private readonly List<byte> _stagedCertBuffer = new();
     private byte _stagedCertType = 0;
 
+    private ulong _lastModbusRequestTickMs = 0;
+    private uint _modbusWatchdogTimeoutMs = 3000;
+    private bool _hasReceivedFirstModbusRequest = false;
+    private bool _isMqttConnected = false;
+
     internal SimulatorRegisterMemory Memory => _memory;
 
     public bool IsOnline { get; private set; } = true;
@@ -170,6 +175,15 @@ public sealed class McuReferenceSimulator
         _memory.InternalWrite(ModbusRegisterMap.Rs485PhysicalPortCountAddress, portCount);
     }
 
+    /// <summary>
+    /// Gán định danh phân lớp thiết bị (DeviceClass) và biến thể thương mại (DeviceVariant).
+    /// </summary>
+    public void SetDeviceIdentity(SPLC_DeviceClass deviceClass, ushort variant)
+    {
+        _memory.InternalWrite(0, (ushort)deviceClass);
+        _memory.InternalWrite(1, variant);
+    }
+
     public void SetHardwareCapabilities(SPLC_HardwareCapabilities caps)
     {
         Span<ushort> capsRegs = stackalloc ushort[2];
@@ -222,6 +236,14 @@ public sealed class McuReferenceSimulator
         Array.Clear(_prevTagValues, 0, _prevTagValues.Length);
         Array.Clear(_ruleDwellElapsedMs, 0, _ruleDwellElapsedMs.Length);
         Array.Clear(_ruleIntervalElapsedMs, 0, _ruleIntervalElapsedMs.Length);
+
+        // Phân vùng Wi-Fi (0x1300..0x13FF)
+        _memory.InternalWrite(ModbusRegisterMap.WifiConfigBaseAddress, (ushort)(ModbusRegisterMap.WifiControlBitEnable | ModbusRegisterMap.WifiControlBitDhcp | ModbusRegisterMap.WifiControlBitAutoReconnect));
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 57), ModbusRegisterMap.WifiConnDisconnected);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 58), unchecked((ushort)(short)-100));
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 61), 0x0080);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 62), 0xE101);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 63), 0x0203);
     }
 
     private void UpdateRtcRegisters()
@@ -266,8 +288,50 @@ public sealed class McuReferenceSimulator
         _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 5), (ushort)currentHour);
         // 0x0826: SYS_RTC_MINUTE (0..59)
         _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 6), (ushort)currentMinute);
-        // 0x0827: SYS_COMM_OK (1)
-        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 7), 1);
+        // 0x0827: SYS_COMM_OK (1 nếu có Modbus trong 3s hoặc MQTT connected; 0 nếu timeout/offline)
+        bool isModbusAlive = _hasReceivedFirstModbusRequest &&
+                             (_totalElapsedMs >= _lastModbusRequestTickMs) &&
+                             ((_totalElapsedMs - _lastModbusRequestTickMs) <= _modbusWatchdogTimeoutMs);
+        bool isMqttAlive = _isMqttConnected;
+        ushort commOk = (ushort)((isModbusAlive || isMqttAlive) ? 1 : 0);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + 7), commOk);
+    }
+
+    private void NotifyModbusActivity()
+    {
+        _lastModbusRequestTickMs = _totalElapsedMs;
+        _hasReceivedFirstModbusRequest = true;
+        UpdateSystemRegisters();
+    }
+
+    /// <summary>
+    /// Giả lập hoặc cập nhật trạng thái kết nối MQTT của thiết bị.
+    /// </summary>
+    /// <param name="isConnected">True nếu đã kết nối Broker và Ping bình thường.</param>
+    internal void SetSimulatedMqttConnectionState(bool isConnected)
+    {
+        _isMqttConnected = isConnected;
+        UpdateSystemRegisters();
+    }
+
+    /// <summary>
+    /// Cấu hình thời gian timeout của Modbus Watchdog (mặc định 3000ms).
+    /// </summary>
+    /// <param name="timeoutMs">Thời gian timeout tính bằng mili-giây.</param>
+    internal void SetSimulatedModbusWatchdogTimeoutMs(uint timeoutMs)
+    {
+        _modbusWatchdogTimeoutMs = timeoutMs;
+        UpdateSystemRegisters();
+    }
+
+    /// <summary>
+    /// Giả lập khoảng thời gian tĩnh lặng (silence) không nhận bất kỳ gói tin Modbus nào.
+    /// </summary>
+    /// <param name="elapsedSilenceMs">Số mili-giây trôi qua mà không có request từ Master.</param>
+    internal void SimulateModbusSilence(uint elapsedSilenceMs)
+    {
+        _totalElapsedMs += elapsedSilenceMs;
+        UpdateSystemRegisters();
     }
 
     internal void SetHardwareRtcState(bool hasHardwareRtc, bool batteryLow)
@@ -921,6 +985,7 @@ public sealed class McuReferenceSimulator
     {
         cancellationToken.ThrowIfCancellationRequested();
         EnsureOnline();
+        NotifyModbusActivity();
 
         if (_faults.TimeoutOnAddress.HasValue && _faults.TimeoutOnAddress.Value == startAddress)
         {
@@ -1008,6 +1073,7 @@ public sealed class McuReferenceSimulator
     {
         cancellationToken.ThrowIfCancellationRequested();
         EnsureOnline();
+        NotifyModbusActivity();
         ProcessWriteFaults(startAddress);
 
         ReadOnlySpan<ushort> span = values.Span;
@@ -1100,6 +1166,7 @@ public sealed class McuReferenceSimulator
     {
         cancellationToken.ThrowIfCancellationRequested();
         EnsureOnline();
+        NotifyModbusActivity();
         ProcessWriteFaults(address);
 
         if (address == ModbusRegisterMap.RuleCountStagedAddress)
@@ -1138,6 +1205,12 @@ public sealed class McuReferenceSimulator
         if (address == ModbusRegisterMap.DiagCommandAddress)
         {
             ExecuteDiagCommand((SPLC_DiagCommand)value);
+            return Task.CompletedTask;
+        }
+
+        if (address == ModbusRegisterMap.WifiControlAddress)
+        {
+            ExecuteWifiCommand(value);
             return Task.CompletedTask;
         }
 
@@ -1232,6 +1305,80 @@ public sealed class McuReferenceSimulator
                 }
                 break;
         }
+    }
+
+    private void ExecuteWifiCommand(ushort command)
+    {
+        _memory.InternalWrite(ModbusRegisterMap.WifiControlAddress, command);
+
+        switch (command)
+        {
+            case ModbusRegisterMap.WifiCmdStartScan:
+                _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiControlAddress + 1), ModbusRegisterMap.WifiScanStateScanning);
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(400).ConfigureAwait(false);
+                    PopulateSimulatedScanResults();
+                });
+                break;
+
+            case ModbusRegisterMap.WifiCmdConnect:
+                _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 57), ModbusRegisterMap.WifiConnConnecting);
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(500).ConfigureAwait(false);
+                    _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 57), ModbusRegisterMap.WifiConnGotIp);
+                    _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 58), unchecked((ushort)(short)-52));
+                    _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 59), 0xC0A8);
+                    _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 60), 0x0164);
+                });
+                break;
+
+            case ModbusRegisterMap.WifiCmdDisconnect:
+                _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 57), ModbusRegisterMap.WifiConnDisconnected);
+                _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiConfigBaseAddress + 58), unchecked((ushort)(short)-100));
+                break;
+        }
+    }
+
+    private void PopulateSimulatedScanResults()
+    {
+        var simulatedAps = new (string Ssid, short Rssi, byte Auth, byte Chan, string Mac)[]
+        {
+            ("Factory_Cell_5G", -45, 3, 1, "00:80:E1:01:02:01"),
+            ("SynaptiX_Industrial_AP", -52, 3, 6, "00:80:E1:01:02:02"),
+            ("Warehouse_Robotics", -58, 3, 11, "00:80:E1:01:02:03"),
+            ("Line1_S7_Gateway", -65, 3, 1, "00:80:E1:01:02:04"),
+            ("Line2_Modbus_Bridge", -71, 3, 6, "00:80:E1:01:02:05"),
+            ("PLC_Office_Guest", -76, 0, 11, "00:80:E1:01:02:06"),
+            ("Packaging_Sensors", -81, 3, 36, "00:80:E1:01:02:07"),
+            ("Backup_LTE_Router", -87, 3, 40, "00:80:E1:01:02:08")
+        };
+
+        for (int i = 0; i < simulatedAps.Length; i++)
+        {
+            var ap = simulatedAps[i];
+            ushort apBase = (ushort)(ModbusRegisterMap.WifiScanTableBaseAddress + i * ModbusRegisterMap.WifiRegistersPerAp);
+            var apSpan = _memory.InternalMutableSpan(apBase, ModbusRegisterMap.WifiRegistersPerAp);
+            apSpan.Fill(0);
+
+            MqttTelemetryCodec.EncodePackedAscii(ap.Ssid, apSpan.Slice(0, 16), 32);
+            apSpan[16] = unchecked((ushort)ap.Rssi);
+            apSpan[17] = (ushort)((ap.Auth << 8) | ap.Chan);
+
+            string[] macHex = ap.Mac.Split(':');
+            if (macHex.Length == 6)
+            {
+                apSpan[18] = (ushort)((Convert.ToByte(macHex[0], 16) << 8) | Convert.ToByte(macHex[1], 16));
+                apSpan[19] = (ushort)((Convert.ToByte(macHex[2], 16) << 8) | Convert.ToByte(macHex[3], 16));
+                apSpan[20] = (ushort)((Convert.ToByte(macHex[4], 16) << 8) | Convert.ToByte(macHex[5], 16));
+            }
+        }
+
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiControlAddress + 2), (ushort)simulatedAps.Length);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiControlAddress + 3), 0);
+        _memory.InternalWrite((ushort)(ModbusRegisterMap.WifiControlAddress + 1), ModbusRegisterMap.WifiScanStateCompleted);
     }
 
     private void ProcessWriteFaults(ushort address)
@@ -1527,7 +1674,12 @@ public sealed class McuReferenceSimulator
         // Khôi phục Active Table từ Flash
         RestoreFromFlashIfAvailable();
 
+        _lastModbusRequestTickMs = 0;
+        _hasReceivedFirstModbusRequest = false;
+        _isMqttConnected = false;
+
         UpdateHealthRegisters();
+        UpdateSystemRegisters();
         IsOnline = true;
     }
 

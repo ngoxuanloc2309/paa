@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using SimplePLC.Studio.ViewModels;
 
@@ -12,6 +13,16 @@ public partial class ModbusPortConfigDialogView : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        viewModel.RequestClose += () => DialogResult = true;
+        viewModel.RequestClose += (success) =>
+        {
+            try
+            {
+                DialogResult = success;
+            }
+            catch (InvalidOperationException)
+            {
+                Close();
+            }
+        };
     }
 }

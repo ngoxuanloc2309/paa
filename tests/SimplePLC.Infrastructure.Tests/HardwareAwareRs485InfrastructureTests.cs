@@ -156,4 +156,64 @@ public sealed class HardwareAwareRs485InfrastructureTests
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
     }
+
+    [Fact]
+    public async Task RuleTableWriter_SkipsDtuPartition_WhenDeviceLacksDtuCapabilities()
+    {
+        // TC-HW-DTU-001: MCU chỉ có năng lực PLC tiêu chuẩn (0x0FB3, không có HTTP_CLIENT 0x1000 hay TRANSPARENT_STREAM 0x2000)
+        // Khi cấu hình có dtuConfig.Enabled = true, RuleTableWriter an toàn bỏ qua phân vùng DTU thay vì ghi vào 0x1680 gây Exception
+        var client = new FakeModbusClient();
+        await client.ConnectAsync("SIMULATOR");
+
+        // Set capabilities = 0x0FB3 (như log thực tế của người dùng: PLC, MQTT, Modbus Master, WiFi, Float32)
+        var caps = SPLC_HardwareCapabilities.BASE_LOGIC |
+                   SPLC_HardwareCapabilities.RETENTIVE |
+                   SPLC_HardwareCapabilities.MQTT_PUB |
+                   SPLC_HardwareCapabilities.MQTT_SUB |
+                   SPLC_HardwareCapabilities.MQTT_TLS_CERT |
+                   SPLC_HardwareCapabilities.MODBUS_MASTER |
+                   SPLC_HardwareCapabilities.WIFI |
+                   SPLC_HardwareCapabilities.MODBUS_TCP |
+                   SPLC_HardwareCapabilities.FLOAT32;
+
+        client.Simulator.SetHardwareCapabilities(caps);
+        client.Simulator.SetPhysicalRs485PortCount(1);
+
+        var writer = new RuleTableWriter(client);
+        var rules = new List<RuleRecordDto> { CreateTestRule() };
+        var dtuConfig = new DtuConfigDto
+        {
+            Enabled = true,
+            PortIndex = 0,
+            SerialMode = DtuSerialMode.ModbusMaster,
+            UplinkMode = DtuUplinkMode.Mqtt
+        };
+
+        var progressLogs = new List<string>();
+
+        var result = await writer.DeployRulesAsync(
+            1,
+            rules,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            dtuConfig,
+            null,
+            null,
+            System.Threading.CancellationToken.None,
+            progressLogger: msg => progressLogs.Add(msg));
+
+        // Nạp phải thành công
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        // Phải có thông báo an toàn bỏ qua phân vùng DTU
+        Assert.Contains(progressLogs, l => l.Contains("[DTU NOTICE]") || l.Contains("[DTU WARNING]"));
+    }
 }

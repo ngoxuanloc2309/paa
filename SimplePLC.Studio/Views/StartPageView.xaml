@@ -19,6 +19,7 @@
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
             <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
+            <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
 
             <!-- Action Card Fluent 2 Interactive Style -->
             <Style x:Key="StartPageActionCardStyle" TargetType="Border">
@@ -545,6 +546,7 @@
                                     <!-- Trigger Connect & Read Button -->
                                     <Button Grid.Column="3"
                                             Command="{Binding UploadFromDeviceCommand}"
+                                            IsEnabled="{Binding IsUploading, Converter={StaticResource InverseBoolConverter}}"
                                             Height="28"
                                             Padding="12,0"
                                             Style="{StaticResource BtnPrimary}">

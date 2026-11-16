@@ -287,9 +287,9 @@ public class DialogStylingAndWindowResizeTests
 
 
 
-        Assert.Equal(2, vm.PortIndex);
+        Assert.Equal(0, vm.PortIndex);
 
-        Assert.Contains(vm.AvailablePorts, p => p.Value == 2);
+        Assert.DoesNotContain(vm.AvailablePorts, p => p.Value == 2);
 
     }
 

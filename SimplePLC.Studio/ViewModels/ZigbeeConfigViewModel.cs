@@ -43,15 +43,17 @@ public partial class ZigbeeConfigViewModel : ObservableObject
         _panIdHex = _committedPanId.ToString("X4", CultureInfo.InvariantCulture);
         InitializeChannels();
 
-        LocalizationService.Instance.LanguageChanged += () =>
-        {
-            InitializeChannels();
-            OnPropertyChanged(nameof(RoleDisplayText));
-            OnPropertyChanged(nameof(ChannelHintText));
-            OnPropertyChanged(nameof(RssiDisplayText));
-            OnPropertyChanged(nameof(LinkStateDisplayText));
-            OnPropertyChanged(nameof(StatusSummaryBadge));
-        };
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        InitializeChannels();
+        OnPropertyChanged(nameof(RoleDisplayText));
+        OnPropertyChanged(nameof(ChannelHintText));
+        OnPropertyChanged(nameof(RssiDisplayText));
+        OnPropertyChanged(nameof(LinkStateDisplayText));
+        OnPropertyChanged(nameof(StatusSummaryBadge));
     }
 
     // ==========================================

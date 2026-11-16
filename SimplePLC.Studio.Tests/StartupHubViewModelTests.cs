@@ -230,6 +230,7 @@ public class StartupHubViewModelTests : IDisposable
     public void MainViewModel_InitialState_DefaultsToStartupHubView()
     {
         var mainVM = new MainViewModel(act => act());
+        mainVM.ConfirmBoxHandler = (msg, caption, btn, img) => System.Windows.MessageBoxResult.No;
 
         Assert.NotNull(mainVM.CurrentView);
         Assert.IsType<StartupHubViewModel>(mainVM.CurrentView);
@@ -241,9 +242,10 @@ public class StartupHubViewModelTests : IDisposable
         Assert.IsType<LogicEditorViewModel>(mainVM.CurrentView);
         Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
 
-        // When CloseProject is triggered, transitions back to StartupHubView
+        // When CloseProject is triggered, stays in LogicGraph workspace (resets canvas, does NOT reopen StartPage)
         mainVM.CloseProjectCommand.Execute(null);
-        Assert.True(mainVM.IsStartPageActive);
-        Assert.IsType<StartupHubViewModel>(mainVM.CurrentView);
+        Assert.False(mainVM.IsStartPageActive);
+        Assert.IsType<LogicEditorViewModel>(mainVM.CurrentView);
+        Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
     }
 }

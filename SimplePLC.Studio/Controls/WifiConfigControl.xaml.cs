@@ -40,6 +40,12 @@ public partial class WifiConfigControl : UserControl
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => ViewModel_PropertyChanged(sender, e));
+            return;
+        }
+
         if (DataContext is not WifiConfigViewModel vm) return;
 
         if (e.PropertyName == nameof(WifiConfigViewModel.Password) && !_isUpdatingPassword)

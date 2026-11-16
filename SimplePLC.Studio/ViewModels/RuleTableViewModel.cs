@@ -87,17 +87,19 @@ public partial class RuleTableViewModel : ObservableObject
         _tagCatalog = tagCatalog;
         _navigateToTab = navigateToTab;
 
-        LocalizationService.Instance.LanguageChanged += () =>
-        {
-            RefreshAllProperties();
-            foreach (var r in Rules)
-            {
-                r.UpdateNarrative();
-            }
-        };
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
 
         // Note: New projects start clean with 0 rules per user requirements.
         ApplyFilter();
+    }
+
+    private void OnLanguageChanged()
+    {
+        RefreshAllProperties();
+        foreach (var r in Rules)
+        {
+            r.UpdateNarrative();
+        }
     }
 
     partial void OnSearchFilterChanged(string value)

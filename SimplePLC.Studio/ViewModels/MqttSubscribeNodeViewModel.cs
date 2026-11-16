@@ -227,7 +227,18 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
     private void OnPinsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            var pinConnectors = OutputConnectors
+                .Where(c => c != ValidConnector && c != ErrorConnector)
+                .ToList();
+
+            foreach (var conn in pinConnectors)
+            {
+                OutputConnectors.Remove(conn);
+            }
+        }
+        else if (e.OldItems != null)
         {
             foreach (MqttPinBindingViewModel oldPin in e.OldItems)
             {

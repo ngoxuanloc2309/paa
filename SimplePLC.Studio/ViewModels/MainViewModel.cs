@@ -318,7 +318,12 @@ public partial class MainViewModel : ObservableObject
         {
             GetProjectMetadata = () => CurrentProjectMetadata,
             OpenDeviceModbusPortConfig = () => OpenModbusPortConfig(),
-            OpenDeviceMqttBrokerConfig = () => OpenMqttBrokerConfig()
+            OpenDeviceMqttBrokerConfig = () => OpenMqttBrokerConfig(),
+            NotifyProjectMetadataChanged = () =>
+            {
+                DtuGatewayStudioVM?.ReloadFromMetadata();
+                IsProjectDirty = true;
+            }
         };
         RuleTableVM.OnEditRuleRequested = (rule) => LogicEditorVM.LoadRuleToCanvas(rule);
         RuleTableVM.OnNewRuleRequested = () => LogicEditorVM.NewRuleCanvas();
@@ -332,12 +337,12 @@ public partial class MainViewModel : ObservableObject
         {
             ProjectAliasProvider = tagIndex =>
             {
-                var tag = TagCatalogVM.AllTags.FirstOrDefault(t => t.Index == tagIndex);
+                var tag = TagCatalogVM.FindTagByIndex(tagIndex);
                 return (tag != null && tag.Kind != TagKind.None && !string.IsNullOrWhiteSpace(tag.Alias) && tag.Alias != "Không chọn" && tag.Alias != "NONE" && tag.Alias != "— Không chọn —") ? tag.Alias : null;
             },
             ProjectDataTypeProvider = tagIndex =>
             {
-                var tag = TagCatalogVM.AllTags.FirstOrDefault(t => t.Index == tagIndex);
+                var tag = TagCatalogVM.FindTagByIndex(tagIndex);
                 return tag?.DataType;
             }
         };
@@ -467,9 +472,32 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private int _previousTabIndex = 0;
+
     partial void OnSelectedTabIndexChanged(int value)
     {
         UpdateTagPollingState();
+        if (value == AppTabIndices.Device)
+        {
+            DtuGatewayStudioVM?.ReloadFromMetadata();
+        }
+        else if (_previousTabIndex == AppTabIndices.Device)
+        {
+            // Chỉ tự động commit cấu hình phần硬件 DTU khi người dùng thực sự rời khỏi Tab Device sang Tab khác
+            DtuGatewayStudioVM?.TriggerAutoCommitToProject();
+        }
+
+        if (value == AppTabIndices.RuleTable)
+        {
+            // Tự động làm mới các bảng phân hệ (MQTT, Modbus, FBs) trong Bảng Rule từ chương trình gần nhất của Canvas
+            var prog = LogicEditorVM?.CurrentProgram ?? LogicEditorVM?.LastSuccessfulProgram;
+            if (prog != null)
+            {
+                RuleTableVM?.UpdateSubsystemsFromProgram(prog);
+            }
+        }
+
+        _previousTabIndex = value;
     }
 
     [RelayCommand]
@@ -1571,6 +1599,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
+            DtuGatewayStudioVM?.SaveToMetadata();
             LogicEditorVM.SaveAndCompile();
 
             var (nodes, connections) = LogicEditorVM.ExportGraphData();
@@ -1731,7 +1760,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Đóng dự án hiện tại, lưu thay đổi nếu cần và quay lại màn hình Start Page.
+    /// Đóng dự án hiện tại, lưu thay đổi nếu cần và đưa về không gian làm việc trống (Logic Graph).
     /// </summary>
     [RelayCommand]
     public void CloseProject()
@@ -1747,7 +1776,42 @@ public partial class MainViewModel : ObservableObject
         LiveWatchVM.ClearWatchlist();
         IsProjectDirty = false;
 
-        OpenStartPage();
+        SelectTab(AppTabIndices.LogicGraph);
+    }
+
+    /// <summary>
+    /// Thực thi hành động nạp từ thiết bị từ màn hình Startup Hub (1-click Connect & Read).
+    /// </summary>
+    /// <param name="hubVm">ViewModel của màn hình Startup Hub.</param>
+    public async Task ExecuteStartupUploadFromDeviceAsync(StartupHubViewModel hubVm)
+    {
+        ArgumentNullException.ThrowIfNull(hubVm);
+
+        hubVm.IsUploading = true;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(hubVm.SelectedPort))
+            {
+                SelectedPort = hubVm.SelectedPort;
+            }
+
+            if (!IsConnected)
+            {
+                await ToggleConnect();
+            }
+
+            if (!IsConnected && !CanDoDeviceAction)
+            {
+                // ToggleConnect đã hiển thị thông báo lỗi chi tiết, giữ nguyên Start Page cho người dùng chọn lại cổng
+                return;
+            }
+
+            await UploadFromDeviceAsync();
+        }
+        finally
+        {
+            hubVm.IsUploading = false;
+        }
     }
 
     /// <summary>
@@ -1775,41 +1839,7 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case StartupHubAction.UploadFromDevice:
-                if (!string.IsNullOrWhiteSpace(hubVm.SelectedPort))
-                {
-                    SelectedPort = hubVm.SelectedPort;
-                }
-                _ = Task.Run(async () =>
-                {
-                    if (!IsConnected)
-                    {
-                        if (System.Windows.Application.Current?.Dispatcher != null)
-                        {
-                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-                            {
-                                await ToggleConnect();
-                            });
-                        }
-                        else
-                        {
-                            await ToggleConnect();
-                        }
-                    }
-                    if (IsConnected || CanDoDeviceAction)
-                    {
-                        if (System.Windows.Application.Current?.Dispatcher != null)
-                        {
-                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-                            {
-                                await UploadFromDeviceAsync();
-                            });
-                        }
-                        else
-                        {
-                            await UploadFromDeviceAsync();
-                        }
-                    }
-                });
+                _ = ExecuteStartupUploadFromDeviceAsync(hubVm);
                 break;
 
             case StartupHubAction.ContinueBlank:
@@ -1895,12 +1925,11 @@ public partial class MainViewModel : ObservableObject
         RuleTableVM.ApplyFilter();
         LiveWatchVM.ClearWatchlist();
 
+        SelectTab(AppTabIndices.LogicGraph);
         IsProjectDirty = false;
 
         UpdateDeviceProductInfo();
         NotifyHardwareCapabilities();
-
-        SelectTab(AppTabIndices.LogicGraph);
 
         bool isVi = Loc.IsVietnamese;
         LogicEditorVM.SaveStatusMessage = isVi
@@ -2009,12 +2038,12 @@ public partial class MainViewModel : ObservableObject
                 : System.IO.Path.GetFileNameWithoutExtension(filePath);
 
 
-            IsProjectDirty = false;
             RefreshRecentProjects();
             UpdateDeviceProductInfo();
-        NotifyHardwareCapabilities();
+            NotifyHardwareCapabilities();
 
             SelectTab(AppTabIndices.LogicGraph);
+            IsProjectDirty = false;
 
             bool isVi = Loc.IsVietnamese;
             LogicEditorVM.SaveStatusMessage = isVi 

@@ -163,13 +163,13 @@ $releaseContent = @"
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.14.1)
-- **Cung cấp Chứng chỉ Bảo mật MQTT TLS/mTLS X.509 (`0x0F00..0x0F46`, `SPLC-SPEC-MQTT-003`)**: Hỗ trợ nạp phân đoạn chứng chỉ Root CA, Client Cert, Client Key với Smart Sync CRC, Retry loop tự động và Atomic Commit `0xA5A5` xuống phần cứng MCU.
-- **Đặc tả & Triển khai Giao thức MQTT Last Will & Testament (`0x0F50..0x0F5F`, `SPLC-SPEC-MQTT-004`)**: Chuẩn hóa gói tin di chúc (LWT) giúp Broker phát hiện kịp thời sự cố mất kết nối đột ngột của thiết bị tại hiện trường.
-- **Bảo vệ Quyền Sở hữu Ghi Tag Độc quyền (Exclusive Tag Write Ownership)**: Dịch vụ `TagWriteOwnershipService` tự động kiểm tra và khóa các tag đã được liên kết bởi nguồn nhập dữ liệu khác (Modbus Read, MQTT Sub, TCP/HTTP Ingestion), ngăn chặn hoàn toàn lỗi tranh chấp ghi đè giá trị.
-- **Tự động Phản chiếu Mẫu JSON Payload Test trong MQTT Command Subscribe**: Cơ chế Smart Reactive Test Payload Auto-Sync tự động cập nhật mẫu JSON theo danh sách chân ngõ ra, tự động xóa cache `ResolvedPath` khi đổi tên trường và mô phỏng giá trị trích xuất tức thì.
-- **Cải tiến Trình Thanh tra Inspector & Giao diện Cấu hình**: Đồng bộ kích thước chuẩn Fluent 2, hoàn thiện nhãn song ngữ Anh/Việt và tối ưu hóa không gian hiển thị trên các màn hình Studio.
-- **Độ tin cậy & Ổn định Tuyệt đối**: Vượt qua 100% toàn bộ 2,111 bài kiểm thử tự động toàn giải pháp, 0 vi phạm kiến trúc Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+## 🚀 Tính năng nổi bật & Nâng cấp (v2.15.0)
+- **Chuẩn Hóa Cơ Chế Nạp Sang Chuẩn IDE Công Nghiệp Toàn Cầu (Universal Industrial IDE Download Standard)**: Cho phép nạp độc lập cấu hình thiết bị (MQTT Broker, DTU Gateway, RS-485 Modbus, Wi-Fi...) xuống phần cứng ngay cả khi dự án có 0 logic rule, tương đương tiêu chuẩn các IDE công nghiệp quốc tế (Siemens TIA Portal, Rockwell Studio 5000, Codesys).
+- **Tối Ưu Hóa Hiệu Năng Chuyển Tab với Bộ Nhớ Đệm Visual Tree (`CachedContentPresenter`)**: Triệt tiêu hoàn toàn độ trễ (lag), rò rỉ bộ nhớ (memory leaks) và tái tạo cây thị giác khi chuyển đổi giữa 7 workspaces của IDE.
+- **Đồng Bộ Hai Chiều Trạng Thái Cổng Modbus Master & Chuẩn Hóa Vòng Đời Modal Dialog**: Giải quyết triệt để lỗi ghi đè cấu hình (stale auto-commit on tab switch) và crash khi đóng hộp thoại cấu hình cổng ngoại vi.
+- **Hệ Thống Trạng Thái Biên Dịch Đa Phân Hệ & Tự Động Đồng Bộ Rule Table**: Hiển thị trạng thái biên dịch trực quan dạng token rút gọn (`{r} rules, {m} MQTT ready`), tự động đồng bộ hóa bảng Rule Table khi chuyển tab mà không cần lưu thủ công.
+- **Dịch Vụ Giám Sát Chẩn Đoán Truyền Thông (Comm Diagnostics Service & System Tag Watchdog)**: Bổ sung `ICommDiagnosticsService` và cơ chế giám sát watchdog thời gian thực qua tag hệ thống `SYS_COMM_OK`.
+- **Độ Tin Cậy & Ổn Định Tuyệt Đối**: Vượt qua 100% toàn bộ 2,186 bài kiểm thử tự động toàn giải pháp, 0 vi phạm Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
 
 ## 📦 Tệp đính kèm phân phối
 | Tên tệp | Mô tả | SHA256 Checksum |

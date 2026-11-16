@@ -254,9 +254,62 @@ public class WifiConfigViewModelTests
         // Assert
         Assert.Equal(ModbusRegisterMap.WifiCmdStartScan, fakeClient.LastTriggeredCommand);
         Assert.Equal(2, vm.AvailableAps.Count);
+        Assert.True(vm.HasAvailableAps);
+        Assert.NotNull(vm.SelectedAp);
+        Assert.Equal("AP_Line1", vm.SelectedAp.Ssid);
+        Assert.Equal("AP_Line1", vm.Ssid);
         Assert.Equal("AP_Line1", vm.AvailableAps[0].Ssid);
         Assert.Equal("AP_Line2", vm.AvailableAps[1].Ssid);
         Assert.False(vm.IsScanning);
+    }
+
+    [Fact]
+    public async Task ScanAsync_ShouldSortApsDescendingByRssi()
+    {
+        // Arrange: Cung cấp danh sách AP lộn xộn về cường độ tín hiệu RSSI
+        var meta = new ProjectMetadata();
+        var fakeClient = new FakeWifiClient
+        {
+            ScanControl = new WifiScanControlDto
+            {
+                ScanState = ModbusRegisterMap.WifiScanStateCompleted,
+                ApFoundCount = 4
+            },
+            ScanResults = new List<WifiApInfoDto>
+            {
+                new() { Ssid = "AP_Weak", RssiDbm = -85, Channel = 1 },
+                new() { Ssid = "AP_Strongest", RssiDbm = -45, Channel = 6 },
+                new() { Ssid = "AP_Medium", RssiDbm = -60, Channel = 11 },
+                new() { Ssid = "AP_Fair", RssiDbm = -70, Channel = 36 }
+            }
+        };
+
+        using var vm = new WifiConfigViewModel(meta, fakeClient)
+        {
+            IsDeviceConnected = true
+        };
+
+        // Act
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        // Assert: Thứ tự phải tuyệt đối giảm dần theo RSSI (-45 dBm > -60 dBm > -70 dBm > -85 dBm)
+        Assert.Equal(4, vm.AvailableAps.Count);
+        Assert.Equal("AP_Strongest", vm.AvailableAps[0].Ssid);
+        Assert.Equal(-45, vm.AvailableAps[0].RssiDbm);
+
+        Assert.Equal("AP_Medium", vm.AvailableAps[1].Ssid);
+        Assert.Equal(-60, vm.AvailableAps[1].RssiDbm);
+
+        Assert.Equal("AP_Fair", vm.AvailableAps[2].Ssid);
+        Assert.Equal(-70, vm.AvailableAps[2].RssiDbm);
+
+        Assert.Equal("AP_Weak", vm.AvailableAps[3].Ssid);
+        Assert.Equal(-85, vm.AvailableAps[3].RssiDbm);
+
+        // AP mạnh nhất (-45 dBm) phải được tự động chọn làm SelectedAp và gán vào Ssid
+        Assert.Equal("AP_Strongest", vm.SelectedAp?.Ssid);
+        Assert.Equal("AP_Strongest", vm.Ssid);
+        Assert.True(vm.CanScan);
     }
 
     [Fact]
@@ -416,5 +469,68 @@ public class WifiConfigViewModelTests
         // Assert
         Assert.Equal("Packaging_Line_WiFi", vm.Ssid);
         Assert.Equal(0, vm.SelectedTabIndex);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_ShouldWriteConfig_TriggerWifiCmdConnect_AndResolveStatus()
+    {
+        // Arrange
+        var meta = new ProjectMetadata();
+        var fakeClient = new FakeWifiClient
+        {
+            CurrentConfig = new WifiConfigDto
+            {
+                ConnectionStatus = ModbusRegisterMap.WifiConnGotIp,
+                CurrentIp = "192.168.1.100",
+                RssiDbm = -52
+            }
+        };
+
+        using var vm = new WifiConfigViewModel(meta, fakeClient)
+        {
+            IsDeviceConnected = true,
+            Ssid = "SynaptiX_Industrial_AP",
+            Password = "Password123"
+        };
+
+        // Act
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(fakeClient.WriteConfigCalled);
+        Assert.Equal("SynaptiX_Industrial_AP", fakeClient.CurrentConfig.Ssid);
+        Assert.Equal(ModbusRegisterMap.WifiCmdConnect, fakeClient.LastTriggeredCommand);
+        Assert.Equal(ModbusRegisterMap.WifiConnGotIp, vm.ConnectionStatus);
+        Assert.Equal("192.168.1.100", vm.CurrentIp);
+        Assert.True(vm.IsConnected);
+    }
+
+    [Fact]
+    public async Task DisconnectAsync_ShouldTriggerWifiCmdDisconnect_AndRefreshTelemetry()
+    {
+        // Arrange
+        var meta = new ProjectMetadata();
+        var fakeClient = new FakeWifiClient
+        {
+            CurrentConfig = new WifiConfigDto
+            {
+                ConnectionStatus = ModbusRegisterMap.WifiConnDisconnected,
+                CurrentIp = "0.0.0.0",
+                RssiDbm = -100
+            }
+        };
+
+        using var vm = new WifiConfigViewModel(meta, fakeClient)
+        {
+            IsDeviceConnected = true
+        };
+
+        // Act
+        await vm.DisconnectCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(ModbusRegisterMap.WifiCmdDisconnect, fakeClient.LastTriggeredCommand);
+        Assert.Equal(ModbusRegisterMap.WifiConnDisconnected, vm.ConnectionStatus);
+        Assert.False(vm.IsConnected);
     }
 }

@@ -3562,7 +3562,9 @@
 
                                 <!-- Message chi tiết trạng thái biên dịch -->
                                 <TextBlock Text="{Binding SaveStatusMessage}" FontSize="11" Foreground="{Binding CompileStateColor}" 
-                                           FontWeight="Medium" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                           FontWeight="Medium" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding SaveStatusDetail}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" 
+                                           TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding HasSaveStatusDetail, Converter={StaticResource BoolToVis}}" />
 
                                 <TextBlock Text="{Binding [InspectorSaveDesc], Source={x:Static services:LocalizationService.Instance}}" 
                                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />

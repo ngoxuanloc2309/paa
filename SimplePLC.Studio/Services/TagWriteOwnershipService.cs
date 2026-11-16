@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using SimplePLC.Studio.Models;
 
 namespace SimplePLC.Studio.Services;
@@ -36,6 +37,88 @@ public sealed record TagClaimEntry(
 /// </summary>
 public sealed class TagWriteOwnershipService
 {
+    private sealed class WeakAction
+    {
+        private readonly WeakReference? _targetRef;
+        private readonly MethodInfo _method;
+
+        public WeakAction(Action action)
+        {
+            if (action.Target != null)
+            {
+                _targetRef = new WeakReference(action.Target);
+            }
+            _method = action.Method;
+        }
+
+        public bool IsAlive => _targetRef == null || _targetRef.IsAlive;
+
+        public bool Matches(Action action)
+        {
+            if (_method != action.Method) return false;
+            if (_targetRef == null) return action.Target == null;
+            return ReferenceEquals(_targetRef.Target, action.Target);
+        }
+
+        public bool TryInvoke()
+        {
+            if (_targetRef == null)
+            {
+                _method.Invoke(null, null);
+                return true;
+            }
+
+            var target = _targetRef.Target;
+            if (target != null)
+            {
+                _method.Invoke(target, null);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    private sealed class WeakFunc
+    {
+        private readonly WeakReference? _targetRef;
+        private readonly MethodInfo _method;
+
+        public WeakFunc(Func<IEnumerable<TagClaimEntry>> func)
+        {
+            if (func.Target != null)
+            {
+                _targetRef = new WeakReference(func.Target);
+            }
+            _method = func.Method;
+        }
+
+        public bool IsAlive => _targetRef == null || _targetRef.IsAlive;
+
+        public bool Matches(Func<IEnumerable<TagClaimEntry>> func)
+        {
+            if (_method != func.Method) return false;
+            if (_targetRef == null) return func.Target == null;
+            return ReferenceEquals(_targetRef.Target, func.Target);
+        }
+
+        public IEnumerable<TagClaimEntry>? TryInvoke()
+        {
+            if (_targetRef == null)
+            {
+                return (IEnumerable<TagClaimEntry>?)_method.Invoke(null, null);
+            }
+
+            var target = _targetRef.Target;
+            if (target != null)
+            {
+                return (IEnumerable<TagClaimEntry>?)_method.Invoke(target, null);
+            }
+
+            return null;
+        }
+    }
+
     private static readonly Lazy<TagWriteOwnershipService> _instance = new(() => new TagWriteOwnershipService());
 
     /// <summary>
@@ -43,14 +126,41 @@ public sealed class TagWriteOwnershipService
     /// </summary>
     public static TagWriteOwnershipService Instance => _instance.Value;
 
-    private readonly List<Func<IEnumerable<TagClaimEntry>>> _providers = new();
+    private readonly List<WeakFunc> _providers = new();
+    private readonly List<WeakAction> _weakSubscribers = new();
     private readonly object _lock = new();
 
     /// <summary>
     /// Sự kiện phát ra khi có bất kỳ kênh truyền thông nào thay đổi việc chọn Tag đích,
     /// kích hoạt các ViewModel Dropdown cập nhật lại danh sách TagOptions.
+    /// Sử dụng mô hình Weak Event để tránh rò rỉ bộ nhớ.
     /// </summary>
-    public event Action? OwnershipChanged;
+    public event Action OwnershipChanged
+    {
+        add
+        {
+            if (value == null) return;
+            lock (_lock)
+            {
+                _weakSubscribers.Add(new WeakAction(value));
+            }
+        }
+        remove
+        {
+            if (value == null) return;
+            lock (_lock)
+            {
+                for (int i = _weakSubscribers.Count - 1; i >= 0; i--)
+                {
+                    if (_weakSubscribers[i].Matches(value))
+                    {
+                        _weakSubscribers.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Đăng ký một nhà cung cấp danh sách chiếm dụng Tag (Modbus Port, MQTT Node,...).
@@ -60,9 +170,9 @@ public sealed class TagWriteOwnershipService
         if (provider == null) return;
         lock (_lock)
         {
-            if (!_providers.Contains(provider))
+            if (!_providers.Any(p => p.Matches(provider)))
             {
-                _providers.Add(provider);
+                _providers.Add(new WeakFunc(provider));
             }
         }
     }
@@ -75,7 +185,14 @@ public sealed class TagWriteOwnershipService
         if (provider == null) return;
         lock (_lock)
         {
-            _providers.Remove(provider);
+            for (int i = _providers.Count - 1; i >= 0; i--)
+            {
+                if (_providers[i].Matches(provider))
+                {
+                    _providers.RemoveAt(i);
+                    break;
+                }
+            }
         }
     }
 
@@ -87,6 +204,7 @@ public sealed class TagWriteOwnershipService
         lock (_lock)
         {
             _providers.Clear();
+            _weakSubscribers.Clear();
         }
     }
 
@@ -95,7 +213,24 @@ public sealed class TagWriteOwnershipService
     /// </summary>
     public void NotifyOwnershipChanged()
     {
-        OwnershipChanged?.Invoke();
+        List<WeakAction> snapshot;
+        lock (_lock)
+        {
+            _weakSubscribers.RemoveAll(s => !s.IsAlive);
+            snapshot = new List<WeakAction>(_weakSubscribers);
+        }
+
+        foreach (var action in snapshot)
+        {
+            try
+            {
+                action.TryInvoke();
+            }
+            catch (Exception)
+            {
+                // Isolation defense: Ngoại lệ từ một ViewModel/Subscriber không được làm gián đoạn thông báo quyền sở hữu
+            }
+        }
     }
 
     /// <summary>
@@ -111,10 +246,11 @@ public sealed class TagWriteOwnershipService
             return null;
         }
 
-        List<Func<IEnumerable<TagClaimEntry>>> snapshot;
+        List<WeakFunc> snapshot;
         lock (_lock)
         {
-            snapshot = new List<Func<IEnumerable<TagClaimEntry>>>(_providers);
+            _providers.RemoveAll(p => !p.IsAlive);
+            snapshot = new List<WeakFunc>(_providers);
         }
 
         foreach (var provider in snapshot)
@@ -122,7 +258,7 @@ public sealed class TagWriteOwnershipService
             IEnumerable<TagClaimEntry>? entries = null;
             try
             {
-                entries = provider();
+                entries = provider.TryInvoke();
             }
             catch
             {

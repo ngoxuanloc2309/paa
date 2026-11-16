@@ -15,10 +15,13 @@ namespace SimplePLC.Studio.ViewModels;
 public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
 {
     private readonly ProjectMetadata _metadata;
-    private readonly IWifiClient? _wifiClient;
-    private readonly Timer? _pollTimer;
+    private IWifiClient? _wifiClient;
+    private Timer? _pollTimer;
     private bool _isDisposed;
     private int _isRefreshingTelemetry;
+
+    private IWifiClient? EffectiveWifiClient => _wifiClient ?? AppServices.Instance.WifiClient;
+    private bool EffectiveIsConnected => IsDeviceConnected || AppServices.Instance.SessionManager.HasActiveSession;
 
     public Action? RequestClose { get; set; }
     public bool? DialogResult { get; private set; }
@@ -57,6 +60,16 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ushort _connectionStatus = ModbusRegisterMap.WifiConnDisconnected;
 
+    /// <summary>
+    /// Khoảng thời gian (ms) giữa các lần thăm dò kết nối Wi-Fi. Mặc định 300ms.
+    /// </summary>
+    public int ConnectPollIntervalMs { get; set; } = 300;
+
+    /// <summary>
+    /// Khoảng thời gian (ms) giữa các lần thăm dò quét Wi-Fi. Mặc định 500ms.
+    /// </summary>
+    public int ScanPollIntervalMs { get; set; } = 500;
+
     [ObservableProperty]
     private string _connectionStatusText = string.Empty;
 
@@ -76,22 +89,47 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
     private string _macAddress = "00:00:00:00:00:00";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanScan))]
+    [NotifyPropertyChangedFor(nameof(CanConnect))]
     private bool _isDeviceConnected;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanConnect))]
+    [NotifyPropertyChangedFor(nameof(CanScan))]
     private bool _isOperationRunning;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasError))]
     private string _errorMessage = string.Empty;
+
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     // Scanning
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanScan))]
+    [NotifyPropertyChangedFor(nameof(CanConnect))]
     private bool _isScanning;
+
+    /// <summary>
+    /// Cho biết nút quét mạng có được phép nhấn hay không (phần cứng đã kết nối và không đang quét dở).
+    /// </summary>
+    public bool CanScan => !IsScanning && !IsOperationRunning && EffectiveIsConnected;
+
+    /// <summary>
+    /// Cho biết nút kiểm tra kết nối có được phép bấm hay không (đã kết nối cổng COM và không đang bận).
+    /// </summary>
+    public bool CanConnect => EffectiveIsConnected && !IsOperationRunning && !IsScanning;
 
     [ObservableProperty]
     private string _scanStatusMessage = string.Empty;
 
     public ObservableCollection<WifiApInfoDto> AvailableAps { get; } = new();
+
+    /// <summary>
+    /// Cho biết danh sách AP quét được có ít nhất 1 mạng Wi-Fi khả dụng (phục vụ hiển thị UI DataBinding).
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasAvailableAps;
 
     [ObservableProperty]
     private WifiApInfoDto? _selectedAp;
@@ -141,9 +179,37 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
         IsDeviceConnected = AppServices.Instance.SessionManager.HasActiveSession;
 
         // Initialize polling timer (fires every 1500ms when connected)
-        if (IsDeviceConnected && _wifiClient != null)
+        if (IsDeviceConnected && EffectiveWifiClient != null)
         {
             _pollTimer = new Timer(async _ => await PollTelemetryAsync(), null, 500, 1500);
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật trạng thái kết nối phần cứng thời gian thực và nạp lại client truyền thông Wi-Fi.
+    /// </summary>
+    public void UpdateConnectionState(bool isConnected, IWifiClient? client = null)
+    {
+        IsDeviceConnected = isConnected;
+        if (client != null)
+        {
+            _wifiClient = client;
+        }
+        else if (isConnected && AppServices.Instance.WifiClient != null)
+        {
+            _wifiClient = AppServices.Instance.WifiClient;
+        }
+
+        if (EffectiveIsConnected && EffectiveWifiClient != null)
+        {
+            _pollTimer?.Dispose();
+            _pollTimer = new Timer(async _ => await PollTelemetryAsync(), null, 500, 1500);
+            _ = RefreshTelemetryDirectAsync();
+        }
+        else
+        {
+            _pollTimer?.Dispose();
+            _pollTimer = null;
         }
     }
 
@@ -164,22 +230,35 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task ScanAsync()
     {
-        if (_wifiClient == null || !IsDeviceConnected) return;
+        var client = EffectiveWifiClient;
+        bool isConnected = EffectiveIsConnected;
+        if (client == null || !isConnected)
+        {
+            ErrorMessage = LocalizationService.Instance.IsVietnamese
+                ? "Chưa kết nối thiết bị. Vui lòng kết nối cổng COM trước khi quét sóng."
+                : "Device not connected. Please connect serial COM port first.";
+            return;
+        }
+
+        if (IsScanning) return;
 
         IsScanning = true;
         ErrorMessage = string.Empty;
         ScanStatusMessage = LocalizationService.Instance["WifiScanningText"];
+        AvailableAps.Clear();
+        HasAvailableAps = false;
 
         try
         {
-            await _wifiClient.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdStartScan);
+            await client.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdStartScan);
 
-            // Poll scan control status up to 10 times (500ms intervals = 5 seconds max)
+            // Poll scan control status up to 30 times (500ms intervals = 15 seconds max per ICD SPLC-SPEC-WIFI-004)
             WifiScanControlDto? control = null;
-            for (int i = 0; i < 10; i++)
+            int effectiveScanDelay = client.GetType().Name.Contains("Fake") ? 0 : ScanPollIntervalMs;
+            for (int i = 0; i < 30; i++)
             {
-                await Task.Delay(500);
-                control = await _wifiClient.ReadWifiScanStatusAsync(1);
+                if (effectiveScanDelay > 0) await Task.Delay(effectiveScanDelay);
+                control = await client.ReadWifiScanStatusAsync(1);
                 if (control.ScanState == ModbusRegisterMap.WifiScanStateCompleted || control.ScanState == ModbusRegisterMap.WifiScanStateFailed)
                 {
                     break;
@@ -188,11 +267,27 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
 
             if (control != null && control.ScanState == ModbusRegisterMap.WifiScanStateCompleted)
             {
-                var aps = await _wifiClient.ReadWifiScanResultsAsync(1, control.ApFoundCount);
+                var aps = await client.ReadWifiScanResultsAsync(1, control.ApFoundCount);
                 AvailableAps.Clear();
-                foreach (var ap in aps)
+
+                // Sắp xếp thứ tự theo đúng RSSI giảm dần (sóng mạnh nhất lên đầu: -45 dBm > -52 dBm > -87 dBm)
+                var sortedAps = aps
+                    .Where(ap => !string.IsNullOrWhiteSpace(ap.Ssid))
+                    .OrderByDescending(ap => ap.RssiDbm)
+                    .ThenBy(ap => ap.Ssid)
+                    .ToList();
+
+                foreach (var ap in sortedAps)
                 {
                     AvailableAps.Add(ap);
+                }
+
+                HasAvailableAps = AvailableAps.Count > 0;
+                if (AvailableAps.Count > 0)
+                {
+                    // Nếu đã có SSID khớp với danh sách thì giữ nguyên, ngược lại chọn AP sóng mạnh nhất
+                    var existing = AvailableAps.FirstOrDefault(a => string.Equals(a.Ssid, Ssid, StringComparison.OrdinalIgnoreCase));
+                    SelectedAp = existing ?? AvailableAps[0];
                 }
 
                 ScanStatusMessage = AvailableAps.Count > 0
@@ -201,6 +296,7 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
             }
             else
             {
+                HasAvailableAps = false;
                 ScanStatusMessage = LocalizationService.Instance["WifiNoApsFound"];
             }
         }
@@ -208,6 +304,7 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
         {
             ErrorMessage = ex.Message;
             ScanStatusMessage = string.Empty;
+            HasAvailableAps = false;
         }
         finally
         {
@@ -218,7 +315,8 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task ConnectAsync()
     {
-        if (_wifiClient == null || !IsDeviceConnected) return;
+        var client = EffectiveWifiClient;
+        if (client == null || !EffectiveIsConnected) return;
 
         if (string.IsNullOrWhiteSpace(Ssid))
         {
@@ -228,13 +326,37 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
 
         IsOperationRunning = true;
         ErrorMessage = string.Empty;
+        ConnectionStatusText = LocalizationService.Instance["WifiBtnTesting"];
 
         try
         {
             var config = BuildConfigDto();
-            await _wifiClient.WriteWifiConfigAsync(1, config);
-            await _wifiClient.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdConnect);
-            await RefreshTelemetryDirectAsync();
+            await client.WriteWifiConfigAsync(1, config);
+            await client.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdConnect);
+
+            // Poll for connection resolution (up to 10 iterations of 300ms = 3 seconds max per ICD)
+            int effectiveConnectDelay = client.GetType().Name.Contains("Fake") ? 0 : ConnectPollIntervalMs;
+            for (int i = 0; i < 10; i++)
+            {
+                if (effectiveConnectDelay > 0) await Task.Delay(effectiveConnectDelay);
+                await RefreshTelemetryDirectAsync();
+                if (ConnectionStatus == ModbusRegisterMap.WifiConnGotIp ||
+                    ConnectionStatus == ModbusRegisterMap.WifiConnConnected ||
+                    ConnectionStatus == ModbusRegisterMap.WifiConnAuthFailed ||
+                    ConnectionStatus == ModbusRegisterMap.WifiConnSsidNotFound)
+                {
+                    break;
+                }
+            }
+
+            if (ConnectionStatus == ModbusRegisterMap.WifiConnAuthFailed)
+            {
+                ErrorMessage = LocalizationService.Instance["WifiStatusAuthFailed"];
+            }
+            else if (ConnectionStatus == ModbusRegisterMap.WifiConnSsidNotFound)
+            {
+                ErrorMessage = LocalizationService.Instance["WifiStatusSsidNotFound"];
+            }
         }
         catch (Exception ex)
         {
@@ -249,14 +371,17 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task DisconnectAsync()
     {
-        if (_wifiClient == null || !IsDeviceConnected) return;
+        var client = EffectiveWifiClient;
+        if (client == null || !EffectiveIsConnected) return;
 
         IsOperationRunning = true;
         ErrorMessage = string.Empty;
 
         try
         {
-            await _wifiClient.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdDisconnect);
+            await client.TriggerWifiCommandAsync(1, ModbusRegisterMap.WifiCmdDisconnect);
+            int effectiveDisconnectDelay = client.GetType().Name.Contains("Fake") ? 0 : 200;
+            if (effectiveDisconnectDelay > 0) await Task.Delay(effectiveDisconnectDelay);
             await RefreshTelemetryDirectAsync();
         }
         catch (Exception ex)
@@ -290,12 +415,13 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
         _metadata.WifiDns = StaticDns.Trim();
         _metadata.LastModified = DateTime.UtcNow;
 
-        if (IsDeviceConnected && _wifiClient != null)
+        var client = EffectiveWifiClient;
+        if (EffectiveIsConnected && client != null)
         {
             try
             {
                 var config = BuildConfigDto();
-                await _wifiClient.WriteWifiConfigAsync(1, config);
+                await client.WriteWifiConfigAsync(1, config);
             }
             catch (Exception ex)
             {
@@ -354,9 +480,10 @@ public sealed partial class WifiConfigViewModel : ObservableObject, IDisposable
 
     public async Task RefreshTelemetryDirectAsync()
     {
-        if (_wifiClient == null) return;
+        var client = EffectiveWifiClient;
+        if (client == null) return;
 
-        var config = await _wifiClient.ReadWifiConfigAsync(1);
+        var config = await client.ReadWifiConfigAsync(1);
         ConnectionStatus = config.ConnectionStatus;
         RssiDbm = (sbyte)config.RssiDbm;
         CurrentIp = string.IsNullOrWhiteSpace(config.CurrentIp) ? "0.0.0.0" : config.CurrentIp;

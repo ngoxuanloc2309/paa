@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Protocol.Cryptography;
 using SimplePLC.Protocol.Enums;
+using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 
 namespace SimplePLC.Studio.ViewModels;
@@ -51,9 +52,209 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PortSelectorTooltip))]
     [NotifyPropertyChangedFor(nameof(HasRestrictedIdError))]
     [NotifyPropertyChangedFor(nameof(RestrictedIdErrorMessage))]
+    [NotifyPropertyChangedFor(nameof(CanImportSystemChannels))]
+    [NotifyPropertyChangedFor(nameof(HasPortRoleWarning))]
+    [NotifyPropertyChangedFor(nameof(PortRoleWarningMessage))]
+    [NotifyPropertyChangedFor(nameof(AvailableSystemWriteChannelsCount))]
+    [NotifyPropertyChangedFor(nameof(ImportSystemChannelsText))]
     private byte _portIndex;
 
+    partial void OnPortIndexChanged(byte value)
+    {
+        if (_modbusPorts != null)
+        {
+            var p = _modbusPorts.FirstOrDefault(x => x.PortIndex == value);
+            if (p != null && p.ResponseTimeoutMs > 0)
+            {
+                TimeoutMs = p.ResponseTimeoutMs;
+            }
+        }
+        foreach (var pin in Node.Pins)
+        {
+            pin.RefreshTagOptions();
+        }
+        OnPropertyChanged(nameof(CanImportSystemChannels));
+        OnPropertyChanged(nameof(HasPortRoleWarning));
+        OnPropertyChanged(nameof(PortRoleWarningMessage));
+        OnPropertyChanged(nameof(AvailableSystemWriteChannelsCount));
+        OnPropertyChanged(nameof(ImportSystemChannelsText));
+    }
+
+    /// <summary>
+    /// Cho biết cổng hiện tại có bị cấu hình sai vai trò (ví dụ: đang là Slave hoặc bị tắt) ở Tab System hay không.
+    /// Khối MB_WRITE (Master) không thể truyền lệnh trên cổng Slave.
+    /// </summary>
+    public bool HasPortRoleWarning
+    {
+        get
+        {
+            if (_modbusPorts == null) return false;
+            var p = _modbusPorts.FirstOrDefault(x => x.PortIndex == PortIndex);
+            return p != null && (string.Equals(p.Role, "Slave", StringComparison.OrdinalIgnoreCase) || !p.Enabled);
+        }
+    }
+
+    /// <summary>
+    /// Thông báo cảnh báo vai trò cổng chi tiết cho kỹ sư vận hành.
+    /// </summary>
+    public string PortRoleWarningMessage
+    {
+        get
+        {
+            if (_modbusPorts == null) return string.Empty;
+            var p = _modbusPorts.FirstOrDefault(x => x.PortIndex == PortIndex);
+            if (p == null) return string.Empty;
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (!p.Enabled)
+            {
+                return isVi
+                    ? $"⚠ Cổng {p.PortName} hiện đang bị vô hiệu hóa (Disabled) trong Tab System. Khối MB_WRITE sẽ không thể truyền dữ liệu."
+                    : $"⚠ Port {p.PortName} is currently disabled in System Tab. MB_WRITE block will not transmit.";
+            }
+            if (string.Equals(p.Role, "Slave", StringComparison.OrdinalIgnoreCase))
+            {
+                return isVi
+                    ? $"⚠ Cổng {p.PortName} đang cấu hình là Modbus RTU Slave (Server). Khối MB_WRITE (Master) không thể phát lệnh ghi trên cổng Slave. Vui lòng chuyển vai trò sang Master."
+                    : $"⚠ Port {p.PortName} is configured as Modbus RTU Slave (Server). MB_WRITE (Master) cannot initiate write commands on a Slave port. Please set role to Master.";
+            }
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Số lượng kênh Modbus Write (FC05, 06, 15, 16) đã khai báo sẵn ở System Tab trên cổng hiện tại.
+    /// </summary>
+    public int AvailableSystemWriteChannelsCount
+    {
+        get
+        {
+            if (_modbusPorts == null || WriteMode != ModbusWriteMode.DirectRegisters) return 0;
+            var port = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+            return port?.MasterChannels?.Count(c => c.FunctionCode is 5 or 6 or 15 or 16) ?? 0;
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi văn bản hiển thị trên nút nhập kênh từ System kèm số lượng kênh khả dụng.
+    /// </summary>
+    public string ImportSystemChannelsText
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            int count = AvailableSystemWriteChannelsCount;
+            return isVi 
+                ? $"📥 Nhập kênh từ System ({count})" 
+                : $"📥 Import from System ({count})";
+        }
+    }
+
+    /// <summary>
+    /// Cho biết trên cổng hiện tại ở System Tab có kênh Modbus Write (FC05, 06, 15, 16) nào để nhập nhanh hay không.
+    /// </summary>
+    public bool CanImportSystemChannels
+    {
+        get
+        {
+            if (_modbusPorts == null || WriteMode != ModbusWriteMode.DirectRegisters) return false;
+            var port = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+            return port?.MasterChannels != null && port.MasterChannels.Any(c => c.FunctionCode is 5 or 6 or 15 or 16);
+        }
+    }
+
+    /// <summary>
+    /// Nhập nhanh toàn bộ các kênh Modbus Write đã khai báo ở System Tab trên cổng này vào bảng Pins.
+    /// </summary>
+    [RelayCommand]
+    public void ImportSystemChannels()
+    {
+        if (_modbusPorts == null || WriteMode != ModbusWriteMode.DirectRegisters) return;
+        var port = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+        if (port?.MasterChannels == null) return;
+
+        var writeChannels = port.MasterChannels
+            .Where(c => c.FunctionCode is 5 or 6 or 15 or 16)
+            .OrderBy(c => c.Address)
+            .ToList();
+
+        if (writeChannels.Count == 0) return;
+
+        var first = writeChannels[0];
+        SlaveId = first.SlaveId == 0 ? (byte)1 : first.SlaveId;
+        FunctionCode = first.FunctionCode switch
+        {
+            5 => ModbusMasterWriteFunctionCode.WriteSingleCoil,
+            15 => ModbusMasterWriteFunctionCode.WriteMultipleCoils,
+            16 => ModbusMasterWriteFunctionCode.WriteMultipleRegisters,
+            _ => ModbusMasterWriteFunctionCode.WriteSingleRegister
+        };
+
+        int baseWire = Services.Modbus.ModbusChannelSyncService.ToWireOffset(first.Address, first.FunctionCode);
+        StartAddress = (ushort)baseWire;
+
+        foreach (var p in Node.Pins)
+        {
+            p.PropertyChanged -= OnPinPropertyChanged;
+        }
+        Node.Pins.Clear();
+
+        foreach (var ch in writeChannels)
+        {
+            int chWire = Services.Modbus.ModbusChannelSyncService.ToWireOffset(ch.Address, ch.FunctionCode);
+            int offset = Math.Max(0, chWire - baseWire);
+
+            string pinLabel = !string.IsNullOrWhiteSpace(ch.TargetTagAlias)
+                ? ch.TargetTagAlias
+                : (!string.IsNullOrWhiteSpace(ch.Description)
+                    ? ch.Description
+                    : (!string.IsNullOrWhiteSpace(ch.TargetTagName) ? ch.TargetTagName : $"In_{Node.Pins.Count + 1}"));
+
+            var pin = new ModbusPinBindingViewModel
+            {
+                Label = pinLabel,
+                RegOffset = (ushort)offset,
+                DataType = ch.DataType,
+                Endianness = ch.Endianness,
+                Multiplier = (float)(ch.Scale == 0 ? 1.0 : ch.Scale)
+            };
+            ConfigurePinTagProvider(pin);
+            if (!string.IsNullOrWhiteSpace(ch.TargetTagName) && TagCatalog?.AllTags != null)
+            {
+                pin.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, ch.TargetTagName, StringComparison.OrdinalIgnoreCase));
+            }
+            if (pin.TargetTag == null && TagCatalog?.AllTags != null)
+            {
+                pin.TargetTag = TagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+            }
+            pin.PropertyChanged += OnPinPropertyChanged;
+            Node.Pins.Add(pin);
+        }
+
+        PointCount = (ushort)Math.Clamp(Node.Pins.Count, 1, 16);
+        OnPropertyChanged(nameof(SummaryBadgeText));
+        OnPropertyChanged(nameof(HasPins));
+        OnPropertyChanged(nameof(HasNoPins));
+        OnPropertyChanged(nameof(CanImportSystemChannels));
+        GenerateFramePreview();
+    }
+
     public ObservableCollection<OptionItem<byte>> AvailablePorts { get; } = new();
+
+    /// <summary>
+    /// Cho biết có ít nhất 1 cổng khả dụng (đã kích hoạt) để lựa chọn hay không.
+    /// </summary>
+    public bool HasAvailablePorts => AvailablePorts.Count > 0;
+
+    /// <summary>
+    /// Cho biết không có cổng nào được kích hoạt trong dự án.
+    /// </summary>
+    public bool HasNoAvailablePorts => AvailablePorts.Count == 0;
+
+    /// <summary>
+    /// Thông báo hiển thị khi chưa có cổng nào được kích hoạt.
+    /// </summary>
+    public string NoPortsAvailableMessage => LocalizationService.Tr("ModbusNoMasterPortsEnabled")
+        ?? (LocalizationService.Instance.IsVietnamese ? "Chưa kích hoạt cổng RS-485 Master" : "No RS-485 Master Ports Enabled");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
@@ -91,7 +292,133 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     // Direct mode settings
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(StartAddressModiconPreview))]
     private ushort _startAddress;
+
+    /// <summary>
+    /// Hiển thị địa chỉ Modicon 1-based tương ứng để khớp hoàn toàn với bảng System Tab (vd: 40001 khi offset là 0).
+    /// </summary>
+    public string StartAddressModiconPreview =>
+        $"= {Services.Modbus.ModbusChannelSyncService.ToModiconAddress(StartAddress, (int)FunctionCode)}";
+
+    partial void OnFunctionCodeChanged(ModbusMasterWriteFunctionCode value)
+    {
+        OnPropertyChanged(nameof(StartAddressModiconPreview));
+        OnPropertyChanged(nameof(SummaryBadgeText));
+        OnPropertyChanged(nameof(IsMultipleMode));
+        OnPropertyChanged(nameof(CanAddPin));
+        OnPropertyChanged(nameof(AddPinTooltip));
+
+        if (!IsMultipleMode)
+        {
+            PointCount = 1;
+            // Modbus Rule: FC05 / FC06 writes strictly 1 entity.
+            // If user previously had multiple pins, trim down to the first pin to prevent invalid wire frames.
+            if (Node.Pins.Count > 1)
+            {
+                var extraPins = Node.Pins.Skip(1).ToList();
+                foreach (var extra in extraPins)
+                {
+                    extra.PropertyChanged -= OnPinPropertyChanged;
+                    Node.Pins.Remove(extra);
+                }
+                OnPropertyChanged(nameof(HasPins));
+                OnPropertyChanged(nameof(HasNoPins));
+            }
+        }
+        else
+        {
+            UpdatePointCountFromPins();
+        }
+
+        // Auto-normalize pin data types when switching between Coils and Registers
+        if (value is ModbusMasterWriteFunctionCode.WriteSingleCoil or ModbusMasterWriteFunctionCode.WriteMultipleCoils)
+        {
+            foreach (var pin in Node.Pins)
+            {
+                if (pin.DataType != ModbusDataType.Bool)
+                {
+                    pin.DataType = ModbusDataType.Bool;
+                }
+            }
+        }
+        else
+        {
+            foreach (var pin in Node.Pins)
+            {
+                if (pin.DataType == ModbusDataType.Bool)
+                {
+                    pin.DataType = ModbusDataType.Int16;
+                }
+            }
+        }
+
+        foreach (var pin in Node.Pins)
+        {
+            pin.RefreshTagOptions();
+        }
+        GenerateFramePreview();
+    }
+
+    /// <summary>
+    /// Cho biết có thể thêm chân Pin mới hay không (chỉ khả dụng ở chế độ đa điểm FC15/FC16 và số chân &lt; 8).
+    /// </summary>
+    public bool CanAddPin => WriteMode == ModbusWriteMode.DirectRegisters
+        && (FunctionCode is ModbusMasterWriteFunctionCode.WriteMultipleRegisters or ModbusMasterWriteFunctionCode.WriteMultipleCoils)
+        && Node.Pins.Count < 8;
+
+    /// <summary>
+    /// Chú thích hướng dẫn trên nút Add Pin khi bị vô hiệu hóa do chuẩn Modbus FC05/FC06.
+    /// </summary>
+    public string AddPinTooltip
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (FunctionCode is ModbusMasterWriteFunctionCode.WriteSingleRegister or ModbusMasterWriteFunctionCode.WriteSingleCoil)
+            {
+                return isVi
+                    ? "Mã hàm FC 05 / FC 06 chỉ cho phép ghi 1 điểm đơn. Vui lòng chuyển sang FC 15 hoặc FC 16 để ghi nhiều chân."
+                    : "Function FC 05 / FC 06 only supports a single point. Switch to FC 15 or FC 16 to write multiple pins.";
+            }
+            if (Node.Pins.Count >= 8)
+            {
+                return isVi
+                    ? "Đã đạt giới hạn tối đa 8 chân Pin cho một khối ghi."
+                    : "Maximum limit of 8 pins reached for this write block.";
+            }
+            return isVi ? "Thêm chân dữ liệu ghi vào khối" : "Add write register pin";
+        }
+    }
+
+    /// <summary>
+    /// Tự động cập nhật PointCount dựa trên tổng số Word / Coils chiếm dụng của các chân Pin.
+    /// </summary>
+    private void UpdatePointCountFromPins()
+    {
+        if (WriteMode != ModbusWriteMode.DirectRegisters) return;
+
+        if (FunctionCode is ModbusMasterWriteFunctionCode.WriteSingleRegister or ModbusMasterWriteFunctionCode.WriteSingleCoil)
+        {
+            PointCount = 1;
+            return;
+        }
+
+        if (FunctionCode == ModbusMasterWriteFunctionCode.WriteMultipleRegisters)
+        {
+            ushort totalWords = 0;
+            foreach (var p in Node.Pins)
+            {
+                int span = (p.DataType is ModbusDataType.Real or ModbusDataType.Int32 or ModbusDataType.UInt32) ? 2 : 1;
+                totalWords += (ushort)span;
+            }
+            PointCount = Math.Max((ushort)1, totalWords);
+        }
+        else if (FunctionCode == ModbusMasterWriteFunctionCode.WriteMultipleCoils)
+        {
+            PointCount = Math.Max((ushort)1, (ushort)Node.Pins.Count);
+        }
+    }
 
     [ObservableProperty]
     private ushort _pointCount;
@@ -141,9 +468,13 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     private string GetSummaryBadgeText()
     {
         string portText = PortIndex == 4 ? "Zigbee" : $"{(LocalizationService.Instance.IsVietnamese ? "Cổng " : "Port ")}{PortIndex + 1}";
-        return portText + " | " + (WriteMode == ModbusWriteMode.ChannelIndexed 
-            ? $"Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}" 
-            : $"Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins)");
+        if (WriteMode == ModbusWriteMode.ChannelIndexed)
+        {
+            return portText + " | " + $"Slave {SlaveId} | {ChannelCount} Channels | BaseCmd 0x{BaseAddressCommand:X4}{(IsExclusiveChannel ? " [Exclusive]" : "")}";
+        }
+
+        string unit = (FunctionCode is ModbusMasterWriteFunctionCode.WriteSingleCoil or ModbusMasterWriteFunctionCode.WriteMultipleCoils) ? "Coils" : "Regs";
+        return $"{portText} | Slave {SlaveId} | FC{(byte)FunctionCode:D2} | Addr {StartAddress} ({Node.Pins.Count} Pins, {PointCount} {unit})";
     }
 
 
@@ -253,11 +584,27 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         _isExclusiveChannel = node.IsExclusiveChannel;
         _triggerMode = node.TriggerMode;
         _cyclicIntervalMs = node.CyclicIntervalMs;
-        _timeoutMs = node.TimeoutMs;
+
+        // Kế thừa Timeout từ cấu hình cổng vật lý ở System Tab (Axiom 1: Hardware Ground Truth)
+        var currentPort = _modbusPorts?.FirstOrDefault(p => p.PortIndex == _portIndex);
+        if (currentPort != null && currentPort.ResponseTimeoutMs > 0)
+        {
+            _timeoutMs = currentPort.ResponseTimeoutMs;
+        }
+        else
+        {
+            _timeoutMs = node.TimeoutMs > 0 ? node.TimeoutMs : (uint)200;
+        }
+
         _deadband = node.Deadband;
 
         foreach (var pin in node.Pins)
         {
+            ConfigurePinTagProvider(pin);
+            if (pin.TargetTag == null && tagCatalog?.AllTags != null)
+            {
+                pin.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
+            }
             pin.PropertyChanged += OnPinPropertyChanged;
         }
 
@@ -287,11 +634,25 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         bool isVi = LocalizationService.Instance.IsVietnamese;
         string prefix = isVi ? "Cổng" : "Port";
 
+        int physicalLimit = AppServices.Instance.CurrentProduct?.PhysicalRs485PortCount ?? 4;
+        if (_modbusPorts != null && _modbusPorts.Count > 0)
+        {
+            int maxProvided = _modbusPorts.Where(p => p.Enabled).Select(p => (int)p.PortIndex + 1).DefaultIfEmpty(0).Max();
+            if (maxProvided > physicalLimit && (AppServices.Instance.CurrentProduct == null || AppServices.Instance.CurrentProduct.PhysicalRs485PortCount == 2))
+            {
+                physicalLimit = Math.Min(4, Math.Max(physicalLimit, maxProvided));
+            }
+        }
+        if (physicalLimit > 4) physicalLimit = 4;
+        if (physicalLimit < 1) physicalLimit = 1;
+
         var targetList = new List<OptionItem<byte>>();
 
         if (_modbusPorts != null && _modbusPorts.Count > 0)
         {
-            var selectablePorts = _modbusPorts.Where(p => p.Enabled && !string.Equals(p.Role, "Slave", StringComparison.OrdinalIgnoreCase)).ToList();
+            var selectablePorts = _modbusPorts
+                .Where(p => p.Enabled && p.PortIndex < physicalLimit && !string.Equals(p.Role, "Slave", StringComparison.OrdinalIgnoreCase))
+                .ToList();
             if (selectablePorts.Count > 0)
             {
                 foreach (var p in selectablePorts)
@@ -299,53 +660,28 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
                     targetList.Add(new OptionItem<byte>(p.PortIndex, p.FormatDropdownLabel(isVi)));
                 }
 
-                var currentPortConfig = _modbusPorts.FirstOrDefault(p => p.PortIndex == curPort);
-                bool isCurrentPortSlave = currentPortConfig != null && string.Equals(currentPortConfig.Role, "Slave", StringComparison.OrdinalIgnoreCase);
-
-                if (isCurrentPortSlave)
+                if (!selectablePorts.Any(p => p.PortIndex == curPort))
                 {
-                    // Option 1: Tuyệt đối không đưa cổng Slave vào danh sách chọn của Master.
-                    // Tự động chuyển cổng hiện tại sang cổng Master hợp lệ đầu tiên.
                     curPort = selectablePorts[0].PortIndex;
                     PortIndex = curPort;
                 }
-                else if (!selectablePorts.Any(p => p.PortIndex == curPort))
-                {
-                    // Nếu là cổng Master nhưng bị Disabled, giữ lại kèm cảnh báo [ĐÃ TẮT] để người dùng nhận biết
-                    if (currentPortConfig != null)
-                    {
-                        targetList.Add(new OptionItem<byte>(currentPortConfig.PortIndex, currentPortConfig.FormatDropdownLabel(isVi, isForceDisabledWarning: true)));
-                    }
-                }
-            }
-            else
-            {
-                string noPortsMsg = LocalizationService.Tr("ModbusNoPortsEnabled") ?? (isVi ? "[Chưa kích hoạt cổng RS-485 Modbus Master]" : "[No Modbus Master Ports Enabled]");
-                targetList.Add(new OptionItem<byte>(curPort, noPortsMsg));
             }
         }
         else
         {
-            for (byte i = 0; i < 4; i++)
+            for (byte i = 0; i < physicalLimit; i++)
             {
                 targetList.Add(new OptionItem<byte>(i, $"{prefix} {i + 1} (RS-485 #{i + 1})"));
             }
         }
 
-        // Bổ sung cổng Zigbee Wireless (PortIndex = 4) nếu được kích hoạt hoặc nếu nốt đang dùng cổng này
+        // Bổ sung cổng Zigbee Wireless (PortIndex = 4) nếu được kích hoạt
         if (_zigbeeConfig != null && _zigbeeConfig.Enabled)
         {
             string zigbeeLabel = isVi
                 ? $"🌐 Zigbee Wireless (Kênh {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})"
                 : $"🌐 Zigbee Wireless (Ch {_zigbeeConfig.Channel} · PAN 0x{_zigbeeConfig.PanIdHex})";
             targetList.Add(new OptionItem<byte>(4, zigbeeLabel));
-        }
-        else if (curPort == 4)
-        {
-            string disabledLabel = isVi
-                ? "🌐 Zigbee Wireless [ĐÃ TẮT TRÊN THIẾT BỊ]"
-                : "🌐 Zigbee Wireless [DISABLED ON DEVICE]";
-            targetList.Add(new OptionItem<byte>(4, disabledLabel));
         }
 
         SyncOptions(AvailablePorts, targetList);
@@ -359,6 +695,9 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             OnPropertyChanged(nameof(PortIndex));
         }
 
+        OnPropertyChanged(nameof(HasAvailablePorts));
+        OnPropertyChanged(nameof(HasNoAvailablePorts));
+        OnPropertyChanged(nameof(NoPortsAvailableMessage));
         OnPropertyChanged(nameof(PortSelectorTooltip));
         OnPropertyChanged(nameof(SummaryBadgeText));
     }
@@ -478,6 +817,12 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ModbusPinBindingViewModel.DataType))
+        {
+            UpdatePointCountFromPins();
+            OnPropertyChanged(nameof(CanAddPin));
+            OnPropertyChanged(nameof(AddPinTooltip));
+        }
         OnPropertyChanged(nameof(SummaryBadgeText));
         GenerateFramePreview();
     }
@@ -533,17 +878,12 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         GenerateFramePreview();
     }
 
-    partial void OnFunctionCodeChanged(ModbusMasterWriteFunctionCode value)
-    {
-        if (!IsMultipleMode)
-        {
-            PointCount = 1;
-        }
-        GenerateFramePreview();
-    }
-
     partial void OnStartAddressChanged(ushort value)
     {
+        foreach (var pin in Node.Pins)
+        {
+            pin.RefreshTagOptions();
+        }
         GenerateFramePreview();
     }
 
@@ -584,7 +924,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void AddPin()
     {
-        if (Node.Pins.Count >= 8) return;
+        if (!CanAddPin && Node.Pins.Count > 0) return;
 
         ushort nextOffset = 0;
         if (Node.Pins.Count > 0)
@@ -594,20 +934,55 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
             nextOffset = (ushort)(last.RegOffset + span);
         }
 
+        var defaultType = (FunctionCode is ModbusMasterWriteFunctionCode.WriteSingleCoil or ModbusMasterWriteFunctionCode.WriteMultipleCoils)
+            ? ModbusDataType.Bool
+            : ModbusDataType.Int16;
+
         var newPin = new ModbusPinBindingViewModel
         {
             Label = $"In_{Node.Pins.Count + 1}",
             RegOffset = nextOffset,
-            DataType = ModbusDataType.Int16,
+            DataType = defaultType,
             Endianness = ModbusEndianness.BigEndian_ABCD,
-            Multiplier = 1.0f
+            Multiplier = 1.0f,
+            TargetTag = TagCatalog?.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None)
         };
+        ConfigurePinTagProvider(newPin);
         newPin.PropertyChanged += OnPinPropertyChanged;
         Node.Pins.Add(newPin);
+        UpdatePointCountFromPins();
+        OnPropertyChanged(nameof(CanAddPin));
+        OnPropertyChanged(nameof(AddPinTooltip));
         OnPropertyChanged(nameof(SummaryBadgeText));
         OnPropertyChanged(nameof(HasPins));
         OnPropertyChanged(nameof(HasNoPins));
         GenerateFramePreview();
+    }
+
+    /// <summary>
+    /// Cấu hình hàm cung cấp Tag tương thích cho một chân Pin dựa trên TagCatalog và liên kết System Tab.
+    /// Đối với Modbus Write, các Tag nguồn cung cấp dữ liệu có thể là Tag bất kỳ (Read/Write/Memory).
+    /// </summary>
+    public void ConfigurePinTagProvider(ModbusPinBindingViewModel pin)
+    {
+        pin.TagProvider = GetCompatibleTagsForDataType;
+        pin.SystemChannelsProvider = () =>
+        {
+            var p = _modbusPorts?.FirstOrDefault(x => x.PortIndex == PortIndex);
+            return p?.MasterChannels ?? Enumerable.Empty<SimplePLC.Studio.Models.ModbusMasterChannelModel>();
+        };
+        pin.PeerPinsProvider = () => Node.Pins;
+        pin.BaseAddressProvider = () => StartAddress;
+        pin.FunctionCodeProvider = () => (byte)FunctionCode;
+        pin.RefreshTagOptions();
+    }
+
+    /// <summary>
+    /// Lấy danh sách các Tag tương thích theo kiểu dữ liệu Modbus từ TagCatalog.
+    /// </summary>
+    public IEnumerable<TagModel> GetCompatibleTagsForDataType(ModbusDataType dataType)
+    {
+        return TagCatalog.GetFilteredTags(TagAccessRole.ReadSource, dataType, includeNone: true);
     }
 
     [RelayCommand]
@@ -617,6 +992,9 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         {
             pin.PropertyChanged -= OnPinPropertyChanged;
             Node.Pins.Remove(pin);
+            UpdatePointCountFromPins();
+            OnPropertyChanged(nameof(CanAddPin));
+            OnPropertyChanged(nameof(AddPinTooltip));
             OnPropertyChanged(nameof(SummaryBadgeText));
             OnPropertyChanged(nameof(HasPins));
             OnPropertyChanged(nameof(HasNoPins));
@@ -975,6 +1353,7 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         {
             SlaveId = 1;
         }
+        UpdatePointCountFromPins();
         Node.PortIndex = PortIndex;
         Node.SlaveId = Math.Clamp(SlaveId, (byte)1, (byte)247);
         Node.WriteMode = WriteMode;
@@ -990,5 +1369,54 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
         Node.TimeoutMs = Math.Max(50u, TimeoutMs);
         Node.Deadband = Math.Max(0.01f, Deadband);
         Node.SyncConnectors();
+
+        // Tự động đồng bộ 2 chiều: Upsert các chân Pin vào bảng MasterChannels của cổng tương ứng ở System Tab
+        if (_modbusPorts != null && WriteMode == ModbusWriteMode.DirectRegisters)
+        {
+            var port = _modbusPorts.FirstOrDefault(p => p.PortIndex == PortIndex);
+            if (port != null)
+            {
+                int baseWire = Node.StartAddress;
+                byte fc = (byte)Node.FunctionCode;
+                foreach (var pin in Node.Pins)
+                {
+                    string tagName = pin.TargetTag?.Name ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(tagName)) continue;
+
+                    int pinWire = baseWire + pin.RegOffset;
+                    int modiconAddr = Services.Modbus.ModbusChannelSyncService.ToModiconAddress(pinWire, fc);
+
+                    var existing = port.MasterChannels.FirstOrDefault(c =>
+                        c.SlaveId == Node.SlaveId &&
+                        (c.Address == modiconAddr || string.Equals(c.TargetTagName, tagName, StringComparison.OrdinalIgnoreCase)));
+
+                    if (existing != null)
+                    {
+                        existing.SlaveId = Node.SlaveId;
+                        existing.FunctionCode = fc;
+                        existing.Address = (ushort)modiconAddr;
+                        existing.DataType = pin.DataType;
+                        existing.Endianness = pin.Endianness;
+                        existing.Scale = pin.Multiplier;
+                        existing.TargetTagName = tagName;
+                        existing.LinkedNodeId = Node.Id;
+                    }
+                    else
+                    {
+                        port.MasterChannels.Add(new SimplePLC.Studio.Models.ModbusMasterChannelModel
+                        {
+                            SlaveId = Node.SlaveId,
+                            FunctionCode = fc,
+                            Address = (ushort)modiconAddr,
+                            DataType = pin.DataType,
+                            Endianness = pin.Endianness,
+                            Scale = pin.Multiplier,
+                            TargetTagName = tagName,
+                            LinkedNodeId = Node.Id
+                        });
+                    }
+                }
+            }
+        }
     }
 }

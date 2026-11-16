@@ -124,13 +124,11 @@ public sealed class DtuQuickSetupWizardViewModelTests
         _wizardVm.UplinkMode = "Mqtt";
         _wizardVm.MqttHost = "mqtt.factory.net";
         _wizardVm.MqttPort = 8883;
-        _wizardVm.MqttPublishTopic = "factory/env";
 
         // Assert
         Assert.Contains("Modbus Master", _wizardVm.SummaryTopologyText);
         Assert.Contains("2 regs", _wizardVm.SummaryTopologyText);
         Assert.Contains("mqtt.factory.net:8883", _wizardVm.SummaryTopologyText);
-        Assert.Contains("factory/env", _wizardVm.SummaryTopologyText);
     }
 
     [Fact]
@@ -141,7 +139,6 @@ public sealed class DtuQuickSetupWizardViewModelTests
         _wizardVm.FastRegisters.Clear();
         _wizardVm.FastRegisters.Add(new DtuFastRegisterItem(1, 40001, ModbusDataType.Real, "PRESSURE"));
         _wizardVm.UplinkMode = "Mqtt";
-        _wizardVm.MqttPublishTopic = "factory/boiler/pressure";
         _wizardVm.AutoGenerateFbd = true;
 
         bool closeInvoked = false;
@@ -165,7 +162,7 @@ public sealed class DtuQuickSetupWizardViewModelTests
         Assert.Single(mbNode.Pins);
         Assert.Equal("PRESSURE", mbNode.Pins[0].Label);
 
-        Assert.Equal("factory/boiler/pressure", mqttNode.Topic);
+        Assert.Equal("factory/telemetry/data", mqttNode.Topic);
         Assert.Single(mqttNode.Fields);
         Assert.Equal("PRESSURE", mqttNode.Fields[0].Key);
 

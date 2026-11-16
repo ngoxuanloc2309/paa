@@ -95,4 +95,37 @@ public sealed class WifiClientTests
         Assert.Equal(6, results[0].Channel);
         Assert.Equal("00:80:E1:01:02:03", results[0].Bssid);
     }
+
+    [Fact]
+    public async Task ReadWifiScanResults_WhenCountExceedsModbusLimit_ShouldChunkRequestsSuccessfully()
+    {
+        // Arrange: 8 APs = 176 registers (> 125 register limit of Modbus FC03)
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1");
+        var wifiClient = new WifiClient(fakeClient);
+
+        // Ghi giả lập 8 APs vào simulator memory
+        for (int i = 0; i < 8; i++)
+        {
+            var ap = new ushort[ModbusRegisterMap.WifiRegistersPerAp];
+            SimplePLC.Protocol.Codec.MqttTelemetryCodec.EncodePackedAscii($"AP_{i + 1}", ap.AsSpan(0, 16), 32);
+            ap[16] = unchecked((ushort)(short)(-50 - i * 5)); // RSSI from -50 dBm to -85 dBm (signed 16-bit)
+            ap[17] = (ushort)((3 << 8) | (i + 1)); // WPA2-PSK, Channel i+1
+
+            ushort addr = (ushort)(ModbusRegisterMap.WifiScanTableBaseAddress + i * ModbusRegisterMap.WifiRegistersPerAp);
+            ap.CopyTo(fakeClient.Simulator.Memory.InternalMutableSpan(addr, ModbusRegisterMap.WifiRegistersPerAp));
+        }
+
+        // Act: Đọc toàn bộ 8 APs (trước đây throw ArgumentOutOfRangeException do 176 > 125)
+        var results = await wifiClient.ReadWifiScanResultsAsync(1, 8);
+
+        // Assert: Cả 8 APs phải được giải mã đầy đủ qua 2 chunk (5 APs + 3 APs)
+        Assert.Equal(8, results.Count);
+        for (int i = 0; i < 8; i++)
+        {
+            Assert.Equal($"AP_{i + 1}", results[i].Ssid);
+            Assert.Equal(-50 - i * 5, results[i].RssiDbm);
+            Assert.Equal(i + 1, results[i].Channel);
+        }
+    }
 }

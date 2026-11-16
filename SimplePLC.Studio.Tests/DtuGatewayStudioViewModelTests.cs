@@ -116,7 +116,6 @@ public sealed class DtuGatewayStudioViewModelTests
             MqttWillPayload = "DEVICE_OFFLINE",
             MqttWillQos = 2,
             MqttWillRetain = true,
-            MqttSubscribeTopic = "factory/dtu/cmd",
             ResponseTimeoutMs = 350
         };
         vm.SaveToMetadata();
@@ -136,7 +135,6 @@ public sealed class DtuGatewayStudioViewModelTests
         Assert.Equal("DEVICE_OFFLINE", metadata.MqttWillPayload);
         Assert.Equal(2, metadata.MqttWillQos);
         Assert.True(metadata.MqttWillRetain);
-        Assert.Equal("factory/dtu/cmd", metadata.MqttSubTopic);
     }
     [Fact]
     public void BuildDtuConfigDto_ShouldConstructValidDto()
@@ -1109,229 +1107,74 @@ public sealed class DtuGatewayStudioViewModelTests
     }
 
     [Fact]
-    public void MqttTelemetry_WhenFieldAdded_PersistsToProjectMetadata()
+    public void MqttBroker_WhenConfigured_PersistsToProjectMetadata()
     {
         var metadata = new ProjectMetadata();
         var vm = new DtuGatewayStudioViewModel(metadata);
 
-        vm.MqttTelemetryNode.Topic = "plant/sensors";
-        vm.MqttTelemetryNode.Fields.Clear();
-        vm.MqttTelemetryNode.Fields.Add(new MqttPayloadFieldViewModel("temp_c", null));
+        vm.MqttBrokerConfigVM.IsEnabled = true;
+        vm.MqttBrokerConfigVM.Host = "broker.hivemq.com";
+        vm.MqttBrokerConfigVM.Port = 8883;
+        vm.MqttBrokerConfigVM.ClientId = "SynaptiX_Client_01";
+        vm.MqttBrokerConfigVM.Username = "admin";
+        vm.MqttBrokerConfigVM.Password = "secret123";
+        vm.MqttBrokerConfigVM.UseTls = true;
+        vm.MqttBrokerConfigVM.KeepAliveSec = 45;
+        vm.MqttBrokerConfigVM.WillEnabled = true;
+        vm.MqttBrokerConfigVM.WillTopic = "devices/01/status";
+        vm.MqttBrokerConfigVM.WillPayload = "offline";
+        vm.MqttBrokerConfigVM.WillQos = 1;
 
         vm.SaveConfiguration();
 
-        Assert.Equal("plant/sensors", metadata.MqttTopic);
-        Assert.Single(metadata.MqttFields);
-        Assert.Equal("temp_c", metadata.MqttFields[0].Key);
+        Assert.True(metadata.MqttBrokerEnabled);
+        Assert.Equal("broker.hivemq.com", metadata.MqttBrokerHost);
+        Assert.Equal(8883, metadata.MqttBrokerPort);
+        Assert.Equal("SynaptiX_Client_01", metadata.MqttClientId);
+        Assert.Equal("admin", metadata.MqttUsername);
+        Assert.Equal("secret123", metadata.MqttPassword);
+        Assert.True(metadata.MqttTlsEnabled);
+        Assert.Equal((ushort)45, metadata.MqttKeepAliveSec);
+        Assert.True(metadata.MqttWillEnabled);
+        Assert.Equal("devices/01/status", metadata.MqttWillTopic);
+        Assert.Equal("offline", metadata.MqttWillPayload);
+        Assert.Equal((byte)1, metadata.MqttWillQos);
 
         var vm2 = new DtuGatewayStudioViewModel(metadata);
-        Assert.Equal("plant/sensors", vm2.MqttTelemetryNode.Topic);
-        Assert.Single(vm2.MqttTelemetryNode.Fields);
-        Assert.Equal("temp_c", vm2.MqttTelemetryNode.Fields[0].Key);
-    }
-
-    [Fact]
-    public void MqttCommand_WhenPinAdded_PersistsToProjectMetadata()
-    {
-        var metadata = new ProjectMetadata();
-        var vm = new DtuGatewayStudioViewModel(metadata);
-
-        vm.MqttCommandNode.Topic = "plant/commands";
-        vm.MqttCommandNode.Pins.Clear();
-        vm.MqttCommandNode.Pins.Add(new MqttPinBindingViewModel("SpeedCmd", "speed", MqttDataType.Int16));
-
-        vm.SaveConfiguration();
-
-        Assert.Equal("plant/commands", metadata.MqttSubTopic);
-        Assert.Single(metadata.MqttSubPins);
-        Assert.Equal("SpeedCmd", metadata.MqttSubPins[0].Label);
-
-        var vm2 = new DtuGatewayStudioViewModel(metadata);
-        Assert.Equal("plant/commands", vm2.MqttCommandNode.Topic);
-        Assert.Single(vm2.MqttCommandNode.Pins);
-        Assert.Equal("SpeedCmd", vm2.MqttCommandNode.Pins[0].Label);
-    }
-
-    [Fact]
-    public void MqttActiveSubSection_WhenSelected_UpdatesVisibilityProperties()
-    {
-        var metadata = new ProjectMetadata();
-        var vm = new DtuGatewayStudioViewModel(metadata);
-
-        vm.SelectMqttSubSectionCommand.Execute("0");
-        Assert.Equal(0, vm.MqttActiveSubSection);
-        Assert.True(vm.IsMqttSubSectionBroker);
-        Assert.False(vm.IsMqttSubSectionTelemetry);
-        Assert.False(vm.IsMqttSubSectionCommand);
-
-        vm.SelectMqttSubSectionCommand.Execute("1");
-        Assert.Equal(1, vm.MqttActiveSubSection);
-        Assert.False(vm.IsMqttSubSectionBroker);
-        Assert.True(vm.IsMqttSubSectionTelemetry);
-        Assert.False(vm.IsMqttSubSectionCommand);
-
-        vm.SelectMqttSubSectionCommand.Execute("2");
-        Assert.Equal(2, vm.MqttActiveSubSection);
-        Assert.False(vm.IsMqttSubSectionBroker);
-        Assert.False(vm.IsMqttSubSectionTelemetry);
-        Assert.True(vm.IsMqttSubSectionCommand);
-    }
-
-    [Fact]
-    public void MqttCommand_WithTargetTag_PersistsAndRestoresAcrossMetadata()
-    {
-        var tagCatalog = new TagCatalogViewModel();
-        var targetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.VirtualRegister);
-        Assert.NotNull(targetTag);
-
-        var metadata = new ProjectMetadata();
-        var vm = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-
-        vm.MqttCommandNode.Topic = "plant/commands";
-        vm.MqttCommandNode.Pins.Clear();
-        var pin = new MqttPinBindingViewModel("TargetSpeed", "speed", MqttDataType.Int16)
-        {
-            TargetTag = targetTag
-        };
-        vm.MqttCommandNode.Pins.Add(pin);
-
-        Assert.Equal(targetTag.Name, pin.TargetTagName);
-        Assert.Equal((ushort)targetTag.Index, pin.TargetTagIndex);
-
-        vm.SaveConfiguration();
-
-        Assert.Single(metadata.MqttSubPins);
-        Assert.Equal("TargetSpeed", metadata.MqttSubPins[0].Label);
-        Assert.Equal(targetTag.Name, metadata.MqttSubPins[0].TargetTagName);
-        Assert.Equal((ushort)targetTag.Index, metadata.MqttSubPins[0].TargetTagIndex);
-
-        // Reload in a fresh ViewModel
-        var vm2 = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-        Assert.Single(vm2.MqttCommandNode.Pins);
-        var restoredPin = vm2.MqttCommandNode.Pins[0];
-        Assert.Equal("TargetSpeed", restoredPin.Label);
-        Assert.NotNull(restoredPin.TargetTag);
-        Assert.Equal(targetTag.Name, restoredPin.TargetTag.Name);
-        Assert.Equal(targetTag.Index, restoredPin.TargetTag.Index);
-        Assert.Equal(targetTag.Name, restoredPin.TargetTagName);
-        Assert.Equal((ushort)targetTag.Index, restoredPin.TargetTagIndex);
-    }
-
-    [Fact]
-    public void MqttCommand_WithNoneTargetTag_YieldsNullIndexAndPersistsCleanly()
-    {
-        var tagCatalog = new TagCatalogViewModel();
-        var noneTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == SimplePLC.Domain.Enums.TagKind.None);
-        Assert.NotNull(noneTag);
-
-        var metadata = new ProjectMetadata();
-        var vm = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-
-        vm.MqttCommandNode.Pins.Clear();
-        var pin = new MqttPinBindingViewModel("RawPayloadPin", "payload", MqttDataType.String)
-        {
-            TargetTag = noneTag
-        };
-        vm.MqttCommandNode.Pins.Add(pin);
-
-        Assert.Null(pin.TargetTagIndex);
-
-        vm.SaveConfiguration();
-
-        Assert.Single(metadata.MqttSubPins);
-        Assert.Null(metadata.MqttSubPins[0].TargetTagIndex);
-
-        var vm2 = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-        Assert.Single(vm2.MqttCommandNode.Pins);
-        Assert.Null(vm2.MqttCommandNode.Pins[0].TargetTagIndex);
+        Assert.True(vm2.MqttBrokerConfigVM.IsEnabled);
+        Assert.Equal("broker.hivemq.com", vm2.MqttBrokerConfigVM.Host);
+        Assert.Equal(8883, vm2.MqttBrokerConfigVM.Port);
+        Assert.Equal("SynaptiX_Client_01", vm2.MqttBrokerConfigVM.ClientId);
+        Assert.Equal("admin", vm2.MqttBrokerConfigVM.Username);
+        Assert.Equal("secret123", vm2.MqttBrokerConfigVM.Password);
+        Assert.True(vm2.MqttBrokerConfigVM.UseTls);
+        Assert.Equal((ushort)45, vm2.MqttBrokerConfigVM.KeepAliveSec);
+        Assert.True(vm2.MqttBrokerConfigVM.WillEnabled);
+        Assert.Equal("devices/01/status", vm2.MqttBrokerConfigVM.WillTopic);
+        Assert.Equal("offline", vm2.MqttBrokerConfigVM.WillPayload);
     }
 
     /// <summary>
-    /// [Axiom 2 / ISA-101]: Inspector Cloud Uplink phản ánh trung thực trạng thái 3 Card:
-    /// Card 1 (Topic & Triggers), Card 2 (Broker host & ports), Card 3 (Data & Payload Statistics).
+    /// [Axiom 2 / ISA-101]: Inspector MQTT Broker phản ánh trung thực thông số Broker và LWT.
     /// </summary>
     [Fact]
-    public void MqttCloudUplinkInspector_SummaryProperties_ReflectNodeStateAndLanguage()
+    public void MqttBrokerInspector_SummaryProperties_ReflectBrokerState()
     {
-        var tagCatalog = new TagCatalogViewModel();
         var metadata = new ProjectMetadata
         {
-            MqttTopic = "factory/area1/telemetry",
-            MqttSubTopic = "factory/area1/cmd"
+            MqttBrokerHost = "192.168.1.100",
+            MqttBrokerPort = 1883,
+            MqttClientId = "SPX_GATEWAY",
+            MqttKeepAliveSec = 30,
+            MqttWillTopic = "spx/gateway/lwt",
+            MqttTlsEnabled = true
         };
-        var vm = new DtuGatewayStudioViewModel(metadata, tagCatalog);
+        var vm = new DtuGatewayStudioViewModel(metadata);
 
-        // 1. Initial State from metadata
-        Assert.Equal("factory/area1/telemetry", vm.MqttPublishTopic);
-        Assert.Equal("factory/area1/cmd", vm.MqttSubscribeTopic);
-        Assert.Contains("1000ms", vm.MqttPublishModeDisplay);
-        Assert.Contains("FIFO", vm.MqttQueueModeDisplay);
-
-        // 2. Add telemetry field and check reactive updates
-        vm.MqttTelemetryNode.Fields.Add(new MqttPayloadFieldViewModel("temp", tagCatalog.AllTags.First(t => t.Name == "VREG0")));
-        vm.MqttTelemetryNode.Fields.Add(new MqttPayloadFieldViewModel("humid", tagCatalog.AllTags.First(t => t.Name == "VREG1")));
-
-        // 3. Add command pin and check reactive updates
-        var targetTag = tagCatalog.AllTags.First(t => t.Name == "DO0");
-        var pin1 = new MqttPinBindingViewModel("p1", "pump", MqttDataType.Bool) { TargetTag = targetTag };
-        var pin2 = new MqttPinBindingViewModel("p2", "valve", MqttDataType.Bool); // Unmapped
-        vm.MqttCommandNode.Pins.Add(pin1);
-        vm.MqttCommandNode.Pins.Add(pin2);
-
-        // Assert Card 3 statistics (Vietnamese)
-        LocalizationService.Instance.CurrentLanguage = "vi";
-        Assert.Equal("2 trường", vm.MqttPublishFieldsSummaryText);
-        Assert.Equal("2 lệnh", vm.MqttSubscribePinsSummaryText);
-        Assert.Equal("1/2 tags", vm.MqttMappedTagsSummaryText);
-        Assert.Contains("bytes / msg", vm.MqttEstimatedPayloadSizeText);
-
-        // Assert Card 3 statistics (English)
-        LocalizationService.Instance.CurrentLanguage = "en";
-        Assert.Equal("2 fields", vm.MqttPublishFieldsSummaryText);
-        Assert.Equal("2 commands", vm.MqttSubscribePinsSummaryText);
-        Assert.Equal("1/2 tags", vm.MqttMappedTagsSummaryText);
-
-        // Dynamically map pin2 -> Mapped tags count updates reactively
-        pin2.TargetTag = tagCatalog.AllTags.First(t => t.Name == "DO1");
-        Assert.Equal("2/2 tags", vm.MqttMappedTagsSummaryText);
-
-        // 4. Mode change
-        vm.MqttTelemetryNode.PublishMode = "Event";
-        Assert.Contains("Trigger", vm.MqttPublishModeDisplay);
-
-        var originalLang = LocalizationService.Instance.CurrentLanguage;
-        try
-        {
-            LocalizationService.Instance.CurrentLanguage = "vi";
-            Assert.Contains("Theo xung kích hoạt", vm.MqttPublishModeDisplay);
-        }
-        finally
-        {
-            LocalizationService.Instance.CurrentLanguage = originalLang;
-        }
-    }
-
-    /// <summary>
-    /// [Axiom 1 / Ground Truth]: MqttPublishTopic và MqttSubscribeTopic lưu và nạp lại chuẩn xác từ ProjectMetadata.
-    /// </summary>
-    [Fact]
-    public void MqttCloudUplink_PublishAndSubscribeTopics_PersistAndReloadFromMetadata()
-    {
-        var tagCatalog = new TagCatalogViewModel();
-        var metadata = new ProjectMetadata();
-        var vm = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-
-        vm.MqttPublishTopic = "custom/plant/telemetry";
-        vm.MqttSubscribeTopic = "custom/plant/control";
-
-        vm.SaveConfiguration();
-
-        Assert.Equal("custom/plant/telemetry", metadata.MqttTopic);
-        Assert.Equal("custom/plant/control", metadata.MqttSubTopic);
-
-        var vmReloaded = new DtuGatewayStudioViewModel(metadata, tagCatalog);
-        Assert.Equal("custom/plant/telemetry", vmReloaded.MqttPublishTopic);
-        Assert.Equal("custom/plant/control", vmReloaded.MqttSubscribeTopic);
+        Assert.Equal("SPX_GATEWAY", vm.MqttClientId);
+        Assert.Equal(30, vm.MqttKeepAlive);
+        Assert.Equal("spx/gateway/lwt", vm.MqttWillTopic);
+        Assert.Contains("TLS v1.2/1.3", vm.MqttTlsSecurityDisplay);
     }
 
     /// <summary>
@@ -1533,29 +1376,24 @@ public sealed class DtuGatewayStudioViewModelTests
     }
 
     /// <summary>
-    /// [Axiom 2 / Visual Truth]: MqttTelemetryVM và MqttCommandVM được khởi tạo và đồng bộ dữ liệu chuẩn xác với ViewModel chính.
+    /// [Axiom 2 / Visual Truth]: MqttBrokerConfigVM được khởi tạo và đồng bộ dữ liệu chuẩn xác với ViewModel chính.
     /// </summary>
     [Fact]
-    public void DtuGatewayStudioViewModel_MqttTelemetryAndCommandViewModels_AreBoundAndSynchronized()
+    public void DtuGatewayStudioViewModel_MqttBrokerConfigViewModel_IsBoundAndSynchronized()
     {
         var metadata = new ProjectMetadata
         {
-            MqttTopic = "factory/telemetry/sensors",
-            MqttSubTopic = "factory/commands/valves",
-            MqttQos = 1,
-            MqttSubQos = 2
+            MqttBrokerHost = "10.0.0.50",
+            MqttBrokerPort = 8883,
+            MqttClientId = "SPX_NODE_1"
         };
         var tagCatalog = new TagCatalogViewModel();
         var vm = new DtuGatewayStudioViewModel(metadata, tagCatalog);
 
-        Assert.NotNull(vm.MqttTelemetryVM);
-        Assert.NotNull(vm.MqttCommandVM);
-
-        Assert.Equal("factory/telemetry/sensors", vm.MqttTelemetryVM.Node.Topic);
-        Assert.Equal(1, vm.MqttTelemetryVM.Node.Qos);
-
-        Assert.Equal("factory/commands/valves", vm.MqttCommandVM.Node.Topic);
-        Assert.Equal(2, vm.MqttCommandVM.Node.Qos);
+        Assert.NotNull(vm.MqttBrokerConfigVM);
+        Assert.Equal("10.0.0.50", vm.MqttBrokerConfigVM.Host);
+        Assert.Equal(8883, vm.MqttBrokerConfigVM.Port);
+        Assert.Equal("SPX_NODE_1", vm.MqttBrokerConfigVM.ClientId);
     }
 
     [Fact]

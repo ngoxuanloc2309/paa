@@ -39,6 +39,17 @@ public partial class DeployViewModel : ObservableObject
 
     public ObservableCollection<DeployStepItem> Steps { get; } = new();
 
+    /// <summary>
+    /// Độ trễ (ms) mô phỏng tiến trình trên giao diện người dùng để thanh tiến trình chạy mượt mà. Mặc định 60ms.
+    /// Tự động về 0ms khi làm việc với FakeModbusClient trong Unit/Integration Tests để tối ưu hóa thời gian thực thi.
+    /// </summary>
+    public int StepDelayMs { get; set; } = 60;
+
+    private int EffectiveDelayMs =>
+        (StepDelayMs <= 0 || AppServices.Instance.ModbusClient.GetType().Name.Contains("Fake"))
+            ? 0
+            : StepDelayMs;
+
     [ObservableProperty] private int _progressPercent;
     [ObservableProperty] private bool _isDeploying;
     [ObservableProperty] private bool _isSuccess;
@@ -64,6 +75,16 @@ public partial class DeployViewModel : ObservableObject
         var meta = _getMetadata?.Invoke();
         if (meta?.ModbusPorts == null) return false;
         return meta.ModbusPorts.Any(p => p.Enabled && p.MasterChannels != null && p.MasterChannels.Count > 0);
+    }
+
+    public bool HasDeviceConfigToDeploy()
+    {
+        var meta = _getMetadata?.Invoke();
+        if (meta == null) return false;
+        bool hasMb = meta.ModbusPorts != null && meta.ModbusPorts.Any(p => p.Enabled);
+        bool hasMqtt = meta.MqttBrokerEnabled || meta.MqttWillEnabled || meta.MqttTlsEnabled;
+        bool hasDtu = meta.DtuConfig != null && meta.DtuConfig.Enabled;
+        return hasMb || hasMqtt || hasDtu;
     }
 
     public int GetTab0ModbusChannelsCount(ProjectMetadata? meta)
@@ -134,13 +155,7 @@ public partial class DeployViewModel : ObservableObject
         )
         && (
             _logicEditorVM == null 
-            || _logicEditorVM.CompileState == CompileState.Valid
-            || (HasDeviceModbusConfigToDeploy() && _logicEditorVM.CompileState != CompileState.Invalid)
-        )
-        && (
-            (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0) ||
-            (_logicEditorVM?.CurrentProgram != null && _logicEditorVM.CurrentProgram.RuleCount > 0) ||
-            HasDeviceModbusConfigToDeploy()
+            || (_logicEditorVM.CompileState != CompileState.Invalid && _logicEditorVM.CompileState != CompileState.Stale)
         );
 
     public DeployViewModel(
@@ -317,30 +332,23 @@ public partial class DeployViewModel : ObservableObject
         var meta = _getMetadata?.Invoke();
         int tab0ModbusCount = GetTab0ModbusChannelsCount(meta);
 
-        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
+        if (_logicEditorVM != null && (_logicEditorVM.CompileState == CompileState.Invalid || _logicEditorVM.CompileState == CompileState.Stale))
         {
-            if (tab0ModbusCount > 0 && _logicEditorVM.CompileState != CompileState.Invalid)
+            HasValidRules = false;
+            ManifestRuleCount = 0;
+            PreflightSummary = _logicEditorVM.CompileState switch
             {
-                // Cho phép tiếp tục luồng để hiển thị preflight cho cấu hình Modbus Master thuần
-            }
-            else
-            {
-                HasValidRules = false;
-                ManifestRuleCount = 0;
-                PreflightSummary = _logicEditorVM.CompileState switch
-                {
-                    CompileState.Stale => LocalizationService.Tr("DeployPreflightStale"),
-                    CompileState.Invalid => LocalizationService.Tr("DeployPreflightInvalid"),
-                    _ => LocalizationService.Tr("DeployPreflightNone")
-                };
-                StatusTitle = isVi ? "Chương Trình Logic Chưa Hợp Lệ" : "Invalid Logic Program";
-                StatusSubtitle = PreflightSummary;
-                StatusMessage = PreflightSummary;
-                StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
-                ActionButtonText = isVi ? "Mở Đồ Thị Logic Để Sửa" : "Open Logic Editor";
-                ShowProgressBar = false;
-                return;
-            }
+                CompileState.Stale => LocalizationService.Tr("DeployPreflightStale"),
+                CompileState.Invalid => LocalizationService.Tr("DeployPreflightInvalid"),
+                _ => LocalizationService.Tr("DeployPreflightNone")
+            };
+            StatusTitle = isVi ? "Chương Trình Logic Chưa Hợp Lệ" : "Invalid Logic Program";
+            StatusSubtitle = PreflightSummary;
+            StatusMessage = PreflightSummary;
+            StepperBadgeText = isVi ? "Chưa thể nạp" : "Blocked";
+            ActionButtonText = isVi ? "Mở Đồ Thị Logic Để Sửa" : "Open Logic Editor";
+            ShowProgressBar = false;
+            return;
         }
 
         int ruleCount = 0;
@@ -354,6 +362,24 @@ public partial class DeployViewModel : ObservableObject
             + (_logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs?.Count ?? 0);
         int directWriteCount = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
         int totalCanvasItems = (_logicEditorVM?.CurrentProgram?.RuleCount ?? 0) + fbCount + mqttCount + modbusCount + directWriteCount;
+
+        bool hasMqttBroker = meta?.MqttBrokerEnabled == true && !string.IsNullOrWhiteSpace(meta?.MqttBrokerHost);
+        bool hasMqttTls = hasMqttBroker && meta?.MqttTlsEnabled == true;
+        bool hasDtu = meta?.DtuConfig != null && meta.DtuConfig.Enabled;
+
+        var configParts = new List<string>();
+        if (hasMqttBroker)
+        {
+            configParts.Add(hasMqttTls ? "MQTT Broker (TLS)" : "MQTT Broker");
+        }
+        if (hasDtu)
+        {
+            configParts.Add("DTU Gateway");
+        }
+        if (tab0ModbusCount > 0)
+        {
+            configParts.Add(isVi ? $"{tab0ModbusCount} kênh Modbus Master" : $"{tab0ModbusCount} Modbus Master channels");
+        }
 
         if (_ruleTableVM != null && _ruleTableVM.Rules.Count > 0)
         {
@@ -412,24 +438,26 @@ public partial class DeployViewModel : ObservableObject
             }
             ManifestRuleSummary = ruleDesc;
         }
-        else if (tab0ModbusCount > 0)
+        else if (configParts.Count > 0)
         {
+            string configSummary = string.Join(" + ", configParts);
             HasValidRules = true;
             ManifestRuleCount = 0;
-            ManifestRuleSummary = isVi ? $"0 Rule logic ({tab0ModbusCount} kênh Modbus Master)" : $"0 Logic rules ({tab0ModbusCount} Modbus Master channels)";
-            string baseSummary = isVi 
-                ? $"Sẵn sàng nạp: Cấu hình cổng RS-485 & {tab0ModbusCount} kênh Modbus Master xuống thiết bị (0 Rule logic)."
-                : $"Ready to deploy: RS-485 port configuration & {tab0ModbusCount} Modbus Master channel(s) to device (0 Logic rules).";
+            ManifestRuleSummary = isVi ? $"0 Rule logic ({configSummary})" : $"0 Logic rules ({configSummary})";
+            string baseSummary = string.Format(LocalizationService.Tr("DeployPreflightZeroRulesWithConfig"), configSummary);
             PreflightSummary = isConnected
                 ? baseSummary
                 : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
         }
         else
         {
-            HasValidRules = false;
+            HasValidRules = true;
             ManifestRuleCount = 0;
-            ManifestRuleSummary = "";
-            PreflightSummary = LocalizationService.Tr("DeployPreflightNone");
+            ManifestRuleSummary = isVi ? "0 Rule logic (Mặc định)" : "0 Logic rules (Default)";
+            string baseSummary = LocalizationService.Tr("DeployPreflightCleanWipe");
+            PreflightSummary = isConnected
+                ? baseSummary
+                : baseSummary + (isVi ? " · ⚠️ Chưa kết nối thiết bị" : " · ⚠️ Device Disconnected");
         }
 
         ManifestRuleCountText = isVi
@@ -477,9 +505,20 @@ public partial class DeployViewModel : ObservableObject
         }
         else
         {
-            StatusTitle = isVi 
-                ? (ManifestRuleCount > 0 ? $"Sẵn Sàng Nạp {ManifestRuleCount} Quy Tắc Xuống Thiết Bị" : "Sẵn Sàng Nạp Cấu Hình Thiết Bị & Modbus") 
-                : (ManifestRuleCount > 0 ? $"Ready to Deploy {ManifestRuleCount} Rules to Device" : "Ready to Deploy Device & Modbus Configuration");
+            string targetTitle;
+            if (ManifestRuleCount > 0)
+            {
+                targetTitle = isVi ? $"Sẵn Sàng Nạp {ManifestRuleCount} Quy Tắc Xuống Thiết Bị" : $"Ready to Deploy {ManifestRuleCount} Rules to Device";
+            }
+            else if (configParts.Count > 0)
+            {
+                targetTitle = isVi ? $"Sẵn Sàng Nạp Cấu Hình {string.Join(" & ", configParts)}" : $"Ready to Deploy {string.Join(" & ", configParts)} Config";
+            }
+            else
+            {
+                targetTitle = isVi ? "Sẵn Sàng Đặt Lại Thiết Bị (0 Rule Logic)" : "Ready to Reset Device (0 Logic Rules)";
+            }
+            StatusTitle = targetTitle;
             StatusSubtitle = string.IsNullOrEmpty(ruleDesc)
                 ? (isVi ? "Nạp an toàn không ngắt quãng (Zero-Downtime Atomic Staging)" : "Zero-downtime atomic staging")
                 : (isVi ? $"Quy tắc: {ruleDesc} · Nạp an toàn không ngắt quãng" : $"Rules: {ruleDesc} · Bumpless transfer");
@@ -549,115 +588,50 @@ public partial class DeployViewModel : ObservableObject
         catch { }
     }
 
-    private (List<ModbusMasterReadConfigDto> reads, List<ModbusMasterWriteConfigDto> writes) ExtractTab0ModbusChannels(ProjectMetadata? meta)
+    private (List<ModbusMasterReadConfigDto> reads, List<ModbusMasterWriteConfigDto> writes) ExtractTab0ModbusChannels(
+        ProjectMetadata? meta,
+        IReadOnlyList<ModbusMasterReadConfigDto>? canvasReads,
+        IReadOnlyList<ModbusMasterWriteConfigDto>? canvasWrites)
     {
-        var reads = new List<ModbusMasterReadConfigDto>();
-        var writes = new List<ModbusMasterWriteConfigDto>();
-        if (meta?.ModbusPorts == null) return (reads, writes);
-
-        var allTags = _logicEditorVM?.TagCatalog?.AllTags;
-
-        foreach (var port in meta.ModbusPorts)
+        var claimedReadTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (canvasReads != null)
         {
-            if (!port.Enabled || !string.Equals(port.Role, "Master", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (port.MasterChannels == null || port.MasterChannels.Count == 0)
-                continue;
-
-            int blockIdx = 100 + port.PortIndex * 20;
-            foreach (var ch in port.MasterChannels)
+            foreach (var r in canvasReads)
             {
-                ushort? targetTagIndex = null;
-                if (!string.IsNullOrWhiteSpace(ch.TargetTagName) && allTags != null)
+                foreach (var pin in r.Pins)
                 {
-                    var foundTag = allTags.FirstOrDefault(t => string.Equals(t.Name, ch.TargetTagName, StringComparison.OrdinalIgnoreCase));
-                    if (foundTag != null && foundTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
-                    {
-                        targetTagIndex = (ushort)foundTag.Index;
-                    }
-                }
-
-                if (ch.FunctionCode is 1 or 2 or 3 or 4)
-                {
-                    ushort startAddr = ch.Address >= 40001 ? (ushort)(ch.Address - 40001)
-                                     : ch.Address >= 30001 ? (ushort)(ch.Address - 30001)
-                                     : ch.Address >= 10001 ? (ushort)(ch.Address - 10001)
-                                     : ch.Address >= 1 ? (ushort)(ch.Address - 1)
-                                     : ch.Address;
-
-                    ushort regCount = (ch.DataType is ModbusDataType.Real or ModbusDataType.Int32 or ModbusDataType.UInt32) ? (ushort)2 : (ushort)1;
-
-                    var readDto = new ModbusMasterReadConfigDto
-                    {
-                        NodeId = $"PORT_{port.PortIndex}_REG_{ch.Address}",
-                        BlockIndex = blockIdx++,
-                        PortIndex = port.PortIndex,
-                        Enabled = true,
-                        SlaveId = ch.SlaveId == 0 ? (byte)1 : ch.SlaveId,
-                        FunctionCode = ch.FunctionCode switch
-                        {
-                            1 => ModbusMasterFunctionCode.ReadCoils,
-                            2 => ModbusMasterFunctionCode.ReadDiscreteInputs,
-                            4 => ModbusMasterFunctionCode.ReadInputRegisters,
-                            _ => ModbusMasterFunctionCode.ReadHoldingRegisters
-                        },
-                        StartAddress = startAddr,
-                        RegCount = regCount,
-                        PollIntervalMs = 500,
-                        TimeoutMs = port.ResponseTimeoutMs > 0 ? port.ResponseTimeoutMs : (uint)200,
-                        ReadMode = ModbusReadMode.Cyclic,
-                        Pins = new List<ModbusMasterPinBindingDto>
-                        {
-                            new ModbusMasterPinBindingDto
-                            {
-                                Id = "Val",
-                                Label = string.IsNullOrWhiteSpace(ch.TargetTagName) ? "Val" : ch.TargetTagName,
-                                RegOffset = 0,
-                                DataType = ch.DataType,
-                                Endianness = ch.Endianness,
-                                Multiplier = (float)(ch.Scale == 0 ? 1.0 : ch.Scale),
-                                TargetTagIndex = targetTagIndex
-                            }
-                        }
-                    };
-                    reads.Add(readDto);
-                }
-                else if (ch.FunctionCode is 5 or 6 or 15 or 16)
-                {
-                    ushort startAddr = ch.Address >= 40001 ? (ushort)(ch.Address - 40001)
-                                     : ch.Address >= 1 ? (ushort)(ch.Address - 1)
-                                     : ch.Address;
-
-                    var writeDto = new ModbusMasterWriteConfigDto
-                    {
-                        NodeId = $"PORT_{port.PortIndex}_WRITE_{ch.Address}",
-                        BlockIndex = blockIdx++,
-                        PortIndex = port.PortIndex,
-                        Enabled = true,
-                        SlaveId = ch.SlaveId == 0 ? (byte)1 : ch.SlaveId,
-                        WriteMode = ModbusWriteMode.DirectRegisters,
-                        FunctionCode = ch.FunctionCode switch
-                        {
-                            5 => ModbusMasterWriteFunctionCode.WriteSingleCoil,
-                            15 => ModbusMasterWriteFunctionCode.WriteMultipleCoils,
-                            16 => ModbusMasterWriteFunctionCode.WriteMultipleRegisters,
-                            _ => ModbusMasterWriteFunctionCode.WriteSingleRegister
-                        },
-                        StartAddress = startAddr,
-                        PointCount = (ushort)(ch.DataType is ModbusDataType.Real or ModbusDataType.Int32 or ModbusDataType.UInt32 ? 2 : 1),
-                        TriggerMode = ModbusWriteTriggerMode.OnDataChange,
-                        CyclicIntervalMs = 500,
-                        TimeoutMs = port.ResponseTimeoutMs > 0 ? port.ResponseTimeoutMs : (uint)200,
-                        Deadband = 0.5f,
-                        CommandTagIndex = targetTagIndex
-                    };
-                    writes.Add(writeDto);
+                    if (!string.IsNullOrWhiteSpace(pin.Label)) claimedReadTags.Add(pin.Label);
                 }
             }
         }
 
-        return (reads, writes);
+        var claimedWriteTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (canvasWrites != null)
+        {
+            foreach (var w in canvasWrites)
+            {
+                // if direct write has pins or command tag
+                if (w.CommandTagIndex.HasValue)
+                {
+                    var tag = _logicEditorVM?.TagCatalog?.AllTags.FirstOrDefault(t => t.Index == w.CommandTagIndex.Value);
+                    if (tag != null) claimedWriteTags.Add(tag.Name);
+                }
+            }
+        }
+
+        var allTags = _logicEditorVM?.TagCatalog?.AllTags;
+        Func<string, ushort?> tagIndexResolver = (tagName) =>
+        {
+            if (string.IsNullOrWhiteSpace(tagName) || allTags == null) return null;
+            var found = allTags.FirstOrDefault(t => string.Equals(t.Name, tagName, StringComparison.OrdinalIgnoreCase));
+            return (found != null && found.Kind != SimplePLC.Domain.Enums.TagKind.None) ? (ushort)found.Index : null;
+        };
+
+        return SimplePLC.Studio.Services.Modbus.ModbusChannelSyncService.CoalesceStandalonePortChannels(
+            meta?.ModbusPorts,
+            claimedReadTags,
+            claimedWriteTags,
+            tagIndexResolver);
     }
 
     [RelayCommand(CanExecute = nameof(CanDeploy))]
@@ -665,17 +639,14 @@ public partial class DeployViewModel : ObservableObject
     {
         if (IsDeploying) return;
 
-        // Strict Pre-flight Safety Gate: If logic editor is present and invalid/stale, abort (unless config-only deployment)
-        if (_logicEditorVM != null && _logicEditorVM.CompileState != CompileState.Valid)
+        // Strict Pre-flight Safety Gate: If logic editor is present and invalid/stale, abort
+        if (_logicEditorVM != null && (_logicEditorVM.CompileState == CompileState.Invalid || _logicEditorVM.CompileState == CompileState.Stale))
         {
-            if (!(HasDeviceModbusConfigToDeploy() && _logicEditorVM.CompileState != CompileState.Invalid))
-            {
-                DeployState = DeployState.Failed;
-                UpdatePreflightSummary();
-                StatusMessage = PreflightSummary;
-                AppendLog(string.Format(LocalizationService.Tr("DeployLogStop"), PreflightSummary));
-                return;
-            }
+            DeployState = DeployState.Failed;
+            UpdatePreflightSummary();
+            StatusMessage = PreflightSummary;
+            AppendLog(string.Format(LocalizationService.Tr("DeployLogStop"), PreflightSummary));
+            return;
         }
 
         IsDeploying = true;
@@ -710,7 +681,7 @@ public partial class DeployViewModel : ObservableObject
             Steps[0].Status = StepStatus.InProgress;
             ProgressPercent = 15;
             AppendLog(LocalizationService.Tr("DeployLogPreflight"));
-            await Task.Delay(60).ConfigureAwait(true);
+            if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
 
             var product = services.CurrentProduct;
             RuleTable ruleTable;
@@ -746,13 +717,13 @@ public partial class DeployViewModel : ObservableObject
 
 
             var meta = _getMetadata?.Invoke();
-            var (tab0Reads, tab0Writes) = ExtractTab0ModbusChannels(meta);
+            var existingModbusWrites = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
+            var (tab0Reads, tab0Writes) = ExtractTab0ModbusChannels(meta, modbusMasterConfigs, existingModbusWrites);
             var mergedModbusReads = new List<ModbusMasterReadConfigDto>();
             if (modbusMasterConfigs != null) mergedModbusReads.AddRange(modbusMasterConfigs);
             mergedModbusReads.AddRange(tab0Reads);
             modbusMasterConfigs = mergedModbusReads;
 
-            var existingModbusWrites = _logicEditorVM?.CurrentProgram?.ModbusMasterWriteConfigs;
             var mergedModbusWrites = new List<ModbusMasterWriteConfigDto>();
             if (existingModbusWrites != null) mergedModbusWrites.AddRange(existingModbusWrites);
             mergedModbusWrites.AddRange(tab0Writes);
@@ -762,20 +733,21 @@ public partial class DeployViewModel : ObservableObject
             int totalMqtt = (mqttConfigs?.Count ?? 0) + (_logicEditorVM?.CurrentProgram?.MqttSubscriptionConfigs?.Count ?? 0);
             int totalModbus = (modbusMasterConfigs?.Count ?? 0) + (modbusWriteConfigs?.Count ?? 0);
             int totalDirectWrite = _logicEditorVM?.CurrentProgram?.DirectWriteConfigs?.Count ?? 0;
-            bool isDtuEnabled = (meta?.DtuConfig != null && meta.DtuConfig.Enabled) || (_logicEditorVM?.Nodes.Any(n => n is HttpClientNodeViewModel or TcpClientNodeViewModel) == true);
+
+            bool isDtuHardware = (product?.DeviceClass == (ushort)SimplePLC.Domain.Enums.SPLC_DeviceClass.DTU) ||
+                                 (product?.SupportsHttpClient == true) || 
+                                 (product?.SupportsTransparentStream == true);
+            var fbdHttpNode = _logicEditorVM?.Nodes.OfType<HttpClientNodeViewModel>().FirstOrDefault();
+            var fbdTcpNode = _logicEditorVM?.Nodes.OfType<TcpClientNodeViewModel>().FirstOrDefault();
+            bool hasDtuCanvasNodes = fbdHttpNode != null || fbdTcpNode != null;
+            bool isDtuEnabled = isDtuHardware && ((meta?.DtuConfig != null && meta.DtuConfig.Enabled) || hasDtuCanvasNodes);
             bool hasModbusPortConfig = meta?.ModbusPorts != null && meta.ModbusPorts.Any(p => p.Enabled);
-            if (ruleTable.Count == 0 && totalFbs == 0 && totalMqtt == 0 && totalModbus == 0 && totalDirectWrite == 0 && !isDtuEnabled && !hasModbusPortConfig)
+
+            if (ruleTable.Count == 0)
             {
-                Steps[0].Status = StepStatus.Failed;
-                DeployState = DeployState.Failed;
-                PreflightSummary = LocalizationService.Instance.IsVietnamese
-                    ? "Không thể nạp: Bảng rule, Function Blocks, khối MQTT, Modbus, Direct Write và DTU Gateway đều trống. Vui lòng thêm ít nhất 1 quy tắc hoặc khối chức năng."
-                    : "Cannot deploy: Rule table, Function Blocks, MQTT blocks, Modbus, and Direct Write are empty. Please add at least one rule or function block.";
-                StatusMessage = PreflightSummary;
-                AppendLog(PreflightSummary);
-                IsDeploying = false;
-                UpdatePreflightSummary();
-                return;
+                AppendLog(LocalizationService.Instance.IsVietnamese
+                    ? "[NẠP CẤU HÌNH] Dự án chứa 0 quy tắc logic. MCU sẽ được làm sạch bộ nhớ rule và áp dụng toàn bộ cấu hình thiết bị."
+                    : "[CONFIG DEPLOY] Project contains 0 logic rules. MCU rule memory will be cleared and device configuration applied.");
             }
 
             var validationResult = RuleTableValidator.Validate(ruleTable);
@@ -857,7 +829,7 @@ public partial class DeployViewModel : ObservableObject
                         : $"[Hardware Warning] Device '{product.ProductName}' does not support MQTT Telemetry (Missing SPLC_CAP_MQTT_PUB at 0x0A08). Skipping MQTT configuration.");
                 }
             }
-            await Task.Delay(60).ConfigureAwait(true);
+            if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
 
             // Build MQTT Broker config if available
             MqttBrokerConfigDto? brokerConfig = null;
@@ -869,7 +841,7 @@ public partial class DeployViewModel : ObservableObject
                     Host = meta.MqttBrokerHost?.Trim() ?? string.Empty,
                     Port = (ushort)(meta.MqttBrokerPort > 0 ? meta.MqttBrokerPort : 1883),
                     UseTls = meta.MqttTlsEnabled,
-                    UseMtls = meta.MqttTlsMtlsEnabled,
+                    UseMtls = meta.MqttTlsEnabled && meta.MqttTlsMtlsEnabled,
                     IgnoreHostname = meta.MqttTlsIgnoreHostname,
                     AllowSelfSigned = meta.MqttTlsAllowSelfSigned,
                     CleanSession = meta.MqttCleanSession,
@@ -960,10 +932,23 @@ public partial class DeployViewModel : ObservableObject
                         }
                     }
                 }
+
+                // Đồng bộ kiểu REAL cho bất kỳ Tag nào được liên kết từ chân kiểu Float của MQTT_SUB
+                foreach (var mqttSubNode in _logicEditorVM.Nodes.OfType<MqttSubscribeNodeViewModel>())
+                {
+                    foreach (var pin in mqttSubNode.Pins)
+                    {
+                        if (pin.DataType == SimplePLC.Domain.Enums.MqttDataType.Float && pin.TargetTag != null && pin.TargetTag.Index < tagDataTypes.Length)
+                        {
+                            tagDataTypes[pin.TargetTag.Index] = 3; // SPLC_TAG_TYPE_REAL
+                            pin.TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                        }
+                    }
+                }
             }
 
             DtuConfigDto? dtuConfigDto = null;
-            if (meta?.DtuConfig != null && meta.DtuConfig.Enabled)
+            if (isDtuHardware && meta?.DtuConfig != null && meta.DtuConfig.Enabled)
             {
                 var dtuModel = meta.DtuConfig;
                 byte portIdx = dtuModel.PortIndex;
@@ -1041,9 +1026,7 @@ public partial class DeployViewModel : ObservableObject
             }
 
             // Synthesis from FBD Canvas (HttpClientNodeViewModel & TcpClientNodeViewModel)
-            var fbdHttpNode = _logicEditorVM?.Nodes.OfType<HttpClientNodeViewModel>().FirstOrDefault();
-            var fbdTcpNode = _logicEditorVM?.Nodes.OfType<TcpClientNodeViewModel>().FirstOrDefault();
-            if (fbdHttpNode != null || fbdTcpNode != null)
+            if (isDtuHardware && (fbdHttpNode != null || fbdTcpNode != null))
             {
                 dtuConfigDto ??= new DtuConfigDto
                 {
@@ -1210,26 +1193,60 @@ public partial class DeployViewModel : ObservableObject
                 Steps[1].Status = StepStatus.Success;
                 AppendLog(LocalizationService.Tr("DeployLogStagingOk"));
                 ProgressPercent = 60;
-                await Task.Delay(70).ConfigureAwait(true);
+                if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
 
                 // Step 3: Xác minh CRC
                 Steps[2].Status = StepStatus.InProgress;
                 ProgressPercent = 75;
-                await Task.Delay(70).ConfigureAwait(true);
+                if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
                 Steps[2].Status = StepStatus.Success;
                 AppendLog(LocalizationService.Tr("DeployLogCrcOk"));
 
                 // Step 4: Atomic Commit
                 Steps[3].Status = StepStatus.InProgress;
                 ProgressPercent = 88;
-                await Task.Delay(70).ConfigureAwait(true);
+                if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
                 Steps[3].Status = StepStatus.Success;
                 AppendLog(string.Format(LocalizationService.Tr("DeployLogCommitOk"), deployResult.ActiveVersion));
+
+                // Step 4.1: Deploy Wi-Fi Configuration to MCU Partition 0x1300 if enabled
+                if (meta != null && meta.WifiEnabled && !string.IsNullOrWhiteSpace(meta.WifiSsid))
+                {
+                    bool isVi = LocalizationService.Instance.IsVietnamese;
+                    try
+                    {
+                        var wifiConfig = new WifiConfigDto
+                        {
+                            Enabled = meta.WifiEnabled,
+                            AutoReconnect = meta.WifiAutoReconnect,
+                            Ssid = meta.WifiSsid.Trim(),
+                            Password = meta.WifiPassword ?? string.Empty,
+                            IsDhcp = meta.WifiDhcpEnabled,
+                            StaticIp = string.IsNullOrWhiteSpace(meta.WifiStaticIp) ? "192.168.1.50" : meta.WifiStaticIp.Trim(),
+                            StaticSubnet = string.IsNullOrWhiteSpace(meta.WifiSubnetMask) ? "255.255.255.0" : meta.WifiSubnetMask.Trim(),
+                            StaticGateway = string.IsNullOrWhiteSpace(meta.WifiGateway) ? "192.168.1.1" : meta.WifiGateway.Trim(),
+                            StaticDns = string.IsNullOrWhiteSpace(meta.WifiDns) ? "8.8.8.8" : meta.WifiDns.Trim()
+                        };
+
+                        var wifiClient = AppServices.Instance.WifiClient;
+                        if (wifiClient != null)
+                        {
+                            await wifiClient.WriteWifiConfigAsync(1, wifiConfig).ConfigureAwait(true);
+                            AppendLog(isVi
+                                ? $"[Wi-Fi] Đã nạp cấu hình mạng không dây (SSID: {meta.WifiSsid}) xuống phân vùng 0x1300."
+                                : $"[Wi-Fi] Deployed wireless network configuration (SSID: {meta.WifiSsid}) to partition 0x1300.");
+                        }
+                    }
+                    catch (Exception wifiEx)
+                    {
+                        AppendLog($"[Wi-Fi WARNING] Không thể nạp cấu hình Wi-Fi: {wifiEx.Message}");
+                    }
+                }
 
                 // Step 5: Version Handshake
                 Steps[4].Status = StepStatus.InProgress;
                 ProgressPercent = 96;
-                await Task.Delay(70).ConfigureAwait(true);
+                if (EffectiveDelayMs > 0) await Task.Delay(EffectiveDelayMs).ConfigureAwait(true);
                 Steps[4].Status = StepStatus.Success;
                 ProgressPercent = 100;
 

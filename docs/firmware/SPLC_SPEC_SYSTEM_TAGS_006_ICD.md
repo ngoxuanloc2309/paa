@@ -59,3 +59,27 @@ To prevent unintended runtime corruption or undefined firmware behavior:
    sysClock100ms = (tickMs / 50) % 2 == 0 ? 1 : 0;
    ```
 3. **Monotonic Clocks:** Time is measured using monotonic clocks (`ISimulatedClock` / `System.TimeProvider`), completely avoiding non-deterministic `Thread.Sleep()`.
+
+---
+
+## 5. Communication Supervision & Two-Tier Diagnostics (`SYS_COMM_OK`)
+
+### 5.1. Runtime Truth Table & Watchdog Semantics
+`SYS_COMM_OK` (Tag 1007, Register `42088 / 0x0827`) provides deterministic link integrity supervision. Rather than relying on simple Layer-2/3 physical link detection (e.g., merely having a Wi-Fi IP address), `SYS_COMM_OK` operates strictly at the application layer:
+
+$$\mathbf{SYS\_COMM\_OK} = \mathbf{Modbus\_Active}(N \le 3000\text{ms}) \;\lor\; \mathbf{MQTT\_Active}$$
+
+1. **Modbus Active:** A valid Modbus frame (matching Slave ID, correct CRC, supported function code) has been received on any physical port (USB CDC, RS-485, or Modbus TCP) within the last $N = 3000\text{ms}$ (`SPLC_COMM_WATCHDOG_DEFAULT_TIMEOUT_MS`).
+2. **MQTT Active:** If the MQTT subsystem is enabled, the TCP connection to the broker is established, `CONNACK` is received, and the ping/keepalive loop is healthy.
+3. **Standalone / Offline Mode:** If a controller runs autonomously in an electrical cabinet without active fieldbus queries or network telemetry, `SYS_COMM_OK` is `0` (Physical Truth). User safety rules for autonomous machines must NOT use `SYS_COMM_OK` as an operational run permissive.
+
+### 5.2. Two-Tier Diagnostics Architecture (Decoupled Protection & Forensics)
+- **Tier 1 (Fast Trip - Runtime Scan 10ms):**
+  - Bit-level interlock consumed by user rules.
+  - Typical usage: Fail-Safe trip (`Trigger: Periodic 500ms -> Guard: SYS_COMM_OK == 0 -> Action: Safe State`).
+- **Tier 2 (Deep Forensics - Studio & Maintenance):**
+  - When `SYS_COMM_OK == 0`, SynaptiX Studio and maintenance personnel investigate root cause by querying dedicated diagnostic registers:
+    - **Wi-Fi Subsystem (`0x1339` `conn_status`):** `4` = `AuthFailed` (Bad password), `5` = `SsidNotFound` (Router off / Out of range).
+    - **Wi-Fi RSSI (`0x133C` `rssi_dbm`):** Weak signal if $< -80\text{dBm}$.
+    - **MQTT Subsystem (`0x0E5A` `last_error_code`):** `1` = `DNS_FAILED` (No internet), `2` = `TCP_FAILED`, `3` = `TLS_FAILED`, `4` = `AUTH_REJECTED`, `6` = `TIMEOUT`.
+    - **Modbus Silence:** `LastModbusRxElapsedMs > 3000ms` (Cable disconnected or Master software stopped).

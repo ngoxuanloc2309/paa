@@ -666,8 +666,6 @@ public partial class LiveWatchViewModel : ObservableObject, IDisposable
 
             }
 
-            SyncProjectAliases();
-
         }
 
 

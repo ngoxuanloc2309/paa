@@ -197,6 +197,10 @@
 
     <!-- Wi-Fi Network Signal Arcs (Lucide Wifi) -->
     <StreamGeometry x:Key="IconSysWifi">M5,12.5 C8.9,8.6 15.1,8.6 19,12.5 M8.5,16 C10.4,14.1 13.6,14.1 15.5,16 M1.5,9 C7.3,3.2 16.7,3.2 22.5,9 M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
+    <StreamGeometry x:Key="IconWifiBar1">M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
+    <StreamGeometry x:Key="IconWifiBar2">M8.5,16 C10.4,14.1 13.6,14.1 15.5,16 M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
+    <StreamGeometry x:Key="IconWifiBar3">M5,12.5 C8.9,8.6 15.1,8.6 19,12.5 M8.5,16 C10.4,14.1 13.6,14.1 15.5,16 M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
+    <StreamGeometry x:Key="IconWifiBar4">M1.5,9 C7.3,3.2 16.7,3.2 22.5,9 M5,12.5 C8.9,8.6 15.1,8.6 19,12.5 M8.5,16 C10.4,14.1 13.6,14.1 15.5,16 M12,20 A1,1 0 1,0 12,18 A1,1 0 1,0 12,20</StreamGeometry>
 
     <!-- Cloud Uplink / IoT Cloud (Lucide Cloud) -->
     <StreamGeometry x:Key="IconSysCloud">M18,10 C17.4,6.6 14.5,4 11,4 C8.1,4 5.6,5.8 4.6,8.4 C2,8.9 0,11.2 0,14 C0,17.3 2.7,20 6,20 L18,20 C20.8,20 23,17.8 23,15 C23,12.4 20.8,10.2 18,10 Z</StreamGeometry>

@@ -28,6 +28,7 @@ public sealed class SimulatorRegisterMemory : IDisposable
                IsWithin(startAddress, endAddress, ModbusRegisterMap.ActiveRuleTableBaseAddress, ModbusRegisterMap.ActiveRuleTableMaxLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.DeviceHealthAddress, ModbusRegisterMap.DeviceHealthLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.RtcClockAddress, ModbusRegisterMap.RtcClockLength) ||
+               IsWithin(startAddress, endAddress, ModbusRegisterMap.SystemRegistersBaseAddress, ModbusRegisterMap.SystemRegistersLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.RuntimeTagValuesBaseAddress, ModbusRegisterMap.RuntimeTagValuesMaxLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.SystemCommandResultAddress, ModbusRegisterMap.SystemCommandResultLength) ||
                IsWithin(startAddress, endAddress, ModbusRegisterMap.ConfigStatusAddress, 1) ||

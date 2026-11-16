@@ -232,7 +232,18 @@ public partial class ModbusReadNodeViewModel : GraphNodeViewModel
 
     private void OnPinsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            var pinConnectors = OutputConnectors
+                .Where(c => c != ValidConnector && c != ErrorConnector && c != ErrCodeConnector)
+                .ToList();
+
+            foreach (var conn in pinConnectors)
+            {
+                OutputConnectors.Remove(conn);
+            }
+        }
+        else if (e.OldItems != null)
         {
             foreach (ModbusPinBindingViewModel oldPin in e.OldItems)
             {

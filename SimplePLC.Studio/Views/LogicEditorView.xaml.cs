@@ -16,6 +16,28 @@ public partial class LogicEditorView : UserControl
         Nodify.NodifyEditor.EnableSnappingCorrection = false;
         Nodify.NodifyEditor.EnableDraggingContainersOptimizations = true;
         DataContextChanged += OnDataContextChanged;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is LogicEditorViewModel vm)
+        {
+            vm.PropertyChanged -= ViewModel_PropertyChanged;
+            vm.PropertyChanged += ViewModel_PropertyChanged;
+            vm.RequestCenterOnNode = CenterOnNode;
+            UpdateDrawerState(vm.IsSimulationMode);
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is LogicEditorViewModel vm)
+        {
+            vm.PropertyChanged -= ViewModel_PropertyChanged;
+            vm.RequestCenterOnNode = null;
+        }
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -27,6 +49,7 @@ public partial class LogicEditorView : UserControl
         }
         if (e.NewValue is LogicEditorViewModel newVm)
         {
+            newVm.PropertyChanged -= ViewModel_PropertyChanged;
             newVm.PropertyChanged += ViewModel_PropertyChanged;
             newVm.RequestCenterOnNode = CenterOnNode;
             UpdateDrawerState(newVm.IsSimulationMode);

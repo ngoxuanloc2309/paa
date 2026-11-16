@@ -16,11 +16,12 @@ using SimplePLC.Protocol.Enums;
 
 namespace SimplePLC.Studio.ViewModels;
 
-public partial class LogicEditorViewModel : ObservableObject
+public partial class LogicEditorViewModel : ObservableObject, IDisposable
 {
     public TagCatalogViewModel TagCatalog { get; } = null!;
 
     public Func<SimplePLC.Studio.Models.ProjectMetadata>? GetProjectMetadata { get; set; }
+    public Action? NotifyProjectMetadataChanged { get; set; }
     public Action? OpenDeviceModbusPortConfig { get; set; }
     public Action? OpenDeviceMqttBrokerConfig { get; set; }
 
@@ -96,7 +97,25 @@ public partial class LogicEditorViewModel : ObservableObject
         var dialogVm = new ModbusReadConfigDialogViewModel(targetNode, TagCatalog, ports, zigbeeConfig);
         dialogVm.OnOpenDevicePortSettings = () =>
         {
-            OpenDeviceModbusPortConfig?.Invoke();
+            var meta = GetProjectMetadata?.Invoke();
+            if (meta != null)
+            {
+                var portVm = new ModbusPortConfigViewModel(meta, TagCatalog);
+                var activeWindow = System.Windows.Application.Current?.Windows.OfType<System.Windows.Window>().FirstOrDefault(w => w.IsActive);
+                var portDlg = new Views.ModbusPortConfigDialogView(portVm)
+                {
+                    Owner = activeWindow
+                };
+                if (portDlg.ShowDialog() == true)
+                {
+                    NotifyProjectMetadataChanged?.Invoke();
+                    NotifyGraphModified();
+                }
+            }
+            else
+            {
+                OpenDeviceModbusPortConfig?.Invoke();
+            }
             var refreshedMeta = GetProjectMetadata?.Invoke();
             dialogVm.RefreshAvailablePorts(refreshedMeta?.ModbusPorts, refreshedMeta?.ZigbeeConfig);
         };
@@ -118,7 +137,25 @@ public partial class LogicEditorViewModel : ObservableObject
         var dialogVm = new ModbusWriteConfigDialogViewModel(targetNode, TagCatalog, ports, zigbeeConfig);
         dialogVm.OnOpenDevicePortSettings = () =>
         {
-            OpenDeviceModbusPortConfig?.Invoke();
+            var meta = GetProjectMetadata?.Invoke();
+            if (meta != null)
+            {
+                var portVm = new ModbusPortConfigViewModel(meta, TagCatalog);
+                var activeWindow = System.Windows.Application.Current?.Windows.OfType<System.Windows.Window>().FirstOrDefault(w => w.IsActive);
+                var portDlg = new Views.ModbusPortConfigDialogView(portVm)
+                {
+                    Owner = activeWindow
+                };
+                if (portDlg.ShowDialog() == true)
+                {
+                    NotifyProjectMetadataChanged?.Invoke();
+                    NotifyGraphModified();
+                }
+            }
+            else
+            {
+                OpenDeviceModbusPortConfig?.Invoke();
+            }
             var refreshedMeta = GetProjectMetadata?.Invoke();
             dialogVm.RefreshAvailablePorts(refreshedMeta?.ModbusPorts, refreshedMeta?.ZigbeeConfig);
         };
@@ -701,6 +738,15 @@ public partial class LogicEditorViewModel : ObservableObject
     private string _saveStatusMessage = "● Tự động lưu";
 
     [ObservableProperty]
+    private string _saveStatusTooltip = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSaveStatusDetail))]
+    private string _saveStatusDetail = string.Empty;
+
+    public bool HasSaveStatusDetail => !string.IsNullOrWhiteSpace(SaveStatusDetail);
+
+    [ObservableProperty]
     private bool _isSaved = true;
 
     [ObservableProperty]
@@ -984,6 +1030,9 @@ public partial class LogicEditorViewModel : ObservableObject
     private CancellationTokenSource? _compileDebounceCts;
     private bool _isInitializing;
 
+    /// <summary>
+    /// Thời gian trễ (ms) để gom cụm các thao tác biên dịch liên tiếp trên Canvas (Debounce). Mặc định 600ms.
+    /// </summary>
     public int DebounceDelayMs { get; set; } = 600;
 
     [RelayCommand]
@@ -1033,7 +1082,15 @@ public partial class LogicEditorViewModel : ObservableObject
 
         if (_stateStore != null)
         {
-            _stateStore.SnapshotUpdated += OnSnapshotUpdated;
+            var weakThis = new WeakReference<LogicEditorViewModel>(this);
+            _snapshotUpdatedHandler = snapshot =>
+            {
+                if (weakThis.TryGetTarget(out var target))
+                {
+                    target.OnSnapshotUpdated(snapshot);
+                }
+            };
+            _stateStore.SnapshotUpdated += _snapshotUpdatedHandler;
         }
 
         Connections.CollectionChanged += (s, e) =>
@@ -1167,16 +1224,7 @@ public partial class LogicEditorViewModel : ObservableObject
             OnPropertyChanged(nameof(CanRedo));
         };
 
-        SimplePLC.Studio.Services.LocalizationService.Instance.LanguageChanged += () =>
-        {
-            OnPropertyChanged(nameof(NarrativePreview));
-            OnPropertyChanged(nameof(CompileStateDisplay));
-            OnPropertyChanged(nameof(SimRunStatusText));
-            OnPropertyChanged(nameof(SimPlayPauseButtonText));
-            OnPropertyChanged(nameof(EditorModeTitle));
-            OnPropertyChanged(nameof(EditorModeBadge));
-            CompileNow();
-        };
+        SimplePLC.Studio.Services.LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
 
         _selectedSimSpeed = SimSpeedOptions.FirstOrDefault(o => o.IntervalMs == 100) ?? SimSpeedOptions[0];
 
@@ -1194,6 +1242,17 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             _isInitializing = false;
         }
+    }
+
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(NarrativePreview));
+        OnPropertyChanged(nameof(CompileStateDisplay));
+        OnPropertyChanged(nameof(SimRunStatusText));
+        OnPropertyChanged(nameof(SimPlayPauseButtonText));
+        OnPropertyChanged(nameof(EditorModeTitle));
+        OnPropertyChanged(nameof(EditorModeBadge));
+        CompileNow();
     }
 
     [ObservableProperty]
@@ -1314,6 +1373,29 @@ public partial class LogicEditorViewModel : ObservableObject
     }
 
     private readonly IRuntimeStateStore? _stateStore;
+    private Action<RuntimeDeviceSnapshot>? _snapshotUpdatedHandler;
+
+    /// <summary>
+    /// Giải phóng các tài nguyên và sự kiện lắng nghe để ngăn chặn rò rỉ bộ nhớ (Memory Leak).
+    /// </summary>
+    public void Dispose()
+    {
+        if (_stateStore != null && _snapshotUpdatedHandler != null)
+        {
+            _stateStore.SnapshotUpdated -= _snapshotUpdatedHandler;
+            _snapshotUpdatedHandler = null;
+        }
+        SimplePLC.Studio.Services.LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
+        _compileDebounceCts?.Cancel();
+        _compileDebounceCts?.Dispose();
+        _compileDebounceCts = null;
+        _toastCts?.Cancel();
+        _toastCts?.Dispose();
+        _toastCts = null;
+        _simAnimationCts?.Cancel();
+        _simAnimationCts?.Dispose();
+        _simAnimationCts = null;
+    }
     private readonly Action<Action> _uiDispatcher;
     private readonly Dictionary<ushort, List<ILiveTagBoundNode>> _tagToNodesIndex = new();
     private readonly Dictionary<ushort, (int RawValue, TagQuality Quality)> _lastAppliedTagState = new();
@@ -4863,8 +4945,11 @@ public partial class LogicEditorViewModel : ObservableObject
 
         try
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(_inMemoryClipboard);
-            System.Windows.Clipboard.SetText(json);
+            if (System.Windows.Application.Current != null)
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(_inMemoryClipboard);
+                System.Windows.Clipboard.SetText(json);
+            }
         }
         catch { }
 
@@ -5149,9 +5234,7 @@ public partial class LogicEditorViewModel : ObservableObject
                     IsGraphDeployed = true;
                 }
                 IsSaved = true;
-                SaveStatusMessage = result.Rules.Count > 0
-                    ? string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count)
-                    : string.Format(LocalizationService.Tr("EditorStatusFbsReady"), totalDeployable);
+                UpdateCompileStatusMessage(result, totalDeployable);
                 return;
             }
 
@@ -5166,6 +5249,8 @@ public partial class LogicEditorViewModel : ObservableObject
             SaveStatusMessage = activeNodes.Count > 0
                 ? LocalizationService.Tr("SaveStatusStale")
                 : LocalizationService.Tr("SaveStatusNoRules");
+            SaveStatusTooltip = SaveStatusMessage;
+            SaveStatusDetail = string.Empty;
             return;
         }
 
@@ -5223,7 +5308,8 @@ public partial class LogicEditorViewModel : ObservableObject
             ValidRuleCount = 0;
             IsSaved = false;
             SaveStatusMessage = string.Format(LocalizationService.Tr("EditorStatusErrors"), errCount);
-
+            SaveStatusTooltip = SaveStatusMessage;
+            SaveStatusDetail = string.Empty;
             return;
         }
 
@@ -5243,6 +5329,8 @@ public partial class LogicEditorViewModel : ObservableObject
             ValidRuleCount = 0;
             IsSaved = false;
             SaveStatusMessage = LocalizationService.Tr("SaveStatusNoRules");
+            SaveStatusTooltip = SaveStatusMessage;
+            SaveStatusDetail = string.Empty;
             return;
         }
 
@@ -5263,12 +5351,15 @@ public partial class LogicEditorViewModel : ObservableObject
         if (!isAutoSync && _ruleTable != null && result.Program != null)
         {
             var (nodesData, connsData) = ExportGraphData();
-            var updated = _ruleTable.AddOrUpdateCompiledRules(result.Program.Rules, nodesData, connsData, EditingRuleId, CurrentDiagramId);
-            if (updated.Count > 0)
+            if (result.Program.Rules.Count > 0)
             {
-                EditingRuleId = updated.Count == 1
-                    ? updated[0].Id
-                    : string.Join(", ", updated.Select(r => r.Id));
+                var updated = _ruleTable.AddOrUpdateCompiledRules(result.Program.Rules, nodesData, connsData, EditingRuleId, CurrentDiagramId);
+                if (updated.Count > 0)
+                {
+                    EditingRuleId = updated.Count == 1
+                        ? updated[0].Id
+                        : string.Join(", ", updated.Select(r => r.Id));
+                }
             }
             _ruleTable.UpdateSubsystemsFromProgram(result.Program);
         }
@@ -5276,31 +5367,59 @@ public partial class LogicEditorViewModel : ObservableObject
         UpdateNetworkNumbersOnNodes();
 
         IsSaved = true;
-        SaveStatusMessage = string.Format(LocalizationService.Tr("SaveStatusValid"), result.Rules.Count);
+        UpdateCompileStatusMessage(result, totalDeployableExplicit);
 
-        if (!isAutoSync && result.Rules.Count > 0)
+        if (!isAutoSync && totalDeployableExplicit > 0)
         {
-            SaveToastMessage = string.Format(LocalizationService.Tr("EditorToastSaved"), EditingRuleId ?? "R1");
+            int mqttCount = (result.Program?.MqttTelemetryConfigs.Count ?? 0) + (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
+            int modbusCount = (result.Program?.ModbusMasterConfigs.Count ?? 0) + (result.Program?.ModbusMasterWriteConfigs.Count ?? 0) + (result.Program?.DirectWriteConfigs.Count ?? 0);
+
+            string toastSubject;
+            if (result.Rules.Count > 0)
+            {
+                toastSubject = EditingRuleId ?? "R1";
+            }
+            else if (mqttCount > 0 && modbusCount == 0)
+            {
+                toastSubject = $"{mqttCount} MQTT";
+            }
+            else if (modbusCount > 0 && mqttCount == 0)
+            {
+                toastSubject = $"{modbusCount} Modbus";
+            }
+            else
+            {
+                toastSubject = $"{totalDeployableExplicit} items";
+            }
+
+            SaveToastMessage = string.Format(LocalizationService.Tr("EditorToastSaved"), toastSubject);
             ShowSaveToast = true;
 
             _toastCts?.Cancel();
+            _toastCts?.Dispose();
             _toastCts = new CancellationTokenSource();
             var token = _toastCts.Token;
+            var weakThis = new WeakReference<LogicEditorViewModel>(this);
 
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(2500, token);
-                    if (!token.IsCancellationRequested)
+                    if (!token.IsCancellationRequested && weakThis.TryGetTarget(out var target))
                     {
-                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null && !dispatcher.HasShutdownStarted)
                         {
-                            ShowSaveToast = false;
-                        });
+                            dispatcher.Invoke(() => target.ShowSaveToast = false);
+                        }
+                        else
+                        {
+                            target.ShowSaveToast = false;
+                        }
                     }
                 }
-                catch (TaskCanceledException) { }
+                catch (OperationCanceledException) { }
             });
         }
     }
@@ -5331,6 +5450,63 @@ public partial class LogicEditorViewModel : ObservableObject
         {
             headNode.NetworkNumber = currentNetwork++;
         }
+    }
+
+    /// <summary>
+    /// Định dạng chuỗi trạng thái tổng hợp Compact Token cho thanh công cụ và chi tiết cho thẻ Inspector.
+    /// Tuân thủ Học thuyết Axiom 2: Không che giấu các dịch vụ ngoại vi (MQTT, Modbus, FBs) khi 0 Logic Rules.
+    /// </summary>
+    private void UpdateCompileStatusMessage(SimplePLC.Studio.Models.CompileResult result, int totalDeployable)
+    {
+        int rulesCount = result.Rules.Count;
+        int mqttCount = (result.Program?.MqttTelemetryConfigs.Count ?? 0) + (result.Program?.MqttSubscriptionConfigs.Count ?? 0);
+        int modbusCount = (result.Program?.ModbusMasterConfigs.Count ?? 0) + (result.Program?.ModbusMasterWriteConfigs.Count ?? 0) + (result.Program?.DirectWriteConfigs.Count ?? 0);
+        int fbCount = (result.Program?.FunctionBlockTimers.Count ?? 0) + (result.Program?.FunctionBlockCounters.Count ?? 0);
+
+        // 1. Tạo Compact Token cho thanh công cụ (≤ 180px - 200px)
+        if (rulesCount > 0 && mqttCount == 0 && modbusCount == 0 && fbCount == 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("SaveStatusValid"), rulesCount);
+        }
+        else if (rulesCount == 0 && mqttCount > 0 && modbusCount == 0 && fbCount == 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusMqttReady"), mqttCount);
+        }
+        else if (rulesCount == 0 && mqttCount == 0 && modbusCount > 0 && fbCount == 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusModbusReady"), modbusCount);
+        }
+        else if (rulesCount == 0 && mqttCount == 0 && modbusCount == 0 && fbCount > 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusFbReady"), fbCount);
+        }
+        else if (rulesCount > 0 && mqttCount > 0 && modbusCount == 0 && fbCount == 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusCombinedRulesMqtt"), rulesCount, mqttCount);
+        }
+        else if (rulesCount > 0 && modbusCount > 0 && mqttCount == 0 && fbCount == 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusCombinedRulesModbus"), rulesCount, modbusCount);
+        }
+        else if (rulesCount > 0 || mqttCount > 0 || modbusCount > 0)
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusCombinedMulti"), rulesCount, mqttCount, modbusCount);
+        }
+        else
+        {
+            SaveStatusMessage = string.Format(LocalizationService.Tr("StatusCombinedTotalReady"), totalDeployable);
+        }
+
+        // 2. Tạo ToolTip chi tiết khi rê chuột
+        var details = new List<string>();
+        if (rulesCount > 0) details.Add(string.Format(LocalizationService.Tr("SaveStatusValid"), rulesCount));
+        if (mqttCount > 0) details.Add(string.Format(LocalizationService.Tr("StatusMqttReady"), mqttCount));
+        if (modbusCount > 0) details.Add(string.Format(LocalizationService.Tr("StatusModbusReady"), modbusCount));
+        if (fbCount > 0) details.Add(string.Format(LocalizationService.Tr("StatusFbReady"), fbCount));
+
+        string breakdown = details.Count > 0 ? string.Join(" · ", details) : string.Format(LocalizationService.Tr("StatusCombinedTotalReady"), totalDeployable);
+        SaveStatusTooltip = string.Format(LocalizationService.Tr("TooltipDeployableDetail"), breakdown);
+        SaveStatusDetail = string.Format(LocalizationService.Tr("InspectorDeployableSummary"), breakdown);
     }
 
     #region Canvas-Centric Simulation

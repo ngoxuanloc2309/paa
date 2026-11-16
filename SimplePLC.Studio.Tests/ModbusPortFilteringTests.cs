@@ -74,7 +74,7 @@ public sealed class ModbusPortFilteringTests
     }
 
     [Fact]
-    public void ModbusReadConfig_RetainsDisabledPortWhenCurrentlyAssignedToNode()
+    public void ModbusReadConfig_HidesDisabledPortsEvenIfCurrentlyAssignedToNode()
     {
         // Node currently has PortIndex = 1 (Port 2), but Port 2 is disabled
         var node = new ModbusReadNodeViewModel { PortIndex = 1 };
@@ -90,18 +90,19 @@ public sealed class ModbusPortFilteringTests
 
         var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog, ports);
 
-        // AvailablePorts contains enabled ports (0 and 2) PLUS the currently assigned disabled port (1) with warning tag
-        Assert.Equal(3, vm.AvailablePorts.Count);
-        var disabledOption = vm.AvailablePorts.FirstOrDefault(p => p.Value == 1);
-        Assert.NotNull(disabledOption);
-        Assert.True(disabledOption.DisplayName.Contains("[ĐÃ TẮT]") || disabledOption.DisplayName.Contains("[DISABLED]"));
+        // Disabled ports (1 and 3) must be completely hidden from AvailablePorts
+        Assert.Equal(2, vm.AvailablePorts.Count);
+        Assert.DoesNotContain(vm.AvailablePorts, p => p.Value == 1);
+        Assert.DoesNotContain(vm.AvailablePorts, p => p.Value == 3);
 
-        // Tooltip indicates port is disabled
-        Assert.True(vm.PortSelectorTooltip.Contains("VÔ HIỆU HÓA") || vm.PortSelectorTooltip.Contains("DISABLED"));
+        // Auto-switched to first available enabled Master port (index 0)
+        Assert.Equal((byte)0, vm.PortIndex);
+        Assert.True(vm.HasAvailablePorts);
+        Assert.False(vm.HasNoAvailablePorts);
     }
 
     [Fact]
-    public void ModbusReadConfig_HandlesAllPortsDisabledGracefullyWithoutPortPrefix()
+    public void ModbusReadConfig_HandlesAllPortsDisabled_ExposesHasNoAvailablePorts()
     {
         var node = new ModbusReadNodeViewModel { PortIndex = 0 };
         var tagCatalog = new TagCatalogViewModel();
@@ -116,16 +117,14 @@ public sealed class ModbusPortFilteringTests
 
         var vm = new ModbusReadConfigDialogViewModel(node, tagCatalog, ports);
 
-        Assert.Single(vm.AvailablePorts);
-        var text = vm.AvailablePorts[0].DisplayName;
-
-        // Must NOT have misleading "Port 1" or "Cổng 1" prefix!
-        Assert.False(text.StartsWith("Port 1"));
-        Assert.False(text.StartsWith("Cổng 1"));
-        Assert.True(text.Contains("Chưa kích hoạt") || text.Contains("No RS-485 Ports Enabled"));
+        // Under Option C, AvailablePorts is empty and HasNoAvailablePorts is true
+        Assert.Empty(vm.AvailablePorts);
+        Assert.True(vm.HasNoAvailablePorts);
+        Assert.False(vm.HasAvailablePorts);
+        Assert.False(string.IsNullOrWhiteSpace(vm.NoPortsAvailableMessage));
 
         // Tooltip explains how to enable ports
-        Assert.True(vm.PortSelectorTooltip.Contains("Cài đặt") || vm.PortSelectorTooltip.Contains("Settings"));
+        Assert.True(vm.PortSelectorTooltip.Contains("Cài đặt") || vm.PortSelectorTooltip.Contains("Settings") || vm.PortSelectorTooltip.Contains("kích hoạt"));
     }
 
     [Fact]

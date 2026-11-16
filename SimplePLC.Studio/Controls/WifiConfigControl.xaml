@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:services="clr-namespace:SimplePLC.Studio.Services"
              xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
+             xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
              xmlns:vm="clr-namespace:SimplePLC.Studio.ViewModels"
              FontFamily="Segoe UI"
              TextOptions.TextFormattingMode="Display"
@@ -17,6 +18,7 @@
                 <ResourceDictionary Source="../Styles/Icons.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -65,62 +67,173 @@
                         <ColumnDefinition Width="150" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Label -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" 
+                    <!-- SSID Label -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,0,5"
                                Text="{Binding [WifiSsidLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5" />
+                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
 
-                    <!-- SSID Input Box -->
-                    <TextBox Grid.Row="1" Grid.Column="0" 
-                             Text="{Binding Ssid, UpdateSourceTrigger=PropertyChanged}" 
-                             Height="28" Padding="8,4" FontSize="11.5" VerticalContentAlignment="Center" 
-                             BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" />
-
-                    <!-- Scan Networks Button (Aligned right) -->
-                    <Button Grid.Row="1" Grid.Column="2" 
-                             Command="{Binding ScanCommand}" Style="{StaticResource TiaTactileBtnStyle}" Height="28" Padding="12,4"
-                            ToolTip="{Binding [WifiBtnScanNearby], Source={x:Static services:LocalizationService.Instance}}">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysWifi}" 
-                                  Stroke="{DynamicResource TextPrimaryBrush}" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding [WifiBtnScan], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Grid>
-
-                <!-- Scanned Networks Dropdown (Visible only when APs found) -->
-                <Border BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" BorderThickness="1" CornerRadius="4" 
-                        Background="{DynamicResource BgSubtleBrush}" Margin="0,0,0,14" Padding="10,8"
-                        Visibility="{Binding AvailableAps.Count, Converter={StaticResource BoolToVis}}">
-                    <StackPanel>
-                        <TextBlock Text="{Binding [WifiSectionScan], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                        <ComboBox ItemsSource="{Binding AvailableAps}" SelectedItem="{Binding SelectedAp}"
-                                  Height="28" Padding="8,4" FontSize="11" VerticalContentAlignment="Center">
+                    <!-- SSID Input Box & Scanned Networks Editable Dropdown with Integrated Progress Bar -->
+                    <Grid Grid.Row="1" Grid.Column="0">
+                        <ComboBox IsEditable="True"
+                                  HorizontalContentAlignment="Stretch"
+                                  TextSearch.TextPath="Ssid"
+                                  Text="{Binding Ssid, UpdateSourceTrigger=PropertyChanged}" 
+                                  ItemsSource="{Binding AvailableAps}" 
+                                  SelectedItem="{Binding SelectedAp}"
+                                  Height="28" Padding="6,2" FontSize="11.5" VerticalContentAlignment="Center"
+                                  BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="8,4" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="0,2">
+                                    <Grid Margin="0,1" ToolTip="{Binding DetailsTooltip}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="22" />
+                                            <ColumnDefinition Width="22" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Ssid}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,10,0">
-                                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysWifi}" 
-                                                  Stroke="{DynamicResource PrimaryBrush}" Width="11" Height="11" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding RssiDbm, StringFormat={}{0} dBm}" FontFamily="Consolas" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <Border Grid.Column="2" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding AuthModeDisplay}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" />
-                                        </Border>
+
+                                        <!-- SSID Name -->
+                                        <TextBlock Grid.Column="0" Text="{Binding Ssid}" 
+                                                   FontWeight="SemiBold" FontSize="11.5" 
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" 
+                                                   VerticalAlignment="Center" 
+                                                   TextTrimming="CharacterEllipsis" />
+
+                                        <!-- Lock Icon in dedicated column -->
+                                        <Path Grid.Column="1" Style="{StaticResource IecStatusIconStyle}" 
+                                              Data="{StaticResource IconSysLock}" 
+                                              Stroke="{DynamicResource TextMutedBrush}" 
+                                              Width="10.5" Height="10.5" 
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Visibility="{Binding IsSecured, Converter={StaticResource BoolToVis}}" />
+
+                                        <!-- Windows 11 Wi-Fi Signal Fan in dedicated column -->
+                                        <Viewbox Grid.Column="2" Width="15" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Canvas Width="24" Height="22">
+                                                <!-- Top Arc (Bar 4) -->
+                                                <Path Data="M2,8.5 C7.5,3 16.5,3 22,8.5"
+                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      Fill="Transparent">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
+                                                            <Setter Property="Opacity" Value="0.25" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasBar4}" Value="True">
+                                                                    <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+                                                                    <Setter Property="Opacity" Value="1.0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+
+                                                <!-- Mid Arc (Bar 3) -->
+                                                <Path Data="M5.5,12 C9,7.5 15,7.5 18.5,12"
+                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      Fill="Transparent">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
+                                                            <Setter Property="Opacity" Value="0.25" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasBar3}" Value="True">
+                                                                    <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+                                                                    <Setter Property="Opacity" Value="1.0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+
+                                                <!-- Low Arc (Bar 2) -->
+                                                <Path Data="M9,15.5 C10.8,12.5 13.2,12.5 15,15.5"
+                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      Fill="Transparent">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
+                                                            <Setter Property="Opacity" Value="0.25" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasBar2}" Value="True">
+                                                                    <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+                                                                    <Setter Property="Opacity" Value="1.0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+
+                                                <!-- Base Dot (Bar 1 - Always Lit) -->
+                                                <Ellipse Canvas.Left="10.4" Canvas.Top="17.4" Width="3.2" Height="3.2" 
+                                                         Fill="{DynamicResource TextPrimaryBrush}" />
+                                            </Canvas>
+                                        </Viewbox>
                                     </Grid>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+
+                        <!-- Sleek Scanning Line (2px) embedded directly on the bottom border - Zero Layout Shift -->
+                        <ProgressBar IsIndeterminate="True" Height="2" VerticalAlignment="Bottom" Margin="2,0,2,1"
+                                     Foreground="{DynamicResource PrimaryBrush}" Background="Transparent" BorderThickness="0"
+                                     Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+
+                    <!-- Scan Networks Button (Aligned right) -->
+                    <Button Grid.Row="1" Grid.Column="2" 
+                            Command="{Binding ScanCommand}" Style="{StaticResource TiaTactileBtnStyle}" Height="28" Padding="12,4"
+                            IsEnabled="{Binding CanScan}"
+                            ToolTip="{Binding [WifiBtnScanNearby], Source={x:Static services:LocalizationService.Instance}}">
+                        <Grid>
+                            <!-- Normal state (Not Scanning) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVis}}">
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysWifi}" 
+                                      Stroke="{DynamicResource TextPrimaryBrush}" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [WifiBtnScan], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Loading state (Scanning) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}">
+                                <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" 
+                                      Stroke="{DynamicResource PrimaryBrush}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding [WifiBtnScanning], Source={x:Static services:LocalizationService.Instance}}" 
+                                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Button>
+                </Grid>
+
+                <!-- Error Message Banner -->
+                <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource DangerBrush}" 
+                        BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysAlert}" 
+                              Stroke="{DynamicResource DangerBrush}" Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ErrorMessage}" FontSize="11" Foreground="{DynamicResource DangerBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
+
+
 
                 <!-- Row 2: Security Password & Show Password CheckBox -->
                 <Grid Margin="0,0,0,14">
@@ -176,6 +289,73 @@
                           Content="{Binding [WifiAutoReconnectLabel], Source={x:Static services:LocalizationService.Instance}}"
                           FontWeight="Normal" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" 
                           VerticalAlignment="Center" Margin="0,2,0,0" />
+
+                <!-- Row 4: Diagnostic Test Connection Action Bar -->
+                <Border Background="{DynamicResource IndustrialSurfaceInsetBrush}" 
+                        BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+                        BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,14,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Live Status Message & Feedback Icon -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Connecting Loading Spinner / Reset Icon -->
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" 
+                                  Stroke="{DynamicResource PrimaryBrush}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center"
+                                  Visibility="{Binding IsOperationRunning, Converter={StaticResource BoolToVis}}" />
+
+                            <!-- Connected Check Icon -->
+                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysCheck}" 
+                                  Stroke="{DynamicResource SuccessBrush}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center"
+                                  Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}" />
+
+                            <!-- Status Text -->
+                            <TextBlock Text="{Binding ConnectionStatusText}" 
+                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ConnectionStatus}" Value="4">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ConnectionStatus}" Value="5">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Action Buttons -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Disconnect Button (visible only when connected) -->
+                            <Button Command="{Binding DisconnectCommand}"
+                                    Content="{Binding [WifiBtnDisconnect], Source={x:Static services:LocalizationService.Instance}}"
+                                    Style="{StaticResource TiaTactileBtnStyle}" Height="28" Padding="12,4" Margin="0,0,8,0"
+                                    Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}" />
+
+                            <!-- Test Connect Button -->
+                            <Button Command="{Binding ConnectCommand}"
+                                    Style="{StaticResource TiaTactileBtnStyle}" Height="28" Padding="12,4"
+                                    IsEnabled="{Binding CanConnect}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconTriggerLightning}" 
+                                          Stroke="{DynamicResource TextPrimaryBrush}" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding [WifiBtnTestConnect], Source={x:Static services:LocalizationService.Instance}}" 
+                                               FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Border>
 

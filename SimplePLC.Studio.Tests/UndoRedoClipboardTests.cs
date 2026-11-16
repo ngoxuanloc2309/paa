@@ -6,12 +6,16 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử đơn vị cho tính năng Undo/Redo và Clipboard (Copy/Paste/Cut) trên Logic Editor canvas.
+/// </summary>
 public class UndoRedoClipboardTests
 {
     private LogicEditorViewModel CreateEditor()
     {
         var tagCatalog = new TagCatalogViewModel();
         var vm = new LogicEditorViewModel(tagCatalog);
+        vm.DebounceDelayMs = 0;
         vm.Nodes.Clear();
         vm.Connections.Clear();
         vm.SelectedNodes.Clear();

@@ -27,12 +27,18 @@ public static class MqttBrokerConfigCodec
         // 1. Offset +0: BROKER_CONTROL
         ushort control = 0;
         if (config.Enabled) control |= ModbusRegisterMap.MqttBrokerControlBitEnabled;
-        if (config.UseTls) control |= ModbusRegisterMap.MqttBrokerControlBitUseTls;
         if (config.CleanSession) control |= ModbusRegisterMap.MqttBrokerControlBitCleanSession;
         control |= (ushort)((config.ProtocolVersion << ModbusRegisterMap.MqttBrokerControlVersionShift) & ModbusRegisterMap.MqttBrokerControlVersionMask);
-        if (config.UseMtls) control |= ModbusRegisterMap.MqttBrokerControlBitUseMtls;
-        if (config.IgnoreHostname) control |= ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname;
-        if (config.AllowSelfSigned) control |= ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned;
+
+        // Chốt chặn an toàn: Chỉ đóng gói các cờ bảo mật nâng cao khi UseTls thực sự được kích hoạt
+        if (config.UseTls)
+        {
+            control |= ModbusRegisterMap.MqttBrokerControlBitUseTls;
+            if (config.UseMtls) control |= ModbusRegisterMap.MqttBrokerControlBitUseMtls;
+            if (config.IgnoreHostname) control |= ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname;
+            if (config.AllowSelfSigned) control |= ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned;
+        }
+
         destination[0] = control;
 
         // 2. Offset +1: BROKER_PORT
@@ -74,9 +80,9 @@ public static class MqttBrokerConfigCodec
         bool useTls = (control & ModbusRegisterMap.MqttBrokerControlBitUseTls) != 0;
         bool cleanSession = (control & ModbusRegisterMap.MqttBrokerControlBitCleanSession) != 0;
         byte protocolVersion = (byte)((control & ModbusRegisterMap.MqttBrokerControlVersionMask) >> ModbusRegisterMap.MqttBrokerControlVersionShift);
-        bool useMtls = (control & ModbusRegisterMap.MqttBrokerControlBitUseMtls) != 0;
-        bool ignoreHostname = (control & ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname) != 0;
-        bool allowSelfSigned = (control & ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned) != 0;
+        bool useMtls = useTls && ((control & ModbusRegisterMap.MqttBrokerControlBitUseMtls) != 0);
+        bool ignoreHostname = useTls && ((control & ModbusRegisterMap.MqttBrokerControlBitIgnoreHostname) != 0);
+        bool allowSelfSigned = useTls && ((control & ModbusRegisterMap.MqttBrokerControlBitAllowSelfSigned) != 0);
 
         ushort port = source[1];
         ushort keepAlive = source[2];

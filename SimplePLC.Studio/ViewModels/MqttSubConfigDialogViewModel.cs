@@ -73,6 +73,7 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
     /// </summary>
     public void ConfigurePinTagProvider(MqttPinBindingViewModel pin)
     {
+        pin.PeerPinsProvider = () => Node.Pins;
         pin.TagProvider = dt => TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dt, includeNone: true);
     }
 
@@ -101,6 +102,14 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
 
     private void OnPinPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MqttPinBindingViewModel.TargetTag))
+        {
+            foreach (var p in Node.Pins)
+            {
+                p.RefreshTagOptions();
+            }
+        }
+
         if (e.PropertyName is nameof(MqttPinBindingViewModel.FieldName)
             or nameof(MqttPinBindingViewModel.JsonPath)
             or nameof(MqttPinBindingViewModel.Label)
@@ -123,6 +132,7 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         {
             foreach (MqttPinBindingViewModel newPin in e.NewItems)
             {
+                ConfigurePinTagProvider(newPin);
                 AttachPinListener(newPin);
             }
         }

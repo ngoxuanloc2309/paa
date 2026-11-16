@@ -77,14 +77,28 @@ public sealed class WifiClient : IWifiClient
         int actualCount = Math.Clamp((int)count, 0, ModbusRegisterMap.WifiMaxScanAps);
         if (actualCount == 0) return Array.Empty<WifiApInfoDto>();
 
-        ushort regLength = (ushort)(actualCount * ModbusRegisterMap.WifiRegistersPerAp);
-        var rawRegisters = await _client.ReadHoldingRegistersAsync(
-            slaveId,
-            ModbusRegisterMap.WifiScanTableBaseAddress,
-            regLength,
-            cancellationToken
-        ).ConfigureAwait(false);
+        // Modbus FC03 cho phép tối đa 125 thanh ghi/request.
+        // Mỗi AP chiếm 22 thanh ghi. Do đó 1 request đọc tối đa 5 AP (5 * 22 = 110 thanh ghi <= 125).
+        const int maxApsPerChunk = 5;
+        var allAps = new List<WifiApInfoDto>(actualCount);
 
-        return WifiCodec.DecodeScanResults(rawRegisters, actualCount);
+        for (int offset = 0; offset < actualCount; offset += maxApsPerChunk)
+        {
+            int chunkSize = Math.Min(maxApsPerChunk, actualCount - offset);
+            ushort chunkAddress = (ushort)(ModbusRegisterMap.WifiScanTableBaseAddress + (offset * ModbusRegisterMap.WifiRegistersPerAp));
+            ushort regLength = (ushort)(chunkSize * ModbusRegisterMap.WifiRegistersPerAp);
+
+            var rawRegisters = await _client.ReadHoldingRegistersAsync(
+                slaveId,
+                chunkAddress,
+                regLength,
+                cancellationToken
+            ).ConfigureAwait(false);
+
+            var decodedChunk = WifiCodec.DecodeScanResults(rawRegisters, chunkSize);
+            allAps.AddRange(decodedChunk);
+        }
+
+        return allAps;
     }
 }

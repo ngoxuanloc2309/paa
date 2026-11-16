@@ -1,46 +1,122 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
-
+using System.Reflection;
 using System.Runtime.CompilerServices;
-
-
 
 namespace SimplePLC.Studio.Services;
 
-
-
 /// <summary>
-
 /// Đại diện cho một ngôn ngữ hỗ trợ trong ứng dụng SynaptiX Studio.
-
 /// </summary>
-
-/// <param name="Code">Mã định danh ngôn ngữ (ví dụ: vi, en).</param>
-
-/// <param name="NativeName">Tên hiển thị bản ngữ.</param>
-
 public record LanguageItem(string Code, string NativeName);
 
-
-
 /// <summary>
-
 /// Dịch vụ quản lý đa ngôn ngữ (Localization) cho toàn bộ ứng dụng SynaptiX Studio.
-
 /// </summary>
-
 public class LocalizationService : INotifyPropertyChanged
-
 {
+    private sealed class WeakAction
+    {
+        private readonly WeakReference? _targetRef;
+        private readonly MethodInfo _method;
+
+        public WeakAction(Action action)
+        {
+            if (action.Target != null)
+            {
+                _targetRef = new WeakReference(action.Target);
+            }
+            _method = action.Method;
+        }
+
+        public bool IsAlive => _targetRef == null || _targetRef.IsAlive;
+
+        public bool Matches(Action action)
+        {
+            if (_method != action.Method) return false;
+            if (_targetRef == null) return action.Target == null;
+            return ReferenceEquals(_targetRef.Target, action.Target);
+        }
+
+        public bool TryInvoke()
+        {
+            if (_targetRef == null)
+            {
+                _method.Invoke(null, null);
+                return true;
+            }
+
+            var target = _targetRef.Target;
+            if (target != null)
+            {
+                _method.Invoke(target, null);
+                return true;
+            }
+
+            return false;
+        }
+    }
 
     public static LocalizationService Instance { get; } = new();
 
-
-
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public event Action? LanguageChanged;
+    private readonly List<WeakAction> _weakSubscribers = new();
+    private readonly object _subLock = new();
 
+    /// <summary>
+    /// Sự kiện thông báo ngôn ngữ hiển thị vừa thay đổi.
+    /// Sử dụng mô hình Weak Event để ngăn chặn rò rỉ bộ nhớ (Memory Leak) khi các ViewModels/Controls đăng ký lắng nghe.
+    /// </summary>
+    public event Action LanguageChanged
+    {
+        add
+        {
+            if (value == null) return;
+            lock (_subLock)
+            {
+                _weakSubscribers.Add(new WeakAction(value));
+            }
+        }
+        remove
+        {
+            if (value == null) return;
+            lock (_subLock)
+            {
+                for (int i = _weakSubscribers.Count - 1; i >= 0; i--)
+                {
+                    if (_weakSubscribers[i].Matches(value))
+                    {
+                        _weakSubscribers.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
+    private void NotifyLanguageChanged()
+    {
+        List<WeakAction> snapshot;
+        lock (_subLock)
+        {
+            _weakSubscribers.RemoveAll(s => !s.IsAlive);
+            snapshot = new List<WeakAction>(_weakSubscribers);
+        }
+
+        foreach (var weakAction in snapshot)
+        {
+            try
+            {
+                weakAction.TryInvoke();
+            }
+            catch (Exception)
+            {
+                // Isolation defense: Ngoại lệ từ một UI subscriber bị hủy/lỗi không được làm gián đoạn các subscriber khác
+            }
+        }
+    }
 
     private string _currentLanguage = "en"; // Default to English
 
@@ -74,7 +150,7 @@ public class LocalizationService : INotifyPropertyChanged
 
                 OnPropertyChanged("Item[]");
 
-                LanguageChanged?.Invoke();
+                NotifyLanguageChanged();
 
             }
 
@@ -315,6 +391,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusPortDisabledPill"] = "VÔ HIỆU",
         ["ModbusPortFooterHint"] = "Cấu hình cổng sẽ được nạp xuống thiết bị trong lần nạp kế tiếp.",
         ["ModbusNoPortsEnabled"] = "[Chưa kích hoạt cổng RS-485]",
+        ["ModbusNoMasterPortsEnabled"] = "Chưa kích hoạt cổng RS-485 Master",
         ["ModbusNoPortsEnabledTooltip"] = "Chưa có cổng RS-485 nào được kích hoạt trên thiết bị. Vui lòng vào Cài đặt > Cấu hình Cổng RS-485 để kích hoạt ít nhất 1 cổng.",
         ["ModbusPortDisabledSuffix"] = "[ĐÃ TẮT]",
         ["ModbusNoPhysicalPortsMessage"] = "Thiết bị không hỗ trợ cổng RS-485 vật lý nào.",
@@ -462,6 +539,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiDialogSubtitle"] = "Quét mạng, thiết lập thông tin xác thực và giám sát tín hiệu không dây",
         ["WifiSectionScan"] = "MẠNG WI-FI KHẢ DỤNG",
         ["WifiBtnScan"] = "Quét mạng",
+        ["WifiBtnScanning"] = "Đang quét...",
         ["WifiScanningText"] = "Đang quét các mạng Wi-Fi lân cận...",
         ["WifiNoApsFound"] = "Không tìm thấy mạng Wi-Fi nào trong phạm vi.",
         ["WifiSectionCredentials"] = "THÔNG TIN KẾT NỐI",
@@ -488,6 +566,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiStatusAuthFailed"] = "Sai mật khẩu (Auth Failed)",
         ["WifiStatusSsidNotFound"] = "Không tìm thấy mạng (SSID Not Found)",
         ["WifiBtnConnect"] = "Kết nối ngay",
+        ["WifiBtnTestConnect"] = "Kiểm tra kết nối",
+        ["WifiBtnTesting"] = "Đang kết nối...",
         ["WifiBtnDisconnect"] = "Ngắt kết nối",
         ["WifiBtnApply"] = "Lưu cấu hình",
         ["WifiBtnCancel"] = "Đóng",
@@ -974,6 +1054,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiDnsValLabel"] = "Máy chủ DNS:",
         ["BtnSaveConfig"] = "Lưu cấu hình",
         ["DeviceConfigAppliedStatus"] = "Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị",
+        ["DeviceConfigAutoSyncedStatus"] = "Cấu hình tự động đồng bộ vào dự án",
         ["InspectorPinoutTitle"] = "Sơ Đồ Chân & Đấu Nối Vật Lý",
         ["InspectorPinoutDesc"] = "Cổng domino 3 chân RS-485 và điện trở cân bằng 120Ω",
         ["InspectorBusHealthTitle"] = "Tải Đường Truyền & Sức Khỏe Bus",
@@ -1694,6 +1775,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeployPreflightInvalid"] = "Lỗi: Bản vẽ logic đang có lỗi biên dịch (Invalid). Không thể nạp.",
         ["DeployPreflightReady"] = "Sẵn sàng nạp: {0} Rule đã biên dịch hợp lệ.",
         ["DeployPreflightNone"] = "Chưa có chương trình logic hợp lệ để nạp.",
+        ["DeployPreflightZeroRulesWithConfig"] = "Sẵn sàng nạp: Cấu hình {0} xuống thiết bị (0 Rule logic).",
+        ["DeployPreflightCleanWipe"] = "Sẵn sàng nạp: Đặt lại cấu hình và xóa sạch logic thiết bị (0 Rule logic).",
         ["DeployStep1Title"] = "Kiểm tra chương trình logic",
         ["DeployStep1Detail"] = "Kiểm tra tính toàn vẹn và danh mục Tag",
         ["DeployStep2Title"] = "Gửi dữ liệu vào bộ đệm nạp (Staging)",
@@ -2202,6 +2285,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusColTargetTag"] = "Tag Đích",
         ["ModbusColTargetTagTooltip"] = "Gán trực tiếp giá trị giải mã từ thanh ghi Modbus vào Tag này (không cần kéo dây ra khối Action)",
         ["ModbusBtnAddPin"] = "+ Thêm chân thanh ghi",
+        ["ModbusBtnImportFromSystem"] = "⚡ Lấy kênh từ System Tab",
+        ["ModbusBtnImportFromSystemTooltip"] = "Tự động nạp toàn bộ các kênh Modbus đã khai báo trên cổng này ở System Tab vào bảng chân",
         ["ModbusPinsEmptyTitle"] = "Chưa có chân thanh ghi nào",
         ["ModbusPinsEmptyHint"] = "Nhấn '+ Thêm chân thanh ghi' bên dưới để cấu hình các thanh ghi cần đọc.",
         ["ModbusTestSection"] = "KIỂM TRA BÓC TÁCH KHUNG TIN HEX",
@@ -2565,6 +2650,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorUplinkPublishLabel"] = "▲ UPLINK (Xuất bản Telemetry):",
         ["InspectorDownlinkSubscribeLabel"] = "▼ DOWNLINK (Đăng ký nhận lệnh):",
         ["InspectorLwtLabel"] = "⚡ LWT (Báo ngoại tuyến):",
+        ["InspectorMqttBrokerSummaryTitle"] = "Thông Số Kết Nối Broker",
+        ["InspectorClientIdLabel"] = "Client ID Thiết Bị:",
+        ["InspectorKeepAliveLabel"] = "Khoảng Thời Gian Duy Trì (KeepAlive):",
+        ["InspectorMqttCanvasGuidance"] = "Toàn bộ cấu hình Topic, Payload và Điều khiển Inbound/Outbound được thiết lập linh hoạt qua các khối FBD MQTT_PUB / MQTT_SUB trên Logic Graph.",
+        ["MqttPinConflictTooltip"] = "Tag này đang được gán cho chân khác trong cùng khối MQTT.",
         ["InspectorQos1GuaranteeText"] = "Mức dịch vụ: QoS 1 đảm bảo gửi tin cậy với xác nhận PUBACK.",
         ["InspectorMqttSecurityTitle"] = "Kiểm Tra An Ninh & Bảo Mật",
         ["InspectorMqttPortLabel"] = "Cổng kết nối:",
@@ -2640,7 +2730,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["LiveDebugStatusInactive"] = "Chế độ giám sát tắt",
         ["ToolboxMqttPublishReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Publish.",
         ["ToolboxMqttSubscribeReqHardware"] = "Yêu cầu thiết bị hỗ trợ cổng mạng (Ethernet / Wi-Fi) và tính năng MQTT Subscribe.",
-        ["ToolboxModbusMasterReqHardware"] = "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller."
+        ["ToolboxModbusMasterReqHardware"] = "Yêu cầu thiết bị hỗ trợ tính năng Modbus Master Poller.",
+        ["StatusMqttReady"] = "{0} MQTT sẵn sàng",
+        ["StatusModbusReady"] = "{0} Modbus sẵn sàng",
+        ["StatusFbReady"] = "{0} FBs sẵn sàng",
+        ["StatusCombinedRulesMqtt"] = "{0} rule, {1} MQTT",
+        ["StatusCombinedRulesModbus"] = "{0} rule, {1} Modbus",
+        ["StatusCombinedMulti"] = "{0}R, {1}M, {2}MB sẵn sàng",
+        ["StatusCombinedTotalReady"] = "{0} khối chức năng sẵn sàng",
+        ["InspectorDeployableSummary"] = "Đã biên dịch thành công: {0}",
+        ["TooltipDeployableDetail"] = "Sẵn sàng nạp xuống PLC: {0}"
 
     };
 
@@ -2771,6 +2870,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusPortDisabledPill"] = "DISABLED",
         ["ModbusPortFooterHint"] = "Port settings will be synchronized and applied on the next device deployment.",
         ["ModbusNoPortsEnabled"] = "[No RS-485 Ports Enabled]",
+        ["ModbusNoMasterPortsEnabled"] = "No RS-485 Master Ports Enabled",
         ["ModbusNoPortsEnabledTooltip"] = "No RS-485 ports are currently enabled. Please open Settings > RS-485 Modbus Master Ports to enable at least one port.",
         ["ModbusPortDisabledSuffix"] = "[DISABLED]",
         ["ModbusNoPhysicalPortsMessage"] = "Target device does not have any physical RS-485 ports.",
@@ -2918,6 +3018,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiDialogSubtitle"] = "Scan nearby networks, configure connection credentials and monitor wireless signal",
         ["WifiSectionScan"] = "AVAILABLE WI-FI NETWORKS",
         ["WifiBtnScan"] = "Scan Networks",
+        ["WifiBtnScanning"] = "Scanning...",
         ["WifiScanningText"] = "Scanning nearby Wi-Fi networks...",
         ["WifiNoApsFound"] = "No Wi-Fi access points found in range.",
         ["WifiSectionCredentials"] = "CONNECTION CREDENTIALS",
@@ -2944,6 +3045,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiStatusAuthFailed"] = "Password Failed (Auth Failed)",
         ["WifiStatusSsidNotFound"] = "Network Not Found (SSID Not Found)",
         ["WifiBtnConnect"] = "Connect Now",
+        ["WifiBtnTestConnect"] = "Test Connection",
+        ["WifiBtnTesting"] = "Connecting...",
         ["WifiBtnDisconnect"] = "Disconnect",
         ["WifiBtnApply"] = "Save Configuration",
         ["WifiBtnCancel"] = "Close",
@@ -3232,6 +3335,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusSlaveInspectorFuncCodes"] = "Mã hàm hỗ trợ:",
         ["BtnSaveConfig"] = "Lưu cấu hình",
         ["DeviceConfigAppliedStatus"] = "Đã áp dụng cấu hình dự án — sẵn sàng nạp thiết bị",
+        ["DeviceConfigAutoSyncedStatus"] = "Cấu hình tự động đồng bộ vào dự án",
         ["InspectorPinoutTitle"] = "Physical Pinout & Wiring Guide",
         ["InspectorPinoutDesc"] = "RS-485 3-pin terminal wiring and 120Ω termination jumper",
         ["InspectorBusHealthTitle"] = "Bus Traffic & Polling Health",
@@ -3501,6 +3605,7 @@ public class LocalizationService : INotifyPropertyChanged
         ["WifiDnsValLabel"] = "DNS Server:",
         ["BtnSaveConfig"] = "Save Configuration",
         ["DeviceConfigAppliedStatus"] = "Configuration committed to project — ready to deploy",
+        ["DeviceConfigAutoSyncedStatus"] = "Changes auto-synced to project",
         ["DeviceUploadBtn"] = "Read from Device (Upload)",
         ["DeviceUploadBtnTip"] = "Read active configuration directly from device flash to IDE forms",
         ["DeviceDownloadBtn"] = "Download to Device (Flash)",
@@ -4210,6 +4315,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["DeployPreflightInvalid"] = "Error: Logic graph has compilation errors (Invalid). Cannot deploy.",
         ["DeployPreflightReady"] = "Ready to deploy: {0} valid compiled rules.",
         ["DeployPreflightNone"] = "No valid logic program ready to deploy.",
+        ["DeployPreflightZeroRulesWithConfig"] = "Ready to deploy: {0} configuration to device (0 Logic rules).",
+        ["DeployPreflightCleanWipe"] = "Ready to deploy: Reset configuration and clear device logic (0 Logic rules).",
         ["DeployStep1Title"] = "Validate logic program",
         ["DeployStep1Detail"] = "Validate program integrity and tag catalog",
         ["DeployStep2Title"] = "Send data to staging buffer",
@@ -4718,6 +4825,8 @@ public class LocalizationService : INotifyPropertyChanged
         ["ModbusColTargetTag"] = "Target Tag",
         ["ModbusColTargetTagTooltip"] = "Map decoded Modbus register value directly to this PLC Tag (no wire to Action block needed)",
         ["ModbusBtnAddPin"] = "+ Add Register Pin",
+        ["ModbusBtnImportFromSystem"] = "⚡ Import from System Tab",
+        ["ModbusBtnImportFromSystemTooltip"] = "Automatically import all Modbus channels declared on this port in System Tab into the pins table",
         ["ModbusPinsEmptyTitle"] = "No Register Pins Configured",
         ["ModbusPinsEmptyHint"] = "Click '+ Add Register Pin' below to define registers to poll.",
         ["ModbusTestSection"] = "LIVE HEX FRAME DECODING TEST",
@@ -5080,6 +5189,11 @@ public class LocalizationService : INotifyPropertyChanged
         ["InspectorUplinkPublishLabel"] = "▲ UPLINK (Telemetry Publish):",
         ["InspectorDownlinkSubscribeLabel"] = "▼ DOWNLINK (Command Subscribe):",
         ["InspectorLwtLabel"] = "⚡ LWT (Last Will & Testament):",
+        ["InspectorMqttBrokerSummaryTitle"] = "Broker Connection Parameters",
+        ["InspectorClientIdLabel"] = "Device Client ID:",
+        ["InspectorKeepAliveLabel"] = "Heartbeat KeepAlive Interval:",
+        ["InspectorMqttCanvasGuidance"] = "All Topics, Payloads, and Inbound/Outbound control logic are configured flexibly via MQTT_PUB and MQTT_SUB FBD blocks on the Logic Graph.",
+        ["MqttPinConflictTooltip"] = "This Tag is already assigned to another pin in the same MQTT block.",
         ["InspectorQos1GuaranteeText"] = "Service Level: QoS 1 ensures telemetry delivery with PUBACK verification.",
         ["InspectorMqttSecurityTitle"] = "Security & Port Overview",
         ["InspectorMqttPortLabel"] = "Connection Port:",
@@ -5155,7 +5269,16 @@ public class LocalizationService : INotifyPropertyChanged
         ["LiveDebugStatusInactive"] = "Live Monitor Inactive",
         ["ToolboxMqttPublishReqHardware"] = "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Publish capability.",
         ["ToolboxMqttSubscribeReqHardware"] = "Requires hardware network port (Ethernet / Wi-Fi) and MQTT Subscribe capability.",
-        ["ToolboxModbusMasterReqHardware"] = "Requires hardware Modbus Master Poller capability."
+        ["ToolboxModbusMasterReqHardware"] = "Requires hardware Modbus Master Poller capability.",
+        ["StatusMqttReady"] = "{0} MQTT ready",
+        ["StatusModbusReady"] = "{0} Modbus ready",
+        ["StatusFbReady"] = "{0} FBs ready",
+        ["StatusCombinedRulesMqtt"] = "{0} rules, {1} MQTT",
+        ["StatusCombinedRulesModbus"] = "{0} rules, {1} Modbus",
+        ["StatusCombinedMulti"] = "{0}R, {1}M, {2}MB ready",
+        ["StatusCombinedTotalReady"] = "{0} deployable units ready",
+        ["InspectorDeployableSummary"] = "Successfully compiled: {0}",
+        ["TooltipDeployableDetail"] = "Ready to deploy to PLC: {0}"
 
     };
 

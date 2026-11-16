@@ -129,6 +129,14 @@ public partial class TagCatalogViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Tra cứu Tag nhanh O(1) theo địa chỉ Index thanh ghi, tối ưu hóa triệt để hiệu năng giao diện và luồng polling.
+    /// </summary>
+    /// <param name="index">Chỉ số Index của Tag trong bảng thanh ghi PLC.</param>
+    /// <returns>Đối tượng TagModel hoặc null nếu không tồn tại.</returns>
+    public TagModel? FindTagByIndex(int index) => _tagsByIndex.TryGetValue(index, out var tag) ? tag : null;
+
+
     public TagCatalogViewModel()
     {
         AllTags.CollectionChanged += (s, e) => RebuildTagIndex();
