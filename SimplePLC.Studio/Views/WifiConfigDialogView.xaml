@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="clr-namespace:SimplePLC.Studio.Services"
         xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
+        xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
         Title="{Binding [WifiDialogTitle], Source={x:Static services:LocalizationService.Instance}}"
         Width="660" Height="610"
         MinWidth="600" MinHeight="500"
@@ -27,6 +28,7 @@
                 <ResourceDictionary Source="../Styles/Icons.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <converters:BooleanToVisibilityConverterEx x:Key="InverseBoolToVis" Invert="True" />
         </ResourceDictionary>
     </Window.Resources>
 
@@ -41,11 +43,12 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 0. Header -->
-            <Grid Grid.Row="0" Margin="0,0,0,10">
+            <!-- 0. Header with Enable Checkbox -->
+            <Grid Grid.Row="0" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0" Width="38" Height="38" Background="{DynamicResource IndustrialBorderSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,12,0">
@@ -53,18 +56,53 @@
                           Stroke="{DynamicResource IndustrialPrimaryBrush}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
                     <TextBlock Text="{Binding [WifiDialogTitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
                     <TextBlock Text="{Binding [WifiDialogSubtitle], Source={x:Static services:LocalizationService.Instance}}" 
                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
                 </StackPanel>
+
+                <CheckBox Grid.Column="2" IsChecked="{Binding IsEnabled}" 
+                          Content="{Binding [EnableWifiService], Source={x:Static services:LocalizationService.Instance}}"
+                          FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
             </Grid>
 
-            <!-- 1. Reusable Wi-Fi Control Body -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,10">
-                <controls:WifiConfigControl DataContext="{Binding}" />
-            </ScrollViewer>
+            <!-- 1. Content Form (Notice Banner when Disabled + Reusable Wi-Fi Control Body) -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Notice Banner when Wi-Fi is Disabled -->
+                <Border Grid.Row="0" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
+                        BorderThickness="1" CornerRadius="4" Padding="12,8" Margin="0,0,0,10"
+                        Visibility="{Binding IsEnabled, Converter={StaticResource InverseBoolToVis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysAlert}" 
+                              Stroke="{DynamicResource WarningBrush}" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding [NoticeWifiDisabled], Source={x:Static services:LocalizationService.Instance}}" 
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Border IsEnabled="{Binding IsEnabled}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Opacity" Value="1.0" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.45" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <controls:WifiConfigControl DataContext="{Binding}" />
+                    </Border>
+                </ScrollViewer>
+            </Grid>
 
             <!-- 2. Footer Action -->
             <Grid Grid.Row="2">

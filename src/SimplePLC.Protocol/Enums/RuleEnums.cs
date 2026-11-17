@@ -28,6 +28,18 @@ public enum SPLC_CompareOp : byte
 }
 
 /// <summary>
+/// Mã toán tử số học ALU khi SPLC_ActionType == MATH_OP (đặt trong trường compare_op).
+/// </summary>
+public enum SPLC_MathOp : byte
+{
+    ADD = 0,
+    SUB = 1,
+    MUL = 2,
+    DIV = 3,
+    MOD = 4
+}
+
+/// <summary>
 /// Hành động được thực thi khi rule thỏa điều kiện theo Data Contract V1.7.
 /// </summary>
 public enum SPLC_ActionType : byte
@@ -39,5 +51,6 @@ public enum SPLC_ActionType : byte
     LOG_EVENT = 4,     // Ghi event nội bộ
     SEND_ALARM = 5,    // Phát alarm code
     ADD_TAG = 6,       // action_tag += trigger_tag value
-    SCALE_TAG = 7      // Scale trigger value sang action_tag
+    SCALE_TAG = 7,     // Scale trigger value sang action_tag
+    MATH_OP = 8       // action_tag = trigger_tag [compare_op] operand_2
 }

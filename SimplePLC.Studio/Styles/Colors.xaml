@@ -60,6 +60,7 @@
     <Color x:Key="ColorNodeCounter">#0F766E</Color>   <!-- Industrial Deep Teal (Counters CTU/CTD) -->
     <Color x:Key="ColorNodeScale">#475569</Color>     <!-- Industrial Slate Blue (Analog Scaler) -->
     <Color x:Key="ColorNodeComparator">#006487</Color> <!-- Siemens Petrol Blue (IEC 61131-3 Comparators CMP) -->
+    <Color x:Key="ColorNodeMath">#0F766E</Color>       <!-- Industrial Deep Teal (IEC 61131-3 Math ALU) -->
     <Color x:Key="ColorNodeMqtt">#006487</Color>       <!-- Siemens Petrol Blue (MQTT Telemetry) -->
     <Color x:Key="ColorNodeModbus">#006487</Color>     <!-- Siemens Petrol Blue (Modbus RTU Communication) -->
 
@@ -116,6 +117,7 @@
     <SolidColorBrush x:Key="NodeCounterBrush" Color="{StaticResource ColorNodeCounter}" />
     <SolidColorBrush x:Key="NodeScaleBrush" Color="{StaticResource ColorNodeScale}" />
     <SolidColorBrush x:Key="NodeComparatorBrush" Color="{StaticResource ColorNodeComparator}" />
+    <SolidColorBrush x:Key="NodeMathBrush" Color="{StaticResource ColorNodeMath}" />
     <SolidColorBrush x:Key="NodeMqttBrush" Color="{StaticResource ColorNodeMqtt}" />
     <SolidColorBrush x:Key="NodeModbusBrush" Color="{StaticResource ColorNodeModbus}" />
 

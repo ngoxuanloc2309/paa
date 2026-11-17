@@ -22,7 +22,31 @@ public enum LogicNodeKind
     DirectWrite = 12,
     DtuGateway = 13,
     HttpClient = 14,
-    TcpClient = 15
+    TcpClient = 15,
+    Math = 16
+}
+
+/// <summary>
+/// Dữ liệu cấu hình cho một chân ngõ vào của khối Math.
+/// </summary>
+public sealed class MathPinData
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Label { get; set; } = "IN1";
+    public ushort? TagIndex { get; set; }
+    public bool IsConstant { get; set; }
+    public double ConstantValue { get; set; }
+}
+
+/// <summary>
+/// Dữ liệu cấu hình cho khối xử lý toán học Math (IEC 61131-3).
+/// </summary>
+public sealed class MathNodeData
+{
+    public List<MathPinData> Pins { get; set; } = new();
+    public ushort? OutTagIndex { get; set; }
+    public MathOperator Operator { get; set; } = MathOperator.Add;
+    public MathTypeMode TypeMode { get; set; } = MathTypeMode.Auto;
 }
 
 /// <summary>
@@ -327,6 +351,7 @@ public sealed class LogicNode
     public DtuGatewayNodeData? DtuGatewayData { get; set; }
     public HttpClientNodeData? HttpClientData { get; set; }
     public TcpClientNodeData? TcpClientData { get; set; }
+    public MathNodeData? MathData { get; set; }
 
     public static LogicNode CreateInput(string id, ushort tagIndex, string label = "") =>
         new() { Id = id, Kind = LogicNodeKind.Input, Label = label, InputData = new InputNodeData { TagIndex = tagIndex } };

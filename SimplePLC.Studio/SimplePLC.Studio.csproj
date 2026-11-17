@@ -12,9 +12,9 @@
     <Product>SynaptiX IDE</Product>
     <Company>SynaptiX Corporation</Company>
     <Description>SynaptiX Industrial Automation Platform</Description>
-    <Version>2.15.0</Version>
-    <AssemblyVersion>2.15.0.0</AssemblyVersion>
-    <FileVersion>2.15.0.0</FileVersion>
+    <Version>2.15.1</Version>
+    <AssemblyVersion>2.15.1.0</AssemblyVersion>
+    <FileVersion>2.15.1.0</FileVersion>
   </PropertyGroup>
 
 
@@ -39,5 +39,12 @@
   <ItemGroup>
     <Using Include="SimplePLC.Domain.Enums" />
   </ItemGroup>
+
+  <Target Name="CleanupWpfTmpFiles" BeforeTargets="BeforeBuild;Clean" AfterTargets="Build">
+    <ItemGroup>
+      <_WpfTmpFiles Include="$(MSBuildProjectDirectory)\*_wpftmp.csproj" />
+    </ItemGroup>
+    <Delete Files="@(_WpfTmpFiles)" ContinueOnError="true" />
+  </Target>
 
 </Project>

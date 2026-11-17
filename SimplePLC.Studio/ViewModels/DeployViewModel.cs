@@ -50,6 +50,79 @@ public partial class DeployViewModel : ObservableObject
             ? 0
             : StepDelayMs;
 
+    private CancellationTokenSource? _autoResetCts;
+
+    /// <summary>
+    /// Thời gian chờ (ms) trước khi tự động hoàn nguyên giao diện nạp về trạng thái Sẵn sàng (Ready).
+    /// Mặc định 3000ms (3 giây). Trong Unit Test với FakeModbusClient, tự động vô hiệu hóa để đảm bảo tính bất biến khi assert.
+    /// </summary>
+    public int AutoResetSuccessDelayMs { get; set; } = 3000;
+
+    private int EffectiveResetDelayMs => AutoResetSuccessDelayMs > 0 ? AutoResetSuccessDelayMs : 0;
+
+    /// <summary>
+    /// Lập lịch tự động hoàn nguyên Stepper và thanh tiến độ về trạng thái Sẵn sàng (Ready) sau khi nạp thành công.
+    /// Toàn bộ lịch sử trong ConsoleLog được giữ nguyên để kỹ sư tra cứu.
+    /// </summary>
+    public void ScheduleAutoResetSuccess(int delayMs = 3000)
+    {
+        _autoResetCts?.Cancel();
+        _autoResetCts?.Dispose();
+        _autoResetCts = new CancellationTokenSource();
+        var token = _autoResetCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(delayMs, token).ConfigureAwait(false);
+                if (token.IsCancellationRequested) return;
+
+                void Reset()
+                {
+                    ResetToReadyState();
+                }
+
+                if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+                {
+                    dispatcher.Invoke(Reset);
+                }
+                else
+                {
+                    Reset();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Bình thường khi hủy tác vụ nền
+            }
+            catch
+            {
+                // Bỏ qua ngoại lệ teardown/shutdown
+            }
+        }, token);
+    }
+
+    /// <summary>
+    /// Hoàn nguyên giao diện về trạng thái Sẵn sàng (Ready) để sẵn sàng cho lần nạp tiếp theo.
+    /// </summary>
+    public void ResetToReadyState()
+    {
+        _autoResetCts?.Cancel();
+        if (IsSuccess)
+        {
+            IsSuccess = false;
+            DeployState = DeployState.Idle;
+            ShowProgressBar = false;
+            ProgressPercent = 0;
+            InitializeSteps();
+        }
+        UpdatePreflightSummary();
+        OnPropertyChanged(nameof(CanDeploy));
+        StartDeployCommand.NotifyCanExecuteChanged();
+        PrimaryActionCommand.NotifyCanExecuteChanged();
+    }
+
     [ObservableProperty] private int _progressPercent;
     [ObservableProperty] private bool _isDeploying;
     [ObservableProperty] private bool _isSuccess;
@@ -299,16 +372,7 @@ public partial class DeployViewModel : ObservableObject
 
     private void ResetDeployStateOnConfigChange()
     {
-        if (IsSuccess)
-        {
-            IsSuccess = false;
-            DeployState = DeployState.Idle;
-            InitializeSteps();
-        }
-        UpdatePreflightSummary();
-        OnPropertyChanged(nameof(CanDeploy));
-        StartDeployCommand.NotifyCanExecuteChanged();
-        PrimaryActionCommand.NotifyCanExecuteChanged();
+        ResetToReadyState();
     }
 
     public void UpdatePreflightSummary()
@@ -649,6 +713,7 @@ public partial class DeployViewModel : ObservableObject
             return;
         }
 
+        _autoResetCts?.Cancel();
         IsDeploying = true;
         IsSuccess = false;
         DeployState = DeployState.Preparing;
@@ -1270,6 +1335,11 @@ public partial class DeployViewModel : ObservableObject
                     ? $"[HOÀN TẤT] Nạp thành công trong {LastDeployDurationMs}ms · Phiên bản: {deployResult.ActiveVersion} · 100% hợp lệ."
                     : $"[SUCCESS] Deployed in {LastDeployDurationMs}ms · Version: {deployResult.ActiveVersion} · 100% valid.";
                 AppendLog(completionSummary);
+
+                if (EffectiveResetDelayMs > 0)
+                {
+                    ScheduleAutoResetSuccess(EffectiveResetDelayMs);
+                }
             }
             else
             {

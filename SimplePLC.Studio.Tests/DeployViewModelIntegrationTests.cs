@@ -53,6 +53,38 @@ public class DeployViewModelIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task ResetToReadyState_RestoresStepsAndProgress_WhilePreservingConsoleLog()
+    {
+        // Arrange
+        var fakeClient = new FakeModbusClient();
+        await fakeClient.ConnectAsync("COM1", 115200);
+        AppServices.Instance.SetModbusClient(fakeClient);
+
+        var tagCatalog = new TagCatalogViewModel();
+        var ruleTableVM = new RuleTableViewModel(tagCatalog);
+        ruleTableVM.LoadDefaultRules();
+        var deployVM = new DeployViewModel(AppServices.Instance.DeployUseCase, ruleTableVM);
+
+        await deployVM.StartDeployAsync();
+        Assert.True(deployVM.IsSuccess);
+        Assert.Equal(100, deployVM.ProgressPercent);
+        string logBefore = deployVM.ConsoleLog;
+        Assert.NotEmpty(logBefore);
+
+        // Act
+        deployVM.ResetToReadyState();
+
+        // Assert
+        Assert.False(deployVM.IsSuccess);
+        Assert.Equal(DeployState.Idle, deployVM.DeployState);
+        Assert.Equal(0, deployVM.ProgressPercent);
+        Assert.False(deployVM.ShowProgressBar);
+        Assert.All(deployVM.Steps, s => Assert.Equal(StepStatus.Pending, s.Status));
+        Assert.Equal(logBefore, deployVM.ConsoleLog);
+        Assert.True(deployVM.CanDeploy);
+    }
+
+    [Fact]
     public async Task StartDeployAsync_WhenDeviceNotConnected_FailsAtStep1()
     {
         // Arrange

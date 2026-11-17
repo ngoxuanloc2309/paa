@@ -672,6 +672,14 @@ typedef enum {
 } SPLC_CompareOp_t;
 
 typedef enum {
+    SPLC_MATH_ADD                 = 0,
+    SPLC_MATH_SUB                 = 1,
+    SPLC_MATH_MUL                 = 2,
+    SPLC_MATH_DIV                 = 3,
+    SPLC_MATH_MOD                 = 4
+} SPLC_MathOp_t;
+
+typedef enum {
     SPLC_ACT_SET_TAG              = 0,
     SPLC_ACT_TOGGLE_TAG           = 1,
     SPLC_ACT_INC_COUNTER          = 2,
@@ -679,7 +687,8 @@ typedef enum {
     SPLC_ACT_LOG_EVENT            = 4,
     SPLC_ACT_SEND_ALARM           = 5,
     SPLC_ACT_ADD_TAG              = 6,
-    SPLC_ACT_SCALE_TAG            = 7
+    SPLC_ACT_SCALE_TAG            = 7,
+    SPLC_ACT_MATH_OP              = 8
 } SPLC_ActionType_t;
 
 /* Diagnostic & Commissioning Enums (0x0A20..0x0A24) */

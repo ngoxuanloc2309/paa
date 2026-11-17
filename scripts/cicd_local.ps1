@@ -17,6 +17,7 @@
 param(
     [string]$Version = "",
     [switch]$SkipTests,
+    [switch]$SkipInstaller,
     [string]$GitHubToken = $env:RELEASE_TOKEN,
     [string]$TargetRepo = "hoanv-synaptix/SynaptiX-IDE-Releases"
 )
@@ -109,7 +110,7 @@ if (-not $SkipTests) {
 }
 
 # 6. Publish Single-File Executable
-Write-Host "[5/6] Publishing standalone single-file Windows x64 binary..." -ForegroundColor Green
+Write-Host "[5/7] Publishing standalone single-file Windows x64 binary..." -ForegroundColor Green
 & dotnet publish "$RootDir\SimplePLC.Studio\SimplePLC.Studio.csproj" `
     --configuration Release `
     -r win-x64 `
@@ -140,8 +141,38 @@ if (-not (Test-Path "$PublishDir\SimplePLC.Studio.exe")) {
 $exeSizeMB = [math]::Round((Get-Item $ExePath).Length / 1MB, 2)
 Write-Host " Successfully generated: $ExePath ($exeSizeMB MB)" -ForegroundColor Green
 
-# 7. Package Distribution ZIP & Checksums
-Write-Host "[6/6] Packaging release distribution and computing SHA256..." -ForegroundColor Green
+# 7. Build Official Windows Desktop Setup Installer (Inno Setup 6)
+$InstallerName = "SynaptiX_IDE_Setup_v$Version.exe"
+$InstallerPackagePath = "$ReleasePackageDir\$InstallerName"
+$installerScript = "$RootDir\installer\build-installer.ps1"
+$installerHash = $null
+
+if (-not $SkipInstaller) {
+    Write-Host "[6/7] Building official Windows desktop setup installer..." -ForegroundColor Green
+    if (Test-Path $installerScript) {
+        try {
+            & powershell -NoProfile -ExecutionPolicy Bypass -File $installerScript -Version $Version
+            $builtInstaller = "$RootDir\installer\dist\$InstallerName"
+            if (Test-Path $builtInstaller) {
+                Copy-Item $builtInstaller -Destination $InstallerPackagePath -Force
+                $installerHash = (Get-FileHash -Path $InstallerPackagePath -Algorithm SHA256).Hash
+                $installerSizeMB = [math]::Round((Get-Item $InstallerPackagePath).Length / 1MB, 2)
+                Write-Host " Successfully generated installer: $InstallerPackagePath ($installerSizeMB MB)" -ForegroundColor Green
+            } else {
+                Write-Warning "Installer build completed but output not found at: $builtInstaller"
+            }
+        } catch {
+            Write-Warning "Failed to build Windows setup installer: $_"
+        }
+    } else {
+        Write-Warning "Installer build script not found at $installerScript. Skipping installer creation."
+    }
+} else {
+    Write-Host "[6/7] Skipping official installer build (-SkipInstaller specified)." -ForegroundColor DarkYellow
+}
+
+# 8. Package Distribution ZIP & Checksums
+Write-Host "[7/7] Packaging release distribution and computing SHA256..." -ForegroundColor Green
 $ZipName = "SynaptiX-IDE-$ReleaseTag-win-x64.zip"
 $ZipPath = "$ReleasePackageDir\$ZipName"
 
@@ -151,31 +182,40 @@ $hash = (Get-FileHash -Path $ExePath -Algorithm SHA256).Hash
 $zipHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash
 
 $ChecksumFile = "$ReleasePackageDir\SHA256SUMS.txt"
-@"
-$hash  $([System.IO.Path]::GetFileName($ExePath))
-$zipHash  $ZipName
-"@ | Set-Content -Path $ChecksumFile -Encoding utf8
+$checksumLines = @()
+if ($installerHash) {
+    $checksumLines += "$installerHash  $InstallerName"
+}
+$checksumLines += "$hash  $([System.IO.Path]::GetFileName($ExePath))"
+$checksumLines += "$zipHash  $ZipName"
+$checksumLines -join "`r`n" | Set-Content -Path $ChecksumFile -Encoding utf8
 
 # Generate Release Notes Markdown
 $ReleaseNotesFile = "$ReleasePackageDir\RELEASE_NOTES_$ReleaseTag.md"
+$installerTableRow = ""
+if ($installerHash) {
+    $installerTableRow = "| ``$InstallerName`` | **Bản cài đặt chính thức (Khuyên dùng)** — Windows x64 Setup Wizard (tạo Desktop/Start Menu shortcut, mở file .synx, đính kèm MCU Emulator) | $installerHash |`r`n"
+}
+
 $releaseContent = @"
 # SynaptiX IDE $ReleaseTag — Official Release
 
 Phiên bản chính thức của môi trường lập trình và cấu hình thiết bị công nghiệp **SynaptiX IDE ($ReleaseTag)**.
 
-## 🚀 Tính năng nổi bật & Nâng cấp (v2.15.0)
+## 🚀 Tính năng nổi bật & Nâng cấp (v$Version)
 - **Chuẩn Hóa Cơ Chế Nạp Sang Chuẩn IDE Công Nghiệp Toàn Cầu (Universal Industrial IDE Download Standard)**: Cho phép nạp độc lập cấu hình thiết bị (MQTT Broker, DTU Gateway, RS-485 Modbus, Wi-Fi...) xuống phần cứng ngay cả khi dự án có 0 logic rule, tương đương tiêu chuẩn các IDE công nghiệp quốc tế (Siemens TIA Portal, Rockwell Studio 5000, Codesys).
 - **Tối Ưu Hóa Hiệu Năng Chuyển Tab với Bộ Nhớ Đệm Visual Tree (`CachedContentPresenter`)**: Triệt tiêu hoàn toàn độ trễ (lag), rò rỉ bộ nhớ (memory leaks) và tái tạo cây thị giác khi chuyển đổi giữa 7 workspaces của IDE.
 - **Đồng Bộ Hai Chiều Trạng Thái Cổng Modbus Master & Chuẩn Hóa Vòng Đời Modal Dialog**: Giải quyết triệt để lỗi ghi đè cấu hình (stale auto-commit on tab switch) và crash khi đóng hộp thoại cấu hình cổng ngoại vi.
 - **Hệ Thống Trạng Thái Biên Dịch Đa Phân Hệ & Tự Động Đồng Bộ Rule Table**: Hiển thị trạng thái biên dịch trực quan dạng token rút gọn (`{r} rules, {m} MQTT ready`), tự động đồng bộ hóa bảng Rule Table khi chuyển tab mà không cần lưu thủ công.
 - **Dịch Vụ Giám Sát Chẩn Đoán Truyền Thông (Comm Diagnostics Service & System Tag Watchdog)**: Bổ sung `ICommDiagnosticsService` và cơ chế giám sát watchdog thời gian thực qua tag hệ thống `SYS_COMM_OK`.
-- **Độ Tin Cậy & Ổn Định Tuyệt Đối**: Vượt qua 100% toàn bộ 2,186 bài kiểm thử tự động toàn giải pháp, 0 vi phạm Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
+- **Bộ Cài Đặt Desktop Setup Installer Chính Thức (Inno Setup 6)**: Tự động đăng ký file association `.synx`, tạo icon Desktop/Start Menu và tích hợp công cụ giả lập MCU Emulator vào hệ thống.
+- **Độ Tin Cậy & Ổn Định Tuyệt Đối**: Vượt qua 100% bài kiểm thử tự động toàn giải pháp, 0 vi phạm Clean Architecture, 0 vi phạm token XAML, hoàn thành kiểm tra Web Wiki Portal không lỗi.
 
 ## 📦 Tệp đính kèm phân phối
-| Tên tệp | Mô tả | SHA256 Checksum |
+| Tên tệp | Định dạng & Mục đích | SHA256 Checksum |
 | :--- | :--- | :--- |
-| ``SynaptixIDE.exe`` | Portable single-file x64 standalone executable | $hash |
-| ``$ZipName`` | Toàn bộ gói ứng dụng nén zip | $zipHash |
+$($installerTableRow)| ``SynaptixIDE.exe`` | **Bản Portable độc lập** — Windows x64 single-file executable, chạy trực tiếp không cần cài đặt | $hash |
+| ``$ZipName`` | **Gói nén ZIP đầy đủ** — Toàn bộ tệp ứng dụng nén zip | $zipHash |
 
 *Yêu cầu hệ điều hành: Windows 10 / Windows 11 (64-bit). Không cần cài đặt thêm .NET Runtime.*
 "@
@@ -190,13 +230,16 @@ Write-Host "=================================================================" -
 Write-Host "           LOCAL CI/CD COMPLETED SUCCESSFULLY!                   " -ForegroundColor Green
 Write-Host "=================================================================" -ForegroundColor Green
 Write-Host " Release artifacts created in: $ReleasePackageDir" -ForegroundColor Cyan
-Write-Host "  1. Standalone Executable : $ReleasePackageDir\SimplePLC.Studio.exe"
-Write-Host "  2. Distribution ZIP      : $ZipPath"
-Write-Host "  3. Checksums             : $ChecksumFile"
-Write-Host "  4. Release Notes         : $ReleaseNotesFile"
+if (Test-Path $InstallerPackagePath) {
+    Write-Host "  1. Desktop Setup Installer: $InstallerPackagePath"
+}
+Write-Host "  2. Standalone Executable  : $ReleasePackageDir\SimplePLC.Studio.exe"
+Write-Host "  3. Distribution ZIP       : $ZipPath"
+Write-Host "  4. Checksums              : $ChecksumFile"
+Write-Host "  5. Release Notes          : $ReleaseNotesFile"
 Write-Host ""
 
-# 8. Direct GitHub Release Upload (if token is available)
+# 9. Direct GitHub Release Upload (if token is available)
 if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
     Write-Host "Attempting direct GitHub Release upload to $TargetRepo..." -ForegroundColor Yellow
     try {
@@ -236,7 +279,11 @@ if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
 
         # Upload Assets
         $uploadUrlTemplate = $releaseObj.upload_url -replace '\{\?name,label\}', ''
-        $assetsToUpload = @(
+        $assetsToUpload = @()
+        if (Test-Path $InstallerPackagePath) {
+            $assetsToUpload += @{ Path = $InstallerPackagePath; ContentType = "application/octet-stream"; Name = $InstallerName }
+        }
+        $assetsToUpload += @(
             @{ Path = "$ReleasePackageDir\SimplePLC.Studio.exe"; ContentType = "application/octet-stream"; Name = "SimplePLC.Studio.exe" },
             @{ Path = $ZipPath; ContentType = "application/zip"; Name = $ZipName },
             @{ Path = $ChecksumFile; ContentType = "text/plain"; Name = "SHA256SUMS.txt" }

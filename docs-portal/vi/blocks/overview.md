@@ -40,6 +40,7 @@ Nhóm các khối lưu trạng thái phục vụ trễ đóng/ngắt, phát xung
 | [`CTU`](/vi/blocks/ctu) | **Bộ Đếm Tiến (Count Up)** | `CU`, `R` → `Q` | Tăng giá trị đếm tức thời `CV` tại mỗi sườn lên chân `CU` và xuất `Q = 1` khi `CV >= PV`; xóa `CV` về `0` khi kích chân `R`. |
 | [`CTD`](/vi/blocks/ctd) | **Bộ Đếm Lùi (Count Down)** | `CD`, `R` → `Q` | Giảm `CV` lùi từ ngưỡng đặt `PV` tại mỗi sườn lên chân `CD` và xuất `Q = 1` khi `CV <= 0`; nạp lại `CV = PV` khi kích chân `R`. |
 | [`SCALE`](/vi/blocks/scale) | **Tuyến tính hóa & Hiệu chuẩn 2 Điểm** | `In` → `Out` | Nội suy tuyến tính giá trị thô ADC hoặc thanh ghi truyền thông (`[RawMin..RawMax]`) sang đơn vị vật lý thực tế (`[EngMin..EngMax]`) kèm tùy chọn kẹp biên. |
+| [`MATH`](/vi/blocks/math) | **Khối Tính toán Số học (ALU)** | `IN1..IN8` → `Out` | Thực hiện các phép toán đại số (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`) trên 2..8 toán hạng kèm cơ chế tự động nâng kiểu dữ liệu và chống chia cho 0. |
 
 ### 1.3 Truyền thông Fieldbus & Xuất Phần cứng (Fieldbus & Hardware Actuation)
 

@@ -27,33 +27,13 @@
         <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
                 BorderThickness="1" CornerRadius="6" Margin="0,0,0,16" Padding="18,16">
             <StackPanel>
-                <!-- Card Header with Real-time RSSI Pill -->
-                <Grid Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysLock}" 
-                              Stroke="{DynamicResource PrimaryBrush}" Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding [CardWifiCredentials], Source={x:Static services:LocalizationService.Instance}}" 
-                                   FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <!-- Real-Time RSSI Telemetry Pill when connected -->
-                    <Border Grid.Column="1" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" 
-                            BorderThickness="1" CornerRadius="3" Padding="8,2" VerticalAlignment="Center"
-                            Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysWifi}" 
-                                  Stroke="{DynamicResource SuccessBrush}" Width="11" Height="11" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding [WifiRssiLabel], Source={x:Static services:LocalizationService.Instance}}" 
-                                       FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding RssiDbm, StringFormat={}{0} dBm}" 
-                                       FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <!-- Card Header -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysLock}" 
+                          Stroke="{DynamicResource PrimaryBrush}" Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding [CardWifiCredentials], Source={x:Static services:LocalizationService.Instance}}" 
+                               FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                </StackPanel>
 
                 <!-- Row 1: Wi-Fi Network Name (SSID) & Scan Networks Button -->
                 <Grid Margin="0,0,0,14">

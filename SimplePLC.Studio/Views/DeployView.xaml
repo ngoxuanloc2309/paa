@@ -365,7 +365,7 @@
                         </Border>
 
                         <!-- Terminal Textbox -->
-                        <TextBox Text="{Binding ConsoleLog}" IsReadOnly="True"
+                        <TextBox Text="{Binding ConsoleLog}" IsReadOnly="True" AcceptsReturn="True" VerticalContentAlignment="Top"
                                  Background="{DynamicResource BgPanelBrush}" Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11"
                                  BorderThickness="0" Padding="12,10" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
                     </DockPanel>

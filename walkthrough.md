@@ -1,6 +1,65 @@
-
+﻿
 
 # SynaptiX IDE Engineering Walkthrough & Living Documentation
+
+## 22. Tinh Chỉnh Công Thái Học Giao Diện Wi-Fi, RS-485 Dialog & Deploy Pipeline Auto-Reset
+
+### 22.1. Loại Bỏ Trùng Lặp RSSI Wi-Fi & Bổ Sung Nút Bật/Tắt Trong Popup Wi-Fi
+- **Bối cảnh:** Thẻ `Network SSID & Authentication` trong `WifiConfigControl.xaml` hiển thị telemetry pill RSSI trùng lặp với tab Telemetry/Inspector bên phải. Ngoài ra, popup `WifiConfigDialogView` thiếu công tắc Kích hoạt kết nối Wi-Fi trên thiết bị (`IsEnabled`).
+- **Triển khai:**
+  - Loại bỏ telemetry pill RSSI góc phải header Card 1 trong `WifiConfigControl.xaml`.
+  - Bổ sung `CheckBox` kích hoạt Wi-Fi vào header của `WifiConfigDialogView.xaml`, tích hợp cảnh báo màu cam (`NoticeWifiDisabled`) và hiệu ứng làm mờ / vô hiệu hoá form (`Opacity=0.45`, `IsEnabled=False`) khi Wi-Fi bị tắt.
+  - Đồng bộ hai chiều với `ProjectMetadata.WifiEnabled` và `DtuGatewayStudioViewModel.ReloadFromMetadata()`.
+  - Bổ sung unit tests cho luồng commit metadata Wi-Fi: `41/41 tests passed`.
+
+### 22.2. Chuyển Cấu Hình Cổng RS-485 Modbus Thành Popup Modal Trực Tiếp
+- **Bối cảnh:** Lựa chọn `Device -> RS-485 Modbus Ports Configuration... (Ctrl+Shift+B)` trước đây chuyển tab sang System thay vì mở popup như MQTT hay block Modbus.
+- **Triển khai:**
+  - Cập nhật `OpenModbusPortConfig` trong `MainViewModel.cs` mở trực tiếp `ModbusPortConfigDialogView` với owner là active window.
+  - Tự động đồng bộ `ProjectMetadata`, `DtuGatewayStudioVM` và `LogicEditorVM` sau khi Apply.
+  - Đồng bộ 100% trải nghiệm người dùng với nút bánh răng ⚙ trong các khối FBD `MB_READ` và `MB_WRITE`.
+
+### 22.3. Sửa Lỗi Log Lơ Lửng & Chuẩn Hóa Cơ Chế Tự Động Hoàn Nguyên (Auto-Reset) Cho Tab Deploy
+- **Bối cảnh:**
+  - Trong `DeployView.xaml`, `TextBox` hiển thị `ConsoleLog` bị căn giữa theo chiều dọc do thiếu `VerticalContentAlignment="Top"` và `AcceptsReturn="True"`, gây cảm giác dòng text trôi lơ lửng ở giữa card.
+  - Sau khi nạp thành công, 5 bước bị đóng băng ở `Done 100%` và nút chuyển sang màu xanh lá vĩnh viễn, khiến giao diện thiếu trực quan cho lần nạp tiếp theo.
+- **Triển khai:**
+  - Đã thêm `AcceptsReturn="True"` và `VerticalContentAlignment="Top"` cho `TextBox` log trong `DeployView.xaml`.
+  - Bổ sung cơ chế `ScheduleAutoResetSuccess(3000)` trong `DeployViewModel.cs`: Sau khi nạp thành công, giữ hiển thị 3 giây để kỹ sư theo dõi kết quả, sau đó tự động hoàn nguyên Stepper về trạng thái `Sẵn sàng (Ready / Pending)`, ẩn thanh tiến độ, chuyển nút bấm về kiểu Primary tiêu chuẩn sẵn sàng nạp tiếp, đồng thời giữ nguyên 100% lịch sử `ConsoleLog`.
+  - Bổ sung unit test `ResetToReadyState_RestoresStepsAndProgress_WhilePreservingConsoleLog`: toàn bộ `46/46` unit test Deploy vượt qua.
+
+---
+
+## 21. Xây Dựng Bộ Cài Đặt Chính Thức SynaptiX IDE (Microsoft VS Code Standard Inno Setup 6)
+
+### 21.1. Bối cảnh & Nguyên Lý Thiết Kế
+- **Mục tiêu:** Đóng gói phần mềm desktop SynaptiX IDE v2.15.0 (.NET 8 WPF 64-bit self-contained) thành một bộ cài đặt Windows duy nhất (`SynaptiX_Setup_v2.15.0.exe`), đạt chuẩn phân phối quốc tế tương tự Microsoft Visual Studio Code và Git for Windows.
+- **Tiêu chuẩn chất lượng:**
+  1. **Dung lượng siêu tinh gọn:** Ứng dụng gốc self-contained nặng ~241 MB được nén bằng thuật toán **LZMA2 Ultra64 Solid**, đạt kích thước phân phối chỉ **72.18 MB** (giảm 70% băng thông tải về).
+  2. **Giao diện chuẩn Segoe UI & Modern Wizard:** Khắc phục triệt để các lỗi layout của phiên bản thử nghiệm:
+     - Không có dòng text bị cắt cụt (clipping).
+     - Không bị chèn đè hoặc mất nút radio "I accept / I do not accept" ở chân trang EULA.
+     - Không bị lặp dòng "Click Next to continue, or Cancel to exit Setup".
+     - Loại bỏ icon thư mục vàng (clipart) lỗi thời ở trang chọn thư mục.
+     - Đồng bộ 100% typography `Segoe UI` trên toàn bộ wizard và văn bản giấy phép.
+  3. **Bộ nhận diện thương hiệu độ phân giải cao:**
+     - Banner chào mừng/hoàn tất (`wizard_large.bmp` 164x314 px): Logo SynaptiX sắc nét trên nền slate trung tính `#F8FAFC` với đường phân cách viền phải 1px `#E2E8F0`.
+     - Logo tiêu đề trang (`wizard_small.bmp` 55x55 px): Logo SynaptiX trên nền trắng `#FFFFFF` đồng nhất tuyệt đối với thanh header Inno Setup.
+  4. **Tích hợp hệ điều hành Windows đầy đủ:**
+     - Shortcut Desktop: `SynaptiX IDE` với icon độ phân giải cao đa tầng `app.ico`.
+     - Start Menu Program Group: `SynaptiX Corporation` chứa `SynaptiX IDE`, công cụ giả lập `SynaptiX MCU Emulator`, và trình gỡ cài đặt.
+     - File Association: Tự động liên kết đuôi tệp dự án `.synx` với icon SynaptiX và lệnh mở trực tiếp `SynaptixIDE.exe "%1"`.
+     - Windows Apps & Features: Đăng ký gỡ cài đặt sạch sẽ, hỗ trợ cả tài khoản người dùng chuẩn và quyền quản trị.
+
+### 21.2. Thông Số Kỹ Thuật Bản Phát Hành
+- **Tên tệp cài đặt:** `installer\dist\SynaptiX_IDE_Setup_v2.15.0.exe`
+- **Kích thước tệp:** `72.17 MB` (75,677,968 bytes)
+- **Mã băm SHA-256:** `D979D80EC8173B795C49FFCE5B1B983DF74B071E741A8AB50CA87C02E8E4C67B`
+- **Bộ nén & phiên bản:** Inno Setup 6.7.4 (LZMA2 Ultra64 Solid Compression)
+
+---
+
+
 
 ## 20. Tái Cấu Trúc Toàn Diện Phân Hệ MQTT SynaptiX IDE (Canvas-Centric MQTT & Broker Infrastructure Decoupling)
 
@@ -1742,3 +1801,264 @@ Người dùng phản ánh: Trước đây, nếu dự án không có ít nhất
    - Kiểm thử 6 kịch bản đa dạng từ đơn phân hệ, phối hợp, tràn kích thước token đến tự động đồng bộ khi chuyển Tab.
    - Toàn bộ 2,182 / 2,182 unit tests toàn solution PASS 100%.
 
+---
+
+## 36. Kiến Trúc Tài Liệu Kỹ Thuật: Đồng Bộ Wire Contract 32-Byte `AuxParam` & Đặc Tả Hạ Cấp Khối `SCALE` và Tích Hợp Toán Học
+
+### 36.1. Bối cảnh & Yêu cầu Kỹ thuật
+Theo học thuyết **SynaptiX Documentation & Living Docs Architecture (3 Pillars)**:
+1. **Pillar 2 (Firmware & MCU Communication):** File đặc tả hợp chuẩn MCU `docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md` trước đó vẫn còn giữ khai báo struct cũ `reserved[5]` tại các thanh ghi 13 Low..15, chưa phản ánh trường `aux_param` (Reg 14..15) đã được chuẩn hóa trong `simpleplc_protocol_v2_0.h`.
+2. **Pillar 3 (Web Wiki & Portal):** Trang tài liệu khối `SCALE` song ngữ (`docs-portal/vi/blocks/scale.md` và `docs-portal/en/blocks/scale.md`) chưa có mục giải trình hạ cấp mã máy 32-byte, vai trò của `aux_param`, việc giải phóng `threshold_lo/hi` triệt tiêu xung đột điều kiện trigger, và kiến trúc ghép chuỗi (Rule Chaining Pipeline) khi kết hợp với các khối Toán học (Math Blocks) trong cùng chu kỳ quét 10ms.
+
+### 36.2. Các Nội Dung Cập Nhật
+1. **Cập nhật Đặc tả Phần cứng MCU ([`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md)):**
+   - Cập nhật struct `SPLC_RuleRecord_t` byte-exact với `aux_param` / `aux_param_f` (4 bytes tại Reg 14..15) và `reserved_byte` (Reg 13 Low).
+   - Thêm `_Static_assert(sizeof(SPLC_RuleRecord_t) == 32)` bảo đảm hợp đồng nhị phân 32-byte bất biến.
+   - Làm rõ quy tắc `ACT_SCALE_TAG (7)` sử dụng `action_param_f` (Gain $k$) và `aux_param_f` (Offset $b$), độc lập hoàn toàn với `threshold_lo/hi`.
+2. **Bổ sung Mục 7 Song ngữ cho Khối `SCALE` ([`scale.md (VI)`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/vi/blocks/scale.md) & [`scale.md (EN)`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/en/blocks/scale.md)):**
+   - Bảng ánh xạ chi tiết 16 thanh ghi Modbus vào struct 32-byte khi biên dịch.
+   - Phân tích nguyên nhân và giải pháp triệt tiêu xung đột ngưỡng kích hoạt (Threshold Invariant).
+   - Sơ đồ Mermaid minh họa cơ chế ghép chuỗi qua thanh ghi biến ảo `VREG0..15` trong cùng chu kỳ quét tiền định 10ms (100Hz).
+
+### 36.3. Kết Quả Kiểm Thử Nghiệm Thu
+- Chạy lệnh kiểm tra tự động:
+  `powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-docs-techwriter/scripts/validate-docs.ps1`
+- Kết quả: **`[PASS]` 0 vi phạm**, 89 trang markdown hợp lệ, 14 tài liệu ICD đồng bộ và VitePress build thành công 100%.
+
+---
+
+## 37. Đặc Tả Toàn Diện Khối Hàm Toán Học `MATH` cho Cả Phần Mềm (App/IDE) & Thiết Bị (MCU Firmware)
+
+### 37.1. Bối cảnh & Yêu cầu Kỹ thuật
+- Thiết lập tài liệu thiết kế và khế ước giao tiếp hoàn chỉnh cho khối xử lý số học **`MATH`** (Arithmetic & Algebra Operations) theo chuẩn IEC 61131-3, đảm bảo:
+  1. **Đội ngũ Firmware (MCU / Device):** Có đặc tả chi tiết về opcode thực thi (`SPLC_ACT_MATH_OP = 12`, `SUB = 8`, `MUL = 9`, `DIV = 10`, `MOD = 11`), cách trích xuất 2 toán hạng từ struct 32-byte (`trigger_tag`, `guard_tag`, `aux_param`), cơ chế xử lý chia cho 0 không làm crash CPU, khử NaN/Infinity và kẹp tràn số.
+  2. **Đội ngũ Phần mềm (Studio / App):** Có tài liệu về FBD visual node trên Canvas, các tham số Inspector, chiến lược phân rã biểu thức phức tạp (Macro Lowering AST $\rightarrow$ chuỗi Micro-Rule 32-byte) và liên kết thanh ghi tạm `VREG0..15`.
+
+### 37.2. Các Tệp Tài Liệu Đã Ban Hành & Cập Nhật
+1. **Phân Định Phạm Vi Tài Liệu (Strict Separation):**
+   - Giữ nguyên `docs-portal/` sạch sẽ, chỉ dành riêng cho tài liệu Web Wiki hướng dẫn người dùng cuối (User Guides) của các tính năng đã phát hành trên IDE.
+   - Toàn bộ đặc tả kỹ thuật, khế ước nhị phân, thuật toán vi điều khiển và kiến trúc phần mềm được tập trung 100% trong thư mục tài liệu nội bộ `docs/`.
+2. **Ban Hành Đặc tả Phần cứng & Firmware Vi điều khiển (Pillar 2 — ICD Nội Bộ):**
+   - [`docs/firmware/SPLC_SPEC_MATH_007_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/SPLC_SPEC_MATH_007_ICD.md): Tài liệu đặc tả giao diện phần cứng (ICD) chuẩn hóa mã `SPLC_ACT_MATH_OP = 12`, bản đồ thanh ghi Modbus 32-byte, trích xuất toán hạng qua `guard_tag` và `aux_param`, thuật toán phòng vệ chống chia cho 0, khử NaN/Infinity và mã nguồn C tham chiếu cho firmware vi điều khiển.
+   - [`docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/firmware/MCU_CONFORMANCE_SPECIFICATION_V2_0.md): Cập nhật bảng ActionType tương thích.
+3. **Ban Hành Đặc tả Kiến trúc Phần mềm & Trình biên dịch (Pillar 1 — Architecture Nội Bộ):**
+   - [`docs/architecture/SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/architecture/SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md): Đặc tả phân lớp Clean Architecture cho khối Math, mô hình miền `MathNodeModel`, chiến lược hạ cấp `MathMacroLowering`, thiết kế UI/UX theo Fluent 2 và kế hoạch kiểm thử TDD Triad (Happy path, Overflow, Fault injection).
+
+### 37.3. Kết Quả Kiểm Thử Nghiệm Thu
+- Lệnh: `powershell -ExecutionPolicy Bypass -File .agents/skills/synaptix-docs-techwriter/scripts/validate-docs.ps1`
+- Kết quả: **`[PASS]` 0 vi phạm**, 89/89 trang markdown hợp lệ, 15/15 ICDs phần cứng đồng bộ, VitePress build sạch sẽ 100%.
+
+
+
+---
+
+## 38. Triển Khai Toàn Diện Khối Hàm Số Học `MATH` (IEC 61131-3 ALU) Trên Tất Cả Các Tầng Clean Architecture
+
+### 38.1. Mục Tiêu & Phạm Vi Công Việc
+- Triển khai hoàn chỉnh khối hàm tính toán số học **`MATH`** theo chuẩn công nghiệp IEC 61131-3 trên toàn bộ kiến trúc Clean Architecture của SimplePLC (.NET 8 WPF SynaptiX IDE, Application Compiler, Domain Invariant, Infrastructure Simulator, Protocol Wire Contract và UI/UX Presentation).
+- Tuân thủ nghiêm ngặt học thuyết First Principles, Zero Hardcoded Hex tokens, ANSI/ISA-101 Gray Principle, Microsoft Fluent 2 Desktop Geometry, IEC 61508-3 SIL2 Triad Testing và Living Documentation.
+
+### 38.2. Các Thành Phần Đã Hiện Thực
+1. **Tầng 1 — Domain Layer ([`src/SimplePLC.Domain/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/)):**
+   - [`RuleEnums.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Enums/RuleEnums.cs): Bổ sung `ActionKind.MathOp = 12`, `MathOperator` (8 toán tử: `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Min`, `Max`, `Clamp`), và `MathTypeMode` (`Auto`, `Int32`, `Float32`).
+   - [`MathPinModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Models/MathPinModel.cs): Model chân toán hạng hỗ trợ cả dynamic tag (`TagIndex`) và hằng số số học (`ConstantValue`).
+   - [`MathNodeModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Models/MathNodeModel.cs): Mô hình miền bất biến của khối Math, định nghĩa giới hạn chân (2..8 chân, `Sub`/`Div`/`Mod` nghiêm ngặt 2 chân, `Clamp` nghiêm ngặt 3 chân).
+   - [`RuleValidator.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Validation/RuleValidator.cs): Miễn trừ điều kiện kiểu Boolean cho `Guard` đối với `ActionKind.MathOp` để cho phép `Guard.Tag` giữ toán hạng số học thứ hai (INT32/REAL).
+
+2. **Tầng 2 — Protocol Layer ([`src/SimplePLC.Protocol/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/)):**
+   - [`RuleEnums.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Enums/RuleEnums.cs): Định nghĩa `SPLC_ACT_MATH_OP = 12` và enum `SPLC_MathOp` (`ADD=0` .. `CLAMP=7`).
+   - [`simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h): Cập nhật header C tương thích vi điều khiển.
+
+3. **Tầng 3 — Application Layer ([`src/SimplePLC.Application/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/)):**
+   - [`LogicGraphModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Graph/LogicGraphModel.cs): Bổ sung `LogicNodeKind.Math = 16`, `MathPinData`, `MathNodeData`.
+   - [`MathMacroLowering.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Compilation/MacroLowering/MathMacroLowering.cs): Thuật toán phân rã biểu thức đa đầu vào ($N$ pins $\rightarrow N-1$ micro-rules 32-byte). Thuật toán cấp phát thanh ghi ảo ngược an toàn từ `VREG15` xuống `VREG0` nhằm triệt tiêu va chạm với các thanh ghi do người dùng định nghĩa ở dải thấp.
+   - [`RuleCompiler.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Compilation/RuleCompiler.cs) & [`GraphGrammarV1.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Graph/GraphGrammarV1.cs): Tích hợp phân giải khối Math trong đồ thị logic.
+
+4. **Tầng 4 — Infrastructure Layer ([`src/SimplePLC.Infrastructure/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/)):**
+   - [`McuReferenceSimulator.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Simulator/McuReferenceSimulator.cs): Hiện thực `EvaluateMathAlu` và `ExecuteMathOp` xử lý chuẩn xác cả 8 toán tử trên `Int32` và `Float32`, cơ chế bảo vệ chia cho 0 an toàn không crash CPU (trả về 0 hoặc MaxValue/NaN guard), kẹp bão hòa 64-bit tránh tràn số và khử giá trị NaN/Infinity.
+
+5. **Tầng 5 — Presentation UI/UX Layer ([`SimplePLC.Studio/`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/)):**
+   - [`Colors.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Styles/Colors.xaml): Bổ sung semantic token `{DynamicResource NodeMathBrush}` (`#0F766E` - Teal công nghiệp) tuân thủ 100% Zero Hardcoded Hex.
+   - [`Icons.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Styles/Icons.xaml): Thêm vector SVG `<StreamGeometry>` `IconMathAlu`.
+   - [`MathPinBindingViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MathPinBindingViewModel.cs): Finite State Machine quản lý trạng thái soạn thảo (Drafting) và xác nhận (Committed), tự động chuẩn hóa (`"100.0"` $\rightarrow$ `"100"` với INT) và tự động hoàn tác khi nhập dữ liệu không hợp lệ.
+   - [`MathNodeViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MathNodeViewModel.cs): Quản lý trực quan khối Math, chân đầu vào động (2..8), kẹp ràng buộc theo toán tử, hiển thị biểu thức thời gian thực `[IN1 + IN2 -> OUT]`.
+   - [`NodeTemplates.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Styles/NodeTemplates.xaml): DataTemplate đồ họa FBD cho `MathNodeViewModel` với hình học Fluent 2 (`CornerRadius="6"`, padding 7,3).
+   - [`LogicEditorView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/LogicEditorView.xaml): Bảng thuộc tính Inspector hoàn chỉnh cho khối Math.
+   - [`LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs): Hỗ trợ bản địa hóa song ngữ EN/VI đầy đủ.
+   - [`ProjectModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Models/ProjectModel.cs): Lưu trữ và phục hồi hoàn hảo cấu hình khối Math trong tệp dự án.
+
+### 38.3. Kết Quả Kiểm Thử & Nghiệm Thu
+1. **Kiểm Tra Token UI/UX XAML:**
+   - `validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Views/LogicEditorView.xaml"`: **`[PASS]` 0 violations**.
+   - `validate-xaml-tokens.ps1 -FilePath "SimplePLC.Studio/Styles/NodeTemplates.xaml"`: **`[PASS]` 0 violations**.
+2. **Kiểm Tra Kiến Trúc Backend:**
+   - `validate-backend-arch.ps1`: **`[PASS]` 0 architecture violations**.
+3. **Kiểm Tra QA, TDD & Living Docs:**
+   - `validate-tdd-docs.ps1`: **`[PASS]` 0 violations** (100% public members có XML doc summary).
+4. **Kiểm Tra Tài Liệu Kỹ Thuật & ICD:**
+   - `validate-docs.ps1`: **`[PASS]` 0 violations**, 89 trang wiki và 15 ICDs phần cứng đồng bộ, VitePress build sạch sẽ 100%.
+5. **Biên Dịch & Bộ Kiểm Thử Tự Động Toàn Hệ Thống:**
+   - `dotnet build SimplePLC.sln`: **0 Errors, 0 Warnings**.
+   - `dotnet test SimplePLC.sln --no-build`: **2,223 / 2,223 tests PASS (100%)**, trong đó có 38 tests mới kiểm thử toàn diện Happy Path, Boundary/Overflow và Fault Injection cho khối Math.
+
+
+---
+
+## 39. Chuẩn Hóa Khối Hàm `MATH` (Pure Arithmetic) & Tinh Gọn Mã Lệnh Liên Tục `SPLC_ACT_MATH_OP = 8`
+
+### 39.1. Bối Cảnh & Động Lực Kỹ Thuật
+- Sau khi rà soát kiến trúc theo chuẩn quốc tế IEC 61131-3 và đối chiếu với các phần mềm PLC hàng đầu thế giới (Siemens TIA Portal, Beckhoff TwinCAT, Rockwell Studio 5000), hệ thống nhận diện 2 điểm cần tối ưu hóa:
+  1. **Tính thuần khiết của khối Math (Pure Arithmetic):** Khối `MATH` chỉ nên tập trung cho 5 phép toán số học đại số thuần túy (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`). Các hàm chọn lọc và giới hạn (`MIN`, `MAX`, `CLAMP/LIMIT`) thuộc nhóm *Selection & Limiting Functions*, sẽ được phân tách thành khối riêng biệt để tránh lai tạp và giảm tải nhận thức cho kỹ sư.
+  2. **Dọn dẹp khoảng trống mã hành động (Contiguous ActionKind):** Loại bỏ hoàn toàn các enum dư thừa `SubTag (8)`, `MulTag (9)`, `DivTag (10)`, `ModTag (11)`. Thu gọn mã hành động duy nhất của khối toán học từ `12` về đúng giá trị **`SPLC_ACT_MATH_OP = 8`** (`ActionKind.MathOp = 8`), đảm bảo dãy mã hành động liên tục, không bị đứt đoạn hay để lại "lỗ hổng" trong bảng opcode.
+
+### 39.2. Các Hạng Mục Đã Triển Khai
+1. **Domain Layer ([`src/SimplePLC.Domain/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/)):**
+   - [`RuleEnums.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Enums/RuleEnums.cs): Cập nhật `ActionKind.MathOp = 8`. Rút gọn `MathOperator` còn 5 toán tử chuẩn: `Add = 0`, `Subtract = 1` (`Sub`), `Multiply = 2` (`Mul`), `Divide = 3` (`Div`), `Modulo = 4` (`Mod`).
+   - [`MathNodeModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Models/MathNodeModel.cs): Loại bỏ hoàn toàn các ràng buộc riêng cho Clamp.
+2. **Protocol Layer ([`src/SimplePLC.Protocol/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/)):**
+   - [`RuleEnums.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Enums/RuleEnums.cs): `SPLC_ActionType.MATH_OP = 8`. Enum `SPLC_MathOp` giới hạn trong dải `ADD=0..MOD=4`.
+   - [`simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h): Cập nhật `SPLC_ACT_MATH_OP = 8` và enum `SPLC_MathOp_t` tương thích vi điều khiển.
+3. **Application Layer ([`src/SimplePLC.Application/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/)):**
+   - [`MathMacroLowering.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Compilation/MacroLowering/MathMacroLowering.cs): Bổ sung chốt kiểm soát toán học: `SUB`, `DIV`, `MOD` là các phép toán không giao hoán, bắt buộc chỉ có chính xác 2 chân ngõ vào. Nếu cố tình cấp $>2$ chân, trình biên dịch báo lỗi `ErrMathNoInput`.
+4. **Infrastructure Layer ([`src/SimplePLC.Infrastructure/`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/)):**
+   - [`McuReferenceSimulator.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Infrastructure/Simulator/McuReferenceSimulator.cs): Dọn sạch các case thừa trong `ExecuteAction`, tối ưu hóa `EvaluateMathAlu` cho 5 phép toán với khả năng chống chia cho 0 và bão hòa 64-bit int clamp.
+5. **Presentation Layer ([`SimplePLC.Studio/`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/)):**
+   - [`MathNodeViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MathNodeViewModel.cs): Xóa bỏ cờ `IsClampOperator`. Tự động cắt giảm chân về 2 khi kỹ sư chuyển từ `Add`/`Mul` sang `Sub`/`Div`/`Mod`. Ký hiệu badge hiển thị chuẩn xác (`+`, `−`, `×`, `÷`, `%`).
+   - [`GraphNodeViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/GraphNodeViewModel.cs) & [`LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs): Cập nhật dropdown Inspector và từ điển song ngữ.
+6. **Tài Liệu Kỹ Thuật (Docs & Specifications):**
+   - Đồng bộ [`MCU_CONFORMANCE_SPECIFICATION_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/00-MCU_CONFORMANCE_SPECIFICATION_V2_0.md), [`SPLC_SPEC_MATH_007_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/14-SPLC_SPEC_MATH_007_ICD.md), và [`SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/01-architecture/07-SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md) với `SPLC_ACT_MATH_OP = 8` và bảng ALU opcode 0..4.
+
+### 39.3. Kết Quả Kiểm Thử & Nghiệm Thu
+1. **Frontend XAML Design Token Check:** `[PASS]` 0 violations.
+2. **Backend Clean Architecture Invariants:** `[PASS]` 0 architecture violations.
+3. **QA, TDD & Living Documentation:** `[PASS]` 0 violations (100% public APIs có XML doc summary).
+4. **Firmware ICD & VitePress Portal:** `[PASS]` 0 violations, VitePress build 100% sạch sẽ.
+5. **Toàn Bộ Bộ Kiểm Thử Hệ Thống:**
+   - `dotnet build SimplePLC.sln`: **0 Errors, 0 Warnings**.
+   - `dotnet test SimplePLC.sln --no-build`: **2,222 / 2,222 tests PASS (100%)**.
+
+---
+
+## 40. Hộp Thoại Cấu Hình Chuyên Sâu Khối `MATH` (`MathConfigDialogView`) & Chuẩn Hóa Toán Hạng `ANY_NUM`
+
+### 40.1. Vấn Đề Nhận Diện Từ Thực Tế Sử Dụng
+1. **Ô nhiễm biến ảo `NhietDo_C`:** Khi khởi động ứng dụng mà chưa khai báo tag/alias nào, danh mục tag vẫn xuất hiện `[NhietDo_C] — Cảm biến nhiệt độ`. Nguyên nhân gốc rễ là do hàm khởi tạo `DtuGatewayStudioViewModel.cs` nạp sẵn 1 bản ghi mẫu vào `FastRegisters`, vô tình đồng bộ vào `TagCatalog.RegisterTags`.
+2. **Vi phạm chuẩn đại số IEC 61131-3:** Danh sách chọn toán hạng ở thanh Inspector trước đó cho phép chọn cả biến kiểu logic `BOOL` (`DI0..7`, `DO0..7`, `VFLAG0..31`). Phép toán ALU là số học đại số thuần túy (`ANY_NUM`), không được phép cộng trừ trên biến logic nhị phân.
+3. **Bố cục thanh bên (Inspector) chật hẹp:** Thêm nhiều chân toán hạng trên thanh bên 250px khiến giao diện bị dồn cục, khó thao tác và không trực quan. Cần một hộp thoại cấu hình độc lập (popup dialog) chuẩn hóa như các khối `HttpClient`, `MqttSub`, `ModbusRead`, `DirectWrite`.
+
+### 40.2. Các Giải Pháp & Hạng Mục Đã Triển Khai
+1. **Xử Lý Triệt Để Tag Ảo `NhietDo_C`:**
+   - Xóa bỏ dòng gán mẫu trong constructor của [`DtuGatewayStudioViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/DtuGatewayStudioViewModel.cs#L1494-L1496). `TagCatalog` khởi động hoàn toàn sạch sẽ, không có bất kỳ tag ma nào.
+2. **Chuẩn Hóa Bộ Sưu Tập Toán Hạng Số Học `ANY_NUM`:**
+   - Bổ sung bộ sưu tập `NumericTags` vào [`TagCatalogViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/TagCatalogViewModel.cs): Tự động lọc chỉ những Tag có kiểu số (`AnalogInput`, `VirtualRegister`, `VirtualRegisterRetain`, `Counter`, `ModbusHolding/Input`) và loại bỏ hoàn toàn các Tag kiểu `Boolean` / `IsDigital`.
+   - Cập nhật cả trong Inspector và Hộp thoại cấu hình: Toán hạng chỉ hiển thị danh sách `NumericTags`.
+3. **Thiết Kế Hộp Thoại Cấu Hình Desktop Chuẩn Công Nghiệp ([`MathConfigDialogView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/MathConfigDialogView.xaml)):**
+   - **Kích thước chuẩn:** `Width="1040" Height="660"`, `WindowChromeHelper.EnableIndependentMinimize="True"`, `Background="{DynamicResource BgWindowBrush}"`.
+   - **Header Banner:** Khối 38x38px chứa vector SVG `IconMathAlu`, tiêu đề và phụ đề song ngữ rõ ràng, badge hiển thị trạng thái toán tử hiện tại.
+   - **Cột Trái (Thiết Lập & Danh Sách Chân - 1.35*):**
+     - Card 1: Tham số chung (Toán tử số học, Kiểu dữ liệu, Tag ngõ ra OUT nhận kết quả từ `RegisterTags` hoặc `(Chưa gán)`).
+     - Card 2: Bảng toán hạng đầu vào (Chuẩn IBM Carbon data density): Cột `#`, `Chân`, `Chế độ` (Tag / Hằng số), `Toán hạng` (Dropdown `NumericTags` hoặc ô nhập số với LostFocus auto-normalize/auto-revert), `Kiểu DL` (REAL/INT32), nút `Xóa`.
+     - Nút `+ Thêm toán hạng` tự động vô hiệu hóa khi toán tử là `SUB`, `DIV`, `MOD` (giới hạn cứng 2 chân) hoặc khi đã đạt 8 chân.
+   - **Cột Phải (Chẩn Đoán ALU & Mô Phỏng Tức Thời - 360px):**
+     - Khung công thức đại số monospace thời gian thực (ví dụ `VREG0 = AI0 + 10.5`).
+     - Khung nhập giá trị kiểm thử mô phỏng (Live Simulation Inputs).
+     - Khung kết quả ALU nổi bật: Hiển thị giá trị tức thời, kiểu suy diễn (`REAL` / `INT32`), badge trạng thái `✓ HỢP LỆ` hoặc `⚠️ LỖI CHIA CHO 0`.
+     - Banner quy tắc chuẩn hóa IEC 61131-3 (Type promotion, xử lý chia cho 0 an toàn).
+   - **Footer Action Bar:** Nút `Khôi phục mặc định` (bên trái), `Hủy bỏ` và `Lưu cấu hình` (bên phải).
+4. **Tích Hợp ViewModel & Thao Tác Trực Tiếp:**
+   - [`MathConfigDialogViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MathConfigDialogViewModel.cs): Quản lý vòng đời hộp thoại, tính toán công thức, mô phỏng kết quả tức thời, đồng bộ ngược về `MathNodeViewModel` khi bấm Apply.
+   - [`LogicEditorViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/LogicEditorViewModel.cs): Bổ sung lệnh `OpenMathConfigCommand`.
+   - [`LogicEditorView.xaml.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/LogicEditorView.xaml.cs): Nhấp đúp chuột (Double Click) vào khối Math trên canvas sẽ tự động mở hộp thoại cấu hình.
+   - [`LogicEditorView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/LogicEditorView.xaml): Bổ sung nút bấm `⚙ Cấu hình Khối...` trên thanh Inspector.
+   - [`LocalizationService.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Services/LocalizationService.cs): Bổ sung toàn bộ từ điển song ngữ sạch sẽ, không trộn lẫn tiếng Anh - tiếng Việt trong cùng một nhãn.
+
+### 40.3. Nghiệm Thu & Kiểm Thử
+1. **Frontend XAML Design Token Check:** `[PASS]` 0 violations (`MathConfigDialogView.xaml`, `LogicEditorView.xaml`).
+2. **Backend Clean Architecture Invariants:** `[PASS]` 0 architecture violations.
+3. **QA, TDD & Living Documentation:** `[PASS]` 0 violations (100% test suite pass rate).
+4. **Biên Dịch Toàn Giải Pháp:** `dotnet build SimplePLC.sln` đạt **0 Errors, 0 Warnings**.
+
+---
+
+## 41. Chuẩn Hóa Song Ngữ Thuần, Cân Bằng Bố Cục Dialog & Hỗ Trợ Phép Trừ (SUB) Đa Toán Hạng
+
+### 41.1. Bối Cảnh & Vấn Đề
+1. **Lẫn lộn Tiếng Anh / Tiếng Việt:**
+   - Thanh Inspector ở chế độ tiếng Anh vẫn hiển thị nhãn số lượng chân có đuôi tiếng Việt `"2 chân"` do hardcoded `StringFormat='{}{0} chân'`.
+   - Khi Tag ngõ ra OUT chưa gán, trường hiển thị bị rỗng hoặc cố định tiếng Việt `(Chưa gán)`.
+   - Hộp thoại cấu hình có các placeholder cố định tiếng Việt trong ComboBox ItemTemplate `TargetNullValue='(Chưa gán / Nối dây trên Canvas)'`.
+2. **Bố Cục (Layout) Chưa Cân Xứng:**
+   - Các đoạn phụ đề trong thẻ cấu hình bị cắt cụt do thuộc tính `TextTrimming="CharacterEllipsis"` trên khung cố định (`BOOL logic ty...`, `IEC 61...`).
+   - Cột bên phải (Chẩn đoán ALU) đặt `VerticalAlignment="Top"` tạo ra một khoảng trống màu xám lớn bên dưới, mất cân đối với cột bên trái.
+   - Biểu tượng `ℹ️` dùng ký tự Emoji Unicode thay vì vector SVG `<Path>`.
+3. **Phép Trừ (SUB) Bị Reset Về 2 Chân:**
+   - Do ràng buộc `IsSubOrDivOrMod`, khi chuyển toán tử sang phép trừ `SUB`, hệ thống tự động xóa bỏ các chân thứ 3 trở đi và khóa nút thêm chân, trong khi phép trừ đại số nhiều ngõ vào $(A - B - C)$ là chuỗi trừ trái-sang-phải hoàn toàn hợp lệ trong tính toán công nghiệp.
+
+### 41.2. Giải Pháp Triển Khai
+1. **Bổ Sung & Tách Biệt Bộ Từ Điển Song Ngữ Sạch:**
+   - Bổ sung `CommonPinsCountFormat` (`"{0} chân"` / `"{0} pins"`), `CommonUnassigned` (`"(Chưa gán)"` / `"(Unassigned)"`).
+   - Chuẩn hóa các nhãn tóm tắt trên Inspector: `Formula:`, `Operator:`, `Data Type:`, `Output (OUT):`, `Operands:`, `Result:`.
+   - Dùng `DataTrigger` trong XAML để tự động cập nhật text placeholder của ComboBox ngõ ra (`MathConfigOptNoneTag`) theo ngôn ngữ hiện hành mà không cần giá trị hardcoded.
+2. **Cân Bằng Bố Cục Giao Diện Dialog & Inspector:**
+   - Chuyển `TextTrimming="CharacterEllipsis"` sang `TextWrapping="Wrap"` cho các đoạn mô tả phụ đề.
+   - Mở rộng cột phải sang `VerticalAlignment="Stretch"` và neo khung quy tắc chuẩn hóa IEC 61131-3 xuống đáy thẻ, lấp đầy không gian một cách hài hòa.
+   - Thay thế emoji thô `ℹ️` bằng SVG Vector Icon `IconInfoOutline`.
+3. **Mở Rộng Phép Trừ (SUB) Hỗ Trợ 2 Đến 8 Toán Hạng:**
+   - Điều chỉnh `MathMacroLowering`, `MathNodeViewModel`, `MathConfigDialogViewModel`: chuyển điều kiện khóa 2 chân từ `IsSubOrDivOrMod` sang `IsDivOrMod` (chỉ phép chia `DIV` và `MOD` bị giới hạn 2 chân).
+   - Phép trừ `SUB` hỗ trợ chuỗi toán hạng kết hợp trái sang phải: `OUT = IN1 - IN2 - IN3 ...`, hạ cấp thành chuỗi Micro-Rules trung gian chính xác.
+
+### 41.3. Kết Quả Kiểm Thử & Nghiệm Thu
+1. **UI/UX Token Validator:** `[PASS]` 0 violations.
+2. **Clean Architecture Validator:** `[PASS]` 0 violations.
+3. **QA / TDD Suite:** `[PASS]` 2,226 / 2,226 unit tests passed (100% pass rate).
+4. **Docs Portal VitePress Build:** `[PASS]` 0 violations.
+
+---
+
+## 42. ĐỒNG BỘ TÀI LIỆU KHỐI MATH TRÊN CỔNG WEB WIKI DOCS-PORTAL (VITEPRESS)
+
+### 42.1. Mục Tiêu & Chuẩn Hóa
+- Đồng bộ hóa tài liệu kỹ thuật của khối **`MATH`** với toàn bộ các khối chức năng khác trên hệ thống (`SCALE`, `COMPARATOR`, `TON`, `CTU`,...).
+- Tuân thủ nghiêm ngặt chỉ dẫn: tập trung vào đặc tả kỹ thuật, hướng dẫn vận hành, hợp đồng chân nối, quy tắc chuẩn hóa IEC 61131-3 và ví dụ thực tế; không đưa các chi tiết mã nguồn nội bộ tầng sâu vào tài liệu người dùng.
+
+### 42.2. Các Tệp Tài Liệu Đã Bổ Sung & Cập Nhật
+1. **Trang tài liệu kỹ thuật chi tiết song ngữ (Datasheet):**
+   - [`docs-portal/en/blocks/math.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/en/blocks/math.md): Tài liệu tiếng Anh chuẩn IEC 61131-3 ANY_NUM, bảng đặc tả 5 toán tử, quy tắc nâng kiểu tự động (Type Promotion), giao diện hộp thoại cấu hình và kịch bản thực tế (Multi-Sensor Flow Summation).
+   - [`docs-portal/vi/blocks/math.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/vi/blocks/math.md): Bản tiếng Việt tương ứng, giải thích chi tiết bảng chẩn đoán ALU và bảo vệ chống chia cho 0.
+2. **Cập nhật Mục lục Tổng quan Danh mục Khối:**
+   - [`docs-portal/en/blocks/overview.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/en/blocks/overview.md) và [`docs-portal/vi/blocks/overview.md`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/vi/blocks/overview.md): Bổ sung `MATH` vào nhóm *Timing, Counting & Scaling*.
+3. **Cập nhật Cây Điều Hướng Sidebar:**
+   - [`docs-portal/.vitepress/locales/en.mts`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/.vitepress/locales/en.mts) và [`docs-portal/.vitepress/locales/vi.mts`](file:///g:/HoaNV/Projects/SimplePLC/docs-portal/.vitepress/locales/vi.mts): Đưa mục `MATH` vào menu sidebar của cả 2 ngôn ngữ.
+4. **Cập nhật Đặc Tả Kiến Trúc:**
+   - [`docs/01-architecture/07-SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/01-architecture/07-SPLC_SPEC_MATH_BLOCK_ARCHITECTURE.md): Bổ sung ghi nhận hạ cấp đa toán hạng cho phép `SUB` và đặc tả giao diện hộp thoại cấu hình `MathConfigDialogView`.
+
+### 42.3. Kết Quả Kiểm Tra
+- Chạy `validate-docs.ps1`: Quét 91 tệp markdown, kiểm tra 15 đặc tả ICD firmware, biên dịch VitePress hoàn toàn thành công với **0 lỗi và 0 cảnh báo**.
+
+---
+
+## 43. Tích Hợp Trọn Vẹn Bộ Cài Đặt Desktop Installer (Inno Setup 6) Vào Pipeline CI/CD & Phát Hành Đa Định Dạng
+
+### 43.1. Bối cảnh & Yêu cầu Kỹ thuật
+- Nhằm cung cấp trải nghiệm cài đặt tiêu chuẩn công nghiệp (tương tự VS Code / Siemens TIA Portal), dự án đã bổ sung phân hệ Inno Setup 6 tại `installer/`:
+  - `SynaptixIDE.iss`: Kịch bản biên dịch cài đặt hiện đại, nén LZMA2 Ultra64 Solid, tự động đăng ký file association `.synx`, shortcut Desktop/Start Menu và đóng gói kèm công cụ giả lập `Tools/SimplePLC.McuEmulator.exe`.
+  - `build-installer.ps1`: Tự động tạo branding assets và kích hoạt Inno Setup Compiler (`ISCC.exe`).
+- **Yêu cầu CI/CD:** Tích hợp bộ cài đặt này vào chu trình phát hành tự động của dự án cả ở môi trường cục bộ (`cicd_local.bat` / `scripts/cicd_local.ps1`) và môi trường tự động hóa đám mây GitHub Actions (`.github/workflows/ci.yml`).
+
+### 43.2. Các Giải Pháp Đã Triển Khai
+1. **Tham số hóa Phiên bản Động (Dynamic Versioning):**
+   - Trong [`installer/SynaptixIDE.iss`](file:///g:/HoaNV/Projects/SimplePLC/installer/SynaptixIDE.iss): Bọc định nghĩa phiên bản trong khối tiền xử lý `#ifndef MyAppVersion ... #endif`.
+   - Trong [`installer/build-installer.ps1`](file:///g:/HoaNV/Projects/SimplePLC/installer/build-installer.ps1): Nhận diện tham số `$Version` tự động và truyền `/DMyAppVersion=$Version` vào trình biên dịch `ISCC.exe`.
+2. **Nâng cấp Runner CI/CD Cục bộ ([`scripts/cicd_local.ps1`](file:///g:/HoaNV/Projects/SimplePLC/scripts/cicd_local.ps1)):**
+   - Thêm bước **[6/7] Building official Windows desktop setup installer**: Tự động phát hiện Inno Setup Compiler, biên dịch ra `installer/dist/SynaptiX_IDE_Setup_v$Version.exe`, sao chép vào `publish/release/` và tính toán mã băm SHA256.
+   - Bổ sung cờ `-SkipInstaller` cho phép bỏ qua bước biên dịch installer khi cần kiểm thử nhanh.
+   - Cập nhật [`SHA256SUMS.txt`](file:///g:/HoaNV/Projects/SimplePLC/publish/release/SHA256SUMS.txt) ghi nhận đầy đủ 3 tệp phát hành: Installer `.exe`, Portable `.exe` và `.zip`.
+   - Cập nhật [`RELEASE_NOTES_v$Version.md`](file:///g:/HoaNV/Projects/SimplePLC/publish/release/RELEASE_NOTES_v2.15.1.md) và danh mục `$assetsToUpload` cho GitHub Releases.
+3. **Cập nhật GitHub Actions Pipeline ([`.github/workflows/ci.yml`](file:///g:/HoaNV/Projects/SimplePLC/.github/workflows/ci.yml)):**
+   - Bổ sung bước `Build Official Windows Setup Installer` tự động biên dịch và sao chép gói setup vào `./publish/win-x64/` trước khi upload artifact và publish GitHub Release.
+4. **Cập nhật Cổng Thông tin & Tài liệu ([`README.md`](file:///g:/HoaNV/Projects/SimplePLC/README.md)):**
+   - Phân định rõ 2 tùy chọn tải về: Bản cài đặt chính thức (Khuyên dùng) và Bản Portable độc lập.
+
+### 43.3. Kết quả Kiểm thử & Nghiệm thu
+- **Biên dịch Inno Setup Độc lập:** Tạo thành công `installer/dist/SynaptiX_IDE_Setup_v2.15.1.exe`.
+- **Local CI/CD Runner:** `.\cicd_local.bat` hoàn thành 100% với exit code 0, tạo đủ 3 định dạng trong `publish/release/` cho phiên bản `v2.15.1`.

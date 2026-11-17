@@ -179,14 +179,14 @@ Tránh trộn refactor lớn, feature mới và formatting toàn solution trong 
 - [ ] Không leak transport DTO lên UI.
 - [ ] Benchmark cập nhật nếu chạm hot path.
 - [ ] Documentation cập nhật nếu thay contract/architecture.
-- [ ] Quy trình phát hành tuân thủ chuẩn [STANDARD_RELEASE_PROCEDURE_SOP.md](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md).
+- [ ] Quy trình phát hành tuân thủ chuẩn [03-STANDARD_RELEASE_PROCEDURE_SOP.md](file:///g:/HoaNV/Projects/SimplePLC/docs/02-platform/03-STANDARD_RELEASE_PROCEDURE_SOP.md).
 
 ---
 
 ## 14. Standard Release Procedure (SOP)
 
 Mọi hoạt động phát hành phiên bản mới (Release) bắt buộc tuân theo tài liệu:  
-👉 [`docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/platform/STANDARD_RELEASE_PROCEDURE_SOP.md) (Mã quy trình: `SPLC-SOP-REL-001`).
+👉 [`docs/02-platform/03-STANDARD_RELEASE_PROCEDURE_SOP.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/02-platform/03-STANDARD_RELEASE_PROCEDURE_SOP.md) (Mã quy trình: `SPLC-SOP-REL-001`).
 
 Bao gồm 5 bước tiêu chuẩn:
 1. **Kiểm thử toàn giải pháp (Pre-flight validation)**: `dotnet test SimplePLC.sln`

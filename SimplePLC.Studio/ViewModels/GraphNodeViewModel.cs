@@ -2437,6 +2437,8 @@ public static class RuleOptions
     public static ObservableCollection<EnumOption<CompareOp>> CompareOps { get; } = new();
     public static ObservableCollection<EnumOption<TriggerType>> TriggerTypes { get; } = new();
     public static ObservableCollection<EnumOption<ActionType>> ActionTypes { get; } = new();
+    public static ObservableCollection<EnumOption<MathOperator>> MathOperators { get; } = new();
+    public static ObservableCollection<EnumOption<MathTypeMode>> MathTypeModes { get; } = new();
 
     static RuleOptions()
     {
@@ -2485,5 +2487,17 @@ public static class RuleOptions
         ActionTypes.Add(new(ActionType.SEND_ALARM, LocalizationService.Tr("OptActAlarm")));
         ActionTypes.Add(new(ActionType.LOG_EVENT, LocalizationService.Tr("OptActLog")));
         ActionTypes.Add(new(ActionType.SCALE_TAG, LocalizationService.Tr("OptActScale")));
+
+        MathOperators.Clear();
+        MathOperators.Add(new(MathOperator.Add, LocalizationService.Tr("OptMathAdd")));
+        MathOperators.Add(new(MathOperator.Sub, LocalizationService.Tr("OptMathSub")));
+        MathOperators.Add(new(MathOperator.Mul, LocalizationService.Tr("OptMathMul")));
+        MathOperators.Add(new(MathOperator.Div, LocalizationService.Tr("OptMathDiv")));
+        MathOperators.Add(new(MathOperator.Mod, LocalizationService.Tr("OptMathMod")));
+
+        MathTypeModes.Clear();
+        MathTypeModes.Add(new(MathTypeMode.Auto, LocalizationService.Tr("OptMathTypeAuto")));
+        MathTypeModes.Add(new(MathTypeMode.ForceInt32, LocalizationService.Tr("OptMathTypeForceInt32")));
+        MathTypeModes.Add(new(MathTypeMode.ForceReal, LocalizationService.Tr("OptMathTypeForceReal")));
     }
 }

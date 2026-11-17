@@ -1455,9 +1455,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenModbusPortConfig()
     {
-        // Điều hướng trực tiếp tới Tab Thiết bị -> Phân vùng RS-485 Modbus (Single Source of Truth)
-        SelectTab(AppTabIndices.Device);
-        DtuGatewayStudioVM?.SelectSection(0);
+        var vm = new ModbusPortConfigViewModel(CurrentProjectMetadata, TagCatalogVM);
+        var activeWindow = System.Windows.Application.Current?.Windows.OfType<System.Windows.Window>().FirstOrDefault(w => w.IsActive)
+                           ?? System.Windows.Application.Current?.MainWindow;
+        var dialog = new Views.ModbusPortConfigDialogView(vm)
+        {
+            Owner = activeWindow
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            IsProjectDirty = true;
+            DtuGatewayStudioVM?.ReloadFromMetadata();
+            LogicEditorVM?.NotifyGraphModified();
+        }
     }
 
     [RelayCommand]
@@ -1467,6 +1477,7 @@ public partial class MainViewModel : ObservableObject
         var dialog = new Views.WifiConfigDialogView(vm);
         if (dialog.ShowDialog() == true)
         {
+            DtuGatewayStudioVM?.ReloadFromMetadata();
             IsProjectDirty = true;
         }
     }

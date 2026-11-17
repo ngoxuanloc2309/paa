@@ -583,6 +583,10 @@ public partial class LogicEditorView : UserControl
                 {
                     vm.OpenTcpClientConfigCommand.Execute(tcpNode);
                 }
+                else if (node is MathNodeViewModel mathNode)
+                {
+                    vm.OpenMathConfigCommand.Execute(mathNode);
+                }
 
                 fe.Focus();
                 e.Handled = true;

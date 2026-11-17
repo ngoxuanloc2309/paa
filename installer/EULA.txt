@@ -1,0 +1,45 @@
+SYNAPTIX CORPORATION END-USER SOFTWARE LICENSE AGREEMENT (EULA)
+
+SynaptiX IDE Desktop Engineering Suite
+Copyright (C) 2026 SynaptiX Corporation. All rights reserved.
+
+IMPORTANT — PLEASE READ CAREFULLY BEFORE INSTALLING OR USING THIS SOFTWARE:
+
+This End-User Software License Agreement ("Agreement") is a legal contract between you (either an individual or a business entity) and SynaptiX Corporation ("SynaptiX") for the SynaptiX IDE desktop software suite, including associated binary executables, compilers, emulators, documentation, and device profile assets ("Software").
+
+By clicking "I accept the agreement" or by installing, copying, or otherwise using this Software, you agree to be bound by the terms and conditions of this Agreement. If you do not agree to these terms, select "I do not accept the agreement" and cancel the installation.
+
+1. GRANT OF LICENSE
+SynaptiX Corporation hereby grants you a non-exclusive, non-transferable, revocable license to install and execute the Software on workstations and field engineering computers for the purposes of:
+  (a) Developing, compiling, and debugging Function Block Diagram (FBD) and ladder logic;
+  (b) Configuring industrial edge gateways, DTU units, and communication stacks (Modbus RTU/TCP, MQTT);
+  (c) Running offline hardware emulators (SynaptiX MCU Emulator) for logic verification;
+  (d) Commissioning, monitoring, and flashing program bytecode to authorized SynaptiX hardware targets.
+
+2. INDUSTRIAL SAFETY & HIGH-RISK DISCLAIMER
+INDUSTRIAL AUTOMATION LOGIC CONTROLS PHYSICAL MACHINERY, ACTUATORS, HIGH-VOLTAGE EQUIPMENT, AND PROCESS PLANTS. YOU EXPRESSLY ACKNOWLEDGE AND AGREE THAT:
+  (a) The Software provides programming tools and does not guarantee that user-engineered logic is free of race conditions, timing hazards, or runtime faults.
+  (b) You are solely responsible for thoroughly validating and testing all control strategies in offline simulation prior to live machine commissioning.
+  (c) Critical industrial safety functions (including Emergency Stop circuits, hardware interlocks, over-travel limits, and fail-safe safety relays) MUST be implemented via dedicated, independent physical safety hardware and must never rely solely on software-managed states.
+
+3. INTELLECTUAL PROPERTY RIGHTS
+The Software is licensed, not sold. All title, ownership rights, trademarks, patents, and intellectual property rights in and to the Software (including compiler architectures, binary bytecode lowering logic, and proprietary protocol definitions) remain exclusively with SynaptiX Corporation.
+
+4. RESTRICTIONS
+Except as expressly authorized under applicable law, you shall not:
+  (a) Reverse engineer, decompile, disassemble, or derive source code from binary payloads;
+  (b) Modify, translate, adapt, or create derivative works based upon the Software;
+  (c) Rent, lease, sublicense, or distribute unauthorized commercial copies of the Software;
+  (d) Remove, alter, or obscure any proprietary notices, labels, or copyright markers.
+
+5. INTERNAL REDISTRIBUTION & ENTERPRISE USE
+You may distribute verbatim copies of this official setup package within your internal corporate network, industrial plant facilities, and technical engineering teams, provided that the package is unmodified and retains this complete License Agreement.
+
+6. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR INDUSTRIAL PURPOSE, AND NON-INFRINGEMENT. SYNAPTIX CORPORATION DOES NOT WARRANT THAT THE FUNCTIONS CONTAINED IN THE SOFTWARE WILL OPERATE UNINTERRUPTED OR ERROR-FREE.
+
+7. LIMITATION OF LIABILITY
+IN NO EVENT SHALL SYNAPTIX CORPORATION BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT, PUNITIVE, OR CONSEQUENTIAL DAMAGES WHATSOEVER (INCLUDING DAMAGES FOR LOSS OF PRODUCTION, MACHINERY DOWNTIME, PLANT INTERRUPTIONS, LOSS OF DATA, OR PECUNIARY LOSS) ARISING OUT OF THE USE OR INABILITY TO USE THIS SOFTWARE.
+
+8. GOVERNING LAW & SEVERABILITY
+This Agreement shall be governed by and construed in accordance with the applicable laws of technology licensing. If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.

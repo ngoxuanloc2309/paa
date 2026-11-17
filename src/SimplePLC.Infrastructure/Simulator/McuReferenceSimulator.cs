@@ -965,12 +965,93 @@ public sealed class McuReferenceSimulator
                     WriteTagValue(rule.ActionTag, aVal + tVal);
                 }
                 break;
+            case SPLC_ActionType.MATH_OP:
+                ExecuteMathOp(rule);
+                break;
+
             case SPLC_ActionType.SEND_ALARM:
             case SPLC_ActionType.WRITE_REMOTE:
             case SPLC_ActionType.LOG_EVENT:
                 WriteTagValue(rule.ActionTag, rule.ActionParam);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Thực thi phép toán số học ALU công nghiệp thuần túy giữa 2 toán hạng Op1 và Op2.
+    /// Hỗ trợ bảo vệ chống chia cho 0, khử tràn số 64-bit clamp và vệ sinh giá trị NaN/Infinity.
+    /// </summary>
+    public static int EvaluateMathAlu(int rawOp1, int rawOp2, byte mathOp, bool isReal)
+    {
+        if (isReal)
+        {
+            float f1 = BitConverter.Int32BitsToSingle(rawOp1);
+            float f2 = BitConverter.Int32BitsToSingle(rawOp2);
+            float resF;
+
+            switch (mathOp)
+            {
+                case 0: resF = f1 + f2; break; // Add
+                case 1: resF = f1 - f2; break; // Subtract
+                case 2: resF = f1 * f2; break; // Multiply
+                case 3:                        // Divide
+                    resF = Math.Abs(f2) > 1e-6f ? (f1 / f2) : 0.0f;
+                    break;
+                case 4:                        // Modulo
+                    resF = Math.Abs(f2) > 1e-6f ? (float)(f1 % f2) : 0.0f;
+                    break;
+                default: resF = f1; break;
+            }
+
+            if (float.IsNaN(resF) || float.IsInfinity(resF)) resF = 0.0f;
+            return BitConverter.SingleToInt32Bits(resF);
+        }
+        else
+        {
+            int i1 = rawOp1;
+            int i2 = rawOp2;
+            int resI;
+
+            switch (mathOp)
+            {
+                case 0: resI = (int)Math.Clamp((long)i1 + i2, int.MinValue, int.MaxValue); break; // Add
+                case 1: resI = (int)Math.Clamp((long)i1 - i2, int.MinValue, int.MaxValue); break; // Subtract
+                case 2: resI = (int)Math.Clamp((long)i1 * i2, int.MinValue, int.MaxValue); break; // Multiply
+                case 3: resI = (i2 != 0) ? (i1 / i2) : 0; break;                                  // Divide
+                case 4: resI = (i2 != 0) ? (i1 % i2) : 0; break;                                  // Modulo
+                default: resI = i1; break;
+            }
+
+            return resI;
+        }
+    }
+
+    private void ExecuteMathOp(RuleRecordDto rule)
+    {
+        int rawOp1 = ReadTagValue(rule.TriggerTag);
+
+        bool isTagOp2 = rule.GuardTag != ModbusRegisterMap.GuardTagNone && rule.GuardTag != 0xFFFF;
+        int rawOp2 = isTagOp2
+            ? ReadTagValue((ushort)(rule.GuardTag & ModbusRegisterMap.GuardTagIndexMask))
+            : rule.AuxParam;
+
+        bool isFloat = rule.IsActionFloat || rule.IsTriggerFloat;
+        int result = EvaluateMathAlu(rawOp1, rawOp2, (byte)rule.CompareOp, isFloat);
+
+        // Phát hiện chia cho 0 để ghi ConfigErrorCode
+        if ((byte)rule.CompareOp == 3)
+        {
+            if (isFloat && Math.Abs(rule.IsActionFloat ? BitConverter.Int32BitsToSingle(rawOp2) : rawOp2) <= 1e-6f)
+            {
+                _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.INVALID_PARAMETER);
+            }
+            else if (!isFloat && rawOp2 == 0)
+            {
+                _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.INVALID_PARAMETER);
+            }
+        }
+
+        WriteTagValue(rule.ActionTag, result);
     }
 
     // =========================================================

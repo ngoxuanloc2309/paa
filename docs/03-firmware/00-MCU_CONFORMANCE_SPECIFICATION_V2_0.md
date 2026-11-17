@@ -1,0 +1,911 @@
+# SimplePLC MCU Firmware Conformance Specification (V2.0)
+
+> [!IMPORTANT]
+> **BẢN ĐẶC TẢ MASTER CHUẨN CỐT LÕI DUY NHẤT:**  
+> 👉 [`docs/02-platform/01-MASTER_PROFILE_V2_0.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/02-platform/01-MASTER_PROFILE_V2_0.md)  
+> Toàn bộ kiến trúc, struct nhị phân, Memory Map V2.0, checklist nghiệm thu CHKL-01..20 và hướng dẫn code mẫu đều được quản lý tập trung tại file Master trên.
+
+## 1. Giới thiệu & Phạm vi
+
+Tài liệu này là đặc tả kỹ thuật chuẩn công nghiệp (**Authoritative Engineering Conformance Specification V2.0**) dành cho các kỹ sư phát triển Firmware nhúng (trên các nền tảng MCU công nghiệp như STM32F4/G4/H7, ESP32-S3, RP2040, GD32, NXP LPC, AVR,...) đảm bảo khả năng tương thích 100% với hệ sinh thái **SimplePLC** và phần mềm **SimplePLC Studio**.
+
+Tất cả các định nghĩa kiểu dữ liệu C/C++, cấu trúc byte-exact, hằng số giao thức và thuật toán chuẩn được quy định duy nhất tại:
+* C Header chuẩn V2.0: [`src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h)
+* Bộ Golden Vectors V2.0: [`tests/SimplePLC.Protocol.Tests/GoldenVectors/golden_vectors_v2_0.json`](file:///g:/HoaNV/Projects/SimplePLC/tests/SimplePLC.Protocol.Tests/GoldenVectors/golden_vectors_v2_0.json)
+* Kế thừa nền tảng: Bổ sung và tương thích toàn diện với Wire Profile 2.
+
+---
+
+## 2. Các nguyên tắc cốt lõi của giao thức (Core Protocol Invariants)
+
+1. **Chỉ dùng Standard Modbus RTU**:
+   * Chỉ sử dụng duy nhất 3 mã hàm Modbus chuẩn theo tiêu chuẩn Modbus-IDA:
+     * **FC03 (0x03)**: Read Holding Registers
+     * **FC06 (0x06)**: Write Single Register
+     * **FC16 (0x10)**: Write Multiple Registers
+   * **Nghiêm cấm** tự ý phát minh thêm Function Code tùy biến (như FC43, FC69,...).
+2. **Thứ tự byte trên đường truyền (Wire Endianness & Word Ordering)**:
+   * Thanh ghi Modbus 16-bit: **Big-Endian** trên đường truyền (High Byte gửi trước, Low Byte gửi sau).
+   * Giá trị 32-bit (`int32_t`, `uint32_t`): Gồm 2 thanh ghi liên tiếp, **High Word trước, Low Word sau** (`[Reg0: High16, Reg1: Low16]`).
+   * Mã kiểm tra CRC-16 Modbus (Đa thức `0xA001`, Giá trị khởi tạo `0xFFFF`): **Little-Endian** ở đuôi frame RTU (`[CRC_Lo, CRC_Hi]`).
+3. **Chu kỳ quét định thời cố định (Deterministic Scan Cycle 10 ms)**:
+   * Logic Rule Engine trên MCU chạy theo chu kỳ cố định danh định **10 ms**.
+   * Đơn vị đo thời gian quét trong `DeviceHealth`: **`scan_time_ms`** và **`max_scan_time_ms`** (millisecond, không dùng microsecond để chống tràn số).
+4. **Quyền sở hữu bộ nhớ Tag loại trừ lẫn nhau (Mutual-Exclusive Tag Store Ownership)**:
+   * **`ENGINE_RUNNING`**: Rule Engine giữ quyền kiểm soát độc quyền bộ nhớ Tag Store (0x0900..0x09FF). Mọi lệnh ghi từ Host vào vùng này sẽ bị từ chối với lỗi Modbus `0x02 (Illegal Data Address)`.
+   * **`DIAG_CONTROL`**: Rule Engine tạm dừng logic tại ranh giới chu kỳ quét và chuyển quyền sở hữu Tag Store cho Host (Studio). Host được phép ghi cưỡng bức vào các ngõ ra và cờ nhớ (`DO`, `VFLAG`, `VREG`, `VREG_RETAIN`, `COUNTER`).
+5. **Giao dịch ghi nguyên tử All-or-Nothing trên FC16**:
+   * Mỗi giá trị Tag chiếm đúng 2 thanh ghi (32-bit). Lệnh ghi vào `0x0900..0x09FF` bắt buộc dùng FC16 với số lượng chẵn `Quantity = 2 * N` và địa chỉ chẵn `0x0900 + TagIndex * 2`.
+   * Nếu frame ghi chứa bất kỳ Tag nào là Read-Only (`DI`, `AI`) hoặc ngoài dải cho phép, MCU lập tức từ chối toàn bộ frame với Exception `0x02`, không thực hiện ghi một phần.
+
+---
+
+## 3. Bản đồ địa chỉ thanh ghi Modbus V2.0 (Register Memory Map)
+
+| Vùng thanh ghi | Tên phân vùng | Chiều | FC | Kích thước | Mô tả chi tiết |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| `0x0000..0x0009` | **Device Descriptor** | R | FC03 | 10 regs (20 B) | Nhận dạng phần cứng: Class (1: REMOTE_IO, 2: DATALOGGER, 3: GATEWAY, 4: CONTROLLER, 5: DTU), Variant (DTU: 1=RS485_NET), HW/FW Version, Protocol Version (=2), Rule Format Version (=7). |
+| `0x0010` | **Rule Table Info** | R | FC03 | 1 reg (2 B) | Số lượng Rule đang kích hoạt (`active_rule_count`, 0..100). |
+| `0x0020..0x0029` | **Device Resource Info** | R | FC03 | 10 regs (20 B) | Hồ sơ tự mô tả: WireProfile (=2), MaxRules (=100), ActiveTags (=124), DI=8, DO=8, AI=4, VFLAG=32, VREG=32, RETAIN=32, COUNTER=8. |
+| `0x0080..0x00BF` | **Tag DataType Registry** | R/W | FC03/FC16 | 64 regs (128 B) | Bảng đăng ký kiểu dữ liệu Tag Catalog IEC 61131-3 (1 byte/tag: 1=BOOL, 2=INT32, 3=REAL). Studio nạp xuống MCU khi deploy. |
+| `0x0100..0x073F` | **Active Rule Table** | R | FC03 | Max 1600 regs | Bảng Rule đang chạy thực tế (tối đa 100 rules × 16 thanh ghi = 3200 bytes). |
+| `0x0800..0x0809` | **Device Health** | R | FC03 | 10 regs (20 B) | `uptime_s` (u32), `reset_reason` (u16), `health_flags` (u16), `cpu_load` (u16), `ram_usage` (u16), `scan_time_ms` (u32), `max_scan_time_ms` (u32). |
+| `0x0810..0x0813` | **Real-Time Clock (RTC)** | R/W | FC03/FC16 | 4 regs (8 B) | Đồng hồ RTC: `epoch_utc_s` (u32, High Word trước), `tz_offset_min` (i16, ví dụ +420 cho UTC+7), `status_flags` (u16). |
+| `0x0820..0x0827` | **System Tags & Clocks** | R | FC03 | 8 regs (16 B) | 8 Thẻ Hệ thống chuẩn IEC (SPLC-SPEC-SYSTEM-TAGS-006, Index 1000..1007): SYS_FIRST_SCAN, SYS_ON, SYS_OFF, SYS_CLOCK_1S, SYS_CLOCK_100MS, SYS_RTC_HOUR, SYS_RTC_MINUTE, SYS_COMM_OK. |
+| `0x0900..0x09FF` | **Runtime Tag Values** | R/W | FC03/FC16 | 256 regs (128 tags) | Giá trị 32-bit của các Tag theo `TagIndex` 0..127. Mỗi tag = 2 regs (High Word trước). Chỉ cho phép ghi trong chế độ `DIAG_CONTROL`. |
+| `0x0A00` | **System Command** | W | FC06/FC16 | 1 reg (2 B) | Lệnh bảo trì hệ thống (`1: REBOOT`, `2: FACTORY_RESET`, `3: CLEAR_RULES`, `4: CLEAR_RETAIN`). |
+| `0x0A01..0x0A02` | **System Command Result** | R | FC03 | 2 regs (4 B) | Kết quả thực thi lệnh: `[0]=CommandStatus`, `[1]=ErrorCode`. |
+| `0x0A08..0x0A09` | **Hardware Capabilities** | R | FC03 | 2 regs (4 B) | Khai báo 32-bit năng lực phần cứng thực tế (`SPLC_HardwareCapabilities_t`, Big-Endian): Logic (0x1), Retain (0x2), RTC (0x4), Ethernet (0x8), MQTT PUB (0x10), MQTT SUB (0x20), SD (0x40), TLS CERT (0x80), Modbus Master (0x100), WiFi ST67 (0x200), Modbus Slave (0x4000). |
+| `0x0A0A` | **RS-485 Physical Port Count** | R | FC03 | 1 reg (2 B) | Số lượng cổng RS-485 vật lý khả dụng trên phần cứng MCU (uint16, FC03 RO). Giá trị: `0` (None), `1` (Micro/Compact), `2` (Standard SimplePLC), `4` (Modular/Gateway). Host tự động đồng bộ danh sách cổng và khóa an toàn các cổng vượt quá giới hạn phần cứng. |
+| `0x0A20..0x0A24` | **Diagnostic Control Block**| R/W | FC03/FC06/FC16 | 5 regs (10 B) | Phân hệ chẩn đoán cưỡng bức: `Command` (0x0A20), `State` (0x0A21), `Flags` (0x0A22), `LeaseRemainingMs` (0x0A23), `ErrorCode` (0x0A24). |
+| `0x0B00..0x0B3F` | **Function Block Timers** | R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Timer IEC 61131-3 (TON, TOF, TP). Host ghi cấu hình (Mode, PT) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, ET). Mỗi khối 8 thanh ghi (16 bytes). |
+| `0x0B40..0x0B7F` | **Function Block Counters**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình & viễn trắc 8 khối Counter IEC 61131-3 (CTU, CTD). Host ghi cấu hình (Mode, PV, RetainTagIndex) qua FC16 (tối đa 3 khối/lệnh); Firmware tính toán và cập nhật trạng thái (StatusBits, CV). Mỗi khối 8 thanh ghi (16 bytes). |
+| `0x0C00..0x0D7F` | **MQTT Telemetry Blocks**  | R/W | FC03/FC16 | 384 regs (768 B) | Cấu hình 4 khối xuất bản dữ liệu viễn trắc MQTT IIoT (SPLC-SPEC-MQTT-001). Mỗi khối 96 thanh ghi (192 bytes) gồm: Flags/Topic/Timing (32 regs) và Payload Template JSON (64 regs). |
+| `0x0D80..0x0DFF` | **MQTT Subscribe Blocks**  | R/W | FC03/FC16 | 128 regs (256 B) | Cấu hình 2 khối nhận lệnh điều khiển Inbound MQTT SUB (SPLC-SPEC-MQTT-002). Mỗi khối 64 thanh ghi (128 bytes) gồm: Control/Timing/Topic và 4 Pin Bindings. |
+| `0x0E00..0x0E5F` | **MQTT Broker Configuration**| R/W | FC03/FC16 | 96 regs (192 B) | Cấu hình kết nối mạng máy chủ MQTT Broker cấp hệ thống: Host/IP (64B), Port, TLS/SSL, Client ID, Username, Password, KeepAlive. |
+| `0x0E60..0x0E7F` | **MQTT Last Will & Testament**| R/W | FC03/FC16 | 32 regs (64 B)  | Cấu hình bản tin di chúc LWT báo ngắt kết nối khẩn cấp (SPLC-SPEC-MQTT-004): `will_control` (Bit 0: Enable, Bit 1: Retain, Bit 2..3: QoS), `will_topic[32]`, `will_payload[30]`. Nạp theo cơ chế Shadow RAM buffer và commit Flash tại `0xA000`. |
+| `0x0F00..0x0F46` | **MQTT TLS Certificate Staging**| R/W | FC03/FC16 | 71 regs (142 B) | Vùng đệm nạp phân đoạn chứng chỉ X.509 Root CA & mTLS theo khối struct 128 bytes (SPLC-SPEC-MQTT-003): Staging Buffer (`0x0F00..0x0F3F`), ACK (`0x0F40`), Error (`0x0F41`), Atomic Commit (`0x0F42`, `0xA5A5`), ActiveMask (`0x0F43`), Checksum CRC-16 Flash (`0x0F44..0x0F46`). |
+| `0x1000..0x10FF` | **Modbus Master Poller (MB_READ)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh Modbus RTU Master thu thập dữ liệu cảm biến ngoại vi RS-485 (SPLC-SPEC-MBM-001, mỗi kênh 64 registers = 128 bytes). |
+| `0x1100..0x11FF` | **Modbus Master Writer (MB_WRITE)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình 4 kênh phát lệnh Modbus RTU Master xuất tín hiệu xuống thiết bị chấp hành (SPLC-SPEC-MBM-002, mỗi kênh 64 registers = 128 bytes). |
+| `0x1200..0x12FF` | **Pulse Output / Hardware Actuator (PULSE_OUT)**| R/W | FC03/FC16 | 256 regs (512 B) | Cấu hình tối đa 8 khối phát xung & chấp hành ngõ ra số vật lý DO0..DO7 (SPLC-SPEC-PULSE-003, tương thích DIRECT_WRITE, mỗi khối 16 registers = 32 bytes). |
+| `0x1300..0x13FF` | **Wi-Fi Subsystem (ST67 Module)**| R/W | FC03/FC06/FC16 | 256 regs (512 B) | Cấu hình mạng Wi-Fi ST67W (`0x1300`), bắt tay lệnh quét sóng & kết nối (`0x1340`), và bảng kết quả tối đa 8 AP lân cận (`0x1350`) theo ICD SPLC-SPEC-WIFI-004. |
+| `0x1400..0x143F` | **Modbus Multi-Port RS-485 Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình tham số truyền thông cho tối đa 4 cổng RS-485 Master & Slave vật lý (SPLC-SPEC-MBM-003, mỗi cổng 16 registers = 32 bytes: Control/Port, BaudRate, Parity, Framing, Timeout, Delay, Retries, PortName, Role, SlaveId). Host nạp xuống MCU khi deploy. |
+| `0x1440..0x14FF` | **Reserved / RS-485 Extended** | - | - | 192 regs (384 B)| Vùng dự phòng mở rộng giao tiếp nối tiếp RS-485. |
+| `0x1600..0x16BF` | **DTU HTTP / TCP / Routing Config**| R/W | FC03/FC16 | 192 regs (384 B)| Cấu hình phân hệ DTU Gateway công nghiệp (SPLC-SPEC-DTU-001): HTTP REST Client (`0x1600`), TCP Socket Client/Server (`0x1640`), Routing Engine (`0x1680`). |
+| `0x1700..0x173F` | **Zigbee Mesh Network Config**| R/W | FC03/FC16 | 64 regs (128 B) | Cấu hình mạng không dây công nghiệp Zigbee (SPLC-SPEC-ZIGBEE-006): Role (Coordinator/Router), PanID (16B), Channel Mask (2.4GHz Kênh 11..26), BaudRate UART nội bộ, AES-128 Encryption Key (Write-Only), viễn trắc Link State/RSSI/LQI/Packets. Host nạp xuống MCU khi deploy. |
+| `SPLC-SPEC-SLAVE-001` | **Modbus Slave Fixed Memory Map**| R/W | FC01/02/03/05/06/15/16 | RAM O(1) | Bản đồ địa chỉ bộ nhớ cố định cho SCADA/HMI đọc/ghi: DI_WORD (40001), DO_WORD (40002), VFLAG (40003), AI (40017), VREG (40033), VREG_R (40097), COUNTER (40161), SYS_DIAG (40241), DI bits (10001), DO coils (00001), VFLAG coils (00101). Chi tiết xem `SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md`. |
+| `0x9000..0x9005` | **Staging Config Handshake**| R/W | FC03/FC16 | 6 regs (12 B) | `Status`, `ErrorCode`, `RuleCountStaged`, `ExpectedCrc16`, `ActiveRuleCount`, `ActiveRuleCrc16`. |
+| `0x9010..0x964F` | **Staging Rule Buffer** | W | FC16 | Max 1600 regs | Vùng đệm nạp Rule mới (ghi từng block tối đa 120 registers). |
+| `0xA000` | **Commit Command** | W | FC06/FC16 | 1 reg (2 B) | Ghi `0xA5A5` (`SPLC_COMMIT_MAGIC`) để MCU kiểm tra CRC và tráo bảng (atomic swap). |
+| `0xA001` | **Active Rule Version** | R | FC03 | 1 reg (2 B) | Tăng lên 1 mỗi khi commit thành công. |
+
+---
+
+## 4. Phân bổ `TagIndex` Động (Dynamic Tag Index Layout)
+
+Từ phiên bản SimplePLC V2.0+, các chỉ số `TagIndex` **không còn cố định theo các mốc 8 slot tĩnh**. MCU Firmware tự động phân bổ và đóng gói liên tục (`Consecutive Packing`) các nhóm Tag dựa trên số lượng cổng thực tế khai báo trong `DeviceResourceInfo` (`0x0020`):
+
+### 4.1. Công thức tính Base Index động
+```text
+DiBase         = 0
+DoBase         = di_count
+AiBase         = di_count + do_count
+VflagBase      = di_count + do_count + ai_count
+VregBase       = di_count + do_count + ai_count + vflag_count
+VregRetainBase = di_count + do_count + ai_count + vflag_count + vreg_count
+CounterBase    = di_count + do_count + ai_count + vflag_count + vreg_count + vreg_retain_count
+TotalTags      = CounterBase + counter_count
+```
+
+Địa chỉ thanh ghi Modbus tương ứng:
+$$\text{Modbus Address} = 0\text{x}0900 + (\text{TagIndex} \times 2)$$
+
+### 4.2. So sánh ví dụ thực tế
+
+| Nhóm Tag | Cấu hình Tiêu chuẩn (8DI, 8DO, 4AI) | Cấu hình Nhỏ gọn (4DI, 4DO, 2AI) | Đặc tính truy cập |
+| :--- | :--- | :--- | :--- |
+| **`DI`** | TagIndex `0 .. 7` (`0x0900..0x090F`) | TagIndex `0 .. 3` (`0x0900..0x0907`) | Read-Only (Optocoupler vật lý) |
+| **`DO`** | TagIndex `8 .. 15` (`0x0910..0x091F`) | TagIndex `4 .. 7` (`0x0908..0x090F`) | Read-Write (Relay/Transistor) |
+| **`AI`** | TagIndex `16 .. 19` (`0x0920..0x0927`)| TagIndex `8 .. 9` (`0x0910..0x0913`) | Read-Only (ADC 0-10V/4-20mA) |
+| **`VFLAG`** | TagIndex `20 .. 51` (`0x0928..0x0967`)| TagIndex `10 .. 41` (`0x0914..0x0953`)| Read-Write (Cờ bit nội bộ RAM) |
+| **`VREG`** | TagIndex `52 .. 83` (`0x0968..0x09A7`)| TagIndex `42 .. 73` (`0x0954..0x0993`)| Read-Write (Biến số 32-bit RAM) |
+| **`VREG_RETAIN`**| TagIndex `84 .. 115` (`0x09A8..0x09E7`)| TagIndex `74 .. 105` (`0x0994..0x09D3`)| Read-Write (Biến lưu giữ Flash) |
+| **`COUNTER`**| TagIndex `116 .. 123` (`0x09E8..0x09F7`)| TagIndex `106 .. 113` (`0x09D4..0x09E3`)| Read-Write (Bộ đếm phần cứng/mềm) |
+
+> [!TIP]
+> **Ưu điểm cho Firmware**: Khi board chỉ có 4 cổng DI, `DO0` sẽ bắt đầu ngay tại `TagIndex 4`. Firmware không cần chừa các slot trống không có thực `4..7`, giúp bộ nhớ RAM phẳng và việc lập trình vòng lặp IO đơn giản, tự nhiên hơn.
+
+---
+
+## 5. Đặc tả Cấu trúc Bản ghi Rule 32-Byte (`SPLC_RuleRecord_t`)
+
+Mỗi bản ghi Rule chiếm đúng 16 thanh ghi Modbus (32 bytes), định dạng byte-exact theo chuẩn đóng gói `#pragma pack(push, 1)`. 
+SimplePLC V2.0 hỗ trợ cả **Chế độ Số nguyên (Legacy Int32)** và **Chế độ Số thực dấu phẩy động (IEEE-754 Single-Precision Float32 / REAL)** mà không làm thay đổi kích thước 32-byte của Wire Contract:
+
+```c
+/* Cờ thuộc tính Rule trực giao (Rule Flags) lưu tại Reg 13 High */
+typedef enum {
+    SPLC_RULE_FLAG_NONE          = 0x00, /* 0x00: Chế độ số nguyên Int32 (Mặc định) */
+    SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01, /* Bit 0 (0x01): Ngưỡng Trigger là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02, /* Bit 1 (0x02): Tham số Action là số thực Float32 IEEE-754 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03  /* 0x03: Cả Trigger và Action đều là Float32 (Legacy alias) */
+} SPLC_RuleFlags_t;
+
+typedef struct SPLC_PACKED {
+    union {
+        int32_t  threshold_lo;    /* [Reg 0..1] Ngưỡng dưới dạng số nguyên Int32 (Big-Endian) */
+        float    threshold_lo_f;  /* [Reg 0..1] Ngưỡng dưới dạng số thực IEEE-754 Float32 (khi flags & 0x01) */
+    };
+    union {
+        int32_t  threshold_hi;    /* [Reg 2..3] Ngưỡng trên dạng số nguyên Int32 (Big-Endian) */
+        float    threshold_hi_f;  /* [Reg 2..3] Ngưỡng trên dạng số thực IEEE-754 Float32 (khi flags & 0x01) */
+    };
+    uint32_t for_ms;              /* [Reg 4..5] Thời gian trễ / chu kỳ kích hoạt (ms) */
+    union {
+        int32_t  action_param;    /* [Reg 6..7] Tham số hành động Int32 */
+        float    action_param_f;  /* [Reg 6..7] Tham số hành động Float32 (Hệ số góc k khi SCALE_TAG) */
+    };
+    uint16_t trigger_tag;         /* [Reg 8]    TagIndex kích hoạt (0..127) */
+    uint16_t action_tag;          /* [Reg 9]    TagIndex tác động (0..127) */
+    uint16_t guard_tag;           /* [Reg 10]   Bit 15: NEGATE (1=NOT), Bits 0..14: TagIndex (0x7FFF=None) */
+    uint8_t  enabled;             /* [Reg 11 High] 1 = Kích hoạt, 0 = Vô hiệu */
+    uint8_t  trigger_type;        /* [Reg 11 Low]  SPLC_TriggerType_t */
+    uint8_t  compare_op;          /* [Reg 12 High] SPLC_CompareOp_t */
+    uint8_t  action_type;         /* [Reg 12 Low]  SPLC_ActionType_t */
+    uint8_t  flags;               /* [Reg 13 High] SPLC_RuleFlags_t: Bit 0=TRIGGER_FLOAT (0x01), Bit 1=ACTION_FLOAT (0x02) */
+    uint8_t  reserved_byte;       /* [Reg 13 Low]  Padding căn chỉnh nhị phân, sender ghi 0x00 */
+    union {
+        int32_t  aux_param;       /* [Reg 14..15] Tham số phụ Action Int32 (Offset b khi SCALE_TAG hoặc toán hạng 2) */
+        float    aux_param_f;     /* [Reg 14..15] Tham số phụ Action Float32 (Offset b khi SCALE_TAG) */
+    };
+} SPLC_RuleRecord_t;
+_Static_assert(sizeof(SPLC_RuleRecord_t) == 32, "RuleRecord must be exactly 32 bytes (16 regs)");
+```
+
+### 5.1. Cơ chế Chuyển đổi Trực Giao và Tương thích Ngược (Orthogonal Float vs Int32 Matrix)
+Để triệt tiêu hoàn toàn lỗi ép kiểu sai số nhị phân khi Trigger và Action có kiểu dữ liệu khác nhau (ví dụ: Trigger là số nguyên thô `AI > 80` nhưng Action là số thực `SET VREG_REAL = 2.5f`), trường `flags` (Byte 13 High) được chia thành 2 cờ bitmask trực giao độc lập:
+
+| Trạng thái Flags | Ý nghĩa kỹ thuật | Cơ chế đối sánh Trigger | Cơ chế thực thi Action |
+| :---: | :--- | :--- | :--- |
+| `0x00` | Pure Integer Rule | So sánh số nguyên thô (`as_int32`) với `threshold_lo/hi` | Ghi giá trị nguyên (`as_int32`) từ `action_param` |
+| `0x01` (`TRIGGER_FLOAT`) | Float Trigger + Int Action | So sánh số thực IEEE-754 (`as_real`) với `threshold_lo/hi_f` (sai số $\epsilon = 10^{-5}$) | Ghi giá trị nguyên (`as_int32`) từ `action_param` |
+| `0x02` (`ACTION_FLOAT`) | Int Trigger + Float Action | So sánh số nguyên thô (`as_int32`) với `threshold_lo/hi` | Ghi trực tiếp bit float IEEE-754 (`as_real`) từ `action_param_f` |
+| `0x03` (`FLOAT_DATA`) | Pure Float Rule | So sánh số thực IEEE-754 (`as_real`) với `threshold_lo/hi_f` | Ghi trực tiếp bit float IEEE-754 (`as_real`) từ `action_param_f` |
+
+* **Đặc tả Action Function Blocks đối với dữ liệu REAL:**
+  * `ACT_SCALE_TAG (7)`: Bắt buộc `flags = 0x03` khi tag là REAL (hệ số góc $k$ lưu tại `action_param_f`, offset $b$ chuẩn lưu tại `aux_param_f` [Reg 14..15], hỗ trợ fallback `threshold_hi_f` cho firmware cũ). Công thức: $y = x \times k + b$. Nhờ `aux_param`, các ngưỡng so sánh `threshold_lo/hi` hoàn toàn độc lập, không bị xung đột.
+  * `INC_COUNTER`: Chỉ áp dụng cho số nguyên thô (`flags = 0x00`).
+  * `ADD_TAG`: Nếu `flags & 0x02`, MCU thực hiện cộng số thực dấu phẩy động IEEE-754: $V_{\text{dest}} = V_{\text{dest}} + V_{\text{src}}$. Ngược lại thực hiện cộng số nguyên có dấu 32-bit.
+    * `BETWEEN`: $\text{threshold\_lo\_f} \le x \le \text{threshold\_hi\_f}$
+  * Hỗ trợ đặt ngưỡng thập phân trực quan từ IDE (ví dụ: `55.5°C`, `-12.3 bar`).
+
+### 5.2. Các tập Enum Logic:
+* **TriggerType (`uint8_t`)**:
+  * `0`: `ON_CHANGE` — Kích hoạt khi giá trị tag thay đổi so với chu kỳ trước (hoặc thỏa mãn điều kiện so sánh).
+  * `1`: `ON_RISE` — Kích hoạt khi có sườn lên (0 -> 1 hoặc vượt qua ngưỡng).
+  * `2`: `ON_FALL` — Kích hoạt khi có sườn xuống (1 -> 0 hoặc tụt xuống dưới ngưỡng).
+  * `3`: `TIME_WINDOW` — Kích hoạt theo khung giờ thực tế (dựa vào đồng hồ RTC, luôn xử lý dạng số nguyên `HHMM`).
+  * `4`: `INTERVAL` — Kích hoạt định kỳ sau mỗi khoảng thời gian `for_ms`.
+* **CompareOp (`uint8_t`)**:
+  * `0`: `NONE`, `1`: `EQ` (`=`), `2`: `NEQ` (`!=`), `3`: `GT` (`>`), `4`: `LT` (`<`), `5`: `GTE` (`>=`), `6`: `LTE` (`<=`), `7`: `BETWEEN` (`Lo <= X <= Hi`).
+* **ActionType (`uint8_t`)**:
+  * `0`: `SET_TAG` — Gán giá trị `action_param` vào `action_tag`.
+  * `1`: `TOGGLE_TAG` — Đảo trạng thái cờ logic (0 <-> 1).
+  * `2`: `INC_COUNTER` — Tăng bộ đếm thêm `action_param`.
+  * `3`: `WRITE_REMOTE` — Ghi ra thiết bị Modbus Slave ngoại vi.
+  * `4`: `LOG_EVENT` — Ghi bản ghi nhật ký vào RAM circular buffer.
+  * `5`: `SEND_ALARM` — Bật cờ cảnh báo hệ thống.
+  * `6`: `ADD_TAG` — Cộng giá trị `action_param` vào giá trị tag hiện tại.
+  * `7`: `SCALE_TAG` — Áp dụng công thức chuyển đổi tỉ lệ tuyến tính ($y = k \cdot x + b$):
+    * **Chế độ Số nguyên (`flags == 0x00`)**:
+      $$y = \left\lfloor\frac{x \times \text{action\_param}}{1000}\right\rfloor + \text{aux\_param}$$
+    * **Chế độ Số thực Float32 (`flags & 0x01 != 0`)**:
+      $$y_{\text{float}} = x_{\text{float}} \times \text{action\_param\_f} + \text{aux\_param\_f}$$
+      Trong đó $k$ (`action_param_f`), $b$ (`aux_param_f`), và ngõ vào $x$ đều được tính toán theo đơn vị dấu phẩy động IEEE-754 chính xác tuyệt đối. Giá trị ngõ ra $y$ được lưu dưới dạng 32-bit float bit pattern vào thanh ghi Tag tương ứng.
+    * *Ví dụ:* Cảm biến analog `0..10000 mV` chuyển đổi sang `0..100.0°C` với $k = 0.01$, offset $b = 0.0$: `action_param_f = 0.01f`, `aux_param_f = 0.0f`. Giá trị đọc được tại $5550 \text{ mV}$ sẽ ra đúng $55.5^\circ\text{C}$.
+  * `8`: `SUB_TAG` — Trừ giá trị `action_param` khỏi tag: $\text{dest} = \text{dest} - \text{param}$.
+  * `9`: `MUL_TAG` — Nhân giá trị: $\text{dest} = \text{dest} \times \text{param}$.
+  * `10`: `DIV_TAG` — Chia giá trị: $\text{dest} = \text{dest} / \text{param}$ (có bảo vệ chống chia cho 0).
+  * `11`: `MOD_TAG` — Phép chia lấy dư: $\text{dest} = \text{dest} \pmod{\text{param}}$.
+  * `8`: `MATH_OP` — Khối tính toán nhị phân tổng quát 2 toán hạng:
+    $$\text{action\_tag} = \text{trigger\_tag} \quad [\text{Operator}] \quad \text{Operand}_2$$
+    * $\text{Operand}_2$ được lấy từ `guard_tag` (khi $\ne \text{0x7FFF}$) hoặc từ `aux_param` (khi `guard_tag == 0x7FFF`).
+    * Toán tử mã hóa tại `compare_op` (Reg 12 High): `0: ADD`, `1: SUB`, `2: MUL`, `3: DIV`, `4: MOD`, `5: MIN`, `6: MAX`, `7: CLAMP`.
+    * Kiểu dữ liệu xác định bởi `flags` (Reg 13 High): `0x00` (Int32) hoặc `0x03` (Float32).
+    * Bảo vệ phần cứng MCU: Chống chia cho 0, khử NaN/Infinity và kẹp tràn số bão hòa.
+
+---
+
+## 6. Đặc tả Đồng bộ RTC & Thuật toán Kích hoạt Time Window
+
+### 6.1. Khối thanh ghi RTC Clock (`0x0810..0x0813`)
+Phân vùng gồm 4 thanh ghi (8 bytes):
+* **`0x0810..0x0811`**: `epoch_utc_s` (`uint32_t`, High Word trước) — Unix timestamp (giây tính từ 1970-01-01 00:00:00 UTC).
+* **`0x0812`**: `tz_offset_min` (`int16_t`) — Độ lệch múi giờ theo phút (ví dụ Việt Nam UTC+7 là `+420`, Tokyo UTC+9 là `+540`).
+* **`0x0813`**: `status_flags` (`uint16_t`):
+  * `Bit 0` (`0x0001`): `SPLC_RTC_FLAG_SYNCED` (1 = Đã đồng bộ với Host PC; 0 = Chưa đồng bộ). Host bật cờ này khi nạp giờ chuẩn.
+  * `Bit 1` (`0x0002`): `SPLC_RTC_FLAG_HW_PRESENT` (1 = Có chip phần cứng RTC như DS3231/PCF8563 hoặc thạch anh 32.768kHz LSE; 0 = Đếm giờ mềm). *Do MCU tự kiểm tra phần cứng khi khởi động, Host không được tự ý xóa cờ này.*
+  * `Bit 2` (`0x0004`): `SPLC_RTC_FLAG_BATTERY_LOW` (1 = Pin nuôi RTC bị yếu/hết pin hoặc tháo pin; 0 = Pin tốt). *Do MCU đo đạc điện áp pin / đọc thanh ghi cảnh báo của IC RTC để báo cáo cho Host.*
+
+* **Quy tắc Giao tiếp & An toàn Múi giờ (Read-Before-Write & On-Connect Policy)**:
+  * **Khi Host kết nối (On-Connect)**: Host chỉ thực hiện **FC03 đọc `0x0810..0x0813`** để cập nhật trạng thái hiển thị trên Status Bar. **Tuyệt đối KHÔNG tự động ghi đè giờ PC xuống MCU**, nhằm bảo vệ nguyên vẹn múi giờ quốc tế (ví dụ: Mỹ UTC-5, Nhật Bản UTC+9) đã cấu hình trước đó của thiết bị.
+  * **Khi Host gửi lệnh đồng bộ (Explicit User Sync)**: Thao tác ghi đồng bộ thời gian/múi giờ mới chỉ diễn ra khi kỹ sư chủ động bấm nút "Đồng bộ" trong hộp thoại RTC.
+  * Khi Host gửi frame **FC16 ghi `0x0810..0x0813`**, Host **bắt buộc phải bảo toàn** cờ `HW_PRESENT` và `BATTERY_LOW` của MCU (áp dụng cơ chế Read-Before-Write), chỉ cập nhật `epoch_utc_s`, `tz_offset_min` và `SYNCED = 1`.
+  * Phía Firmware MCU: Nếu nhận được FC16, Firmware cập nhật `epoch_utc_s`, `tz_offset_min`, và đặt `SYNCED = 1`, đồng thời giữ nguyên trạng thái `HW_PRESENT` và `BATTERY_LOW` theo phần cứng thực tế.
+
+### 6.2. Thuật toán tính toán giờ địa phương danh định `HHmm`
+Trong mỗi chu kỳ quét 10ms, MCU tăng bộ đếm thời gian nội bộ. Khi cần đánh giá các Rule có `trigger_type == SPLC_TRG_TIME_WINDOW (3)`, MCU tính toán giá trị `current_hhmm`:
+
+```text
+local_epoch = epoch_utc_s + (tz_offset_min * 60)
+seconds_of_day = local_epoch % 86400
+hours = floor(seconds_of_day / 3600)
+minutes = floor((seconds_of_day % 3600) / 60)
+current_hhmm = (hours * 100) + minutes
+```
+
+*Ví dụ:* 07:15 sáng → `715`; 18:45 tối → `1845`.
+
+### 6.3. Ngữ nghĩa đánh giá Time Window
+* **Khung giờ trong ngày (`Lo <= Hi`, ví dụ 07:00 đến 17:00 → `700..1700`):**
+  * Điều kiện đúng: `700 <= current_hhmm <= 1700`.
+* **Khung giờ xuyên đêm qua nửa đêm (`Lo > Hi`, ví dụ 18:00 đến 06:00 sáng hôm sau → `1800..600`):**
+  * Điều kiện đúng: `current_hhmm >= 1800 || current_hhmm <= 600`.
+* **Khung giờ điểm chính xác (`Op == SPLC_CMP_EQ` với `Lo == Hi`, ví dụ đúng 08:30 → `830`):**
+  * Chỉ đánh giá là `TRUE` tại thời điểm chuyển phút (edge transition) của phút đó để tránh kích hoạt liên tục trong suốt 60 giây.
+
+---
+
+## 7. Phân hệ Function Block IEC 61131-3 (Timers & Counters Subsystem)
+
+Toàn bộ phân vùng `0x0B00..0x0B7F` (128 registers = 256 bytes) dành cho phân hệ Function Block chuyên dụng. Mỗi khối được căn gióng lũy thừa 2 với kích thước cố định **8 thanh ghi (16 bytes)**.
+
+### 7.0. Nguyên tắc Phân quyền & Giới hạn Giao tiếp (R/W Access & Chunking Contract)
+1. **Phân quyền truy cập (Read/Write Separation)**:
+   * **Host (SimplePLC Studio)** có quyền ghi cấu hình khởi tạo (Configuration) bằng Modbus **FC16**:
+     * Với Timer: `mode` (+1), `pt_ms` (+2..+3).
+     * Với Counter: `mode` (+1), `preset_value` (+2..+3), `retain_tag_index` (+6).
+   * **MCU Firmware** sở hữu và cập nhật các trường trạng thái / thời gian thực (Runtime Telemetry) trong chu kỳ quét:
+     * Với Timer: `status_bits` (+0), `et_ms` (+4..+5).
+     * Với Counter: `status_bits` (+0), `current_value` (+4..+5).
+   * **Host đọc viễn trắc** bằng Modbus **FC03** để hiển thị Live Watch trên Canvas và bảng Function Block Inspector.
+2. **Quy tắc chia gói FC16 (Chunking Contract - Tối đa 3 khối/lệnh)**:
+   * Do giới hạn bộ đệm nhận UART RX của một số vi điều khiển là **64 bytes**, Host **bắt buộc chia nhỏ** mỗi lệnh ghi FC16 xuống tối đa **3 khối (24 thanh ghi = 48 bytes dữ liệu)**.
+   * Frame Modbus RTU ghi 3 khối: 1 (Slave) + 1 (FC16) + 2 (Addr) + 2 (Count) + 1 (ByteCount) + 48 (Data) + 2 (CRC) = **57 bytes**, đảm bảo an toàn tuyệt đối không làm tràn RX buffer.
+   * Khi nạp đủ 8 khối, Host phát 3 lệnh liên tiếp: Chunk 1 (3 khối), Chunk 2 (3 khối), Chunk 3 (2 khối).
+3. **Đính chính địa chỉ (Address Disambiguation)**:
+   * Bảng Timers bắt đầu tại `0x0B00` (kết thúc tại `0x0B3F`).
+   * Bảng Counters bắt đầu tại **`0x0B40`** (kết thúc tại `0x0B7F`).
+   * *Đính chính*: **Không tồn tại địa chỉ `0x0BC0`**. Địa chỉ `0x0BC0` là lỗi typo trong các bản thảo sơ khai (nhầm lẫn giữa `0x0B40` và `0x0BC0`), địa chỉ chuẩn xác duy nhất là `0x0B40`.
+
+### 7.1. Bảng Timer Subsystem (`0x0B00..0x0B3F`, 8 Timers TON/TOF/TP)
+Địa chỉ Timer `i` (`i` trong `[0..7]`): `Addr = 0x0B00 + (i * 8)`.
+* **`+0`**: `status_bits` (`uint16_t`, RO, do MCU cập nhật):
+  * `Bit 0` (`0x0001`): `IN` (Tín hiệu đầu vào đang kích hoạt).
+  * `Bit 1` (`0x0002`): `Q` (Ngõ ra trạng thái của Timer).
+  * `Bit 2` (`0x0004`): `RESET` (Tín hiệu Reset đang kích hoạt).
+  * `Bit 3` (`0x0008`): `RUNNING` (Timer đang tích lũy thời gian `ET < PT`).
+* **`+1`**: `mode` (`uint16_t`, R/W): `1 = TON` (On-Delay), `2 = TOF` (Off-Delay), `3 = TP` (Pulse Timer).
+* **`+2..+3`**: `pt_ms` (`uint32_t`, R/W, High Word trước) — Thời gian cài đặt (Preset Time) tính bằng ms.
+* **`+4..+5`**: `et_ms` (`uint32_t`, RO, High Word trước, do MCU cập nhật) — Thời gian đã trôi qua (Elapsed Time) tính bằng ms.
+* **`+6..+7`**: `reserved[2]` — Luôn trả về 0x0000.
+
+### 7.2. Bảng Counter Subsystem (`0x0B40..0x0B7F`, 8 Counters CTU/CTD)
+Địa chỉ Counter `i` (`i` trong `[0..7]`): `Addr = 0x0B40 + (i * 8)`.
+* **`+0`**: `status_bits` (`uint16_t`, RO, do MCU cập nhật):
+  * `Bit 0` (`0x0001`): `CU` (Xung đếm lên active).
+  * `Bit 1` (`0x0002`): `CD` (Xung đếm xuống active).
+  * `Bit 2` (`0x0004`): `RESET` (Tín hiệu Reset active).
+  * `Bit 3` (`0x0008`): `Q` (Ngõ ra Counter: Với CTU là `CV >= PV`, với CTD là `CV <= 0`).
+* **`+1`**: `mode` (`uint16_t`, R/W): `1 = CTU` (Count Up), `2 = CTD` (Count Down).
+* **`+2..+3`**: `preset_value` (`int32_t`, R/W, High Word trước) — Giá trị ngưỡng cài đặt (PV).
+* **`+4..+5`**: `current_value` (`int32_t`, RO/Mirror, High Word trước) — Giá trị đếm hiện tại (CV).
+  * Firmware trích xuất giá trị này từ ô nhớ thanh ghi được chỉ định bởi `retain_tag_index` (Storage Register Binding) để trả về cho App hiển thị viễn trắc lên node Counter trên Canvas.
+* **`+6`**: `retain_tag_index` (`uint16_t`, R/W) — Chỉ số Tag thanh ghi lưu trữ (Storage Register Binding) của khối Counter:
+  * Trỏ tới bất kỳ thanh ghi lưu trữ hợp lệ nào (`VREG`, `VREG_RETAIN`, `VFLAG`, `COUNTER[i]`). Được App gửi xuống lúc Deploy để Firmware biết vị trí thanh ghi chứa số đếm CV của khối Counter và cập nhật vào `current_value`.
+  * Trả về `0xFFFF` (`SPLC_FB_RETAIN_NONE`) nếu Counter không có thanh ghi liên kết.
+  * Nếu trỏ tới vùng `VREG_RETAIN`, giá trị đếm sẽ tự động được bảo lưu qua các chu kỳ mất nguồn / reboot theo cơ chế Retentive Flash.
+* **`+7`**: `reserved` — Luôn trả về 0x0000.
+
+---
+
+## 8. Cơ chế Chẩn đoán & Cưỡng bức Ngoại vi (Diagnostic Override & Lease Watchdog)
+
+### 8.1. Các thanh ghi Diagnostic Block (`0x0A20..0x0A24`)
+* **`0x0A20`**: `DIAG_COMMAND` (WO, ghi bằng FC06 hoặc FC16):
+  * `1 = ENTER_DIAG`: Yêu cầu chiếm quyền điều khiển thủ công.
+  * `2 = HEARTBEAT`: Gia hạn bộ đếm thời gian thuê (Lease) về giá trị mặc định (3000 ms).
+  * `3 = EXIT_DIAG`: Nhả quyền chẩn đoán, trả quyền cho Rule Engine.
+  * `4 = COMMIT_RETAIN`: Ghi toàn bộ dữ liệu Retain từ RAM vào bộ nhớ Flash.
+  * `5 = DISCARD_RETAIN`: Nạp lại dữ liệu Retain từ Flash vào RAM, xóa cờ Dirty.
+* **`0x0A21`**: `DIAG_STATE` (RO, đọc bằng FC03):
+  * `1 = ENGINE_RUNNING`: Chế độ tự động bình thường.
+  * `2 = DIAG_CONTROL`: Chế độ chẩn đoán thủ công (Studio nắm quyền).
+  * `3 = TRANSITIONING`: Đang chuyển tiếp an toàn tại ranh giới chu kỳ quét.
+  * `4 = FAULT`: Lỗi phần cứng hoặc lỗi nghiêm trọng (khóa toàn bộ lệnh).
+* **`0x0A22`**: `DIAG_FLAGS` (RO, đọc bằng FC03):
+  * `Bit 0` (`0x0001`): `RETAIN_DIRTY` (1 = Dữ liệu Retain trong RAM chưa ghi vào Flash).
+  * `Bit 1` (`0x0002`): `LEASE_ACTIVE` (1 = Bộ đếm thời gian thuê đang chạy).
+* **`0x0A23`**: `DIAG_LEASE_REMAINING_MS` (RO): Thời gian thuê còn lại tính bằng ms (đếm lùi từ 3000 về 0).
+* **`0x0A24`**: `DIAG_ERROR_CODE` (RO):
+  * `0 = NONE`, `1 = DENIED_FAULT`, `2 = LEASE_EXPIRED`, `3 = FLASH_CRC_MISMATCH`, `4 = INVALID_COMMAND`, `5 = RETAIN_DIRTY`.
+
+### 8.2. Vòng đời phiên chẩn đoán và cơ chế bảo vệ Failsafe
+1. **Thiết lập quyền**: Host ghi `ENTER_DIAG (1)` vào `0x0A20`. MCU dừng chu kỳ logic tại scan boundary kế tiếp, nạp `LeaseRemainingMs = 3000`, bật cờ `LEASE_ACTIVE`, chuyển trạng thái `DIAG_STATE = DIAG_CONTROL (2)`.
+   * **Quy tắc phân định chu kỳ quét khi ở `DIAG_CONTROL`**:
+     * **Dedicated Function Blocks (Timers 0x0B00, Counters 0x0B40)**, **Đồng hồ RTC (0x0810)** và **Watchdog Lease countdown (0x0A23)** **vẫn tiếp tục được cập nhật bình thường** trong mỗi chu kỳ quét để bảo toàn tính toàn vẹn thời gian thực và cho phép timeout tự động.
+     * **Bảng Luật thực thi (Active Rule Table 0x0100..0x073F)** **tạm thời bị bỏ qua (suspended)**, nhường toàn quyền điều khiển I/O cho kỹ sư. Điều này ngăn chặn hiện tượng tranh chấp ghi đè (Race Condition) làm mất giá trị mà kỹ sư đang cưỡng bức thủ công.
+2. **Duy trì Heartbeat**: Studio định kỳ mỗi 1000 ms gửi lệnh `HEARTBEAT (2)` vào `0x0A20`. MCU nạp lại `LeaseRemainingMs = 3000`.
+3. **Failsafe khi đứt kết nối (Lease Expiry)**:
+   * Nếu cáp bị rút, Studio bị đóng đột ngột hoặc mất kết nối, trong mỗi chu kỳ quét 10ms MCU trừ `LeaseRemainingMs -= 10`.
+   * Khi `LeaseRemainingMs <= 0`:
+     * MCU tự động chuyển `DIAG_STATE = ENGINE_RUNNING (1)`.
+     * Tắt cờ `LEASE_ACTIVE`, gán mã lỗi `DIAG_ERROR_CODE = LEASE_EXPIRED (2)`.
+     * **Bảo vệ ngõ ra an toàn (Failsafe DO)**: MCU lập tức đưa toàn bộ các ngõ ra Digital Outputs `DO0..DO(do_count-1)` (từ chỉ số `TagLayoutMap.DoBase` đến `DoBase + do_count - 1`, địa chỉ thanh ghi tương ứng từ `0x0900 + DoBase * 2`) về mức an toàn `0` để ngăn ngừa sự cố chập cháy hoặc tai nạn máy công nghiệp.
+4. **Bảo vệ Retain Dirty Interlock**:
+   * Nếu kỹ sư thay đổi giá trị của `VREG_RETAIN` trong lúc test, MCU bật cờ `RETAIN_DIRTY`.
+   * Nếu Host gửi `EXIT_DIAG (3)` khi `RETAIN_DIRTY == 1`, MCU **từ chối thoát** và gán mã lỗi `RETAIN_DIRTY (5)`. Host bắt buộc phải gửi lệnh `COMMIT_RETAIN (4)` để ghi Flash hoặc `DISCARD_RETAIN (5)` để hủy bỏ.
+
+---
+
+## 9. Quy trình Nạp Rule Nguyên tử (Atomic Staging & Commit Flow)
+
+Để ngăn ngừa tình trạng nạp dở dang gây treo máy hoặc vận hành sai logic cơ cấu chấp hành, quá trình deploy Rule tuân thủ nghiêm ngặt 4 bước nguyên tử:
+
+```text
+Host App (SimplePLC Studio)                      MCU Firmware
+   │                                                 │
+   ├─ 1. FC16 Ghi 0x9002 (RuleCount) & 0x9003(CRC) ─>│ MCU chuyển StagingStatus = BUSY (2)
+   │                                                 │
+   ├─ 2. FC16 Ghi các block Rules vào 0x9010 ───────>│ Lưu vào RAM đệm StagingBuffer
+   │     (Mỗi frame tối đa 120 registers)            │
+   │                                                 │
+   ├─ 3. FC06 Ghi 0xA5A5 vào 0xA000 (COMMIT) ───────>│ a) Tính CRC-16 trên toàn bộ Staging RAM
+   │                                                 │ b) So khớp với ExpectedCRC (0x9003)
+   │                                                 │ c) Nếu KHỚP:
+   │                                                 │    - Hoán đổi con trỏ (Atomic Pointer Swap)
+   │                                                 │    - Lưu bảng Rule vào Sector Flash
+   │                                                 │    - Tăng ActiveRuleVersion (0xA001) += 1
+   │                                                 │    - Set StagingStatus = DONE (3)
+   │                                                 │ d) Nếu LỆCH CRC:
+   │                                                 │    - Giữ nguyên Active Rules cũ đang chạy
+   │                                                 │    - Set StagingStatus = ERROR (4)
+   │                                                 │    - Set ErrorCode = CRC_MISMATCH (4)
+   │                                                 │
+   └─ 4. FC03 Đọc 0x9000 kiểm tra kết quả ──────────>│ Trả về DONE (3) hoặc ERROR (4)
+```
+
+---
+
+## 10. Lưu trữ Bền vững Non-Volatile Flash Retain
+
+* Vùng `VREG_RETAIN0 .. VREG_RETAIN31` (Tags 84..115, địa chỉ `0x09A8..0x09E7`) được lưu trữ tại phân vùng Flash/EEPROM/Fram chuyên dụng.
+* **Cấu trúc Sector Flash chuẩn**:
+  * `MagicWord` (4 bytes): `0x53504C43` (ASCII `"SPLC"`).
+  * `DataVersion` (2 bytes): Số phiên bản dữ liệu lưu trữ.
+  * `PayloadLength` (2 bytes): 128 bytes (32 tags × 4 bytes).
+  * `Payload` (128 bytes): Giá trị nhị phân của 32 thanh ghi Retain.
+  * `PayloadCRC16` (2 bytes): CRC-16 Modbus tính trên toàn bộ 128 bytes payload.
+* **Điều kiện duy trì**:
+  * Dữ liệu phải tồn tại nguyên vẹn qua chu kỳ mất nguồn đột ngột (Power-cycle) và lệnh phần mềm Reset (`SPLC_SYS_CMD_REBOOT`).
+  * Chỉ được xóa về `0` khi Host gửi lệnh `SPLC_SYS_CMD_CLEAR_RETAIN (4)` hoặc `FACTORY_RESET (2)` vào thanh ghi `0x0A00`.
+
+---
+
+## 11. Định thời & Xử lý Ngoại lệ Modbus (Timing & Exception Handling)
+
+### 11.1. Yêu cầu Timing trên đường truyền RS-485
+* **Khoảng lặng `t_1.5`**: Tối thiểu 1.5 lần thời gian truyền 1 ký tự để phát hiện lỗi frame.
+* **Khoảng lặng `t_3.5`**: Tối thiểu 3.5 lần thời gian truyền 1 ký tự giữa 2 frame liên tiếp.
+* Ở baudrate > 19200 bps: Áp dụng thời gian cố định theo chuẩn:
+  `t_1.5 = 750 µs`, `t_3.5 = 1.75 ms`.
+
+### 11.2. Mã lỗi Modbus Exception chuẩn
+Nếu Host gửi yêu cầu không hợp lệ, MCU phản hồi frame ngoại lệ chuẩn:
+```text
+[SlaveID, FC | 0x80, ExceptionCode, CRC_Lo, CRC_Hi]
+```
+
+* **`0x01 (Illegal Function)`**: Khi nhận FC ngoài 0x03, 0x06, 0x10 (FC16 Write Multiple Registers).
+* **`0x02 (Illegal Data Address)`**: Địa chỉ thanh ghi vượt ngoài bản đồ cho phép, hoặc cố gắng ghi vào Tag Store (0x0900) khi đang ở trạng thái `ENGINE_RUNNING`.
+* **`0x03 (Illegal Data Value)`**: Số lượng registers yêu cầu vượt quá giới hạn (ví dụ đọc > 125 registers trong 1 FC03 frame) hoặc ghi số lẻ registers vào vùng Tag 32-bit.
+* **`0x04 (Slave Device Failure)`**: Lỗi phần cứng không thể đọc/ghi bộ nhớ Flash khi commit.
+
+---
+
+## 12. Bảng Kiểm Tra Tuân Thủ Toàn Diện (Conformance Checklist CHKL-01 .. CHKL-15)
+
+Trước khi xuất xưởng firmware hoặc tích hợp cùng SimplePLC Studio, firmware MCU bắt buộc phải vượt qua 100% các tiêu chí sau:
+
+- [ ] **CHKL-01: Header Compilation**: Biên dịch firmware với [`simpleplc_protocol_v2_0.h`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Firmware/simpleplc_protocol_v2_0.h) không có cảnh báo padding hoặc alignment trên trình biên dịch GCC / Clang / Keil ARMCC.
+- [ ] **CHKL-02: Device Descriptor & Variant Check**: Đọc `0x0000` (10 regs) trả về đúng Device Class hợp lệ (`1` = Remote I/O, `2` = Datalogger, `3` = Gateway, `4` = Controller, `5` = DTU Gateway), mã biến thể phần cứng `device_variant` khớp chính xác với SKU/phần cứng thực tế (Class 1: `1=8DI_8DO_4AI`, `2=16DI_16DO`, `3=4DI_4DO`, `4=8DI_8DO`; Class 2: `1=8AI`; Class 3: `1=RS485_ETH`; Class 4: `1=Controller`; Class 5: `1=RS485_NET`), cùng `ProtocolVersion=2` và `RuleFormatVersion=7`.
+- [ ] **CHKL-03: Device Resource Info Check**: Đọc `0x0020` (10 regs) trả về đúng `WireProfile=2`, `MaxRules` và `ActiveTags` khớp với cấu hình profile thiết bị.
+- [ ] **CHKL-04: Deterministic Scan Time**: Đọc `0x0800` (10 regs) trường `scan_time_ms` nằm quanh 10 ms danh định (tuyệt đối không phải microsecond).
+- [ ] **CHKL-05: Real-Time Clock Sync**: Ghi timestamp UTC và múi giờ vào `0x0810..0x0813` bằng FC16 → MCU cập nhật đúng giờ và tính toán chính xác `current_hhmm`.
+- [ ] **CHKL-06: Time Window Cross-Midnight**: Nạp rule kích hoạt từ 22:00 (2200) đến 04:00 (400) → Rule kích hoạt chính xác lúc 23:00 và 02:00, không kích hoạt lúc 12:00.
+- [ ] **CHKL-07: Remote IO 124 Tags**: Đọc toàn bộ 248 thanh ghi từ `0x0900` không bị Exception `0x02`.
+- [ ] **CHKL-08: Tag Store Mutual Exclusion**: Ghi vào `0x0910` (DO) khi `DIAG_STATE == ENGINE_RUNNING` → MCU từ chối với Modbus Exception `0x02`.
+- [ ] **CHKL-09: Diagnostic Override Lease**: Ghi `ENTER_DIAG (1)` vào `0x0A20` → Ghi đè thành công `DO0=1`. Dừng gửi heartbeat → Sau 3000ms MCU tự động đưa `DO0=0` và chuyển về `ENGINE_RUNNING`.
+- [ ] **CHKL-10: IEC 61131-3 FB Subsystem**: Đọc `0x0B00` (Timers) và `0x0B40` (Counters) trả về đúng cấu trúc 8 thanh ghi mỗi khối.
+- [ ] **CHKL-11: Atomic Staging & CRC Verification**: Nạp payload với CRC giả mạo → MCU từ chối commit tại `0xA000`, giữ nguyên bảng logic đang chạy.
+- [ ] **CHKL-12: Non-Volatile Flash Retain**: Ghi giá trị vào `VREG_RETAIN0` (0x09A8) → Reset nguồn MCU → Khởi động lại đọc đúng giá trị đã ghi.
+- [ ] **CHKL-13: Retain Dirty Protection**: Thay đổi retain trong chế độ Diag → Gửi `EXIT_DIAG` → MCU từ chối với lỗi `RETAIN_DIRTY (5)` cho đến khi gọi `COMMIT_RETAIN`.
+- [ ] **CHKL-15: MQTT IIoT Gateway & Telemetry Wire Conformance**: Đọc/ghi cấu hình Broker tại `0x0E00` (96 regs) và Telemetry Block tại `0x0C00` (96 regs) bằng FC03/FC16 đúng byte-exact theo [`splc_mqtt_wire.h`](splc_mqtt_wire.h); thanh ghi `+15` là `reserved_header` (luôn ghi/đọc `0x0000`); phản hồi trạng thái Live Broker tại `0x0E54..0x0E5F`.
+- [ ] **CHKL-16: IEC 61131-3 Data Types & Native Telemetry Conformance**: Toàn bộ giá trị 32-bit tại `0x0900..0x09FF` tuân thủ union `SPLC_TagValue_t`. Các kênh số thực `REAL` (`AI`, `VREG`, `VREG_RETAIN`) lưu nhị phân chuẩn IEEE-754 Single Precision (High Word trước, Low Word sau), tuyệt đối không nhân chia $10^{dec}$; bộ phân giải JSON MQTT tự động format số thực `float` hay số nguyên `int` theo kiểu dữ liệu tự nhiên của Tag.
+- [ ] **CHKL-17: Hardware Capabilities Declaration (0x0A08)**: MCU phản hồi chính xác giá trị 32-bit (2 holding registers, High Word trước) tại `0x0A08..0x0A09` theo bitmask `SPLC_HardwareCapabilities_t` (Logic, Retain, RTC, Ethernet, MQTT PUB, MQTT SUB, TLS CERT). Không gây ngoại lệ `0x02` khi đọc FC03.
+- [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging & Checksum Conformance (0x0F00..0x0F46)**: Hỗ trợ nạp phân đoạn chứng chỉ số X.509 Root CA và mTLS theo khối struct chuẩn 128 bytes (64 thanh ghi Modbus `SPLC_CertChunk_t`) qua Staging Buffer `0x0F00..0x0F3F`. Phản hồi ACK `0x0F40` chỉ số khối nhận thành công; kiểm tra CRC-16 của từng khối; chốt lưu Flash vĩnh viễn và nạp vào TLS stack khi nhận lệnh Atomic Commit `0x0F42` với giá trị `0xA5A5`; đồng thời cập nhật mặt nạ hiệu lực `0x0F43` (`CERT_ACTIVE_TYPE_MASK`) và mã kiểm tra CRC-16 toàn tệp tại `0x0F44` (Root CA), `0x0F45` (Client Cert), `0x0F46` (Client Key) theo [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md).
+- [ ] **CHKL-19: Modbus Master RTU Sensor Poller Conformance (0x1000..0x10FF)**: Hỗ trợ nạp cấu hình 4 kênh Modbus Master tại `0x1000..0x10FF` (256 regs, SPLC-SPEC-MBM-001). Thực thi máy trạng thái polling không nghẽn (Non-blocking RTOS Task), xác thực CRC-16 của frame phản hồi, phân giải 4 chuẩn Endianness (ABCD, CDAB, BADC, DCBA), cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét 10ms và phát tín hiệu `Valid` / `Err` / `Err_Code` chính xác theo [`SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md).
+
+---
+
+## 13. Hướng Dẫn Kỹ Thuật Cho Kỹ Sư Firmware: Triển Khai Chuẩn IEC 61131-3 & MQTT Telemetry
+
+Nhằm thống nhất 100% giữa Firmware MCU (C/C++) và SimplePLC Studio (C# .NET), các kỹ sư Firmware cần tuân thủ nghiêm ngặt các quy chuẩn sau:
+
+### 13.1. Quản lý Bộ nhớ Tag Store 32-Bit (`0x0900..0x09FF`)
+* Toàn bộ các Tag trong hệ thống đều chiếm đúng **4 bytes = 2 Holding Registers**.
+* Khai báo mảng Tag Store trên MCU bằng union `SPLC_TagValue_t` (đã định nghĩa trong `simpleplc_protocol_v2_0.h`):
+
+```c
+#include "simpleplc_protocol_v2_0.h"
+
+/* Bộ nhớ Tag Store tập trung trên MCU */
+static SPLC_TagValue_t g_tag_store[SPLC_MAX_RUNTIME_TAGS];
+
+/* Đọc giá trị Tag từ Modbus request (High Word trước, Low Word sau) */
+void splc_tag_write_from_modbus(uint16_t tag_index, uint16_t high_word, uint16_t low_word) {
+    if (tag_index >= SPLC_MAX_RUNTIME_TAGS) return;
+    g_tag_store[tag_index].words.high_word = high_word;
+    g_tag_store[tag_index].words.low_word  = low_word;
+}
+
+/* Đọc giá trị Tag gửi lên Modbus FC03 response */
+void splc_tag_read_to_modbus(uint16_t tag_index, uint16_t *out_high_word, uint16_t *out_low_word) {
+    if (tag_index >= SPLC_MAX_RUNTIME_TAGS) {
+        *out_high_word = 0;
+        *out_low_word  = 0;
+        return;
+    }
+    *out_high_word = g_tag_store[tag_index].words.high_word;
+    *out_low_word  = g_tag_store[tag_index].words.low_word;
+}
+```
+
+### 13.2. Quy Tắc Xử Lý Kiểu Dữ Liệu (IEC 61131-3 Data Types)
+1. **`BOOL` (1-bit):**
+   * Áp dụng cho: `DI0..DI7`, `DO0..DO7`, `VFLAG0..VFLAG31`, `ModbusCoil`.
+   * Giá trị hợp lệ: `0` (FALSE) hoặc `1` (TRUE).
+   * Trong thanh ghi 32-bit: `as_raw32 == 0` hoặc `as_raw32 == 1`.
+2. **`DINT` / `INT32` (32-bit Signed Integer):**
+   * Áp dụng cho: `COUNTER0..COUNTER15`, `VREG` (mặc định), `VREG_RETAIN` (mặc định), `AI` (chế độ ADC thô 0..4095).
+   * Giá trị: Số nguyên có dấu bù 2 từ $-2,147,483,648$ đến $+2,147,483,647$.
+   * Thao tác: Truy cập qua trường `g_tag_store[tag_idx].as_int32`.
+3. **`REAL` (32-bit Floating Point IEEE-754):**
+   * Áp dụng cho: `AI` (chế độ số thực đã scale °C, bar, RPM,...), `VREG` (chế độ số thực), `VREG_RETAIN` (chế độ số thực).
+   * Giá trị: Số thực dấu phẩy động 32-bit chuẩn IEEE-754.
+   * Thao tác: Truy cập trực tiếp qua trường `g_tag_store[tag_idx].as_real`.
+4. **Tag DataType Registry (`0x0080..0x00BF`, 64 registers = 128 bytes):**
+   * Firmware lưu mảng `uint8_t g_tag_data_types[128];` trong RAM.
+   * Host Studio ghi mảng này qua FC16 lúc nạp cấu hình (Deploy). Mỗi thanh ghi Modbus chứa 2 tags (High Byte = Tag $2k$, Low Byte = Tag $2k+1$).
+   * Các giá trị hợp lệ: `SPLC_DATA_TYPE_BOOL = 1`, `SPLC_DATA_TYPE_INT32 = 2`, `SPLC_DATA_TYPE_REAL = 3`.
+   * **Quy chuẩn Tag Analog Input (`AI0..AI3`):**
+     * Tag `AI0..AI3` trong bảng `0x0080` mặc định có kiểu `SPLC_DATA_TYPE_INT32 = 2`.
+     * Firmware lưu trực tiếp mã số nguyên ADC thô (`int32_t`) đọc từ bộ chuyển đổi ADC phần cứng (ví dụ `0..4095` với ADC 12-bit hoặc giá trị mV `0..10000`) vào `g_tag_store[ai_idx].as_int32`.
+     * Firmware **KHÔNG tự ý nhân chia hay quy đổi hệ số scale ngầm** (trừ khi có lệnh trong FBD).
+     * Mọi phép quy đổi sang đơn vị kỹ thuật (`REAL` Float32 như °C, Bar, m³/h) được thực hiện bằng Logic FBD (khối `SCALE` / phép toán số thực) hoặc hiển thị trên App Studio.
+     * *(Lưu ý ngoại lệ cho SCADA)*: Tại cổng Modbus Slave Cố định (`SPLC-SPEC-SLAVE-001` dải `0x0010..0x0017`), các kênh AI được ánh xạ kiểu `FLOAT32` (High Word First) để SCADA đọc trực tiếp giá trị chuẩn hóa (0.0V .. 10.0V hoặc 0.0 .. 100.0%).
+   * **Nguyên tắc MB_READ**:
+     * Khi chân đọc có `data_type == 6` (REAL): MCU giải mã 2 registers IEEE-754 float, nhân `multiplier` (float), ghi thẳng vào `g_tag_store[target_tag].as_real`.
+     * Khi chân đọc là số nguyên (INT16, INT32...) nhưng `multiplier` lẻ (ví dụ 0.1):
+       * Nếu `g_tag_data_types[target_tag] == SPLC_DATA_TYPE_REAL`: Ghi kết quả float trực tiếp vào `g_tag_store[target_tag].as_real`.
+       * Nếu `g_tag_data_types[target_tag] == SPLC_DATA_TYPE_INT32`: Làm tròn số nguyên gần nhất `(int32_t)roundf(raw * multiplier)` vào `g_tag_store[target_tag].as_int32`.
+
+### 13.3. Quy Chuẩn Xuất Bản MQTT Telemetry (`0x0C00`)
+1. **Khắc phục cấu trúc thanh ghi:**
+   * `Offset +15`: Được chuẩn hóa thành `reserved_header` (giá trị mặc định `0x0000`). Firmware **không** đọc trường này để lấy số chữ số lẻ nữa.
+2. **Thuật toán Phân giải Placeholder JSON:**
+   Khi sinh chuỗi JSON từ `payload_template`:
+   * Khi gặp `{val1}`..`{val8}` hoặc `{val}`: MCU tra cứu kiểu của Tag tương ứng từ `g_tag_data_types[tag_idx]`:
+     * Nếu là `SPLC_DATA_TYPE_REAL` (3): Sử dụng `snprintf(buf, len, "%.4g", tag.as_real)` (loại bỏ số 0 thừa ở đuôi, ví dụ `24.5` thay vì `24.5000`).
+     * Nếu là `SPLC_DATA_TYPE_INT32` (2): Sử dụng `snprintf(buf, len, "%ld", (long)tag.as_int32)`.
+     * Nếu là `SPLC_DATA_TYPE_BOOL` (1): Sử dụng `snprintf(buf, len, "%d", tag.as_int32 ? 1 : 0)`.
+3. **Bảo vệ Bộ nhớ Đệm:**
+   * Giới hạn `topic`: Tối đa 32 bytes (đã bao gồm byte null).
+   * Giới hạn `payload_template`: Tối đa 128 bytes.
+   * Giới hạn buffer xuất bản: Khuyến nghị buffer truyền nhận MQTT tối thiểu 256 bytes để đủ dung lượng ghép chuỗi JSON hoàn chỉnh.
+
+### 13.4. Khai Báo Năng Lực Phần Cứng `HardwareCapabilities` (`0x0A08`)
+* Địa chỉ: `0x0A08` (32-bit uint32, 2 holding registers Big-Endian: `0x0A08` High Word, `0x0A09` Low Word, FC03 Read-Only).
+* Bitmask định nghĩa (`SPLC_HardwareCapabilities_t` trong `simpleplc_protocol_v2_0.h`):
+  * `0x0001` (`SPLC_CAP_BASE_LOGIC`): Hỗ trợ Rule Engine FBD.
+  * `0x0002` (`SPLC_CAP_RETENTIVE`): Hỗ trợ lưu trữ Flash/NVRAM/FRAM.
+  * `0x0004` (`SPLC_CAP_RTC`): Có IC RTC DS3231 hoặc LSE crystal.
+  * `0x0008` (`SPLC_CAP_ETHERNET`): Có cổng mạng vật lý (LAN/WiFi).
+  * `0x0010` (`SPLC_CAP_MQTT_PUB`): Hỗ trợ phân hệ MQTT Telemetry (0x0C00).
+  * `0x0020` (`SPLC_CAP_MQTT_SUB`): Hỗ trợ nhận lệnh điều khiển Inbound MQTT SUB (0x0D80).
+  * `0x0040` (`SPLC_CAP_SD_DATALOG`): Có khe cắm thẻ nhớ MicroSD.
+  * `0x0080` (`SPLC_CAP_MQTT_TLS_CERT`): Hỗ trợ nạp và giải mã chứng chỉ bảo mật TLS/SSL theo khối struct (0x0F00, SPLC-SPEC-MQTT-003).
+  * `0x0100` (`SPLC_CAP_MODBUS_MASTER`): Hỗ trợ phân hệ RS-485 Modbus Master Poller & Writer (`MB_READ` 0x1000, `MB_WRITE` 0x1100, SPLC-SPEC-MBM-001/002).
+  * `0x0200` (`SPLC_CAP_WIFI`): Hỗ trợ phân hệ truyền thông không dây Wi-Fi ST67 (`0x1300..0x13FF`, SPLC-SPEC-WIFI-004).
+  * `0x0400` (`SPLC_CAP_MODBUS_TCP`): Hỗ trợ phân hệ Modbus TCP Server qua Ethernet/Wi-Fi (Port 502).
+  * `0x0800` (`SPLC_CAP_FLOAT32`): Hỗ trợ tính toán phần cứng số thực Float32 IEEE-754 / REAL math.
+
+### 13.4.1. Thanh Ghi Tự Mô Tả Số Cổng RS-485 Vật Lý (`0x0A0A`, SPLC_ADDR_HW_RS485_PORT_COUNT)
+* Địa chỉ: `0x0A0A` (16-bit uint16, 1 holding register, FC03 Read-Only).
+* Định nghĩa giá trị trả về từ phần cứng MCU:
+  * `0`: Không hỗ trợ RS-485 Modbus Master (phiên bản Micro/Compact thuần I/O).
+  * `1`: 1 cổng vật lý RS-485 (ví dụ: SimplePLC Compact 1-Port).
+  * `2`: 2 cổng vật lý RS-485 (chuẩn phần cứng tiêu chuẩn SimplePLC Remote I/O V1/V2).
+  * `4`: 4 cổng vật lý RS-485 (SimplePLC Modular Gateway / Multi-Drop High-Density Controller).
+* **Cơ chế Fallback Tương thích ngược:**
+  - Nếu đọc `0x0A0A` thất bại (Timeout, CRC Error hoặc thiết bị firmware đời cũ V1 phản hồi Modbus Exception `0x02`):
+    * Nếu `HardwareCapabilities` có cờ `SPLC_CAP_MODBUS_MASTER (0x0100)`: Host **tự động fallback về 2 cổng vật lý danh định** (`Standard SimplePLC`).
+    * Nếu không có cờ `0x0100`: Host gán số cổng là **0**.
+* **Hai Chốt An Toàn Chặn Lỗi (Safety Gates):**
+  1. **Compiler Gate:** Trình biên dịch `RuleCompiler` chặn và báo lỗi `DiagnosticSeverity.Error` nếu phát hiện khối `MB_READ`/`MB_WRITE` gán `PortIndex >= physicalRs485PortCount`.
+  2. **Deploy Gate:** `RuleTableWriter` chặn nạp và trả về `SPLC_ErrorCode.UNSUPPORTED (0x0002)` nếu dự án kích hoạt cổng vượt quá phần cứng thực tế.
+
+### 13.4.2. Quy Chuẩn Cấu Hình Cổng RS-485 (`0x1400..0x143F`) & Chế Độ Slave (100% Zero Legacy)
+1. **Nguồn chân lý duy nhất cho vai trò cổng (`PORT_ROLE`):**
+   - Thanh ghi `Offset +14` (`PORT_ROLE`: 0 = Master, 1 = Slave) là **nguồn chân lý tối cao duy nhất**.
+   - Thanh ghi `Offset +15` (`SLAVE_ID`: 1..247) xác định địa chỉ trạm ngoại vi Modbus Slave.
+   - Khái niệm Bit 9 tại `Offset +0` đã hoàn toàn bị bãi bỏ. Firmware bỏ qua hoàn toàn Bit 9; kể cả khi Bit 9 khác `Offset +14`, `Offset +14` luôn thắng.
+   - Giá trị ngoài $\{0, 1\}$ tại `Offset +14` (ví dụ 2): Firmware mặc định an toàn coi là **Master (0 = Master, Safe Default State)**, và từ chối lệnh COMMIT với mã lỗi `CONFIG_ERROR_CODE = 2 (INVALID_PARAMETER)`.
+2. **Loại bỏ hoàn toàn Bảng ánh xạ trung gian 0x1500 (Zero Legacy):**
+   - Toàn bộ bảng 0x1500 bị loại bỏ khỏi firmware và toàn bộ quá trình nạp (Deploy) cũng như đọc cấu hình (Upload F6) của Studio.
+   - Firmware không cấp phát vùng 0x1500 (đọc ghi sẽ nhận Exception 0x02 nếu có tool ngoài truy vấn).
+   - Studio xác nhận **không gửi bất kỳ lệnh đọc Modbus nào tới 0x1500** trong quy trình Upload cấu hình thiết bị.
+   - Firmware triển khai Bản đồ Địa chỉ Cố định (Fixed Memory Map v2.12.0) truy xuất trực tiếp $O(1)$ vào RAM theo quy chuẩn `SPLC-SPEC-SLAVE-001`.
+3. **Các tham số vô hiệu của Slave (`+5`, `+6`, `+7`):**
+   - `+5` (`RESPONSE_TIMEOUT_MS`), `+6` (`INTER_FRAME_DELAY_MS`), `+7` (`RETRY_COUNT`) chỉ dành riêng cho Master.
+   - Khi cổng ở vai trò **Slave**: Firmware **bỏ qua hoàn toàn (Don't care)**; Studio UI tự động ẩn hoàn toàn các ô này.
+4. **Chặn xung đột Master/Slave tại khâu Biên dịch (Compile-time Safety Gate):**
+   - Phía App: Trình biên dịch `RuleCompiler` chặn đứng với mã lỗi biên dịch đỏ (`DiagnosticSeverity.Error`, `CompileResult.IsValid = false`) nếu phát hiện bất kỳ khối `MB_READ`/`MB_WRITE` nào trỏ vào cổng Slave, ngăn không cho phép nạp xuống thiết bị.
+   - Phía Firmware (Phòng thủ đa tầng): Nếu nhận lệnh COMMIT `0xA5A5` từ công cụ thứ ba chứa xung đột cổng Slave, firmware từ chối COMMIT, hủy bản nháp, đặt `CONFIG_STATUS (0x9000) = 4 (ERROR)` và `CONFIG_ERROR_CODE (0x9001) = 7 (SLAVE_PORT_CONFLICT)`.
+5. **Quy tắc ranh giới bộ nhớ, ngoại lệ và tài nguyên phần cứng (Boundary, Exceptions & Resources):**
+   - **Thứ tự ưu tiên Exception (Exception Precedence):**
+     1. `0x01 (Illegal Function)`: Mã hàm không được hỗ trợ.
+     2. `0x02 (Illegal Data Address)`: **Được ưu tiên cao hơn quyền ghi.** Nếu một request chéo ranh giới giữa hai phân vùng khác nhau (kể cả khi chạm vào phân vùng Read-Only, ví dụ: FC16 ghi 2 thanh ghi từ `0x0000` = `DI_WORD` + `DO_WORD`), firmware BẮT BUỘC trả về **Exception Code 0x02**.
+     3. `0x03 (Illegal Data Value / Access Denied)`: Khi toàn bộ dải địa chỉ hợp lệ và nằm trọn vẹn trong 1 phân vùng duy nhất, nếu nhận lệnh ghi (FC05/06/15/16) vào vùng Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`), trả về **Exception Code 0x03**.
+   - **Ghi vào biến trong bản đồ nhưng vượt tài nguyên phần cứng:**
+     - Với `VREG`, `VREG_R`, `COUNTER`: Ghi vào index $\ge$ tài nguyên thực tế (`g_layout.vreg_count` / `vreg_r_count` / `counter_count`, ví dụ board có 16 VREG nhưng ghi `VREG20` tại `0x0048`): BẮT BUỘC trả về **Exception Code 0x02**.
+     - Chiều đọc: Trả về `0x0000` để SCADA đọc polling theo khối thanh ghi lớn liên tục (Bulk read blocks) mà không bị ngắt kết nối.
+     - Với Discrete/Coil (`DI_WORD`, `DO_WORD`): Các chân vượt tài nguyên đọc về 0, ghi vào bit unpopulated thì firmware bỏ qua.
+   - **Định dạng và Thang đo `AI0..AI3` (Float32 IEEE-754):**
+     - Tag AI khai báo kiểu `REAL` (Float32): Trả về nguyên bản 32-bit float trong `g_tag_store`.
+     - Tag AI khai báo kiểu `INT32` (chứa ADC thô `0..4095` hoặc mV `0..10000`): Firmware tự động chuyển đổi sang Điện áp chuẩn hóa $0.0..10.0\text{ V}$ dạng Float32 IEEE-754 (High Word First). Công thức: $\text{Voltage} = (\text{raw} / 4095.0f) \times 10.0f$ hoặc $(\text{raw} / 1000.0f)$. Việc hiển thị $0..100\%$ do SCADA scale hoặc do logic FBD dùng khối `SCALE` gán vào một `VREG` (Float32).
+   - **Vùng Chẩn Đoán Hệ Thống `SYS_DIAG` (`0x00F0..0x00FF`):**
+     - `0x00F0..0x00F1`: `uptime_s` (UINT32, High Word First, giây).
+     - `0x00F2`: `scan_time_ms` (UINT16, ms). **Bão hòa tại 65535 ms**, không quấn vòng (no wrap-around).
+     - `0x00F3`: `status_flags` (UINT16, bitmask: Bit 0 = `ENGINE_RUNNING`, Bit 1 = `FORCE_ACTIVE`, Bit 2 = `BATTERY_LOW`, Bit 3 = `RTC_SYNCED`, Bit 4 = `FLASH_DIRTY`, Bit 5 = `RS485_BUS_FAULT`, Bits 6..15 = `0`).
+     - `0x00F4`: `RESERVED` (UINT16, đọc về `0x0000`, ghi trả về Exception 0x03).
+     - `0x00F5..0x00FA`: RTC Thời Gian Thực (**Giờ địa phương / Local Time**, 6 thanh ghi): Năm (4 số đầy đủ, ví dụ: `2026`), Tháng (`1..12`), Ngày (`1..31`), Giờ (`0..23`), Phút (`0..59`), Giây (`0..59`).
+     - `0x00FB..0x00FF`: `RESERVED` (đọc về `0x0000`).
+   - Ghi FC06 vào VREG 32-bit: Cập nhật nửa thanh ghi tương ứng, giữ nguyên nửa còn lại (khuyến nghị SCADA dùng FC16 để ghi trọn vẹn 32-bit nguyên tử).
+6. **Cách ly tuyệt đối Cổng App Link & Cổng Slave:**
+   - Kênh App Link (USB-CDC hoặc UART0 chuyên dụng) độc lập hoàn toàn với các cổng RS-485 hiện trường (`0x1400`). Tuyệt đối không gán vai trò Slave đè lên cổng App Link để chống mất quyền điều khiển.
+
+* **Quy chuẩn Fail-Safe khi Deploy từ Host (SynaptiX IDE / SimplePLC Studio):**
+  1. **Bắt buộc đọc kiểm tra năng lực trước khi ghi cấu hình nâng cao:**
+     - Khi thực hiện nạp chương trình (`DeployRulesAsync`), Host luôn gửi lệnh FC03 đọc 2 thanh ghi tại `0x0A08..0x0A09` để xác định chính xác năng lực thực tế của phần cứng.
+     - Host ghi log công khai: `[CAPS] Read 0x0A08 = 0x... (MQTT_PUB=True/False, MQTT_SUB=True/False)`.
+  2. **Cơ chế Fail-Fast chặn nạp ảo (No Silent Failure):**
+     - Nếu dự án có sử dụng khối `MQTT_PUB`, `MQTT_SUB` hoặc kích hoạt MQTT Broker:
+       - **Lỗi giao tiếp (Timeout / CRC / Mất kết nối):** Host tuyệt đối không nuốt lỗi; lập tức hủy bỏ quy trình Deploy, không ghi Staging, không commit `0xA000`, báo Deploy THẤT BẠI kèm thông báo chi tiết: `[CAPS] Failed to read hardware capabilities from 0x0A08: <lý do>`.
+       - **Thiếu năng lực phần cứng:** Nếu đọc `0x0A08` thành công nhưng firmware không bật cờ `SPLC_CAP_MQTT_PUB (0x0010)` (hoặc `SPLC_CAP_MQTT_SUB (0x0020)`), Host từ chối nạp ngay lập tức, trả về mã lỗi chuẩn `UNSUPPORTED (0x0002)`, báo rõ lý do thiết bị không hỗ trợ MQTT.
+  3. **Tương thích ngược đối với bo mạch Legacy:**
+     - Nếu dự án **KHÔNG** sử dụng khối MQTT:
+       - Trường hợp bo mạch phần cứng cũ không hỗ trợ thanh ghi `0x0A08` và phản hồi Modbus Exception `0x02 (Illegal Data Address)`, Host mặc định thiết bị sở hữu năng lực cơ bản (`SPLC_CAP_BASE_LOGIC`), ghi nhận cảnh báo và tiếp tục quy trình nạp logic FBD bình thường mà không làm gián đoạn vận hành.
+  4. **Quy chuẩn đối soát thời gian thực (Traceable Logging):**
+     - Trước mỗi frame ghi Modbus FC16 xuống các khối MQTT, Host ghi log rõ địa chỉ và số lượng thanh ghi:
+       - `[MQTT PUB] Writing 96 registers to 0x0C00 (Block 0)...`
+       - `[MQTT SUB] Writing 64 registers to 0x0D80 (Block 0)...`
+       - `[MQTT Broker] Writing 96 registers to 0x0E00...`
+     - Firmware xử lý xong sẽ ghi log tương ứng (`broker write`, `app_configured=1`, `generation=...`) giúp kỹ sư bảo trì đối chiếu 1-1 giữa Host và MCU.
+
+### 13.5. Quy Chuẩn Nhận Lệnh Điều Khiển MQTT Subscribe (`0x0D80..0x0DFF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC-SPEC-MQTT-002_SUBSCRIBE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/03-SPLC_SPEC_MQTT_002_SUBSCRIBE_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x0D80 - 0x0DFF` (128 registers = 256 bytes): Hỗ trợ tối đa 2 khối Subscribe độc lập (mỗi khối 64 registers = 128 bytes).
+   * Block 0: `0x0D80..0x0DBF`, Block 1: `0x0DC0..0x0DFF`.
+2. **Cấu trúc mỗi khối Subscribe:**
+   * `Offset +0`: Control Flags (Enable, QoS, QueueMode, IgnoreRetained, FailSafeAction).
+   * `Offset +2..+3`: FailSafe Timeout tính bằng mili-giây (32-bit uint32).
+   * `Offset +4`: Pin Count (1..4).
+   * `Offset +8..+23`: Topic (32 bytes ASCII null-padded).
+   * `Offset +24..+63`: 4 Pin Bindings (mỗi pin 10 registers = 20 bytes: Target TagIndex, DataType, DefaultValue, 12 bytes JsonKey).
+3. **Nguyên tắc an toàn thời gian thực:**
+   * Tuyệt đối không ghi trực tiếp vào `g_tag_store` trong callback MQTT.
+   * Sử dụng FreeRTOS Queue để đệm bản tin.
+   * Chỉ cập nhật vào `g_tag_store` tại đầu chu kỳ quét (Scan Pass Boundary) 10ms của PLC Engine để tránh xung đột dữ liệu (Thread Safety).
+   * Kiểm tra Fail-Safe Watchdog: Nếu quá `failsafe_timeout_ms` không nhận được tin, tự động đưa các chân tín hiệu về giá trị an toàn (Reset về 0 hoặc Set về Default).
+
+### 13.5.1. Quy Chuẩn Bản Tin Di Chúc MQTT Last Will & Testament LWT (`0x0E60..0x0E7F`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/05-SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x0E60 - 0x0E7F` (32 registers = 64 bytes, SPLC-SPEC-MQTT-004):
+     * `Offset +0` (`0x0E60`): `WILL_CONTROL` (Bit 0: Enable, Bit 1: Retain, Bit 2..3: QoS, Bit 4..15: Reserved).
+     * `Offset +1..+16` (`0x0E61`): `WILL_TOPIC` (char[32] ASCII null-padded).
+     * `Offset +17..+31` (`0x0E71`): `WILL_PAYLOAD` (char[30] ASCII null-padded).
+2. **Nguyên tắc nạp & Atomic Commit hai pha:**
+   * Ghi nháp: Khi nhận FC16 tại `0x0E60`, firmware lưu tạm vào Shadow RAM buffer (`g_shadow_lwt_cfg`), không ghi thẳng vào Flash và không làm gián đoạn phiên MQTT đang chạy.
+   * Chốt nguyên tử: Chỉ lưu vào Flash và áp dụng khi nhận Magic `0xA5A5` tại `0xA000`.
+   * Từ chối lỗi: Nếu `will_control & 0x0001` mà `strlen(will_topic) == 0`, MCU từ chối commit và báo lỗi `INVALID_PARAMETER (0x0001)` tại `0x9001`.
+   * Vô hiệu hóa an toàn: Khi nhận `will_control == 0`, firmware xóa LWT trong Flash và tắt Will Flag trong gói `CONNECT` với Broker.
+3. **Tương thích module Wi-Fi qua lệnh AT:**
+   * App đảm bảo payload LWT là chuỗi an toàn không chứa dấu `"` hay `\` (chuẩn hóa mặc định `"offline"`). MCU truyền thẳng chuỗi literal vào tham số lệnh AT.
+
+### 13.6. Quy Chuẩn Nạp Chứng Chỉ TLS/SSL Certificate Theo Khối Struct (`0x0F00`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/04-SPLC_SPEC_MQTT_003_TLS_CERTIFICATE_WIRE_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x0F00..0x0F3F` (64 registers = 128 bytes): Vùng đệm Staging nhận khối struct `SPLC_CertChunk_t`.
+   * `0x0F40`: Thanh ghi phản hồi ACK `chunk_index` vừa lưu thành công.
+   * `0x0F41`: Trạng thái lỗi (0=OK, 1=Lỗi CRC, 2=Tràn bộ nhớ, 3=Lỗi ghi Flash).
+   * `0x0F42`: Lệnh chốt nguyên tử (ghi `0xA5A5` để MCU lưu vào Flash và nạp vào mbedTLS/WolfSSL).
+   * `0x0F43`: Mặt nạ loại chứng chỉ đang kích hoạt (Bit 0: Root CA, Bit 1: Client Cert, Bit 2: Client Key).
+   * `0x0F44`: Mã kiểm tra CRC-16 của file Root CA đang lưu trong Flash MCU.
+   * `0x0F45`: Mã kiểm tra CRC-16 của file Client Certificate đang lưu trong Flash MCU.
+   * `0x0F46`: Mã kiểm tra CRC-16 của file Client Private Key đang lưu trong Flash MCU.
+2. **Cấu trúc nhị phân `SPLC_CertChunk_t` (128 bytes, `#pragma pack(1)`):**
+   * `cert_type` (1B), `chunk_index` (1B), `total_chunks` (1B), `chunk_len` (1B), `total_cert_size` (2B), `chunk_crc16` (2B), `payload[120]` (120B).
+3. **Nguyên tắc triển khai trên Firmware:**
+   * MCU nhận từng khối qua Modbus FC16, tính toán CRC-16 của payload khối đó (đa thức Modbus `0xA001`).
+   * Nếu CRC hợp lệ, lưu vào RAM buffer tạm và cập nhật thanh ghi ACK `0x0F40 = chunk_index`.
+   * Khi nhận lệnh Commit `0xA5A5` tại `0x0F42`, MCU kiểm tra tổng kích thước đã nhận so với `total_cert_size`, lưu toàn bộ chứng chỉ vào Flash, tính mã CRC-16 của toàn bộ tệp vừa lưu để cập nhật vào thanh ghi tương ứng (`0x0F44` cho Root CA, `0x0F45` cho Client Cert, `0x0F46` cho Client Key), bật bit trong `0x0F43` (`CERT_ACTIVE_TYPE_MASK`), và khởi tạo context SSL/TLS.
+   * Khi Host kết nối hoặc chuẩn bị Deploy, Host đọc `0x0F43..0x0F46` để đối soát; nếu mã CRC-16 trùng khớp hoàn toàn, Host bỏ qua bước nạp phân đoạn chunk, giúp tối ưu hóa thời gian Deploy chu kỳ thường nhật.
+
+### 13.7. Quy Chuẩn Thu Thập Dữ Liệu Ngoại Vi Modbus Master RTU (`0x1000..0x10FF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/06-SPLC_SPEC_MODBUS_MASTER_001_READ_ICD.md) và [`SimplePLC_App_MCU_Structs_Modbus_Master_Profile.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/02-platform/01-MASTER_PROFILE_V2_0.md).
+1. **Phân vùng thanh ghi:**
+   * `0x1000 - 0x10FF` (256 registers = 512 bytes): 4 kênh Modbus RTU Master độc lập (mỗi kênh 64 registers = 128 bytes).
+   * Kênh 0: `0x1000..0x103F`, Kênh 1: `0x1040..0x107F`, Kênh 2: `0x1080..0x10BF`, Kênh 3: `0x10C0..0x10FF`.
+2. **Cấu trúc mỗi kênh Modbus Master:**
+   * `Offset +0`: Control Flags (Bit 0: Enable).
+   * `Offset +1`: Function Code (High Byte) | Slave ID (Low Byte).
+   * `Offset +2`: Starting Address (Địa chỉ thanh ghi/coil bắt đầu trên Slave).
+   * `Offset +3`: Quantity of Registers (1..125, số lượng phần tử cần đọc).
+   * `Offset +4..+5`: Poll Interval (ms, uint32 Big-Endian).
+   * `Offset +6..+7`: Timeout (ms, uint32 Big-Endian).
+   * `Offset +8..+10`: Valid Tag Index, Error Tag Index, ErrCode Tag Index (0xFFFF nếu không nối).
+   * `Offset +11`: Pin Count (0..4).
+   * `Offset +16..+63`: 4 Dynamic Pin Bindings (mỗi pin 12 registers = 24 bytes: TargetTagIndex, RegOffset, DataType, Endianness, Multiplier, PinLabel 12 bytes Packed ASCII).
+3. **Nguyên tắc vận hành trên Firmware:**
+   * Task giao tiếp RS-485 chạy ngầm không nghẽn chu kỳ quét 10ms.
+   * Tính toán và đối chiếu mã kiểm tra CRC-16 trên từng frame phản hồi.
+   * Tự động chuyển đổi thứ tự byte theo cấu hình Endianness (`ABCD`, `CDAB`, `BADC`, `DCBA`) và nhân hệ số `Multiplier`.
+   * Cập nhật nguyên tử vào `g_tag_store` tại ranh giới chu kỳ quét, phát xung mức 1 cho chân `Valid` và xuất mã chẩn đoán `Err_Code` (1=Timeout, 2=CRC, 3=Exception, 4=Malformed).
+
+### 13.8. Quy Chuẩn Khối Phát Xung Phần Cứng & Điều Khiển Chấp Hành PULSE_OUT (`0x1200..0x12FF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_DIRECT_WRITE_003_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/08-SPLC_SPEC_DIRECT_WRITE_003_ICD.md) (Mã tài liệu: `SPLC-SPEC-PULSE-003`).
+1. **Phân vùng thanh ghi:**
+   * `0x1200 - 0x12FF` (256 registers = 512 bytes): Tối đa 8 khối cấu hình độc lập (mỗi khối 16 registers = 32 bytes, định dạng nhị phân `#pragma pack(1)`).
+   * Khối $k$ ($0 \le k \le 7$) bắt đầu tại địa chỉ $\text{Address} = 0\text{x}1200 + (k \times 16)$.
+2. **Cấu trúc nhị phân `SPLC_PulseOutBlock_t` / `SPLC_DirectWriteBlock_t` (32 bytes):**
+   * `target_pin` (1B): Chỉ số chân ngõ ra số phần cứng `DO0..DO7` (`SPLC_PulsePin_t`: `0=DO0` .. `7=DO7`). Toàn hệ sinh thái sử dụng duy nhất chuẩn chân ngõ ra số DO.
+   * `mode` (1B): Chế độ hoạt động (`0=DIGITAL_OUTPUT`, `1=PWM_DUTY`, `2=PULSE_TRAIN`, `3=ADDRESSABLE_BUS`).
+   * `channel_count` (2B): Tổng số kênh hoặc số lượng phần tử chấp hành (1..256).
+   * `flags` (1B): Bit 0: IsActiveHigh, Bit 1: IsExclusiveChannel, Bit 2: FailSafeState.
+   * `trigger_mode` (1B): Chế độ kích hoạt (`0=OnTriggerRisingEdge`, `1=Continuous`).
+   * `pulse_width_us` (2B): Độ rộng xung cơ sở tính bằng micro-giây ($\mu\text{s}$). Mặc định 50 $\mu\text{s}$.
+   * `pwm_freq_hz` (4B): Tần số sóng mang PWM phần cứng (Hz, uint32 Big-Endian Modbus Word: Reg 4 = High Word, Reg 5 = Low Word, khớp 100% với ICD).
+   * `duty_min` (1B): Giới hạn Duty nhỏ nhất % (0..100).
+   * `duty_max` (1B): Giới hạn Duty lớn nhất % (0..100).
+   * `channel_tag_index` (2B): TagIndex cung cấp giá trị logic In / Duty % / Kênh (0xFFFF nếu không dùng).
+   * `param_tag_index` (2B): TagIndex tham số phụ trợ (Enable En / Tần số Freq / Màu RGB) (0xFFFF nếu không dùng).
+   * `default_color_rgb` (4B): Màu sắc mặc định 24-bit 0x00RRGGBB (chế độ Bus Addressable, Big-Endian).
+   * `reserved[10]` (10B): Dự phòng căn chỉnh đúng 32 bytes (luôn điền 0).
+3. **Nguyên tắc vận hành thời gian thực trên MCU:**
+   * **Định danh chân ngõ ra**: Thiết bị chỉ sở hữu các chân ngõ ra số `DO0..DO7`. Firmware ánh xạ trực tiếp `target_pin` vào GPIO/Timer phần cứng tương ứng của MCU (STM32 HAL GPIO/TIM, ESP32 GPIO/LEDC/RMT).
+   * **Thực thi Deterministic**: Việc xuất xung sườn lên hoặc cập nhật PWM Duty được xử lý ngay tại scan pass 10ms của PLC Engine, đảm bảo phản hồi tức thì dưới 1ms mà không gây nghẽn CPU.
+   * **Fail-Safe Watchdog**: Nếu ngắt kết nối hoặc chuyển về chế độ an toàn, ngõ ra tự động rơi về trạng thái `fail_safe_state` (0 = Tắt, 1 = Bật).
+
+---
+
+### 13.9. Quy Chuẩn Phân Hệ Wi-Fi ST67 (`0x1300..0x13FF`)
+* Chi tiết đặc tả xem tài liệu: [`SPLC_SPEC_WIFI_004_ICD.md`](file:///g:/HoaNV/Projects/SimplePLC/docs/03-firmware/09-SPLC_SPEC_WIFI_004_ICD.md).
+1. **Phân vùng thanh ghi:**
+   * `0x1300..0x133F` (64 registers = 128 bytes): Cấu hình mạng (`SPLC_WifiConfig_t`) và viễn trắc trực tiếp (Connection Status, RSSI, Current IP, MAC).
+   * `0x1340..0x134F` (16 registers = 32 bytes): Bắt tay điều khiển lệnh (`SPLC_WifiScanControl_t`: START_SCAN `0x0001`, CONNECT `0x0002`, DISCONNECT `0x0003`, FORGET `0x0004`).
+   * `0x1350..0x13FF` (176 registers = 352 bytes): Danh sách tối đa 8 Access Points quét được (`SPLC_WifiApInfo_t`, 22 regs/AP).
+2. **Khai báo năng lực phần cứng (`0x0A08`):**
+   * Khi MCU tích hợp chip ST67 (ST67W611M1), BẮT BUỘC bật bit `SPLC_CAP_WIFI = 0x0200` (Bit 9) trong `SPLC_HardwareCapabilities_t`.
+3. **Nguyên tắc Non-blocking chu kỳ quét 10ms:**
+   * Lệnh Modbus ghi vào `0x1340` chỉ đẩy message vào FreeRTOS Queue và lập tức trả về ACK trong $< 10$ms.
+   * Một task nền riêng (`wifi_worker_task`) xử lý quét mạng hoặc kết nối, sau đó cập nhật kết quả vào `0x1341` (`scan_state`) và `0x133A` (`conn_status`).
+
+---
+
+### 13.9.1. Cấu Hình Đa Cổng RS-485 Modbus Master (`0x1400..0x143F`, SPLC-SPEC-MBM-003)
+* **Dải địa chỉ Modbus:** `0x1400 - 0x143F` (64 Holding Registers = 128 Bytes, FC03/FC16 R/W).
+* **Phân bổ:** 4 cổng RS-485 vật lý $\times$ 16 thanh ghi (32 bytes) mỗi cổng.
+  * Cổng 1 (`Port 0`): `0x1400 .. 0x140F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, `ENABLED`).
+  * Cổng 2 (`Port 1`): `0x1410 .. 0x141F` (Mặc định: `19200-8-E-1`, Timeout `200ms`, `ENABLED`).
+  * Cổng 3 (`Port 2`): `0x1420 .. 0x142F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, *Disabled*).
+  * Cổng 4 (`Port 3`): `0x1430 .. 0x143F` (Mặc định: `9600-8-N-1`, Timeout `200ms`, *Disabled*).
+* **Cấu trúc nhị phân mỗi cổng (`SPLC_ModbusPortConfigRecord_t`, 32 bytes):**
+  * `Offset +0`: `control_flags` (`uint16`) — Bit 8: `ENABLED` (`0x0100`), Bit 0..7: `PORT_NUMBER` (`1..4`).
+  * `Offset +1..+2`: `baud_rate` (`uint32` Big-Endian).
+  * `Offset +3`: `parity` (`uint16`: 0=None, 1=Even, 2=Odd).
+  * `Offset +4`: `framing` (`uint16`: High Byte = `data_bits` 7/8, Low Byte = `stop_bits` 1/2).
+  * `Offset +5`: `response_timeout_ms` (`uint16`: 50..5000 ms, mặc định 200 ms).
+  * `Offset +6`: `inter_frame_delay_ms` (`uint16`: 10..500 ms, mặc định 20 ms).
+  * `Offset +7`: `retry_count` (`uint16`: 0..5, mặc định 1).
+  * `Offset +8..+13`: `port_name` (`ASCII[12]`, 6 thanh ghi Big-Endian null-padded).
+  * `Offset +14..+15`: `reserved` (`uint16[2]`, luôn ghi `0x0000`).
+
+---
+
+### 13.9.2. Quy Chuẩn Phân Hệ DTU Gateway & Stream Engine (`0x1600..0x16BF`, SPLC-SPEC-DTU-001)
+
+Khi thiết bị khai báo cờ năng lực `SPLC_CAP_TRANSPARENT_STREAM` (`0x0400`) hoặc `SPLC_CAP_HTTP_CLIENT` (`0x1000`) tại thanh ghi `0x0A08`, phân hệ DTU Gateway được kích hoạt để đảm nhiệm vai trò cầu nối dữ liệu nối tiếp RS-485 lên mạng Internet / Cloud:
+* **Dải thanh ghi quản lý:**
+  - `0x1600 - 0x163F`: `splc_dtu_http_config_t` (64 regs = 128 bytes) — Cấu hình HTTP REST Client (URL, Method, Headers, Timeout, `trigger_mode`: 0=OnDataReceived, 1=Periodic).
+  - `0x1640 - 0x167F`: `splc_dtu_tcp_config_t` (64 regs = 128 bytes) — Cấu hình TCP Socket Client / Server (RemoteHost, RemotePort, LocalPort, ReconnectDelay, Heartbeat, `registration_type`: 0=None, 1=OnConnect, 2=PrependToEveryPacket, `registration_payload`).
+  - `0x1680 - 0x16BF`: `splc_dtu_routing_config_t` (64 regs = 128 bytes) — Cấu hình Cổng, Serial Mode, Uplink Mode, Ngắt khung $t_{3.5}$, và 3 chế độ định dạng dữ liệu (`payload_mode`: 0=Standard IEC, 1=Custom Template, 2=Raw Passthrough, `payload_flags` bitmask).
+* **Quy chuẩn thực thi trong Firmware MCU:**
+  - Ngắt khung UART bằng cơ chế DMA kết hợp ngắt IDLE Line để phát hiện khoảng lặng $t_{3.5}$ với độ chính xác cao mà không tốn chu kỳ quét 10ms của Rule Engine.
+  - Khi `payload_mode == 2` (Raw Passthrough): Chuyển tiếp trực tiếp luồng byte nhị phân thô không bọc JSON lên MQTT/TCP/HTTP.
+  - Khi `payload_mode == 0` (Standard IEC): Tự động sinh chuỗi JSON chuẩn chứa các trường `device_id`, `timestamp`, `port`, `seq`, `payload`.
+  - Xem tài liệu đặc tả chi tiết tại [`SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`](SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md).
+
+#### 13.9.2.1. Cấu Hình Khởi Tạo Định Danh & Hồ Sơ Tự Mô Tả Cho Thiết Bị DTU Gateway (Class 5)
+
+Để SynaptiX IDE tự động nhận diện thiết bị là **DTU Gateway (RS-485)** và kích hoạt đầy đủ giao diện cấu hình DTU (bỏ qua bắt buộc bảng logic rỗng), Firmware MCU của thiết bị DTU chuyên dụng (ví dụ bo mạch STM32/ESP32 DTU) bắt buộc phải nạp sẵn các thông số sau vào bảng Flash Descriptor:
+
+```c
+#include "simpleplc_protocol_v2_0.h"
+
+/* 1. Định danh phần cứng tại 0x0000..0x0009 */
+const SPLC_DeviceDescriptor_t g_dtu_device_descriptor = {
+    .device_class        = SPLC_DEV_CLASS_DTU,           /* = 5: Thiết bị DTU Gateway */
+    .device_variant      = SPLC_DTU_VARIANT_RS485_NET,   /* = 1: DTU RS-485 to Network */
+    .hw_version_major    = 1,
+    .hw_version_minor    = 0,
+    .hw_version_patch    = 0,
+    .fw_version_major    = 2,
+    .fw_version_minor    = 12,
+    .fw_version_patch    = 0,
+    .protocol_version    = 2,                            /* Wire Protocol V2.0 */
+    .rule_format_version = 7                             /* 32-byte Rule Format V7 */
+};
+
+/* 2. Hồ sơ tài nguyên tự mô tả tại 0x0020..0x0029 */
+const SPLC_DeviceResourceInfo_t g_dtu_resource_info = {
+    .wire_profile        = 2,                            /* Wire Profile V2 */
+    .max_rules           = 50,                           /* Hỗ trợ 50 rules chuyển đổi phụ trợ */
+    .runtime_tag_count   = 100,                          /* Tổng 100 tag runtime */
+    .di_count            = 0,                            /* DTU chuyên dụng không có DI vật lý */
+    .do_count            = 0,                            /* Không có DO vật lý */
+    .ai_count            = 0,                            /* Không có AI vật lý */
+    .vflag_count         = 32,                           /* 32 Virtual Flags */
+    .vreg_count          = 32,                           /* 32 Virtual Registers */
+    .vreg_retain_count   = 32,                           /* 32 Retain Registers Flash */
+    .counter_count       = 4                             /* 4 bộ đếm phụ trợ */
+};
+
+/* 3. Khai báo năng lực phần cứng tại 0x0A08..0x0A09 (Big-Endian uint32) */
+/* Cần bật các bit: STREAM, HTTP, MODBUS_MASTER, MQTT_PUB, MQTT_SUB, ETHERNET/WIFI */
+const uint32_t g_dtu_hardware_capabilities = 
+    SPLC_CAP_TRANSPARENT_STREAM |  /* 0x2000: Hỗ trợ Transparent Stream */
+    SPLC_CAP_HTTP_CLIENT        |  /* 0x1000: Hỗ trợ HTTP REST Client */
+    SPLC_CAP_MODBUS_MASTER      |  /* 0x0100: Hỗ trợ Modbus Master Poller */
+    SPLC_CAP_MQTT_PUB           |  /* 0x0010: Hỗ trợ MQTT Publish */
+    SPLC_CAP_MQTT_SUB           |  /* 0x0020: Hỗ trợ MQTT Subscribe */
+    SPLC_CAP_ETH                |  /* 0x0008: Cổng mạng Ethernet RJ45 */
+    SPLC_CAP_RETAIN;               /* 0x0002: Lưu trữ cấu hình Flash */
+
+/* 4. Khai báo số cổng RS-485 tại 0x0A0A */
+const uint16_t g_dtu_rs485_port_count = 1; /* Hoặc 2 / 4 tùy phần cứng DTU */
+```
+
+---
+
+### 13.10. Quy Trình Nạp Cấu Hình Đa Phân Hệ Từ SynaptiX IDE Xuống MCU (Multi-Subsystem Staged Deployment Sequence)
+
+Quy trình nạp luật và cấu hình hoàn chỉnh từ SynaptiX IDE xuống MCU được thiết kế bảo vệ 6 bước nghiêm ngặt:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor IDE as SynaptiX IDE (App)
+    participant MCU as MCU Firmware (Modbus Slave)
+    participant ENG as Rule Engine (10ms Scan)
+
+    Note over IDE,MCU: BƯỚC 1: KHẢO SÁT NĂNG LỰC PHẦN CỨNG & SỐ CỔNG RS-485
+    IDE->>MCU: FC03 Read 0x0A08 (SPLC_HardwareCapabilities_t)
+    MCU-->>IDE: Trả về Capabilities Mask (0x02FF...)
+    IDE->>MCU: FC03 Read 0x0A0A (RS-485 Physical Port Count)
+    MCU-->>IDE: Trả về Port Count (0, 1, 2, hoặc 4)
+    Note over IDE: Nếu thiếu cờ năng lực hoặc cổng vượt giới hạn -> Fail-Safe ABORT
+
+    Note over IDE,MCU: BƯỚC 2: NẠP CẤU HÌNH NGOẠI VI & BẢNG KIỂU DỮ LIỆU TAG
+    opt Có Tag DataType Registry (0x0080..0x00BF)
+        IDE->>MCU: FC16 Write 0x0080.. (Tag DataType Registry 64 regs = 128 bytes)
+        Note over MCU: Lưu vào staging buffer, chuẩn bị atomic swap cùng rule table
+    end
+    opt Có Timer / Counter
+        IDE->>MCU: FC16 Write 0x0B00.. (Timers 8 blocks * 8 regs)
+        IDE->>MCU: FC16 Write 0x0B40.. (Counters 8 blocks * 8 regs)
+    end
+    opt Có MQTT Broker & Telemetry
+        IDE->>MCU: FC16 Write 0x0E00.. (Broker Config 96 regs)
+        IDE->>MCU: FC16 Write 0x0E60.. (LWT Config 32 regs)
+        IDE->>MCU: FC16 Write 0x0C00.. (PUB Blocks up to 384 regs)
+        IDE->>MCU: FC16 Write 0x0D80.. (SUB Blocks up to 128 regs)
+    end
+    opt Có Cấu hình Cổng RS-485 Modbus Master
+        IDE->>MCU: FC16 Write 0x1400.. (RS-485 Ports 4 blocks * 16 regs = 64 regs)
+    end
+    opt Có Modbus Master RTU
+        IDE->>MCU: FC16 Write 0x1000.. (MB Read up to 256 regs)
+        IDE->>MCU: FC16 Write 0x1100.. (MB Write up to 256 regs)
+    end
+    opt Có Phát Xung PULSE_OUT
+        IDE->>MCU: FC16 Write 0x1200.. (Pulse Out up to 256 regs)
+    end
+    opt Có DTU Gateway (SPLC-SPEC-DTU-001)
+        IDE->>MCU: FC16 Write 0x1600.. (DTU HTTP, TCP, Routing up to 192 regs)
+    end
+
+    Note over IDE,MCU: BƯỚC 3: NẠP LUẬT VÀO STAGING BUFFER
+    IDE->>MCU: FC16 Write 0x9002 (RuleCountStaged = N)
+    loop Nạp từng block (tối đa 120 regs / lệnh)
+        IDE->>MCU: FC16 Write 0x9010 + Offset (Rule Staging Buffer)
+        MCU-->>IDE: ACK (Số thanh ghi đã nhận)
+    end
+
+    Note over IDE,MCU: BƯỚC 4: GHI MÃ KIỂM TRA TOÀN VẸN CRC-16
+    IDE->>MCU: FC16 Write 0x9003 (ExpectedCrc16 của toàn bộ bảng luật)
+
+    Note over IDE,MCU: BƯỚC 5: PHÁT LỆNH CHỐT NGUYÊN TỬ (ATOMIC COMMIT)
+    IDE->>MCU: FC06 Write 0xA000 = 0xA5A5 (SPLC_COMMIT_MAGIC)
+
+    Note over MCU,ENG: BƯỚC 6: XÁC THỰC VÀ HOÁN ĐỔI BẢNG (ATOMIC SWAP)
+    MCU->>MCU: Tính toán CRC-16 của Staging Buffer vs ExpectedCrc16
+    alt CRC hợp lệ
+        MCU->>ENG: Hoán đổi con trỏ bảng luật tại ranh giới chu kỳ quét 10ms
+        MCU->>MCU: ActiveRuleVersion (0xA001) += 1
+        MCU->>MCU: Lưu cấu hình xuống Flash / NVS
+        Note over MCU: Log UART: "app_configured=1 generation=N"
+        MCU-->>IDE: ACK Commit SUCCESS
+    else CRC sai lệch
+        MCU->>MCU: Giữ nguyên Active Table cũ, hủy Staging Buffer
+        MCU-->>IDE: Exception 0x02 / Error Code 0x0001 (CRC_MISMATCH)
+    end
+```
+
+---
+
+## 14. Bảng Tiêu Chí Nghiệm Thu Firmware Chuẩn Công Nghiệp (Conformance Checklist)
+
+Trước khi nghiệm thu hoặc xuất xưởng firmware tích hợp cùng SimplePLC Studio, kỹ sư phát triển BẮT BUỘC kiểm tra đạt toàn bộ 21 tiêu chí sau:
+
+- [ ] **CHKL-01: Word Endianness & FC Compliance**: Hỗ trợ đầy đủ FC03, FC06, FC16; Big-Endian cho thanh ghi 16-bit và số 32-bit (High Word trước).
+- [ ] **CHKL-02: Cyclic Determinism (10ms Scan)**: Chu kỳ quét danh định 10ms cố định, tính `scan_time_ms` và `max_scan_time_ms` chuẩn xác.
+- [ ] **CHKL-03: Mutual Exclusion Tag Store**: Từ chối ghi vào `0x0900..0x09FF` khi ở `ENGINE_RUNNING`, chỉ cho phép ghi cưỡng bức trong `DIAG_CONTROL`.
+- [ ] **CHKL-04: Atomic Staging & Commit**: Quy trình 3 pha Staging (`0x9010`) $\to$ CRC-16 (`0x9003`) $\to$ Atomic Commit (`0xA000 = 0xA5A5`) tráo bảng nguyên tử không gián đoạn máy.
+- [ ] **CHKL-05: Diagnostic Heartbeat Watchdog**: Hết hạn 3000ms mất kết nối Studio tự động trả quyền điều khiển về `ENGINE_RUNNING`.
+- [ ] **CHKL-06: Retentive Data Integrity**: Lưu các Tag `VREG_RETAIN` vào EEPROM/Flash, khôi phục nguyên vẹn sau khi mất nguồn đột ngột.
+- [ ] **CHKL-07: Dynamic Tag Index Layout**: Tự động đóng gói chỉ số Tag liên tục dựa trên số lượng I/O trong `DeviceResourceInfo` (`0x0020`).
+- [ ] **CHKL-08: IEC Timers Conformance (0x0B00)**: Thực thi chính xác 8 khối Timer TON, TOF, TP; cập nhật ET và cờ trạng thái Q.
+- [ ] **CHKL-09: IEC Counters Conformance (0x0B40)**: Thực thi chính xác 8 khối Counter CTU, CTD; cập nhật CV và cờ trạng thái Q.
+- [ ] **CHKL-10: Scaler Linear Transformation**: Biến đổi tuyến tính $y = k \cdot x + b$ chính xác, bão hòa tại giới hạn Max/Min.
+- [ ] **CHKL-11: Hardware Watchdog (IWDG)**: Kick watchdog định kỳ, tự động reset an toàn nếu firmware bị treo quá 50ms.
+- [ ] **CHKL-12: RTC Synchronization (0x0810)**: Đồng bộ thời gian thực Epoch UTC và múi giờ, duy trì nhịp thời gian chính xác.
+- [ ] **CHKL-13: System Maintenance Commands (0x0A00)**: Thực thi lệnh REBOOT, FACTORY_RESET, CLEAR_RULES, CLEAR_RETAIN an toàn.
+- [ ] **CHKL-14: Hardware Capabilities Reporting (0x0A08)**: Khai báo trung thực mặt nạ `SPLC_HardwareCapabilities_t` phản ánh đúng tính năng MCU hỗ trợ.
+- [ ] **CHKL-15: Safe Boot State**: Khởi động ban đầu ở chế độ an toàn, tất cả ngõ ra DO ở mức 0 trước khi Engine nạp luật hợp lệ.
+- [ ] **CHKL-16: MQTT Telemetry Outbound Conformance (0x0C00)**: Xuất bản đúng định dạng JSON theo chu kỳ hoặc biến thiên dữ liệu.
+- [ ] **CHKL-17: MQTT Broker & Network Conformance (0x0E00)**: Kết nối MQTT Broker ổn định, hỗ trợ xác thực TLS/SSL và tự động kết nối lại.
+- [ ] **CHKL-18: MQTT TLS/SSL Certificate Staging (0x0F00)**: Nạp phân đoạn chứng chỉ X.509 Root CA theo khối 128 bytes, kiểm tra CRC từng khối.
+- [ ] **CHKL-19: Modbus Master RTU Sensor Poller (0x1000..0x10FF)**: Polling cảm biến RS-485 ngầm không nghẽn chu kỳ quét 10ms, hỗ trợ 4 chuẩn Endianness.
+- [ ] **CHKL-20: Pulse Output & Hardware Actuator (0x1200..0x12FF)**: Hỗ trợ cấu hình tối đa 8 khối `PULSE_OUT` (DO, PWM, PTO, Bus Addressable) theo chuẩn ICD SPLC-SPEC-PULSE-003.
+- [ ] **CHKL-21: ST67 Wi-Fi Capabilities & Wire Conformance (0x1300..0x13FF)**: Hỗ trợ phân hệ Wi-Fi ST67 (SPLC-SPEC-WIFI-004-ICD), bật cờ `0x0200` tại `0x0A08`, quét sóng và kết nối qua worker task nền non-blocking.
+- [ ] **CHKL-22: RS-485 Physical Port Count & Multi-Port Config Conformance (0x0A0A & 0x1400..0x143F)**: MCU phản hồi đúng số lượng cổng RS-485 vật lý tại thanh ghi `0x0A0A` (uint16, giá trị `0`, `1`, `2`, hoặc `4`). Hỗ trợ cấu hình đa cổng RS-485 Master & Slave tại `0x1400..0x143F` (64 registers = 128 bytes, 4 ports $\times$ 16 regs, SPLC-SPEC-MBM-003) qua FC03/FC16. Khi nhận cấu hình cổng qua FC16, firmware MCU tự động khởi tạo hoặc tái cấu hình driver UART phần cứng tương ứng (BaudRate, Parity, Data/Stop Bits, Inter-frame Delay, PortRole, SlaveId).
+- [ ] **CHKL-23: Modbus Slave Fixed Memory Map Conformance (SPLC-SPEC-SLAVE-001)**: Khi cổng RS-485 được cấu hình vai trò Slave (`PORT_ROLE = 1`), firmware MCU kích hoạt Bản đồ địa chỉ bộ nhớ cố định truy xuất RAM $O(1)$ (SPLC-SPEC-SLAVE-001). Hỗ trợ FC 01, 02, 03, 05, 06, 15, 16; chặn ghi vào ô Read-Only (`DI_WORD`, `AI`, `SYS_DIAG`, `DI0..DI15`) với Modbus Exception 0x03; chặn truy cập ngoài bản đồ hoặc đọc/ghi chéo 2 phân vùng chức năng với Modbus Exception 0x02; drop frame im lặng khi sai CRC-16 hoặc không đúng Slave ID. Chi tiết xem `SPLC_SPEC_SLAVE_001_FIXED_MEMORY_MAP_ICD.md`.
+- [ ] **CHKL-24: DTU Gateway Subsystem & Stream Engine Conformance (0x1600..0x16BF & SPLC-SPEC-DTU-001)**: Khi thiết bị hỗ trợ DTU Gateway, firmware MCU phải hỗ trợ đọc/ghi dải 192 thanh ghi `0x1600..0x16BF` (`splc_dtu_http_config_t`, `splc_dtu_tcp_config_t`, `splc_dtu_routing_config_t`). Xử lý ngắt khung UART DMA IDLE line $t_{3.5}$ chính xác $\pm 2\text{ms}$; hỗ trợ đủ 3 chế độ định dạng dữ liệu (Standard IEC, Custom, Raw Passthrough); hỗ trợ gói tin định danh kết nối TCP Socket (Registration Packet `None`, `OnConnect`, `Prepend`). Chi tiết xem `SPLC_SPEC_DTU_001_ROUTING_AND_GATEWAY_ICD.md`.
+- [ ] **CHKL-25: MQTT Last Will & Testament LWT Conformance (0x0E60..0x0E7F & SPLC-SPEC-MQTT-004)**: Hỗ trợ nạp cấu hình LWT (32 thanh ghi = 64 bytes) vào Shadow RAM qua FC16; chỉ commit vào Flash Non-Volatile khi nhận Magic `0xA5A5` tại `0xA000`. Từ chối commit nếu `will_control` bật (`0x0001`) mà `will_topic` rỗng (báo lỗi `0x0001` tại `0x9001`); xóa sạch LWT khi `will_control = 0`; hỗ trợ payload ASCII an toàn cho module Wi-Fi (chuẩn hóa `"offline"`, không chứa ký tự `"` hoặc `\`). Chi tiết xem `SPLC_SPEC_MQTT_004_LAST_WILL_ICD.md`.
+
+
+
+

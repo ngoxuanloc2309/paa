@@ -142,7 +142,7 @@ Tài liệu quản lý Backlog kỹ thuật chuẩn hóa giao diện, trải ngh
   * `SimplePLC.Protocol`: `ModbusSlaveFixedMap.cs` (khế ước địa chỉ nhị phân cố định).
   * `SimplePLC.Studio`: `ModbusPortConfigDialogView.xaml`, `ModbusPortConfigViewModel.cs`, `ModbusSlaveFixedRegisterViewModel.cs`, `LocalizationService.cs`.
   * `SimplePLC.Studio.Tests`: `ModbusSlaveMapStudioTests.cs`.
-  * `docs/manuals`: `MODBUS_SLAVE_MAPPING_AND_SCADA_INTEGRATION_MANUAL.md`.
+  * `docs-portal`: `vi/tools/rs485-and-scada-slave.md`.
 * **Chi tiết kỹ thuật đã thực hiện:**
   1. Loại bỏ cấu hình `Inter-frame Delay (ms)` và `Sandbox Memory` đối với vai trò Slave.
   2. Bổ sung các Tab phân vùng bộ nhớ phong cách Moxa (`Tất cả`, `Holding Registers 4xxxx`, `Coils 0xxxx`, `Discrete Inputs 1xxxx`) kèm bộ đếm live.

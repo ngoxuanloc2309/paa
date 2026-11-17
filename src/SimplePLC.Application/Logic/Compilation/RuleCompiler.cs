@@ -24,6 +24,9 @@ public sealed class RuleCompiler : IRuleCompiler
     public const string ErrTagNotFound = "SPLC-COMP-006";
     public const string ErrScaleNoInput = "SPLC-COMP-SCALE-IN";
     public const string ErrScaleNoOutput = "SPLC-COMP-SCALE-OUT";
+    public const string ErrMathNoInput = MathMacroLowering.ErrMathNoInput;
+    public const string ErrMathNoOutput = MathMacroLowering.ErrMathNoOutput;
+    public const string ErrMathNoScratch = MathMacroLowering.ErrMathNoScratch;
     public const string WarnNoActions = "SPLC-COMP-W01";
     public const string ErrCircularDependency = RuleDependencyGraph.ErrCircularDependency;
     public const string ErrConflictingWriters = WriteConflictValidator.ErrConflictingWriters;
@@ -66,6 +69,7 @@ public sealed class RuleCompiler : IRuleCompiler
         var timerNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Timer).ToList();
         var counterNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Counter).ToList();
         var scaleNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Scale).ToList();
+        var mathNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.Math).ToList();
         var mqttNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttPublish).ToList();
         var mqttSubNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.MqttSubscribe).ToList();
         var modbusReadNodes = graph.Nodes.Where(n => n.Kind == LogicNodeKind.ModbusRead).ToList();
@@ -83,7 +87,7 @@ public sealed class RuleCompiler : IRuleCompiler
         }
 
         // Kiểm tra đồ thị rỗng hoàn toàn
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 &&
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mathNodes.Count == 0 &&
             mqttNodes.Count == 0 && mqttSubNodes.Count == 0 && modbusReadNodes.Count == 0 && modbusWriteNodes.Count == 0 &&
             directWriteNodes.Count == 0 && httpNodes.Count == 0 && tcpNodes.Count == 0)
         {
@@ -100,9 +104,9 @@ public sealed class RuleCompiler : IRuleCompiler
             return CompileResult.Success(emptyProgram, diagnostics);
         }
 
-        // Kiểm tra đồ thị chỉ thuần cấu hình telemetry (không có Action/Timer/Counter/Scale hay Modbus Status rules)
+        // Kiểm tra đồ thị chỉ thuần cấu hình telemetry (không có Action/Timer/Counter/Scale/Math hay Modbus Status rules)
         bool hasModbusStatusRules = modbusReadNodes.Any(m => m.ModbusReadData?.ValidTagIndex != null || m.ModbusReadData?.ErrorTagIndex != null);
-        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && !hasModbusStatusRules)
+        if (actionNodes.Count == 0 && timerNodes.Count == 0 && counterNodes.Count == 0 && scaleNodes.Count == 0 && mathNodes.Count == 0 && !hasModbusStatusRules)
         {
             var telemetryOnlyProgram = new CompiledProgram(
                 programId ?? Guid.NewGuid().ToString("N"),
@@ -226,7 +230,10 @@ public sealed class RuleCompiler : IRuleCompiler
         // 5c. Scale nodes (Linear Scaler)
         ScaleMacroLowering.Lower(graph, product, nodeMap, scaleNodes, candidateRules, diagnostics);
 
-        // 5d. Modbus Master Status Indicators (Valid / Error)
+        // 5d. Math nodes (Arithmetic & Algebra Operations)
+        MathMacroLowering.Lower(graph, product, nodeMap, mathNodes, candidateRules, diagnostics);
+
+        // 5e. Modbus Master Status Indicators (Valid / Error)
         ModbusStatusMacroLowering.Lower(graph, product, modbusReadNodes, candidateRules);
 
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))

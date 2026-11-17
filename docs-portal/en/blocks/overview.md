@@ -40,6 +40,7 @@ Stateful timing, pulse counting, and two-point linear calibration blocks for sig
 | [`CTU`](/blocks/ctu) | **Count Up Counter** | `CU`, `R` → `Q` | Increments accumulated count `CV` on each rising edge of `CU` and asserts `Q = 1` when `CV >= PV`; resets `CV` to `0` on `R`. |
 | [`CTD`](/blocks/ctd) | **Count Down Counter** | `CD`, `R` → `Q` | Decrements `CV` from preset `PV` on each rising edge of `CD` and asserts `Q = 1` when `CV <= 0`; reloads `CV = PV` on `R`. |
 | [`SCALE`](/blocks/scale) | **Linear Calibration** | `In` → `Out` | Maps raw ADC or fieldbus counts (`[RawMin..RawMax]`) linearly to engineering units (`[EngMin..EngMax]`) with optional clamping. |
+| [`MATH`](/blocks/math) | **Arithmetic ALU** | `IN1..IN8` → `Out` | Evaluates arithmetic expressions (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`) across 2 to 8 operands with automatic type promotion and divide-by-zero protection. |
 
 ### 1.3 Fieldbus & Hardware Actuation
 

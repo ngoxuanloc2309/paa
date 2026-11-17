@@ -421,10 +421,27 @@ public class ProjectNodeData
     public string TcpRegistrationType { get; set; } = "None";
     public string TcpRegistrationPayload { get; set; } = string.Empty;
     public string TcpPayloadMode { get; set; } = "Raw";
+
+    // Math node properties
+    public string MathOperator { get; set; } = "Add";
+    public string MathTypeMode { get; set; } = "Auto";
+    public List<MathPinProjectData> MathPins { get; set; } = new();
 }
 
 /// <summary>
-/// Đại diện cho trường ánh xạ trong khối MQTT Publisher Node.
+/// Đại diện cho chân đầu vào toán hạng của khối MATH được lưu trong Project.
+/// </summary>
+public class MathPinProjectData
+{
+    public string Id { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public bool IsConstant { get; set; }
+    public double ConstantValue { get; set; }
+    public string TagName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Đại diện cho trường ánh xạ payload của khối MQTT Publisher Node.
 /// </summary>
 public class MqttPayloadFieldData
 {

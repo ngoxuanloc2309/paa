@@ -533,4 +533,46 @@ public class WifiConfigViewModelTests
         Assert.Equal(ModbusRegisterMap.WifiConnDisconnected, vm.ConnectionStatus);
         Assert.False(vm.IsConnected);
     }
+
+    [Fact]
+    public async Task SaveAsync_WhenWifiDisabled_ShouldCommitWifiEnabledFalseToMetadataWithoutRequiringSsid()
+    {
+        // Arrange
+        var meta = new ProjectMetadata { WifiEnabled = true, WifiSsid = "" };
+        var fakeClient = new FakeWifiClient();
+        using var vm = new WifiConfigViewModel(meta, fakeClient)
+        {
+            IsEnabled = false,
+            Ssid = ""
+        };
+
+        // Act
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(meta.WifiEnabled);
+        Assert.True(vm.DialogResult);
+        Assert.True(string.IsNullOrEmpty(vm.ErrorMessage));
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenWifiEnabled_ShouldCommitWifiEnabledTrueToMetadata()
+    {
+        // Arrange
+        var meta = new ProjectMetadata { WifiEnabled = false, WifiSsid = "" };
+        var fakeClient = new FakeWifiClient();
+        using var vm = new WifiConfigViewModel(meta, fakeClient)
+        {
+            IsEnabled = true,
+            Ssid = "Plant_Floor_WiFi"
+        };
+
+        // Act
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(meta.WifiEnabled);
+        Assert.Equal("Plant_Floor_WiFi", meta.WifiSsid);
+        Assert.True(vm.DialogResult);
+    }
 }

@@ -15,11 +15,12 @@
 
 ## 📥 Downloads & Installation
 
-SynaptiX IDE is distributed as a **Standalone Single-File Executable (no installer or external runtime required)**:
+SynaptiX IDE is distributed in two official editions: **Desktop Setup Installer (Recommended)** and **Standalone Portable Executable**:
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v2.15.0 (Latest)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file executable for Windows 10/11 |
+| **v2.15.1 (Installer)** | Windows x64 (.exe) | [**Download `SynaptiX_IDE_Setup_v2.15.1.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SynaptiX_IDE_Setup_v2.15.1.exe) | **Recommended** — Full installer wizard with desktop & start menu shortcuts, `.synx` file association, and bundled MCU Emulator |
+| **v2.15.1 (Portable)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file standalone executable for Windows 10/11 |
 
 | **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
 

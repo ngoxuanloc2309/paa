@@ -108,7 +108,7 @@ public static class RuleValidator
         // 5. Kiểm tra Guard Tag (nếu có)
         if (rule.Guard != null && rule.Guard.HasGuard)
         {
-            if (rule.Guard.Tag!.DataType != TagDataType.Boolean)
+            if (rule.Action?.Type != ActionKind.MathOp && rule.Guard.Tag!.DataType != TagDataType.Boolean)
             {
                 result.AddError(
                     ErrorGuardTagNotBoolean,

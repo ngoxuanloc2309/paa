@@ -92,6 +92,7 @@ public partial class TagCatalogViewModel : ObservableObject
     public ObservableCollection<TagModel> DigitalTags { get; } = new();
     public ObservableCollection<TagModel> OutputDigitalTags { get; } = new();
     public ObservableCollection<TagModel> RegisterTags { get; } = new();
+    public ObservableCollection<TagModel> NumericTags { get; } = new();
     public ObservableCollection<TagModel> FilteredTags { get; } = new();
 
     public ObservableCollection<GroupFilterItem> GroupButtons { get; } = new();
@@ -322,6 +323,10 @@ public partial class TagCatalogViewModel : ObservableObject
         RegisterTags.Clear();
         foreach (var tag in AllTags.Where(t => t.Kind is TagKind.VirtualRegisterRetain or TagKind.VirtualRegister or TagKind.Counter))
             RegisterTags.Add(tag);
+
+        NumericTags.Clear();
+        foreach (var tag in AllTags.Where(t => t.Kind != TagKind.None && !t.IsDigital && t.DataType != TagDataType.Boolean))
+            NumericTags.Add(tag);
     }
 
     public void ResetAllAliases()

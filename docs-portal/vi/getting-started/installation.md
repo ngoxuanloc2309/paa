@@ -33,14 +33,70 @@ Gói cài đặt chính thức `win-x64 setup` của **SynaptiX IDE** đã đón
 
 ## Quy trình Cài đặt & Khởi chạy Lần đầu
 
-1. **Tải Gói Cài đặt Chính thức:** Tải tệp cài đặt `SynaptiX-IDE-Setup-win-x64.exe` từ cổng phân phối nội bộ hoặc kênh phát hành chính thức của SynaptiX.
-2. **Thực thi Trình Cài đặt:** Nhấp đúp vào tệp cài đặt, xác nhận quyền quản trị Windows UAC (nếu cài cho toàn bộ người dùng trên máy) và chọn thư mục đích.
-3. **Thư mục Lưu Dự án Mặc định:** Ngay trong lần khởi chạy đầu tiên, **SynaptiX IDE** tự động khởi tạo thư mục lưu trữ dự án tiêu chuẩn tại:
+### 1. Cài đặt Đồ họa Từng Bước qua Setup Wizard (Khuyến nghị)
 
+Bộ cài đặt chính thức `SynaptiX_IDE_Setup_v2.15.0.exe` được phát triển trên nền tảng Inno Setup 6 với thuật toán nén siêu đặc LZMA2, giúp kỹ sư hoàn tất cài đặt toàn diện trong chưa đầy 30 giây:
+
+#### Bước 1: Khởi động Trình Cài đặt & Màn hình Chào mừng
+Tải tệp `SynaptiX_IDE_Setup_v2.15.0.exe` từ cổng phát hành [synaptix-io.com](https://synaptix-io.com/downloads). Nhấp đúp vào tệp tin và xác nhận quyền quản trị Windows UAC. Màn hình chào mừng sẽ hiển thị thông tin phiên bản chính thức:
+
+![Màn hình Chào mừng Cài đặt SynaptiX IDE](/images/synaptix_setup_step1_welcome.png)
+
+Nhấn **Next >** để tiếp tục.
+
+#### Bước 2: Chấp thuận Thỏa thuận Giấy phép Sử dụng (EULA)
+Đọc kỹ các điều khoản thỏa thuận bản quyền phần mềm công nghiệp SynaptiX Corporation (tuân thủ IEC 61131-3 và IEC 61508-3 SIL2). Chọn **I accept the agreement** để mở khóa nút tiếp tục:
+
+![Chấp thuận Giấy phép Bản quyền](/images/synaptix_setup_step2_license.png)
+
+Nhấn **Next >** để chuyển sang bước chọn vị trí lưu trữ.
+
+#### Bước 3: Lựa chọn Thư mục Cài đặt Ứng dụng
+Mặc định hệ thống được cài đặt vào phân vùng ứng dụng chuẩn của Windows:
+```text
+%ProgramFiles%\Synaptix Automation\SynaptiX IDE
+```
+Dung lượng yêu cầu tối thiểu là **250 MB**. Kỹ sư có thể nhấn **Browse...** để chọn ổ đĩa khác nếu cần:
+
+![Lựa chọn Thư mục Cài đặt](/images/synaptix_setup_step3_directory.png)
+
+#### Bước 4: Tùy chọn Tích hợp Hệ thống & Công cụ Giả lập
+Trình cài đặt cung cấp sẵn các tùy chọn tích hợp mạnh mẽ:
+- **Tạo lối tắt Desktop & Start Menu:** Giúp khởi động nhanh IDE từ màn hình chính.
+- **Tự động Đăng ký Đuôi Dự án (`.splc`):** Liên kết file dự án với SynaptiX IDE, cho phép nhấp đúp trực tiếp vào file `.splc` để mở ngay trên bàn làm việc.
+- **Tích hợp Sẵn Công cụ Giả lập Vi điều khiển (`McuEmulator`):** Tự động đóng gói công cụ giả lập phần cứng ảo tại `Tools/SimplePLC.McuEmulator.exe`, phục vụ kiểm thử vòng lặp kín Hardware-in-the-Loop (HIL) không cần mạch thật.
+
+![Tùy chọn Bổ sung & Tích hợp Hệ thống](/images/synaptix_setup_step4_tasks.png)
+
+Nhấn **Next >** và xác nhận **Install** để tiến hành giải nén và đăng ký hệ thống.
+
+#### Bước 5: Hoàn tất Cài đặt & Khởi chạy Lần đầu
+Sau khi quá trình trích xuất nhị phân hoàn tất (thường mất 5–10 giây nhờ thuật toán LZMA2), màn hình thông báo hoàn thành sẽ xuất hiện:
+
+![Hoàn tất Cài đặt SynaptiX IDE](/images/synaptix_setup_step5_finish.png)
+
+Giữ dấu chọn **Launch SynaptiX IDE now** và nhấn **Finish** để khởi chạy ngay môi trường kỹ thuật. Trong lần khởi chạy đầu tiên, IDE tự động khởi tạo thư mục lưu trữ dự án chuẩn tại:
 ```text
 %USERPROFILE%\Documents\SynaptiX\Projects
 ```
-4. **Chuyển đổi Ngôn ngữ Giao diện Tức thời:** Kỹ sư có thể chuyển đổi qua lại giữa **Tiếng Việt** và **English** bất kỳ lúc nào tại menu **Công cụ (Tools) -> Ngôn ngữ (Language)** mà không cần khởi động lại phần mềm hay đóng dự án đang mở.
+
+### 2. Triển khai Tự động Không Can thiệp trong Mạng Nhà máy (Silent Enterprise Rollout)
+
+Đối với các quản trị viên hệ thống công nghệ thông tin/công nghệ vận hành (IT/OT) cần cài đặt đồng loạt trên hàng chục máy trạm SCADA qua Active Directory GPO, InTune hoặc SCCM, trình cài đặt hỗ trợ đầy đủ các tham số dòng lệnh:
+
+```powershell
+# Cài đặt hoàn toàn tự động, ẩn toàn bộ hộp thoại và không khởi động lại máy
+.\SynaptiX_IDE_Setup_v2.15.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="synaptix_install.log"
+
+# Chỉ định thư mục cài đặt tùy chỉnh
+.\SynaptiX_IDE_Setup_v2.15.0.exe /VERYSILENT /DIR="<TargetDirectory>\SynaptixIDE"
+
+# Gỡ bỏ cài đặt sạch sẽ tự động
+"%ProgramFiles%\Synaptix Automation\SynaptiX IDE\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+```
+
+### 3. Chuyển đổi Ngôn ngữ Giao diện Tức thời
+Kỹ sư có thể chuyển đổi qua lại giữa **Tiếng Việt** và **English** bất kỳ lúc nào tại menu **Công cụ (Tools) -> Ngôn ngữ (Language)** mà không cần khởi động lại phần mềm hay đóng dự án đang mở.
 
 ---
 

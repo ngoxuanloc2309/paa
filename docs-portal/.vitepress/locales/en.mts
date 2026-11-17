@@ -72,7 +72,8 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
               { text: 'CYCLE_TIMER — Asymmetric Oscillator', link: '/blocks/cycle-timer' },
               { text: 'CTU — Count Up Counter', link: '/blocks/ctu' },
               { text: 'CTD — Count Down Counter', link: '/blocks/ctd' },
-              { text: 'SCALE — Linear Calibration', link: '/blocks/scale' }
+              { text: 'SCALE — Linear Calibration', link: '/blocks/scale' },
+              { text: 'MATH — Arithmetic ALU', link: '/blocks/math' }
             ]
           },
           {

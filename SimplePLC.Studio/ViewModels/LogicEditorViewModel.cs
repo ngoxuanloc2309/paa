@@ -217,6 +217,24 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    public void OpenMathConfig(MathNodeViewModel? node = null)
+    {
+        var targetNode = node ?? SelectedMathNode;
+        if (targetNode == null) return;
+
+        var dialogVm = new MathConfigDialogViewModel(targetNode, TagCatalog);
+        var dialog = new Views.MathConfigDialogView(dialogVm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dialog.Owner = System.Windows.Application.Current.MainWindow;
+        }
+        if (dialog.ShowDialog() == true)
+        {
+            NotifyGraphModified();
+        }
+    }
+
     public bool IsMqttPublishSupported => (TagCatalog?.CurrentProduct.SupportsMqttPublish ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsMqttSubscribeSupported => (TagCatalog?.CurrentProduct.SupportsMqttSubscribe ?? false) && (TagCatalog?.CurrentProduct.SupportsNetwork ?? false);
     public bool IsModbusMasterSupported => TagCatalog?.CurrentProduct.SupportsModbusMaster ?? false;
@@ -305,6 +323,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(SelectedDirectWriteNode))]
     [NotifyPropertyChangedFor(nameof(SelectedHttpClientNode))]
     [NotifyPropertyChangedFor(nameof(SelectedTcpClientNode))]
+    [NotifyPropertyChangedFor(nameof(SelectedMathNode))]
     [NotifyPropertyChangedFor(nameof(NarrativePreview))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private GraphNodeViewModel? _selectedNode;
@@ -324,6 +343,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
     public DirectWriteNodeViewModel? SelectedDirectWriteNode => SelectedNode as DirectWriteNodeViewModel;
     public HttpClientNodeViewModel? SelectedHttpClientNode => SelectedNode as HttpClientNodeViewModel;
     public TcpClientNodeViewModel? SelectedTcpClientNode => SelectedNode as TcpClientNodeViewModel;
+    public MathNodeViewModel? SelectedMathNode => SelectedNode as MathNodeViewModel;
 
     partial void OnSelectedNodeChanged(GraphNodeViewModel? oldValue, GraphNodeViewModel? newValue)
     {
@@ -361,6 +381,14 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             {
                 if (oldMqtt.DataTag != null) oldMqtt.DataTag.PropertyChanged -= OnTagPropertyChanged;
             }
+            if (oldValue is MathNodeViewModel oldMath)
+            {
+                if (oldMath.OutputTag != null) oldMath.OutputTag.PropertyChanged -= OnTagPropertyChanged;
+                foreach (var pin in oldMath.Pins)
+                {
+                    if (pin.Tag != null) pin.Tag.PropertyChanged -= OnTagPropertyChanged;
+                }
+            }
         }
 
         if (newValue != null)
@@ -396,6 +424,14 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             if (newValue is MqttPublishNodeViewModel newMqtt)
             {
                 if (newMqtt.DataTag != null) newMqtt.DataTag.PropertyChanged += OnTagPropertyChanged;
+            }
+            if (newValue is MathNodeViewModel newMath)
+            {
+                if (newMath.OutputTag != null) newMath.OutputTag.PropertyChanged += OnTagPropertyChanged;
+                foreach (var pin in newMath.Pins)
+                {
+                    if (pin.Tag != null) pin.Tag.PropertyChanged += OnTagPropertyChanged;
+                }
             }
 
             if (!_isSyncingSelection)
@@ -1629,6 +1665,53 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             }
         }
 
+        // 2.1. Math Nodes: Đánh giá biểu thức số học
+        foreach (var mathNode in Nodes.OfType<MathNodeViewModel>())
+        {
+            var inputs = new double[mathNode.Pins.Count];
+            for (int i = 0; i < mathNode.Pins.Count; i++)
+            {
+                var pin = mathNode.Pins[i];
+                if (pin.IsConstant)
+                {
+                    inputs[i] = pin.ConstantValue;
+                }
+                else
+                {
+                    var pinConn = Connections.FirstOrDefault(c => c.Target?.Node == mathNode && c.Target == pin.Connector);
+                    if (pinConn?.Source?.Node is InputNodeViewModel srcInp && srcInp.Tag != null)
+                    {
+                        if (pin.Tag != srcInp.Tag) pin.Tag = srcInp.Tag;
+                    }
+                    else if (pinConn?.Source?.Node is ScaleNodeViewModel srcScl && srcScl.OutputTag != null)
+                    {
+                        if (pin.Tag != srcScl.OutputTag) pin.Tag = srcScl.OutputTag;
+                    }
+
+                    if (pin.Tag != null)
+                    {
+                        inputs[i] = pin.Tag.DataType == TagDataType.Float32
+                            ? BitConverter.Int32BitsToSingle(pin.Tag.Value)
+                            : pin.Tag.Value;
+                    }
+                    else
+                    {
+                        inputs[i] = 0.0;
+                    }
+                }
+            }
+
+            double res = mathNode.Calculate(inputs);
+            bool isMathActive = !mathNode.HasMathError && Math.Abs(res) > 1e-6;
+            if (mathNode.IsSimActive != isMathActive) mathNode.IsSimActive = isMathActive;
+            if (mathNode.IsLiveActive != isMathActive) mathNode.IsLiveActive = isMathActive;
+
+            foreach (var outConn in Connections.Where(c => c.Source?.Node == mathNode))
+            {
+                if (outConn.IsActive != isMathActive) outConn.IsActive = isMathActive;
+            }
+        }
+
         // 3. Comparator Nodes: Đánh giá điều kiện so sánh
         foreach (var cmpNode in Nodes.OfType<ComparatorNodeViewModel>())
         {
@@ -2445,6 +2528,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         ComparatorNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Comparator,
         HttpClientNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.HttpClient,
         TcpClientNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.TcpClient,
+        MathNodeViewModel => SimplePLC.Application.Logic.Graph.LogicNodeKind.Math,
         _ => null
     };
 
@@ -2915,6 +2999,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 100),
             "HTTP_CLIENT" or "HttpClient" or "HTTP" or "Http" or "REST" or "Webhook" => new HttpClientNodeViewModel(),
             "TCP_CLIENT" or "TcpClient" or "TCP" or "Tcp" or "TcpSocket" => new TcpClientNodeViewModel(),
+            "Math" or "MATH" or "MathOp" or "ALU" => new MathNodeViewModel(tag),
             _ => null
         };
     }
@@ -3824,6 +3909,21 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             pNode.TcpPayloadMode = tcp.PayloadMode;
             pNode.TagName = tcp.DataTag?.Name ?? string.Empty;
         }
+        else if (node is MathNodeViewModel math)
+        {
+            pNode.Type = "Math";
+            pNode.MathOperator = math.Operator.ToString();
+            pNode.MathTypeMode = math.TypeMode.ToString();
+            pNode.OutputTagName = math.OutputTag?.Name ?? string.Empty;
+            pNode.MathPins = math.Pins.Select(p => new MathPinProjectData
+            {
+                Id = p.Id,
+                Label = p.Label,
+                IsConstant = p.IsConstant,
+                ConstantValue = p.ConstantValue,
+                TagName = p.Tag?.Name ?? string.Empty
+            }).ToList();
+        }
 
         return pNode;
     }
@@ -4173,6 +4273,55 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 tcp.DataTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase));
             }
             node = tcp;
+        }
+        else if (string.Equals(type, "Math", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(type, "MATH", StringComparison.OrdinalIgnoreCase))
+        {
+            var outTag = !string.IsNullOrWhiteSpace(pNode.OutputTagName)
+                ? TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.OutputTagName, StringComparison.OrdinalIgnoreCase))
+                : null;
+            var math = new MathNodeViewModel(outTag);
+            if (Enum.TryParse<MathOperator>(pNode.MathOperator, true, out var op))
+                math.Operator = op;
+            if (Enum.TryParse<MathTypeMode>(pNode.MathTypeMode, true, out var tm))
+                math.TypeMode = tm;
+
+            if (pNode.MathPins != null && pNode.MathPins.Count > 0)
+            {
+                math.Pins.Clear();
+                math.InputConnectors.Clear();
+                foreach (var p in pNode.MathPins)
+                {
+                    var tag = !string.IsNullOrWhiteSpace(p.TagName)
+                        ? TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, p.TagName, StringComparison.OrdinalIgnoreCase))
+                        : null;
+                    var pinVm = new MathPinBindingViewModel(
+                        label: p.Label,
+                        isConstant: p.IsConstant,
+                        constantValue: p.ConstantValue,
+                        tag: tag,
+                        onChanged: () =>
+                        {
+                            math.NotifyBindingChanged();
+                        });
+                    var conn = new ConnectorViewModel
+                    {
+                        Id = p.Id,
+                        Title = p.Label,
+                        TooltipKey = "PinTooltipIn",
+                        IsInput = true,
+                        IsEvent = false,
+                        Node = math
+                    };
+                    conn.SetBilingualDescription(
+                        $"Chân đầu vào toán hạng {p.Label} của khối MATH",
+                        $"Operand input pin {p.Label} of MATH function block");
+                    pinVm.Connector = conn;
+                    math.Pins.Add(pinVm);
+                    math.InputConnectors.Add(conn);
+                }
+            }
+            node = math;
         }
 
         if (node != null)

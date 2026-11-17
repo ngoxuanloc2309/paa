@@ -72,7 +72,8 @@ export const viConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
               { text: 'CYCLE_TIMER — Tạo Xung Chu kỳ Bất đối xứng', link: '/vi/blocks/cycle-timer' },
               { text: 'CTU — Bộ Đếm Tiến (Count Up)', link: '/vi/blocks/ctu' },
               { text: 'CTD — Bộ Đếm Lùi (Count Down)', link: '/vi/blocks/ctd' },
-              { text: 'SCALE — Tuyến tính hóa & Hiệu chuẩn 2 Điểm', link: '/vi/blocks/scale' }
+              { text: 'SCALE — Tuyến tính hóa & Hiệu chuẩn 2 Điểm', link: '/vi/blocks/scale' },
+              { text: 'MATH — Khối Tính toán Số học (ALU)', link: '/vi/blocks/math' }
             ]
           },
           {

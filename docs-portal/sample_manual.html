@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>SynaptiX IDE - Hướng Dẫn Sử Dụng</title>
+  <style>
+    /* ==========================================================================
+       CHUẨN SỔ TAY HƯỚNG DẪN SỬ DỤNG SẢN PHẨM (GENUINE USER MANUAL)
+       Phong cách: Siemens / Mitsubishi / Delta / Schneider
+       Thanh lịch, thoáng đãng, mục lục rõ ràng, không nhồi nhét
+       ========================================================================== */
+    @page {
+      size: A4 portrait;
+      margin: 20mm 18mm 20mm 20mm;
+    }
+
+    @page :first {
+      margin: 20mm 20mm 20mm 20mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.55;
+      color: #111827;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Khung trang chuẩn A4 cố định vị trí Header & Footer tuyệt đối */
+    .page-sheet {
+      height: 257mm;
+      max-height: 257mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+    }
+
+    .page-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Running Header & Footer - Cố định vị trí 100% trên mọi trang */
+    .running-header {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 0.5pt solid #e2e8f0;
+      padding-bottom: 1.5mm;
+      margin-bottom: 5mm;
+      font-size: 8pt;
+      color: #94a3b8;
+      letter-spacing: 0.2px;
+    }
+
+    .running-header .book-title {
+      font-weight: normal;
+      color: #94a3b8;
+    }
+
+    .running-header span {
+      color: #94a3b8;
+    }
+
+    .running-footer {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 0.5pt solid #e2e8f0;
+      padding-top: 2mm;
+      margin-top: 5mm;
+      font-size: 8pt;
+      color: #94a3b8;
+      letter-spacing: 0.2px;
+    }
+
+    .page-num {
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    /* ==========================================================================
+       TRANG BÌA (COVER PAGE) - BỐ CỤC HỢP NHẤT LIỀN MẠCH (UNIFIED LAYOUT)
+       Không phân mảnh thành các thẻ rời rạc; cấu trúc dòng chảy công nghiệp đồng nhất
+       ========================================================================== */
+    .cover-top {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 3.5mm;
+      border-bottom: 1.5pt solid #006487;
+    }
+
+    .cover-brand {
+      display: flex;
+      align-items: center;
+    }
+
+    .cover-logo {
+      height: 10mm;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .cover-doc-badge {
+      font-size: 8pt;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .cover-content {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding-top: 12mm;
+    }
+
+    .cover-title-group {
+      margin-bottom: 8mm;
+    }
+
+    .cover-doc-category {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #006487;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 2mm;
+    }
+
+    .cover-product-title {
+      font-size: 30pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin: 0 0 2mm 0;
+      line-height: 1.05;
+      letter-spacing: -0.3px;
+    }
+
+    .cover-product-subtitle {
+      font-size: 13pt;
+      color: #1e293b;
+      margin: 0 0 2.5mm 0;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
+    .cover-title-divider {
+      width: 32mm;
+      height: 2pt;
+      background-color: #006487;
+      margin: 3mm 0 4mm 0;
+      border-radius: 1px;
+    }
+
+    .cover-product-lead {
+      font-size: 9pt;
+      color: #475569;
+      line-height: 1.55;
+      margin: 0;
+      max-width: 165mm;
+    }
+
+    /* Bảng thông số kỹ thuật định danh liền mạch (Integrated Spec Grid) */
+    .cover-spec-section {
+      margin-top: 5mm;
+      margin-bottom: 4mm;
+    }
+
+    .cover-spec-heading {
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #006487;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 2mm;
+    }
+
+    .cover-spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1.5pt solid #006487;
+      border-bottom: 1pt solid #cbd5e1;
+    }
+
+    .cover-spec-table td {
+      padding: 2.2mm 2mm;
+      border-bottom: 0.5pt solid #e2e8f0;
+      color: #334155;
+      font-size: 8.5pt;
+      vertical-align: top;
+      line-height: 1.45;
+    }
+
+    .cover-spec-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .cover-spec-key {
+      width: 26%;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .cover-spec-val {
+      width: 74%;
+      color: #1e293b;
+    }
+
+    .cover-spec-val strong {
+      color: #0f172a;
+    }
+
+    /* Khung chỉ dẫn an toàn liền mạch */
+    .cover-precaution {
+      border-left: 2pt solid #006487;
+      padding: 1.8mm 0 1.8mm 3.5mm;
+      font-size: 8pt;
+      line-height: 1.55;
+      color: #64748b;
+      margin-top: 5mm;
+    }
+
+    .cover-precaution strong {
+      color: #334155;
+    }
+
+    /* Chân trang bìa neo cố định ở đáy trang (Mờ, tinh tế theo chuẩn yêu cầu) */
+    .cover-footer {
+      flex-shrink: 0;
+      margin-top: auto;
+      border-top: 0.5pt solid #e2e8f0;
+      padding-top: 3mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 8pt;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .cover-footer-brand {
+      font-weight: 500;
+      color: #64748b;
+      font-size: 8pt;
+      margin-bottom: 0.5mm;
+    }
+
+    .cover-footer-meta {
+      font-weight: 500;
+      color: #64748b;
+      font-size: 8pt;
+      margin-bottom: 0.5mm;
+    }
+
+    .cover-footer-sub {
+      color: #94a3b8;
+      font-size: 7.5pt;
+    }
+
+    /* ==========================================================================
+       MỤC LỤC KINH ĐIỂN (CLASSIC TABLE OF CONTENTS)
+       ========================================================================== */
+    .toc-page-container {
+      height: 257mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .toc-content {
+      flex-grow: 1;
+    }
+
+    h1.toc-heading {
+      font-size: 15pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin: 0 0 3.5mm 0;
+      padding-bottom: 1.5mm;
+      border-bottom: 1.5pt solid #006487;
+    }
+
+    .toc-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc-item-ch {
+      display: flex;
+      align-items: baseline;
+      font-size: 9.5pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin-top: 2.2mm;
+      margin-bottom: 0.5mm;
+    }
+
+    .toc-item-sub {
+      display: flex;
+      align-items: baseline;
+      font-size: 9pt;
+      font-weight: normal;
+      color: #334155;
+      padding-left: 5mm;
+      margin-bottom: 0.4mm;
+    }
+
+    .toc-title {
+      flex-shrink: 0;
+    }
+
+    .toc-dots {
+      flex-grow: 1;
+      border-bottom: 0.75pt dotted #94a3b8;
+      margin: 0 2.5mm;
+      position: relative;
+      top: -2.5px;
+    }
+
+    .toc-page {
+      flex-shrink: 0;
+      font-family: Consolas, monospace;
+      font-size: 9pt;
+      font-weight: bold;
+      color: #0f172a;
+    }
+
+    /* ==========================================================================
+       NỘI DUNG CHƯƠNG 1 (CHAPTER 1 CONTENT)
+       ========================================================================== */
+    h1.chapter-title {
+      font-size: 15pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin: 0 0 4mm 0;
+      padding-bottom: 1.5mm;
+      border-bottom: 1pt solid #cbd5e1;
+    }
+
+    h2.section-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin: 4.5mm 0 1.5mm 0;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 2mm 0;
+      text-align: justify;
+      color: #334155;
+      font-size: 9pt;
+      line-height: 1.5;
+    }
+
+    ul.feature-list {
+      margin: 1mm 0 3mm 0;
+      padding-left: 4.5mm;
+      color: #334155;
+      font-size: 9pt;
+      line-height: 1.45;
+    }
+
+    ul.feature-list li {
+      margin-bottom: 1mm;
+    }
+
+    ul.feature-list li strong {
+      color: #0f172a;
+    }
+
+    /* Bảng thông số gọn gàng */
+    table.spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 2mm 0 3mm 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    table.spec-table th {
+      background: #f8fafc;
+      font-weight: bold;
+      text-align: left;
+      padding: 1.5mm 2.5mm;
+      border-top: 1pt solid #0f172a;
+      border-bottom: 1pt solid #0f172a;
+      color: #0f172a;
+    }
+
+    table.spec-table td {
+      padding: 1.5mm 2.5mm;
+      border-bottom: 0.5pt solid #e2e8f0;
+      color: #334155;
+    }
+
+    table.spec-table tr:last-child td {
+      border-bottom: 1pt solid #0f172a;
+    }
+
+    /* Khung ghi chú đơn giản */
+    .simple-note {
+      border-left: 2pt solid #006487;
+      padding: 1.5mm 3mm;
+      background: #f8fafc;
+      margin: 3mm 0;
+      font-size: 8.5pt;
+      color: #334155;
+      page-break-inside: avoid;
+    }
+
+    .simple-note strong {
+      color: #006487;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================================
+       TRANG 1: TRANG BÌA HỢP NHẤT LIỀN MẠCH (GENUINE INDUSTRIAL UNIFIED COVER)
+       Phong cách: Siemens / Mitsubishi / Schneider Electric
+       Không phân mảnh thẻ rời rạc; kết cấu công nghiệp liền mạch từ đầu đến chân
+       ========================================================================= -->
+  <div class="page-sheet cover-page">
+    <!-- Header: Brand Logo & Series -->
+    <div class="cover-top">
+      <div class="cover-brand">
+        <img src="file:///G:/HoaNV/Projects/SimplePLC/docs-portal/public/synaptix_logo.png" alt="SynaptiX Logo" class="cover-logo">
+      </div>
+      <div class="cover-doc-badge">SYNAPTIX IIOT ECOSYSTEM</div>
+    </div>
+
+    <!-- Main Body: Unified Flow -->
+    <div class="cover-content">
+      <div class="cover-title-group">
+        <div class="cover-doc-category">HƯỚNG DẪN SỬ DỤNG HỆ THỐNG</div>
+        <h1 class="cover-product-title">SynaptiX IDE</h1>
+        <div class="cover-product-subtitle">
+          Môi trường Kỹ thuật Lập trình &amp; Quản trị Thiết bị trong Hệ sinh thái SynaptiX IIoT
+        </div>
+        <div class="cover-title-divider"></div>
+        <p class="cover-product-lead">
+          Nền tảng kỹ thuật tích hợp cấu hình sơ đồ logic khối hàm FBD, truyền thông công nghiệp đa giao thức và giám sát điều phối dữ liệu thời gian thực cho hệ sinh thái thiết bị SynaptiX IIoT.
+        </p>
+      </div>
+
+      <!-- Integrated System Identification Table -->
+      <div class="cover-spec-section">
+        <div class="cover-spec-heading">THÔNG SỐ ĐỊNH DANH HỆ THỐNG</div>
+        <table class="cover-spec-table">
+          <tr>
+            <td class="cover-spec-key">Gói phần mềm</td>
+            <td class="cover-spec-val"><strong>SynaptiX IDE &amp; Runtime Engine V2.15.0 LTS</strong></td>
+          </tr>
+          <tr>
+            <td class="cover-spec-key">Hệ sinh thái áp dụng</td>
+            <td class="cover-spec-val">Toàn diện thiết bị SynaptiX IIoT (XLink Gateway, DTU, Remote I/O, Data Logger, Smart Sensor)</td>
+          </tr>
+          <tr>
+            <td class="cover-spec-key">Chức năng chính</td>
+            <td class="cover-spec-val">Lập trình Logic FBD, Quản trị Mạng IIoT, Giám sát Thời gian thực &amp; Trợ lý AI Copilot</td>
+          </tr>
+          <tr>
+            <td class="cover-spec-key">Môi trường vận hành</td>
+            <td class="cover-spec-val">Hệ điều hành Windows 10 / 11 (64-bit), Microsoft .NET 8 Desktop Runtime</td>
+          </tr>
+          <tr>
+            <td class="cover-spec-key">Tiêu chuẩn tuân thủ</td>
+            <td class="cover-spec-val">IEC 61131-3 &bull; IEC 61508-3 SIL2 &bull; ANSI/ISA-101 &bull; IEC 62443-4-1</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Integrated Precaution Note -->
+      <div class="cover-precaution">
+        <strong>LƯU Ý TRƯỚC KHI VẬN HÀNH:</strong> Vui lòng đọc kỹ toàn bộ tài liệu này trước khi cài đặt phần mềm, thiết lập logic hoặc kết nối với bất kỳ thiết bị nào trong hệ sinh thái SynaptiX. Luôn đảm bảo nút Dừng Khẩn Cấp (E-Stop) sẵn sàng và nguồn động lực được cô lập an toàn trước khi nạp chương trình logic xuống thiết bị.
+      </div>
+    </div>
+
+    <!-- Pinned Footer -->
+    <div class="cover-footer">
+      <div>
+        <div class="cover-footer-brand">SynaptiX &ndash; Industrial IoT</div>
+        <div class="cover-footer-sub">Website: synaptix-io.com &bull; Email: support@synaptix-io.com</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="cover-footer-meta">Tài liệu kỹ thuật chính thức</div>
+        <div class="cover-footer-sub">Phiên bản: 2.15.0 &bull; Tháng 11 / 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       TRANG 2: MỤC LỤC TRA CỨU (TABLE OF CONTENTS)
+       Chuẩn mực, tra cứu ngay, Header & Footer cố định tuyệt đối
+       ========================================================================= -->
+  <div class="page-sheet">
+    <div class="running-header">
+      <span class="book-title">SynaptiX IDE • Hướng dẫn sử dụng</span>
+      <span>Mục lục</span>
+    </div>
+
+    <div class="page-body">
+      <h1 class="toc-heading">Mục lục</h1>
+
+      <div class="toc-list">
+        <!-- Chương 1 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 1: Giới thiệu Hệ sinh thái SynaptiX IIoT &amp; Kiến trúc Cốt lõi</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">3</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">1.1 Tổng quan Nền tảng &amp; Danh mục Thiết bị SynaptiX IIoT</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">3</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">1.2 Kiến trúc Bộ nhớ Tag &amp; Chu trình Quét Thực thi Tất định</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">4</span>
+        </div>
+
+        <!-- Chương 2 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 2: Cài đặt Phần mềm &amp; Khởi tạo Nhanh</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">5</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">2.1 Cài đặt SynaptiX IDE &amp; Thiết lập Môi trường Vận hành</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">5</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">2.2 Kết nối Thiết bị qua USB CDC &amp; Khởi tạo Dự án Đầu tiên</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">6</span>
+        </div>
+
+        <!-- Chương 3 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 3: 7 Phân hệ Không gian Làm việc (Workspaces)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">7</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">3.1 Cấu hình Thiết bị (Device), Logic Graph &amp; Danh mục Tag Catalog</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">7</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">3.2 Bảng Luật Rule Table, Blueprints, Deploy &amp; Live Watch</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">9</span>
+        </div>
+
+        <!-- Chương 4 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 4: Thiết kế Sơ đồ Logic Khối hàm FBD Canvas</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">11</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">4.1 Thao tác Kéo-Thả, Định tuyến Dây &amp; Chuỗi Luật Cốt lõi</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">11</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">4.2 Ràng buộc Kiểu Dữ liệu Công nghiệp &amp; Quy tắc Chống Xung đột</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">13</span>
+        </div>
+
+        <!-- Chương 5 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 5: Thư viện Khối hàm Điều khiển &amp; Toán học</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">15</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">5.1 Khối Định thời (TON/TOF/TP/CYCLE) &amp; Bộ đếm (CTU/CTD)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">15</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">5.2 Khối Tuyến tính hóa SCALE &amp; Cụm Khối Toán học MATH</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">17</span>
+        </div>
+
+        <!-- Chương 6 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 6: Truyền thông Công nghiệp &amp; Điện toán Biên IIoT</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">19</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">6.1 Cấu hình Modbus RTU / TCP Master &amp; Bản đồ SCADA Slave</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">19</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">6.2 Điện toán Biên: MQTT TLS X.509, Giao thức HTTP Webhook &amp; Wi-Fi</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">21</span>
+        </div>
+
+        <!-- Chương 7 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 7: DTU Gateway Studio &amp; Mạng Zigbee Mesh</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">23</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">7.1 Cấu hình Nhanh DTU Gateway (Quick Setup Wizard)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">23</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">7.2 Định tuyến Zigbee Mesh &amp; Thu thập Dữ liệu Cảm biến Thông minh</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">25</span>
+        </div>
+
+        <!-- Chương 8 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 8: Mô phỏng Offline &amp; Nạp An toàn Xuống Thiết bị</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">27</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">8.1 Chế độ Mô phỏng Logic Offline (Simulator)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">27</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">8.2 Cơ chế Nạp An toàn Hai Pha (Atomic Flash Deploy)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">29</span>
+        </div>
+
+        <!-- Chương 9 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 9: Giám sát Trực tiếp (Live Watch) &amp; AI Copilot</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">31</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">9.1 Bắt Tín hiệu Thời gian thực &amp; Cơ chế Cưỡng bức Tag (Force)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">31</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">9.2 Trợ lý Kỹ thuật SynaptiX AI Copilot Hỗ trợ Thiết kế &amp; Gợi ý</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">33</span>
+        </div>
+
+        <!-- Chương 10 -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Chương 10: Kịch bản Ứng dụng Thực tế (Application Notes)</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">35</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">10.1 Trạm Bơm Luân phiên Tự động theo Lịch &amp; Mực nước</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">35</span>
+        </div>
+        <div class="toc-item-sub">
+          <span class="toc-title">10.2 Trạm Quan trắc Môi trường Không dây &amp; Đẩy Dữ liệu Lên Cloud</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">37</span>
+        </div>
+
+        <!-- Phụ lục A & B -->
+        <div class="toc-item-ch">
+          <span class="toc-title">Phụ lục A: Bảng Phím tắt Thao tác &amp; Phím Nóng trên Canvas</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">39</span>
+        </div>
+        <div class="toc-item-ch">
+          <span class="toc-title">Phụ lục B: Bảng Mã lỗi Hệ thống, Cảnh báo &amp; Xử lý Sự cố</span>
+          <span class="toc-dots"></span>
+          <span class="toc-page">41</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="running-footer">
+      <span>SYNX-UM-2026 &bull; SynaptiX – Industrial IoT</span>
+      <span class="page-num">2</span>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       TRANG 3: CHƯƠNG 1 (NỘI DUNG THỰC TẾ)
+       Header & Footer cố định tuyệt đối đồng nhất với Trang 2
+       ========================================================================= -->
+  <div class="page-sheet">
+    <div class="running-header">
+      <span class="book-title">SynaptiX IDE • Hướng dẫn sử dụng</span>
+      <span>Chương 1: Giới thiệu chung</span>
+    </div>
+
+    <div class="page-body">
+      <h1 class="chapter-title">Chương 1: Giới thiệu chung</h1>
+
+      <h2 class="section-title">1.1 Tổng quan về phần mềm SynaptiX IDE</h2>
+      <p>
+        <strong>SynaptiX IDE</strong> là phần mềm chuyên dụng phục vụ việc cấu hình, lập trình logic và giám sát vận hành cho các dòng thiết bị trong hệ sinh thái SynaptiX (XLink Gateway, DTU, Remote I/O, Data Logger, Smart Sensor). Phần mềm được thiết kế với giao diện trực quan, cho phép người dùng xây dựng các thuật toán điều khiển tự động hóa thông qua phương pháp kéo-thả sơ đồ khối hàm (Function Block Diagram - FBD).
+      </p>
+
+      <h2 class="section-title">1.2 Các tính năng cốt lõi</h2>
+      <p>Phần mềm tích hợp đầy đủ các công cụ cần thiết cho một kỹ sư tự động hóa:</p>
+
+      <ul class="feature-list">
+        <li>
+          <strong>Lập trình trực quan (Visual FBD Canvas):</strong> Cung cấp thư viện khối hàm phong phú gồm logic cơ bản (AND, OR, NOT), bộ định thời (TON, TOF), bộ đếm (CTU, CTD), các khối toán học (ADD, SUB, MUL, DIV) và khối so sánh.
+        </li>
+        <li>
+          <strong>Mô phỏng độc lập (Simulator):</strong> Cho phép người dùng chạy thử nghiệm và kiểm tra toàn bộ hoạt động của mạch logic ngay trên máy tính mà không cần kết nối với phần cứng thật.
+        </li>
+        <li>
+          <strong>Nạp chương trình an toàn hai pha (Atomic Deploy):</strong> Cơ chế nạp dữ liệu vào vùng đệm tạm thời trước khi chốt ghi vào bộ nhớ Flash, đảm bảo hệ thống không bị lỗi chương trình ngay cả khi mất điện đột ngột trong lúc đang nạp.
+        </li>
+        <li>
+          <strong>Giám sát thời gian thực (Live Watch):</strong> Đọc và hiển thị trực tiếp giá trị của các chân tín hiệu, biến logic và thanh ghi với tần số cập nhật nhanh, hỗ trợ chẩn đoán và khắc phục sự cố tại hiện trường.
+        </li>
+        <li>
+          <strong>Hỗ trợ đa giao thức:</strong> Tích hợp sẵn công cụ cấu hình Modbus RTU Master/Slave, Modbus TCP, kết nối Wi-Fi công nghiệp và truyền thông viễn trắc MQTT.
+        </li>
+      </ul>
+
+      <h2 class="section-title">1.3 Yêu cầu cấu hình máy tính</h2>
+      <p>Để phần mềm vận hành ổn định, máy tính của bạn cần đáp ứng cấu hình sau:</p>
+
+      <table class="spec-table">
+        <thead>
+          <tr>
+            <th style="width: 30%;">Thành phần</th>
+            <th style="width: 35%;">Yêu cầu tối thiểu</th>
+            <th>Cấu hình khuyến nghị</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Hệ điều hành</strong></td>
+            <td>Windows 10 (64-bit)</td>
+            <td>Windows 10 / 11 Pro (64-bit)</td>
+          </tr>
+          <tr>
+            <td><strong>Bộ vi xử lý (CPU)</strong></td>
+            <td>Intel Core i3 hoặc tương đương</td>
+            <td>Intel Core i5 trở lên</td>
+          </tr>
+          <tr>
+            <td><strong>Bộ nhớ RAM</strong></td>
+            <td>4 GB</td>
+            <td>8 GB trở lên</td>
+          </tr>
+          <tr>
+            <td><strong>Ổ cứng</strong></td>
+            <td>Trống 500 MB</td>
+            <td>Ổ cứng SSD</td>
+          </tr>
+          <tr>
+            <td><strong>Cổng giao tiếp</strong></td>
+            <td>01 cổng USB</td>
+            <td>Cổng USB + Cổng mạng LAN Ethernet</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="simple-note">
+        <strong>Lưu ý:</strong> Bộ cài đặt SynaptiX IDE đã tích hợp sẵn môi trường .NET Runtime cần thiết, người dùng có thể cài đặt và sử dụng ngay mà không cần kết nối Internet.
+      </div>
+    </div>
+
+    <div class="running-footer">
+      <span>SYNX-UM-2026 &bull; SynaptiX – Industrial IoT</span>
+      <span class="page-num">3</span>
+    </div>
+  </div>
+
+</body>
+</html>

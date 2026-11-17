@@ -229,7 +229,7 @@ public static class GraphGrammarV1
 
         if (sourceKind == LogicNodeKind.Scale)
         {
-            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.Math || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -237,7 +237,35 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-SCALE-OUT";
-            errorReason = "Scale output can connect to an Action, Trigger, Comparator, MQTT Publish, or DTU Gateway node.";
+            errorReason = "Scale output can connect to an Action, Trigger, Comparator, Math, MQTT Publish, or DTU Gateway node.";
+            return false;
+        }
+
+        if (sourceKind == LogicNodeKind.Math)
+        {
+            if (targetKind == LogicNodeKind.Action || targetKind == LogicNodeKind.Trigger || targetKind == LogicNodeKind.Comparator || targetKind == LogicNodeKind.Scale || targetKind == LogicNodeKind.Math || targetKind == LogicNodeKind.MqttPublish || targetKind == LogicNodeKind.DtuGateway || targetKind == LogicNodeKind.HttpClient || targetKind == LogicNodeKind.TcpClient || targetKind == LogicNodeKind.ModbusWrite || targetKind == LogicNodeKind.DirectWrite)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MATH-OUT";
+            errorReason = "Math output can connect to an Action, Trigger, Comparator, Scale, Math, MQTT Publish, or Peripheral node.";
+            return false;
+        }
+
+        if (targetKind == LogicNodeKind.Math)
+        {
+            if (sourceKind == LogicNodeKind.Input || sourceKind == LogicNodeKind.Scale || sourceKind == LogicNodeKind.Math || sourceKind == LogicNodeKind.Timer || sourceKind == LogicNodeKind.Counter || sourceKind == LogicNodeKind.ModbusRead || sourceKind == LogicNodeKind.MqttSubscribe)
+            {
+                errorCode = string.Empty;
+                errorReason = string.Empty;
+                return true;
+            }
+
+            errorCode = "SPLC-GRAPH-MATH-IN";
+            errorReason = "Math input can only receive an upstream numeric value from an Input, Scale, Math, Timer, Counter, or Fieldbus node.";
             return false;
         }
 
@@ -257,7 +285,7 @@ public static class GraphGrammarV1
 
         if (targetKind == LogicNodeKind.Comparator)
         {
-            if (sourceKind == LogicNodeKind.Input || sourceKind == LogicNodeKind.Scale)
+            if (sourceKind == LogicNodeKind.Input || sourceKind == LogicNodeKind.Scale || sourceKind == LogicNodeKind.Math)
             {
                 errorCode = string.Empty;
                 errorReason = string.Empty;
@@ -265,7 +293,7 @@ public static class GraphGrammarV1
             }
 
             errorCode = "SPLC-GRAPH-CMP-IN";
-            errorReason = "Comparator node can only receive an upstream numeric value from an Input or Scale node.";
+            errorReason = "Comparator node can only receive an upstream numeric value from an Input, Scale, or Math node.";
             return false;
         }
 

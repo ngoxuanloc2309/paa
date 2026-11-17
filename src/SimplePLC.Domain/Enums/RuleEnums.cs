@@ -39,5 +39,46 @@ public enum ActionKind
     LogEvent = 4,        // Ghi nhật ký sự kiện nội bộ
     SendAlarm = 5,       // Kích hoạt cảnh báo hệ thống
     AddTag = 6,          // Cộng giá trị TriggerTag vào ActionTag
-    ScaleTag = 7         // Chuyển đổi tuyến tính tỉ lệ giá trị TriggerTag sang ActionTag
+    ScaleTag = 7,        // Chuyển đổi tuyến tính tỉ lệ giá trị TriggerTag sang ActionTag
+    MathOp = 8          // Phép tính số học 2 toán hạng tổng quát (Op1 [Op] Op2 -> ActionTag)
+}
+
+/// <summary>
+/// Các phép toán số học và đại số nhị phân được hỗ trợ bởi khối Math (IEC 61131-3).
+/// </summary>
+public enum MathOperator : byte
+{
+    /// <summary>Phép cộng đại số: Out = Op1 + Op2</summary>
+    Add = 0,
+
+    /// <summary>Phép trừ đại số: Out = Op1 - Op2</summary>
+    Subtract = 1,
+    Sub = 1,
+
+    /// <summary>Phép nhân đại số: Out = Op1 * Op2</summary>
+    Multiply = 2,
+    Mul = 2,
+
+    /// <summary>Phép chia đại số: Out = Op1 / Op2 (có phòng vệ chống chia cho 0)</summary>
+    Divide = 3,
+    Div = 3,
+
+    /// <summary>Phép chia lấy phần dư: Out = Op1 % Op2</summary>
+    Modulo = 4,
+    Mod = 4
+}
+
+/// <summary>
+/// Chế độ xử lý kiểu dữ liệu tính toán cho khối Math.
+/// </summary>
+public enum MathTypeMode : byte
+{
+    /// <summary>Tự động phát hiện (Nâng kiểu lên REAL nếu có bất kỳ toán hạng nào là REAL)</summary>
+    Auto = 0,
+
+    /// <summary>Cưỡng bức tính toán số nguyên bù hai 32-bit (INT32)</summary>
+    ForceInt32 = 1,
+
+    /// <summary>Cưỡng bức tính toán số thực dấu chấm động IEEE-754 (REAL / Float32)</summary>
+    ForceReal = 2
 }

@@ -33,14 +33,70 @@ Official **SynaptiX IDE** `win-x64 setup` release packages include all required 
 
 ## Installing & Launching SynaptiX IDE
 
-1. **Obtain the Official Setup Package:** Download the latest signed `SynaptiX-IDE-Setup-win-x64.exe` installer from your organization's engineering portal or the official SynaptiX Releases channel.
-2. **Execute Installer:** Double-click the installer package. Accept the standard Windows User Account Control (UAC) prompt if installing machine-wide, and choose the destination directory.
-3. **Default Project Workspace Folder:** On first launch, **SynaptiX IDE** automatically initializes your default user project directory at:
+### 1. Step-by-Step Graphical Setup Wizard (Recommended)
 
+The official distribution package `SynaptiX_IDE_Setup_v2.15.0.exe` is engineered with Inno Setup 6 and LZMA2 ultra solid compression, providing a complete workstation setup in under 30 seconds:
+
+#### Step 1: Launch Installer & Welcome Screen
+Download `SynaptiX_IDE_Setup_v2.15.0.exe` from your enterprise portal or the official [synaptix-io.com](https://synaptix-io.com/downloads) release portal. Double-click the installer and accept the Windows User Account Control (UAC) prompt. The Welcome screen displays the software version:
+
+![SynaptiX IDE Setup Wizard Welcome Screen](/images/synaptix_setup_step1_welcome.png)
+
+Click **Next >** to proceed.
+
+#### Step 2: Accept the End-User License Agreement (EULA)
+Review the industrial software license terms governed by SynaptiX Corporation (adhering to IEC 61131-3 and IEC 61508-3 SIL2 standards). Select **I accept the agreement** to proceed:
+
+![Accept License Agreement](/images/synaptix_setup_step2_license.png)
+
+Click **Next >** to choose your destination directory.
+
+#### Step 3: Choose Destination Directory
+By default, the application installs to the protected enterprise location:
+```text
+%ProgramFiles%\Synaptix Automation\SynaptiX IDE
+```
+A minimum of **250 MB** free disk space is required. Click **Browse...** if you wish to select an alternate drive:
+
+![Select Destination Location](/images/synaptix_setup_step3_directory.png)
+
+#### Step 4: Configure Additional Tasks & System Integration
+Select desired system integration options:
+- **Desktop & Start Menu Shortcuts:** Quickly launch the IDE from your primary workspace.
+- **Automatic Project File Extension Association (`.splc`):** Registers `.splc` files with SynaptiX IDE, allowing engineers to open project designs directly with a double-click.
+- **Integrated Hardware Emulator (`McuEmulator`):** Automatically packages the virtual hardware engine under `Tools/SimplePLC.McuEmulator.exe`, empowering full Hardware-in-the-Loop (HIL) closed-loop testing without physical microcontroller devices.
+
+![Select Additional Tasks and Shortcuts](/images/synaptix_setup_step4_tasks.png)
+
+Click **Next >** and confirm **Install** to initiate file extraction.
+
+#### Step 5: Finish Installation & Launch SynaptiX IDE
+Once extraction finishes (typically taking 5–10 seconds with LZMA2 compression), the completion screen appears:
+
+![Completing SynaptiX IDE Setup Wizard](/images/synaptix_setup_step5_finish.png)
+
+Keep **Launch SynaptiX IDE now** checked and click **Finish**. On first launch, the IDE automatically creates your default user project directory at:
 ```text
 %USERPROFILE%\Documents\SynaptiX\Projects
 ```
-4. **Select Interface Language:** Switch seamlessly between **English** and **Tiếng Việt** at any time via **Tools -> Language** on the top menu bar without restarting the IDE or closing open projects.
+
+### 2. Unattended Silent Enterprise Rollout
+
+For OT/IT systems engineers conducting bulk mass deployments across dozens of industrial SCADA or operator workstations via Active Directory GPO, InTune, or SCCM, the installer provides silent command-line flags:
+
+```powershell
+# Completely unattended silent setup with no popups or system restarts
+.\SynaptiX_IDE_Setup_v2.15.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="synaptix_install.log"
+
+# Custom target installation directory
+.\SynaptiX_IDE_Setup_v2.15.0.exe /VERYSILENT /DIR="<TargetDirectory>\SynaptixIDE"
+
+# Unattended clean uninstallation
+"%ProgramFiles%\Synaptix Automation\SynaptiX IDE\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+```
+
+### 3. Runtime Interface Language Switching
+Switch seamlessly between **English** and **Tiếng Việt** at any time via **Tools -> Language** on the top menu bar without restarting the IDE or closing open projects.
 
 ---
 
