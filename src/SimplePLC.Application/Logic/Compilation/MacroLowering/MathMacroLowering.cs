@@ -14,6 +14,8 @@ public static class MathMacroLowering
     public const string ErrMathNoInput = "SPLC-COMP-MATH-IN";
     public const string ErrMathNoOutput = "SPLC-COMP-MATH-OUT";
     public const string ErrMathNoScratch = "SPLC-COMP-MATH-NO-SCRATCH";
+    public const string ErrMathDivZero = "SPLC-COMP-MATH-DIV-ZERO";
+    public const string ErrMathTypeMismatch = "SPLC-COMP-MATH-TYPE-MISMATCH";
 
     /// <summary>
     /// Thực hiện mở rộng các Math nodes thành các CandidateRule 32-byte.
@@ -59,6 +61,19 @@ public static class MathMacroLowering
                 continue;
             }
 
+            if ((mData.Operator == MathOperator.Divide || mData.Operator == MathOperator.Modulo) &&
+                resolvedPins.Count >= 2 &&
+                resolvedPins[1].IsConstant &&
+                Math.Abs(resolvedPins[1].ConstantValue) < 1e-9)
+            {
+                diagnostics.Add(new CompileDiagnostic(
+                    ErrMathDivZero,
+                    DiagnosticSeverity.Error,
+                    $"Khối Math '{mathLabel}' có toán hạng chia là hằng số 0 không hợp lệ.",
+                    NodeId: mathNode.Id));
+                continue;
+            }
+
             // 2. Phân giải Tag ngõ ra (Output Tag)
             ushort? resolvedOutTagIndex = mData.OutTagIndex;
             foreach (var outEdge in graph.GetOutgoingEdges(mathNode.Id))
@@ -93,11 +108,80 @@ public static class MathMacroLowering
             string macroId = mathNode.Id;
             string labelPrefix = !string.IsNullOrWhiteSpace(mathNode.Label) ? mathNode.Label : mathNode.Id;
 
-            // 4. Nếu có đúng 2 chân ngõ vào: Biên dịch thành đúng 1 Rule 32-byte nguyên tử
-            if (resolvedPins.Count == 2)
+            // 3.1. Automatic Type Promotion (Implicit Lowering per Option B)
+            // Khi tính toán ở chế độ số thực (isFloat == true), toàn bộ các toán hạng là Tag số nguyên
+            // (INT32 / AI) sẽ được tự động thăng hạng sang Float32 thông qua micro-rule SCALE ngầm vào VREG nháp.
+            var effectivePins = new List<ResolvedMathPin>(resolvedPins.Count);
+            if (isFloat)
             {
-                var pin1 = resolvedPins[0];
-                var pin2 = resolvedPins[1];
+                var pinsNeedingPromo = resolvedPins
+                    .Where(p => !p.IsConstant && p.TagIndex.HasValue && product.FindTagByIndex(p.TagIndex.Value)?.DataType != TagDataType.Float32)
+                    .ToList();
+
+                if (pinsNeedingPromo.Count > 0)
+                {
+                    var promoVregs = AllocateScratchVregs(product, usedTagIndices, pinsNeedingPromo.Count);
+                    if (promoVregs.Count < pinsNeedingPromo.Count)
+                    {
+                        diagnostics.Add(new CompileDiagnostic(
+                            ErrMathNoScratch,
+                            DiagnosticSeverity.Error,
+                            $"Khối Math '{mathLabel}' cần {pinsNeedingPromo.Count} biến trung gian để chuyển đổi kiểu INT32 sang REAL nhưng không đủ thanh ghi VREG trống trong RAM.",
+                            NodeId: mathNode.Id));
+                        continue;
+                    }
+
+                    // Đánh dấu đã sử dụng để không bị cấp trùng
+                    foreach (var v in promoVregs)
+                    {
+                        usedTagIndices.Add(v.TagIndex);
+                    }
+
+                    int pIdx = 0;
+                    foreach (var p in resolvedPins)
+                    {
+                        if (!p.IsConstant && p.TagIndex.HasValue)
+                        {
+                            var t = product.FindTagByIndex(p.TagIndex.Value);
+                            if (t != null && t.DataType != TagDataType.Float32)
+                            {
+                                var vregPromo = promoVregs[pIdx];
+                                var promoTrig = new TriggerModel(t, TriggerKind.OnChange)
+                                {
+                                    ThresholdHi = 0.0,
+                                    IsFloat = true,
+                                    ForMs = 0
+                                };
+                                var promoAct = new ActionModel(vregPromo, ActionKind.ScaleTag, parameter: 1.0, auxParameter: 0.0)
+                                {
+                                    IsFloat = true
+                                };
+                                var promoOrigin = new GeneratedRuleOrigin(mathNode.Id, macroId, "MATH_PROMO", pIdx, mathNode.Label);
+                                candidateRules.Add(new CandidateRule(mathNode, promoTrig, promoAct, GuardModel.Empty, $"{labelPrefix}_PROMO_{pIdx + 1}", promoOrigin));
+
+                                effectivePins.Add(new ResolvedMathPin(vregPromo.TagIndex, false, 0.0, p.Label));
+                                pIdx++;
+                                continue;
+                            }
+                        }
+                        effectivePins.Add(p);
+                    }
+                }
+                else
+                {
+                    effectivePins.AddRange(resolvedPins);
+                }
+            }
+            else
+            {
+                effectivePins.AddRange(resolvedPins);
+            }
+
+            // 4. Nếu có đúng 2 chân ngõ vào: Biên dịch thành đúng 1 Rule 32-byte nguyên tử
+            if (effectivePins.Count == 2)
+            {
+                var pin1 = effectivePins[0];
+                var pin2 = effectivePins[1];
 
                 var inTag1 = pin1.TagIndex.HasValue ? product.FindTagByIndex(pin1.TagIndex.Value) : null;
                 if (inTag1 == null)
@@ -154,7 +238,7 @@ public static class MathMacroLowering
             else
             {
                 // 5. Nếu có N > 2 chân ngõ vào: Cấp phát biến tạm VREG và phân rã thành chuỗi N-1 Micro-Rules
-                int intermediateCount = resolvedPins.Count - 2;
+                int intermediateCount = effectivePins.Count - 2;
                 var allocatedVregs = AllocateScratchVregs(product, usedTagIndices, intermediateCount);
 
                 if (allocatedVregs.Count < intermediateCount)
@@ -174,7 +258,7 @@ public static class MathMacroLowering
                 }
 
                 TagDefinition currentOp1Tag;
-                var pin0 = resolvedPins[0];
+                var pin0 = effectivePins[0];
                 var tag0 = pin0.TagIndex.HasValue ? product.FindTagByIndex(pin0.TagIndex.Value) : null;
                 if (tag0 == null)
                 {
@@ -187,10 +271,10 @@ public static class MathMacroLowering
                 }
                 currentOp1Tag = tag0;
 
-                int stepCount = resolvedPins.Count - 1;
+                int stepCount = effectivePins.Count - 1;
                 for (int step = 0; step < stepCount; step++)
                 {
-                    var nextPin = resolvedPins[step + 1];
+                    var nextPin = effectivePins[step + 1];
                     TagDefinition stepTargetTag = (step == stepCount - 1) ? outTag : allocatedVregs[step];
 
                     var trig = new TriggerModel(currentOp1Tag, TriggerKind.OnChange)

@@ -60,15 +60,14 @@ Dung lượng yêu cầu tối thiểu là **250 MB**. Kỹ sư có thể nhấn
 
 ![Lựa chọn Thư mục Cài đặt](/images/synaptix_setup_step3_directory.png)
 
-#### Bước 4: Tùy chọn Tích hợp Hệ thống & Công cụ Giả lập
-Trình cài đặt cung cấp sẵn các tùy chọn tích hợp mạnh mẽ:
-- **Tạo lối tắt Desktop & Start Menu:** Giúp khởi động nhanh IDE từ màn hình chính.
-- **Tự động Đăng ký Đuôi Dự án (`.splc`):** Liên kết file dự án với SynaptiX IDE, cho phép nhấp đúp trực tiếp vào file `.splc` để mở ngay trên bàn làm việc.
-- **Tích hợp Sẵn Công cụ Giả lập Vi điều khiển (`McuEmulator`):** Tự động đóng gói công cụ giả lập phần cứng ảo tại `Tools/SimplePLC.McuEmulator.exe`, phục vụ kiểm thử vòng lặp kín Hardware-in-the-Loop (HIL) không cần mạch thật.
+#### Bước 4: Tùy chọn Lối tắt & Tích hợp Hệ thống
+Trình cài đặt hiển thị tùy chọn cấu hình lối tắt bổ sung:
+- **Tạo lối tắt Desktop (Create a desktop shortcut):** Đặt biểu tượng SynaptiX IDE trên màn hình chính để khởi động nhanh môi trường kỹ thuật.
+- **Tự động Tích hợp Hệ thống & Giả lập:** Quá trình cài đặt tự động đăng ký liên kết tệp dự án `.splc` với Windows Shell (cho phép nhấp đúp tệp để mở trực tiếp) và đóng gói sẵn công cụ giả lập `Tools/SimplePLC.McuEmulator.exe` vào thư mục đích.
 
 ![Tùy chọn Bổ sung & Tích hợp Hệ thống](/images/synaptix_setup_step4_tasks.png)
 
-Nhấn **Next >** và xác nhận **Install** để tiến hành giải nén và đăng ký hệ thống.
+Nhấn **Next >** và xác nhận **Install** để tiến hành giải nén và thiết lập hệ thống.
 
 #### Bước 5: Hoàn tất Cài đặt & Khởi chạy Lần đầu
 Sau khi quá trình trích xuất nhị phân hoàn tất (thường mất 5–10 giây nhờ thuật toán LZMA2), màn hình thông báo hoàn thành sẽ xuất hiện:

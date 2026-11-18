@@ -444,6 +444,31 @@ public sealed class RuleCompiler : IRuleCompiler
                         {
                             mqttEnTag = ResolveTagIndex(trigInVm.Tag, targetProduct);
                         }
+                        else if (trigConn?.Source?.Node is TriggerNodeViewModel trigVm)
+                        {
+                            if (trigVm.IsIntervalTrigger || trigVm.IsTimeTrigger)
+                            {
+                                studioDiagnostics.Add(new SimplePLC.Studio.Models.Diagnostic(
+                                    SimplePLC.Studio.Models.DiagnosticSeverity.Warning,
+                                    string.Format(LocalizationService.Instance.IsVietnamese
+                                        ? "Khối Trigger '{0}' kiểu chu kỳ/thời gian thực không có Tag vật lý. Vui lòng chuyển khối MQTT '{1}' sang chế độ Periodic."
+                                        : "Trigger block '{0}' (Interval/RTC) has no physical tag. Consider switching MQTT block '{1}' to Periodic mode.",
+                                        trigVm.DisplayTitle, mqtt.DisplayTitle),
+                                    NodeId: mqtt.Id));
+                            }
+                            if (trigVm.InputTag != null)
+                            {
+                                mqttEnTag = ResolveTagIndex(trigVm.InputTag, targetProduct);
+                            }
+                            else
+                            {
+                                var upConn = connectionList.FirstOrDefault(c => c.Target?.Node == trigVm);
+                                if (upConn?.Source?.Node is InputNodeViewModel upIn && upIn.Tag != null)
+                                {
+                                    mqttEnTag = ResolveTagIndex(upIn.Tag, targetProduct);
+                                }
+                            }
+                        }
                         else if (trigConn?.Source?.Node is ComparatorNodeViewModel cmpTrig && cmpTrig.InputTag != null)
                         {
                             mqttEnTag = ResolveTagIndex(cmpTrig.InputTag, targetProduct);

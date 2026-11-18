@@ -29,7 +29,8 @@ public enum SPLC_HealthFlags : ushort
     NONE = 0,
     CPU_HIGH = 1 << 0,
     RAM_HIGH = 1 << 1,
-    SCAN_OVERRUN = 1 << 2
+    SCAN_OVERRUN = 1 << 2,
+    MATH_FAULT = 1 << 3
 }
 
 

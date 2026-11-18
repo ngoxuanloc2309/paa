@@ -6,6 +6,7 @@
              xmlns:converters="clr-namespace:SimplePLC.Studio.Converters"
              xmlns:models="clr-namespace:SimplePLC.Studio.Models"
              xmlns:controls="clr-namespace:SimplePLC.Studio.Controls"
+             xmlns:services="clr-namespace:SimplePLC.Studio.Services"
              mc:Ignorable="d" 
              d:DesignHeight="700" d:DesignWidth="380"
              FontFamily="Segoe UI, Segoe UI Emoji, Segoe UI Symbol"
@@ -41,7 +42,7 @@
                     <!-- Settings Button -->
                     <Button Command="{Binding ToggleSettingsCommand}"
                             Background="Transparent" BorderThickness="0" Width="26" Height="26" Margin="0,0,3,0"
-                            ToolTip="Cài đặt API Key &amp; Mô hình Gemini" Cursor="Hand">
+                            ToolTip="{Binding [AiChatTooltipSettings], Source={x:Static services:LocalizationService.Instance}}" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
@@ -59,7 +60,7 @@
                     <!-- Clear Chat Button -->
                     <Button Command="{Binding ClearChatCommand}"
                             Background="Transparent" BorderThickness="0" Width="26" Height="26" Margin="0,0,3,0"
-                            ToolTip="Xóa lịch sử chat và làm mới" Cursor="Hand">
+                            ToolTip="{Binding [AiChatTooltipClear], Source={x:Static services:LocalizationService.Instance}}" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
@@ -77,7 +78,7 @@
                     <!-- Close Panel Button -->
                     <Button Command="{Binding ClosePanelCommand}"
                             Background="Transparent" BorderThickness="0" Width="24" Height="24"
-                            ToolTip="Thu gọn AI Chatbox" Cursor="Hand">
+                            ToolTip="{Binding [AiChatTooltipCollapse], Source={x:Static services:LocalizationService.Instance}}" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bdr" Background="{TemplateBinding Background}" CornerRadius="2">
@@ -97,7 +98,7 @@
                 <StackPanel Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="💬" FontSize="12.5" Margin="0,0,6,0" VerticalAlignment="Center" />
-                        <TextBlock Text="SynaptiX AI Chatbox" FontWeight="Bold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding [AiChatTitle], Source={x:Static services:LocalizationService.Instance}}" FontWeight="Bold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <!-- Compact Context Status Pills -->
@@ -160,9 +161,16 @@
         <Border Grid.Row="1" Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="14,12"
                 Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="Cấu hình Google Gemini AI" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding [AiChatSettingsTitle], Source={x:Static services:LocalizationService.Instance}}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" />
 
-                <TextBlock Text="Gemini API Key:" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <!-- Provider Selection -->
+                <TextBlock Text="{Binding [AiChatSettingsProvider], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding AvailableProviders}"
+                          SelectedItem="{Binding SelectedProvider}"
+                          Height="28" FontSize="11.5" Margin="0,0,0,8" />
+
+                <!-- API Key Input -->
+                <TextBlock Text="{Binding ApiKeyLabel}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="11.5" Padding="6,4" Height="28" Margin="0,0,0,6"
                          BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Background="{DynamicResource BgWindowBrush}">
@@ -171,21 +179,31 @@
                     </TextBox.InputBindings>
                 </TextBox>
 
-                <Button Command="{Binding OpenGoogleAiStudioCommand}"
+                <!-- Help Portal Link -->
+                <Button Command="{Binding OpenApiKeyPortalCommand}"
                         Background="Transparent" BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,10" Cursor="Hand">
-                    <TextBlock Text="👉 Nhấp vào đây để lấy API Key miễn phí từ Google AI Studio"
+                    <TextBlock Text="{Binding ApiKeyHelpUrlText}"
                                FontSize="10.5" Foreground="{DynamicResource PrimaryBrush}" TextDecorations="Underline" />
                 </Button>
 
-                <TextBlock Text="Mô hình (Model):" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <!-- Model Selection -->
+                <TextBlock Text="{Binding [AiChatSettingsModel], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
                 <ComboBox ItemsSource="{Binding AvailableModels}"
                           SelectedItem="{Binding SelectedModel}"
+                          Text="{Binding SelectedModel, UpdateSourceTrigger=PropertyChanged}"
+                          IsEditable="True"
                           Height="28" FontSize="11.5" Margin="0,0,0,4" />
-                <TextBlock Text="* Flash: Miễn phí 100% (cực nhanh). Pro: Cho tài khoản có Billing." FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
+                <TextBlock Text="{Binding ModelHelpText}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
+
+                <!-- Response Language Selection -->
+                <TextBlock Text="{Binding [AiChatSettingsResponseLang], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding AvailableResponseLanguages}"
+                          SelectedItem="{Binding SelectedResponseLanguage}"
+                          Height="28" FontSize="11.5" Margin="0,0,0,12" />
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Command="{Binding ToggleSettingsCommand}"
-                            Content="Hủy" Width="60" Height="26" Margin="0,0,6,0"
+                            Content="{Binding [AiChatBtnReject], Source={x:Static services:LocalizationService.Instance}}" Width="60" Height="26" Margin="0,0,6,0"
                             Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" FontSize="11" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -196,7 +214,7 @@
                         </Button.Template>
                     </Button>
                     <Button Command="{Binding SaveSettingsCommand}"
-                            Content="Lưu cấu hình" Width="90" Height="26"
+                            Content="{Binding [AiChatSettingsSave], Source={x:Static services:LocalizationService.Instance}}" Width="100" Height="26"
                             Background="{DynamicResource PrimaryBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -220,9 +238,9 @@
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                     <TextBlock Text="🔑" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Chưa kết nối Gemini API Key" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource WarningDarkBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding OnboardingBannerTitle}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource WarningDarkBrush}" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="Google cấp miễn phí 1.500 lượt hỏi/ngày. Hãy dán Key để bắt đầu sử dụng."
+                <TextBlock Text="{Binding OnboardingBannerSubtitle}"
                            FontSize="11" Foreground="{DynamicResource WarningDarkBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <Button Command="{Binding ToggleSettingsCommand}"
                         Background="{DynamicResource WarningBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0" Padding="10,4"
@@ -336,7 +354,7 @@
                                                             </Border>
                                                         </ControlTemplate>
                                                     </Button.Template>
-                                                    <TextBlock Text="✓ Áp dụng" FontSize="10.5" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding [AiChatBtnApply], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontWeight="SemiBold" />
                                                 </Button>
 
                                                 <Button Command="{Binding DataContext.RejectProposalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -351,7 +369,7 @@
                                                             </Border>
                                                         </ControlTemplate>
                                                     </Button.Template>
-                                                    <TextBlock Text="✕ Hủy" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                                    <TextBlock Text="{Binding [AiChatBtnReject], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
                                                 </Button>
                                             </StackPanel>
 
@@ -361,7 +379,7 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                             <DataTrigger Binding="{Binding IsApplied}" Value="True">
                                                                 <Setter Property="Visibility" Value="Visible" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -370,7 +388,7 @@
                                             </TextBlock>
 
                                             <!-- Trạng thái đã hủy -->
-                                            <TextBlock Text="✕ Đã hủy" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic">
+                                            <TextBlock Text="{Binding [AiChatBtnRejected], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -407,7 +425,7 @@
                                                 </Button.Template>
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="📋 " FontSize="10" />
-                                                    <TextBlock Text="Copy gợi ý" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding [AiChatCopySuggestion], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
                                                 </StackPanel>
                                             </Button>
                                         </DockPanel>
@@ -481,7 +499,7 @@
                     </TextBox>
 
                     <!-- Watermark / Placeholder Text -->
-                    <TextBlock Text="Hỏi đáp kỹ thuật hoặc mô tả mạch cần tạo... (Enter để gửi, Shift+Enter xuống dòng)"
+                    <TextBlock Text="{Binding [AiChatWatermark], Source={x:Static services:LocalizationService.Instance}}"
                                FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"
                                Margin="8,6,0,0" IsHitTestVisible="False" VerticalAlignment="Top">
                         <TextBlock.Style>
@@ -502,7 +520,7 @@
                     <!-- Cancel button when busy -->
                     <Button Command="{Binding CancelCurrentRequestCommand}"
                             Background="{DynamicResource DangerBrush}" Foreground="{DynamicResource BgPanelBrush}" BorderThickness="0"
-                            Width="34" Height="32" Cursor="Hand" ToolTip="Hủy yêu cầu"
+                            Width="34" Height="32" Cursor="Hand" ToolTip="{Binding [AiChatTooltipCancel], Source={x:Static services:LocalizationService.Instance}}"
                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -516,7 +534,7 @@
 
                     <!-- Send button when idle (Industrial Slate Gray Tokens) -->
                     <Button x:Name="SendButton" Command="{Binding SendMessageCommand}" Click="SendButton_Click"
-                            Width="40" Height="32" Cursor="Hand" ToolTip="Gửi tin nhắn (Enter)"
+                            Width="40" Height="32" Cursor="Hand" ToolTip="{Binding [AiChatTooltipSend], Source={x:Static services:LocalizationService.Instance}}"
                             Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">

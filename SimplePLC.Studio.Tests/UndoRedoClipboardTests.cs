@@ -182,6 +182,252 @@ public class UndoRedoClipboardTests
     }
 
     [Fact]
+    public void Clipboard_Duplicate_TimerNode_PreservesAllParameters()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Timer", new Point(100, 100));
+            var timerNode = Assert.IsType<TimerNodeViewModel>(vm.Nodes[0]);
+            timerNode.TimerMode = "TOF";
+            timerNode.SetDuration(15.5, "s");
+            var outTag = vm.TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.DiscreteOutput);
+            timerNode.OutputTag = outTag;
+
+            vm.SelectExclusive(timerNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<TimerNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(timerNode.Id, duplicated.Id);
+            Assert.Equal("TOF", duplicated.TimerMode);
+            Assert.Equal(15.5, duplicated.DurationValue);
+            Assert.Equal("s", duplicated.TimeUnit);
+            Assert.Equal(outTag?.Name, duplicated.OutputTag?.Name);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_CounterNode_PreservesAllParameters()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Counter", new Point(100, 100));
+            var counterNode = Assert.IsType<CounterNodeViewModel>(vm.Nodes[0]);
+            counterNode.CounterMode = "CTD";
+            counterNode.PresetValue = 75;
+
+            vm.SelectExclusive(counterNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<CounterNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(counterNode.Id, duplicated.Id);
+            Assert.Equal("CTD", duplicated.CounterMode);
+            Assert.Equal(75, duplicated.PresetValue);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_ScaleNode_PreservesAllParameters()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Scale", new Point(100, 100));
+            var scaleNode = Assert.IsType<ScaleNodeViewModel>(vm.Nodes[0]);
+            scaleNode.Gain = 2.5;
+            scaleNode.Offset = -10.0;
+            scaleNode.Unit = "PSI";
+            scaleNode.ClampMin = -50.0;
+            scaleNode.ClampMax = 200.0;
+
+            vm.SelectExclusive(scaleNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<ScaleNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(scaleNode.Id, duplicated.Id);
+            Assert.Equal(2.5, duplicated.Gain);
+            Assert.Equal(-10.0, duplicated.Offset);
+            Assert.Equal("PSI", duplicated.Unit);
+            Assert.Equal(-50.0, duplicated.ClampMin);
+            Assert.Equal(200.0, duplicated.ClampMax);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_MathNode_PreservesAllParametersAndPins()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Math", new Point(100, 100));
+            var mathNode = Assert.IsType<MathNodeViewModel>(vm.Nodes[0]);
+            mathNode.Operator = MathOperator.Multiply;
+            mathNode.Pins[0].IsConstant = true;
+            mathNode.Pins[0].ConstantValue = 42.5;
+
+            vm.SelectExclusive(mathNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<MathNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(mathNode.Id, duplicated.Id);
+            Assert.Equal(MathOperator.Multiply, duplicated.Operator);
+            Assert.True(duplicated.Pins[0].IsConstant);
+            Assert.Equal(42.5, duplicated.Pins[0].ConstantValue);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_TriggerNode_PreservesInputTagAndThresholds()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Trigger", new Point(100, 100));
+            var trigNode = Assert.IsType<TriggerNodeViewModel>(vm.Nodes[0]);
+            var tag = vm.TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput)
+                      ?? vm.TagCatalog.AllTags.First();
+            trigNode.InputTag = tag;
+            trigNode.TriggerType = TriggerType.ON_FALL;
+            trigNode.CompareOp = CompareOp.GT;
+            trigNode.ThresholdLo = 55.0;
+            trigNode.ForMs = 1200;
+
+            vm.SelectExclusive(trigNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<TriggerNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(trigNode.Id, duplicated.Id);
+            Assert.Equal(tag.Name, duplicated.InputTag?.Name);
+            Assert.Equal(TriggerType.ON_FALL, duplicated.TriggerType);
+            Assert.Equal(CompareOp.GT, duplicated.CompareOp);
+            Assert.Equal(55.0, duplicated.ThresholdLo);
+            Assert.Equal(1200u, duplicated.ForMs);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_ComparatorNode_PreservesCompareOpAndThresholds()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Comparator", new Point(100, 100));
+            var cmpNode = Assert.IsType<ComparatorNodeViewModel>(vm.Nodes[0]);
+            var tag = vm.TagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput)
+                      ?? vm.TagCatalog.AllTags.First();
+            cmpNode.InputTag = tag;
+            cmpNode.CompareOp = CompareOp.BETWEEN;
+            cmpNode.ThresholdLo = 10.0;
+            cmpNode.ThresholdHi = 90.0;
+
+            vm.SelectExclusive(cmpNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<ComparatorNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(cmpNode.Id, duplicated.Id);
+            Assert.Equal(tag.Name, duplicated.InputTag?.Name);
+            Assert.Equal(CompareOp.BETWEEN, duplicated.CompareOp);
+            Assert.Equal(10.0, duplicated.ThresholdLo);
+            Assert.Equal(90.0, duplicated.ThresholdHi);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_ModbusReadNode_PreservesParametersAndPins()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("ModbusRead", new Point(100, 100));
+            var mbNode = Assert.IsType<ModbusReadNodeViewModel>(vm.Nodes[0]);
+            mbNode.PortIndex = 2;
+            mbNode.SlaveId = 5;
+            mbNode.StartAddress = 100;
+            mbNode.RegCount = 4;
+            mbNode.PollIntervalMs = 250;
+
+            vm.SelectExclusive(mbNode);
+            vm.Duplicate();
+
+            Assert.Equal(2, vm.Nodes.Count);
+            var duplicated = Assert.IsType<ModbusReadNodeViewModel>(vm.SelectedNode);
+            Assert.NotEqual(mbNode.Id, duplicated.Id);
+            Assert.Equal((byte)2, duplicated.PortIndex);
+            Assert.Equal((byte)5, duplicated.SlaveId);
+            Assert.Equal((ushort)100, duplicated.StartAddress);
+            Assert.Equal((ushort)4, duplicated.RegCount);
+            Assert.Equal(250u, duplicated.PollIntervalMs);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void Clipboard_Duplicate_MultipleConnectedNodes_PreservesInterconnections()
+    {
+        var thread = new Thread(() =>
+        {
+            var vm = CreateEditor();
+            vm.AddNode("Input", new Point(100, 100));
+            vm.AddNode("Trigger", new Point(300, 100));
+
+            var node1 = vm.Nodes[0];
+            var node2 = vm.Nodes[1];
+
+            vm.CompleteConnection((node1.OutputConnectors[0], node2.InputConnectors[0]));
+            Assert.Single(vm.Connections);
+
+            // Select both nodes
+            vm.DeselectAllNodes();
+            node1.IsSelected = true;
+            node2.IsSelected = true;
+            Assert.True(node1.IsSelected);
+            Assert.True(node2.IsSelected);
+
+            vm.Duplicate();
+
+            // Should have 4 nodes and 2 connections now
+            Assert.Equal(4, vm.Nodes.Count);
+            Assert.Equal(2, vm.Connections.Count);
+
+            // The newly created nodes must have a connection between them
+            var newNodes = vm.Nodes.Skip(2).ToList();
+            var newConn = vm.Connections.Last();
+            Assert.Contains(newConn.Source.Node, newNodes);
+            Assert.Contains(newConn.Target.Node, newNodes);
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
     public void SelectAll_SelectsAllNodesOnCanvas()
     {
         var vm = CreateEditor();

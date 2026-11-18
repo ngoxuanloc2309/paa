@@ -49,6 +49,9 @@ public partial class MathConfigPinItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _canDelete;
 
+    [ObservableProperty]
+    private bool _isWiredFromCanvas;
+
     public string DataTypeText
     {
         get
@@ -79,16 +82,24 @@ public partial class MathConfigPinItemViewModel : ObservableObject
         bool isConstant,
         double constantValue,
         TagModel? tag,
+        bool isWiredFromCanvas,
         Action? onChanged)
     {
         _index = index;
         _name = name;
-        _isConstant = isConstant;
+        _isConstant = isWiredFromCanvas ? false : isConstant;
         _constantValue = constantValue;
         _constantValueText = NumericInputHelper.FormatDouble(constantValue);
         _simulationValue = isConstant ? constantValue : (tag?.DataType == TagDataType.Float32 ? 25.0 : 10.0);
         _tag = tag;
+        _isWiredFromCanvas = isWiredFromCanvas;
         _onChanged = onChanged;
+    }
+
+    partial void OnNameChanged(string value)
+    {
+        OnPropertyChanged(nameof(DisplayText));
+        _onChanged?.Invoke();
     }
 
     partial void OnIsConstantChanged(bool value)
@@ -216,6 +227,9 @@ public partial class MathConfigDialogViewModel : ObservableObject
     [ObservableProperty]
     private TagModel? _outputTag;
 
+    [ObservableProperty]
+    private bool _isOutputWiredFromCanvas;
+
     partial void OnOutputTagChanged(TagModel? value)
     {
         UpdateSimulation();
@@ -284,6 +298,7 @@ public partial class MathConfigDialogViewModel : ObservableObject
         _operator = node.Operator;
         _typeMode = node.TypeMode;
         _outputTag = node.OutputTag;
+        _isOutputWiredFromCanvas = node.OutputConnectors.FirstOrDefault()?.IsConnected == true;
 
         // Xây dựng danh sách Tag hợp lệ
         BuildAvailableTags();
@@ -291,12 +306,14 @@ public partial class MathConfigDialogViewModel : ObservableObject
         // Nạp các chân hiện tại từ Node
         foreach (var pin in node.Pins)
         {
+            bool isWired = pin.Connector?.IsConnected == true;
             var item = new MathConfigPinItemViewModel(
                 index: Pins.Count + 1,
                 name: pin.Label,
-                isConstant: pin.IsConstant,
+                isConstant: isWired ? false : pin.IsConstant,
                 constantValue: pin.ConstantValue,
                 tag: pin.Tag,
+                isWiredFromCanvas: isWired,
                 onChanged: UpdateSimulation);
 
             Pins.Add(item);
@@ -313,6 +330,7 @@ public partial class MathConfigDialogViewModel : ObservableObject
                 isConstant: false,
                 constantValue: 0.0,
                 tag: defaultTag,
+                isWiredFromCanvas: false,
                 onChanged: UpdateSimulation);
             Pins.Add(item);
         }
@@ -367,12 +385,49 @@ public partial class MathConfigDialogViewModel : ObservableObject
         for (int i = 0; i < Pins.Count; i++)
         {
             Pins[i].Index = i + 1;
-            Pins[i].Name = $"IN{i + 1}";
-            Pins[i].CanDelete = Pins.Count > 2 && i >= 2;
+            if (string.IsNullOrWhiteSpace(Pins[i].Name))
+            {
+                Pins[i].Name = $"IN{i + 1}";
+            }
+            Pins[i].CanDelete = Pins.Count > 2 && i >= 2 && !Pins[i].IsWiredFromCanvas;
         }
 
         OnPropertyChanged(nameof(CanAddPin));
         OnPropertyChanged(nameof(PinCountSummary));
+    }
+
+    private void UpdateAvailableOutputTags(bool isReal)
+    {
+        var currentSelected = OutputTag;
+        AvailableOutputTags.Clear();
+        // Option None cho ngõ ra (để nối dây FBD trên Canvas)
+        AvailableOutputTags.Add(null);
+
+        if (TagCatalog != null)
+        {
+            var targetTags = TagCatalog.RegisterTags.Where(t => isReal ? t.DataType == TagDataType.Float32 : t.DataType != TagDataType.Float32);
+            foreach (var t in targetTags)
+            {
+                AvailableOutputTags.Add(t);
+            }
+        }
+
+        if (IsOutputWiredFromCanvas && currentSelected != null)
+        {
+            if (!AvailableOutputTags.Contains(currentSelected))
+            {
+                AvailableOutputTags.Add(currentSelected);
+            }
+            OutputTag = currentSelected;
+        }
+        else if (currentSelected != null && AvailableOutputTags.Contains(currentSelected))
+        {
+            OutputTag = currentSelected;
+        }
+        else if (currentSelected != null && !IsOutputWiredFromCanvas)
+        {
+            OutputTag = AvailableOutputTags.FirstOrDefault(t => t != null);
+        }
     }
 
     [RelayCommand]
@@ -389,6 +444,7 @@ public partial class MathConfigDialogViewModel : ObservableObject
             isConstant: false,
             constantValue: 0.0,
             tag: defaultTag,
+            isWiredFromCanvas: false,
             onChanged: UpdateSimulation);
 
         Pins.Add(item);
@@ -399,7 +455,7 @@ public partial class MathConfigDialogViewModel : ObservableObject
     [RelayCommand]
     public void RemovePin(MathConfigPinItemViewModel? item)
     {
-        if (item == null || Pins.Count <= 2) return;
+        if (item == null || item.IsWiredFromCanvas || Pins.Count <= 2) return;
 
         Pins.Remove(item);
         RefreshPinIndices();
@@ -417,89 +473,101 @@ public partial class MathConfigDialogViewModel : ObservableObject
         var tag1 = AvailableNumericTags.FirstOrDefault(t => t.Kind == TagKind.AnalogInput) ?? AvailableNumericTags.FirstOrDefault();
         var tag2 = AvailableNumericTags.Skip(1).FirstOrDefault() ?? AvailableNumericTags.FirstOrDefault();
 
-        Pins.Add(new MathConfigPinItemViewModel(1, "IN1", false, 0.0, tag1, UpdateSimulation));
-        Pins.Add(new MathConfigPinItemViewModel(2, "IN2", true, 10.0, tag2, UpdateSimulation));
+        Pins.Add(new MathConfigPinItemViewModel(1, "IN1", false, 0.0, tag1, false, UpdateSimulation));
+        Pins.Add(new MathConfigPinItemViewModel(2, "IN2", true, 10.0, tag2, false, UpdateSimulation));
 
         RefreshPinIndices();
         UpdateSimulation();
     }
 
+    private bool _isUpdatingSimulation;
+
     public void UpdateSimulation()
     {
-        string outPart = OutputTag != null ? OutputTag.Name : "OUT";
-        if (Pins.Count == 0)
+        if (_isUpdatingSimulation) return;
+        _isUpdatingSimulation = true;
+        try
         {
-            FormulaExpression = $"{outPart} = 0";
-            SimulationResult = 0;
-            SimulationResultText = "0";
-            HasMathError = false;
-            IsStatusValid = true;
-            StatusBadgeText = LocalizationService.Tr("MathConfigStatusValid");
-            return;
-        }
-
-        string sep = $" {OperatorSymbol} ";
-        var pinLabels = Pins.Select(p => p.DisplayText);
-        FormulaExpression = $"{outPart} = {string.Join(sep, pinLabels)}";
-
-        // Tính toán mô phỏng ALU
-        double result = Pins[0].SimulationValue;
-        bool hasDivZero = false;
-
-        for (int i = 1; i < Pins.Count; i++)
-        {
-            double val = Pins[i].SimulationValue;
-            switch (Operator)
+            string outPart = OutputTag != null ? OutputTag.Name : "OUT";
+            if (Pins.Count == 0)
             {
-                case MathOperator.Add:
-                    result += val;
-                    break;
-                case MathOperator.Sub:
-                    result -= val;
-                    break;
-                case MathOperator.Mul:
-                    result *= val;
-                    break;
-                case MathOperator.Div:
-                    if (Math.Abs(val) < 1e-9)
-                        hasDivZero = true;
-                    else
-                        result /= val;
-                    break;
-                case MathOperator.Mod:
-                    if (Math.Abs(val) < 1e-9)
-                        hasDivZero = true;
-                    else
-                        result %= val;
-                    break;
+                FormulaExpression = $"{outPart} = 0";
+                SimulationResult = 0;
+                SimulationResultText = "0";
+                HasMathError = false;
+                IsStatusValid = true;
+                StatusBadgeText = LocalizationService.Tr("MathConfigStatusValid");
+                return;
             }
+
+            string sep = $" {OperatorSymbol} ";
+            var pinLabels = Pins.Select(p => p.DisplayText);
+            FormulaExpression = $"{outPart} = {string.Join(sep, pinLabels)}";
+
+            // Tính toán mô phỏng ALU
+            double result = Pins[0].SimulationValue;
+            bool hasDivZero = false;
+
+            for (int i = 1; i < Pins.Count; i++)
+            {
+                double val = Pins[i].SimulationValue;
+                switch (Operator)
+                {
+                    case MathOperator.Add:
+                        result += val;
+                        break;
+                    case MathOperator.Sub:
+                        result -= val;
+                        break;
+                    case MathOperator.Mul:
+                        result *= val;
+                        break;
+                    case MathOperator.Div:
+                        if (Math.Abs(val) < 1e-9)
+                            hasDivZero = true;
+                        else
+                            result /= val;
+                        break;
+                    case MathOperator.Mod:
+                        if (Math.Abs(val) < 1e-9)
+                            hasDivZero = true;
+                        else
+                            result %= val;
+                        break;
+                }
+            }
+
+            bool hasReal = (TypeMode == MathTypeMode.ForceReal) || (TypeMode != MathTypeMode.ForceInt32 && Pins.Any(p => p.DataTypeText == "REAL"));
+            InferredType = hasReal ? "REAL" : "INT32";
+            UpdateAvailableOutputTags(hasReal);
+
+            if (hasDivZero || double.IsNaN(result) || double.IsInfinity(result))
+            {
+                HasMathError = true;
+                IsStatusValid = false;
+                SimulationResult = 0;
+                SimulationResultText = "NaN / FAULT";
+                StatusBadgeText = LocalizationService.Tr("MathConfigStatusDivZero");
+            }
+            else
+            {
+                HasMathError = false;
+                IsStatusValid = true;
+                SimulationResult = result;
+                SimulationResultText = Math.Abs(result % 1) < 1e-6
+                    ? ((long)Math.Round(result)).ToString(CultureInfo.InvariantCulture)
+                    : result.ToString("F2", CultureInfo.InvariantCulture);
+                StatusBadgeText = LocalizationService.Tr("MathConfigStatusValid");
+            }
+
+            OnPropertyChanged(nameof(FormulaExpression));
+            OnPropertyChanged(nameof(SimulationResultText));
+            OnPropertyChanged(nameof(PinCountSummary));
         }
-
-        bool hasReal = Pins.Any(p => p.DataTypeText == "REAL");
-        InferredType = hasReal ? "REAL" : "INT32";
-
-        if (hasDivZero || double.IsNaN(result) || double.IsInfinity(result))
+        finally
         {
-            HasMathError = true;
-            IsStatusValid = false;
-            SimulationResult = 0;
-            SimulationResultText = "NaN / FAULT";
-            StatusBadgeText = LocalizationService.Tr("MathConfigStatusDivZero");
+            _isUpdatingSimulation = false;
         }
-        else
-        {
-            HasMathError = false;
-            IsStatusValid = true;
-            SimulationResult = result;
-            SimulationResultText = Math.Abs(result % 1) < 1e-6
-                ? ((long)Math.Round(result)).ToString(CultureInfo.InvariantCulture)
-                : result.ToString("F2", CultureInfo.InvariantCulture);
-            StatusBadgeText = LocalizationService.Tr("MathConfigStatusValid");
-        }
-
-        OnPropertyChanged(nameof(FormulaExpression));
-        OnPropertyChanged(nameof(SimulationResultText));
-        OnPropertyChanged(nameof(PinCountSummary));
     }
 
     /// <summary>

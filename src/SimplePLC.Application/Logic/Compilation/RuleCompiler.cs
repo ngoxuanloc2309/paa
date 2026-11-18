@@ -27,6 +27,8 @@ public sealed class RuleCompiler : IRuleCompiler
     public const string ErrMathNoInput = MathMacroLowering.ErrMathNoInput;
     public const string ErrMathNoOutput = MathMacroLowering.ErrMathNoOutput;
     public const string ErrMathNoScratch = MathMacroLowering.ErrMathNoScratch;
+    public const string ErrMathDivZero = MathMacroLowering.ErrMathDivZero;
+    public const string ErrMathTypeMismatch = MathMacroLowering.ErrMathTypeMismatch;
     public const string WarnNoActions = "SPLC-COMP-W01";
     public const string ErrCircularDependency = RuleDependencyGraph.ErrCircularDependency;
     public const string ErrConflictingWriters = WriteConflictValidator.ErrConflictingWriters;

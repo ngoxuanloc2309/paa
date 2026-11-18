@@ -3049,9 +3049,6 @@ public partial class MainViewModel : ObservableObject
             IsProjectDirty = true;
             message.IsApplied = true;
 
-            // Chuyển sang Tab Bảng Rule để kỹ sư xem ngay
-            SelectTab(AppTabIndices.RuleTable);
-
             string toast = LocalizationService.Instance.IsVietnamese
                 ? $"✨ Đã nạp thành công {addedCount} Rule từ AI vào Bảng Rule!"
                 : $"✨ Successfully added {addedCount} AI-generated rule(s) to Rule Table!";

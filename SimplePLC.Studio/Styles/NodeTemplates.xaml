@@ -129,9 +129,10 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="2"
+                            ClipToBounds="True"
                             SnapsToDevicePixels="True"
                             UseLayoutRounding="True">
-                        <Grid>
+                        <Grid ClipToBounds="True">
                             <Grid.RowDefinitions>
                                 <!-- Row 0: Top Accent Stripe (4px Chẵn) -->
                                 <RowDefinition Height="4" />
@@ -189,7 +190,7 @@
                             </Border>
 
                             <!-- 2. Integrated Body with Left & Right Ports -->
-                            <Grid Grid.Row="2" Height="56">
+                            <Grid Grid.Row="2" Height="56" ClipToBounds="True">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -202,7 +203,7 @@
                                               ItemsSource="{TemplateBinding Input}"
                                               ItemTemplate="{TemplateBinding InputConnectorTemplate}"
                                               VerticalAlignment="Center"
-                                              Margin="-6,0,2,0" />
+                                              Margin="-5,0,2,0" />
 
                                 <!-- Body Content in the middle: Centered, clean, high contrast -->
                                 <ContentPresenter Grid.Column="1"
@@ -215,7 +216,7 @@
                                               ItemsSource="{TemplateBinding Output}"
                                               ItemTemplate="{TemplateBinding OutputConnectorTemplate}"
                                               VerticalAlignment="Center"
-                                              Margin="2,0,-6,0" />
+                                              Margin="2,0,-5,0" />
                             </Grid>
                         </Grid>
                     </Border>
@@ -301,9 +302,10 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="2"
+                            ClipToBounds="True"
                             SnapsToDevicePixels="True"
                             UseLayoutRounding="True">
-                        <Grid>
+                        <Grid ClipToBounds="True">
                             <Grid.RowDefinitions>
                                 <!-- Row 0: Top Accent Stripe (4px) -->
                                 <RowDefinition Height="4" />
@@ -358,7 +360,7 @@
                             </Border>
 
                             <!-- 2. Integrated Body with Left & Right Ports (Dynamic Height) -->
-                            <Grid Grid.Row="2" MinHeight="56" Margin="0,4,0,4">
+                            <Grid Grid.Row="2" MinHeight="56" Margin="0,4,0,4" ClipToBounds="True">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -371,7 +373,7 @@
                                               ItemsSource="{TemplateBinding Input}"
                                               ItemTemplate="{TemplateBinding InputConnectorTemplate}"
                                               VerticalAlignment="Top"
-                                              Margin="-6,2,2,2" />
+                                              Margin="-5,2,2,2" />
 
                                 <!-- Body Content in the middle: Centered, clean -->
                                 <ContentPresenter Grid.Column="1"
@@ -385,7 +387,7 @@
                                               ItemsSource="{TemplateBinding Output}"
                                               ItemTemplate="{TemplateBinding OutputConnectorTemplate}"
                                               VerticalAlignment="Top"
-                                              Margin="2,2,-6,2" />
+                                              Margin="2,2,-5,2" />
                             </Grid>
                         </Grid>
                     </Border>

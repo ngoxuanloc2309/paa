@@ -7,6 +7,11 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử đơn vị cho các chức năng cơ bản của SynaptiX AI Copilot:
+/// - Sinh System Prompt cơ bản
+/// - Khung đề xuất FBD và đồng bộ Rule Table
+/// </summary>
 public class AiCopilotTests
 {
     [Fact]
@@ -367,6 +372,7 @@ public class AiCopilotTests
     [Fact]
     public void AiChatViewModel_AcceptProposal_SetsAppliedStatusTextAndSyncsRules()
     {
+        LocalizationService.Instance.CurrentLanguage = "vi";
         var mainVM = new MainViewModel(uiDispatcher: a => a());
         var chatVM = mainVM.AiChatVM;
         var logicVM = mainVM.LogicEditorVM;

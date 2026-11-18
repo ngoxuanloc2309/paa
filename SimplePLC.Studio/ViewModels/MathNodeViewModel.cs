@@ -354,8 +354,10 @@ public partial class MathNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     {
         for (int i = 0; i < Pins.Count; i++)
         {
-            string label = $"IN{i + 1}";
-            Pins[i].Label = label;
+            if (string.IsNullOrWhiteSpace(Pins[i].Label))
+            {
+                Pins[i].Label = $"IN{i + 1}";
+            }
         }
     }
 

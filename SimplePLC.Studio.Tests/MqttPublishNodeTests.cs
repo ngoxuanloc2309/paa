@@ -1,14 +1,21 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using SimplePLC.Application.Enums;
+using SimplePLC.Application.Logic.Compilation;
+using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Application.Models;
 using SimplePLC.Domain.Enums;
 using SimplePLC.Domain.Models;
+using SimplePLC.Protocol.Constants;
 using SimplePLC.Studio.Models;
 using SimplePLC.Studio.Services;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
+using RuleCompiler = SimplePLC.Studio.Services.RuleCompiler;
+using DiagnosticSeverity = SimplePLC.Studio.Models.DiagnosticSeverity;
 
 namespace SimplePLC.Studio.Tests;
 
@@ -518,5 +525,130 @@ public class MqttPublishNodeTests
 
         string payload = mqttNode.GeneratePayload(12.3);
         Assert.Contains("\"temperature\":6500", payload);
+    }
+
+    [Fact]
+    public void RuleCompiler_MqttPublish_WithUpstreamTrigger_ResolvesCorrectEnTagIndex()
+    {
+        var catalog = new TagCatalogViewModel();
+        var di1Tag = catalog.AllTags.First(t => t.Name == "DI1");
+
+        var compiler = new RuleCompiler();
+        var inpNode = new InputNodeViewModel(di1Tag);
+        var trigNode = new TriggerNodeViewModel();
+        var mqttNode = new MqttPublishNodeViewModel
+        {
+            PublishMode = "Event"
+        };
+
+        var nodes = new GraphNodeViewModel[] { inpNode, trigNode, mqttNode };
+        var connections = new List<ConnectionViewModel>
+        {
+            new(inpNode.OutputConnectors[0], trigNode.InputConnectors.First(c => c.Title == "In")),
+            new(trigNode.OutputConnectors.First(c => c.Title == "Out"), mqttNode.InputConnectors.First(c => c.Title == "Trig"))
+        };
+
+        trigNode.InputTag = di1Tag;
+
+        var result = compiler.Compile(nodes, connections, catalog);
+
+        Assert.NotNull(result.Program);
+        Assert.NotNull(result.Program.MqttTelemetryConfigs);
+        Assert.Single(result.Program.MqttTelemetryConfigs);
+
+        var mqttConfig = result.Program.MqttTelemetryConfigs[0];
+        // EnTagIndex PHẢI là DI1 (Index 1), KHÔNG ĐƯỢC bằng 0 (DI0)
+        Assert.Equal((ushort)1, mqttConfig.EnTagIndex);
+    }
+
+    [Fact]
+    public void PeripheralConfigExtractor_UnconnectedMqttPublish_DefaultsToTagIndexNone()
+    {
+        var product = ProductDefinition.CreateRemoteIo8Di8Do4Ai();
+        var graph = new LogicGraph();
+        var mqttNode = LogicNode.CreateMqttPublish("mqtt_1", null, null, "telemetry/test", "Event");
+        graph.Nodes.Add(mqttNode);
+
+        var nodeMap = graph.Nodes.ToDictionary(n => n.Id);
+        var result = PeripheralConfigExtractor.Extract(graph, product, nodeMap, null);
+
+        Assert.Single(result.MqttConfigs);
+        // Khi không nối dây vào Trig, EnTagIndex phải là null hoặc không mang giá trị 0
+        Assert.Null(result.MqttConfigs[0].EnTagIndex);
+    }
+
+    [Fact]
+    public void ResolveUpstreamTagIndex_WithCircularLoop_TerminatesSafelyWithoutCrash()
+    {
+        // Kiểm tra an toàn: Node A nối Node B, Node B nối ngược lại Node A
+        var graph = new LogicGraph();
+        var trigA = LogicNode.CreateTrigger("trig_A", TriggerKind.OnRise);
+        var trigB = LogicNode.CreateTrigger("trig_B", TriggerKind.OnRise);
+        graph.Nodes.Add(trigA);
+        graph.Nodes.Add(trigB);
+
+        // Vòng lặp kín (Loop)
+        graph.Edges.Add(new LogicEdge("trig_A", "trig_B", "Out", "In"));
+        graph.Edges.Add(new LogicEdge("trig_B", "trig_A", "Out", "In"));
+
+        var nodeMap = graph.Nodes.ToDictionary(n => n.Id);
+
+        // Hàm tuần tự có Cycle Guard: Bắt buộc phải dừng an toàn trong micro-giây, trả về null, không nổ stack
+        var resolvedTag = CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, "trig_A", "In");
+        Assert.Null(resolvedTag);
+    }
+
+    [Fact]
+    public void LogicEditor_DisconnectTrig_ClearsTriggerTag()
+    {
+        var catalog = new TagCatalogViewModel();
+        var di2Tag = catalog.AllTags.First(t => t.Name == "DI2");
+        var editor = new LogicEditorViewModel(catalog, uiDispatcher: act => act());
+
+        var inpNode = new InputNodeViewModel(di2Tag);
+        var mqttNode = new MqttPublishNodeViewModel();
+
+        editor.Nodes.Add(inpNode);
+        editor.Nodes.Add(mqttNode);
+
+        // Cắm dây vào chân Trig
+        editor.Connect(inpNode.OutputConnectors[0], mqttNode.TriggerConnector);
+        Assert.Same(di2Tag, mqttNode.TriggerTag);
+        Assert.Equal("Trig [DI2]", mqttNode.TriggerConnectionBadge);
+
+        // Rút dây khỏi chân Trig -> TriggerTag phải được reset về null ngay lập tức (Chống Stale State)
+        var conn = editor.Connections.First(c => c.Target == mqttNode.TriggerConnector);
+        editor.RemoveConnection(conn);
+
+        Assert.Null(mqttNode.TriggerTag);
+        Assert.Equal("Trig", mqttNode.TriggerConnectionBadge);
+    }
+
+    [Fact]
+    public void RuleCompiler_MqttPublish_WithIntervalTrigger_EmitsWarningDiagnostic()
+    {
+        var catalog = new TagCatalogViewModel();
+        var compiler = new RuleCompiler();
+
+        var trigNode = new TriggerNodeViewModel
+        {
+            TriggerType = TriggerType.INTERVAL,
+            ForMs = 5000
+        };
+        var mqttNode = new MqttPublishNodeViewModel
+        {
+            PublishMode = "Event"
+        };
+
+        var nodes = new GraphNodeViewModel[] { trigNode, mqttNode };
+        var connections = new List<ConnectionViewModel>
+        {
+            new(trigNode.OutputConnectors.First(c => c.Title == "Out"), mqttNode.InputConnectors.First(c => c.Title == "Trig"))
+        };
+
+        var result = compiler.Compile(nodes, connections, catalog);
+
+        // Compiler phải cảnh báo người dùng khối Trigger kiểu chu kỳ không mang Tag vật lý
+        Assert.Contains(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Warning && (d.Message.Contains("Interval", StringComparison.OrdinalIgnoreCase) || d.Message.Contains("chu kỳ", StringComparison.OrdinalIgnoreCase)));
     }
 }

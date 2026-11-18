@@ -60,11 +60,10 @@ A minimum of **250 MB** free disk space is required. Click **Browse...** if you 
 
 ![Select Destination Location](/images/synaptix_setup_step3_directory.png)
 
-#### Step 4: Configure Additional Tasks & System Integration
-Select desired system integration options:
-- **Desktop & Start Menu Shortcuts:** Quickly launch the IDE from your primary workspace.
-- **Automatic Project File Extension Association (`.splc`):** Registers `.splc` files with SynaptiX IDE, allowing engineers to open project designs directly with a double-click.
-- **Integrated Hardware Emulator (`McuEmulator`):** Automatically packages the virtual hardware engine under `Tools/SimplePLC.McuEmulator.exe`, empowering full Hardware-in-the-Loop (HIL) closed-loop testing without physical microcontroller devices.
+#### Step 4: Configure Additional Shortcuts & System Integration
+Select desired desktop shortcut preferences:
+- **Create a desktop shortcut:** Places the SynaptiX IDE shortcut icon directly onto your Windows desktop for quick access.
+- **Automated System Integration:** In addition to the desktop shortcut, Setup automatically registers `.splc` project file associations in Windows Shell (enabling double-click to open projects directly) and bundles the `Tools/SimplePLC.McuEmulator.exe` virtual hardware testing utility into the installation root.
 
 ![Select Additional Tasks and Shortcuts](/images/synaptix_setup_step4_tasks.png)
 

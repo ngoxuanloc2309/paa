@@ -2,6 +2,7 @@ namespace SimplePLC.Application.Logic.Compilation;
 
 using SimplePLC.Application.Logic.Graph;
 using SimplePLC.Domain.Models;
+using SimplePLC.Protocol.Constants;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 
@@ -90,11 +91,27 @@ public static class PeripheralConfigExtractor
             var telemetryFields = new List<MqttPayloadFieldDto>();
 
             ushort? enTag = mData.EnTagIndex;
+            if (string.Equals(mData.PublishMode, "Event", StringComparison.OrdinalIgnoreCase) && !enTag.HasValue)
+            {
+                enTag = CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, mqttNode.Id, "Trig")
+                     ?? CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, mqttNode.Id, "EN");
+            }
+
             foreach (var inEdge in inEdges)
             {
                 if (nodeMap.TryGetValue(inEdge.SourceNodeId, out var srcNode))
                 {
-                    ushort tagIdx = 0;
+                    if (string.Equals(inEdge.TargetPort, "Trig", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(inEdge.TargetPort, "EN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (string.Equals(mData.PublishMode, "Event", StringComparison.OrdinalIgnoreCase) && !enTag.HasValue)
+                        {
+                            enTag = CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, mqttNode.Id, inEdge.TargetPort);
+                        }
+                        continue;
+                    }
+
+                    ushort tagIdx = ModbusRegisterMap.TagIndexNone;
                     string fieldKey = !string.IsNullOrEmpty(inEdge.TargetPort) ? inEdge.TargetPort : "val";
                     string unit = "";
 
@@ -108,6 +125,28 @@ public static class PeripheralConfigExtractor
                             {
                                 fieldKey = t.Name.ToLowerInvariant();
                             }
+                        }
+                    }
+                    else if (srcNode.Kind == LogicNodeKind.Trigger && srcNode.TriggerData != null)
+                    {
+                        tagIdx = srcNode.TriggerData.InputTagIndex 
+                            ?? CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, srcNode.Id, "In") 
+                            ?? ModbusRegisterMap.TagIndexNone;
+                        if (tagIdx != ModbusRegisterMap.TagIndexNone && string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var t = product.FindTagByIndex(tagIdx);
+                            if (t != null) fieldKey = t.Name.ToLowerInvariant();
+                        }
+                    }
+                    else if (srcNode.Kind == LogicNodeKind.Comparator && srcNode.ComparatorData != null)
+                    {
+                        tagIdx = srcNode.ComparatorData.InTagIndex != 0
+                            ? srcNode.ComparatorData.InTagIndex
+                            : (CompilationHelpers.ResolveUpstreamTagIndex(graph, nodeMap, srcNode.Id, "In") ?? ModbusRegisterMap.TagIndexNone);
+                        if (tagIdx != ModbusRegisterMap.TagIndexNone && string.Equals(fieldKey, "val", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var t = product.FindTagByIndex(tagIdx);
+                            if (t != null) fieldKey = t.Name.ToLowerInvariant();
                         }
                     }
                     else if (srcNode.Kind == LogicNodeKind.Scale && srcNode.ScaleData != null)
@@ -142,22 +181,15 @@ public static class PeripheralConfigExtractor
                         }
                     }
 
-                    if (string.Equals(inEdge.TargetPort, "Trig", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(inEdge.TargetPort, "EN", StringComparison.OrdinalIgnoreCase))
+                    if (tagIdx != ModbusRegisterMap.TagIndexNone)
                     {
-                        if (string.Equals(mData.PublishMode, "Event", StringComparison.OrdinalIgnoreCase))
+                        telemetryFields.Add(new MqttPayloadFieldDto
                         {
-                            enTag = tagIdx;
-                        }
-                        continue;
+                            Key = fieldKey,
+                            TagIndex = tagIdx,
+                            Unit = unit
+                        });
                     }
-
-                    telemetryFields.Add(new MqttPayloadFieldDto
-                    {
-                        Key = fieldKey,
-                        TagIndex = tagIdx,
-                        Unit = unit
-                    });
                 }
             }
 

@@ -2,6 +2,9 @@ using SimplePLC.Studio.Models;
 
 namespace SimplePLC.Studio.Services.Ai;
 
+/// <summary>
+/// Kết quả thẩm định an toàn logic công nghiệp trước khi nạp đồ thị hoặc thực thi đề xuất.
+/// </summary>
 public record SafetyValidationResult(bool IsValid, string? ErrorCode, string? ErrorMessage, string? Guidance);
 
 /// <summary>
@@ -35,7 +38,8 @@ public static class AiSafetyGate
             }
             else if ((string.Equals(node.NodeType, "TIMER", StringComparison.OrdinalIgnoreCase) ||
                       string.Equals(node.NodeType, "COUNTER", StringComparison.OrdinalIgnoreCase) ||
-                      string.Equals(node.NodeType, "SCALE", StringComparison.OrdinalIgnoreCase)) &&
+                      string.Equals(node.NodeType, "SCALE", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(node.NodeType, "MATH", StringComparison.OrdinalIgnoreCase)) &&
                      !string.IsNullOrWhiteSpace(node.OutputTagName) &&
                      !string.Equals(node.OutputTagName, "NONE", StringComparison.OrdinalIgnoreCase))
             {
@@ -48,6 +52,25 @@ public static class AiSafetyGate
                 !string.Equals(node.CvTagName, "NONE", StringComparison.OrdinalIgnoreCase))
             {
                 targetTagsToCheck.Add(node.CvTagName);
+            }
+
+            // Kiểm tra an toàn số học MATH: Chống chia cho hằng số 0
+            if (string.Equals(node.NodeType, "MATH", StringComparison.OrdinalIgnoreCase))
+            {
+                var op = node.MathOperator?.ToUpperInvariant();
+                if (op is "DIV" or "MOD")
+                {
+                    if (node.Pin2IsConstant &&
+                        (node.Pin2TagOrValue == "0" ||
+                         (double.TryParse(node.Pin2TagOrValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var divVal) && Math.Abs(divVal) < 1e-9)))
+                    {
+                        return new SafetyValidationResult(
+                            false,
+                            "SPLC-MATH-ERR-DIVZERO",
+                            $"Vi phạm an toàn số học: Khối Math '{node.Label ?? node.Id}' thực hiện phép chia/lấy dư cho hằng số 0.",
+                            "Toán hạng số chia (IN2) không được phép bằng 0 vì sẽ gây lỗi ngắt phần cứng (Hardware Exception). Hãy đổi giá trị hằng số khác 0 hoặc nối vào Tag có kiểm tra Guard.");
+                    }
+                }
             }
 
             foreach (var outTag in targetTagsToCheck)

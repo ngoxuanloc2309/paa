@@ -208,4 +208,108 @@ public class MathNodeViewModelTests
     }
 
     #endregion
+
+    #region 5. Pin Renaming & Dialog Bidirectional Synchronization
+
+    [Fact]
+    public void MathPin_LabelRename_SynchronizesToConnectorTitle()
+    {
+        var node = new MathNodeViewModel();
+        Assert.Equal("IN1", node.Pins[0].Connector!.Title);
+
+        node.Pins[0].Label = "PressureSensor";
+
+        Assert.Equal("PressureSensor", node.Pins[0].Label);
+        Assert.Equal("PressureSensor", node.Pins[0].Connector!.Title);
+        Assert.Equal("PressureSensor", node.InputConnectors[0].Title);
+    }
+
+    [Fact]
+    public void MathConfigDialog_PinRename_AppliesBackToNode()
+    {
+        var node = new MathNodeViewModel();
+        var catalog = new TagCatalogViewModel();
+        var dialogVm = new MathConfigDialogViewModel(node, catalog);
+
+        dialogVm.Pins[0].Name = "FLOW_RATE";
+        dialogVm.Apply();
+
+        Assert.Equal("FLOW_RATE", node.Pins[0].Label);
+        Assert.Equal("FLOW_RATE", node.InputConnectors[0].Title);
+    }
+
+    [Fact]
+    public void MathConfigDialog_WiredPin_FlagsIsWiredAndDisallowsDelete()
+    {
+        var node = new MathNodeViewModel();
+        node.AddPin(); // 3 pins
+        // Giả lập chân IN3 đã được nối dây trên Canvas
+        node.Pins[2].Connector!.IsConnected = true;
+
+        var catalog = new TagCatalogViewModel();
+        var dialogVm = new MathConfigDialogViewModel(node, catalog);
+
+        Assert.True(dialogVm.Pins[2].IsWiredFromCanvas);
+        Assert.False(dialogVm.Pins[2].CanDelete);
+
+        // Attempting to delete should be a no-op
+        dialogVm.RemovePinCommand.Execute(dialogVm.Pins[2]);
+        Assert.Equal(3, dialogVm.Pins.Count);
+    }
+
+    [Fact]
+    public void MathConfigDialog_OutputTagFiltering_FiltersByInferredDataType()
+    {
+        var catalog = new TagCatalogViewModel();
+        // Add a Float32 tag and an Int32 tag to catalog
+        var intTag = new TagModel { Name = "VREG0", Index = 100, DataType = TagDataType.Int32, Kind = TagKind.VirtualRegister };
+        var realTag = new TagModel { Name = "VREG_REAL", Index = 101, DataType = TagDataType.Float32, Kind = TagKind.VirtualRegister };
+        catalog.RegisterTags.Add(intTag);
+        catalog.RegisterTags.Add(realTag);
+        catalog.NumericTags.Add(intTag);
+        catalog.NumericTags.Add(realTag);
+
+        var node = new MathNodeViewModel();
+        var dialogVm = new MathConfigDialogViewModel(node, catalog);
+
+        // Case 1: All pins are INT32 -> InferredType is INT32
+        dialogVm.Pins[0].IsConstant = true;
+        dialogVm.Pins[0].ConstantValue = 10;
+        dialogVm.Pins[1].IsConstant = true;
+        dialogVm.Pins[1].ConstantValue = 20;
+        dialogVm.UpdateSimulation();
+
+        Assert.Equal("INT32", dialogVm.InferredType);
+        Assert.Contains(dialogVm.AvailableOutputTags, t => t != null && t.DataType != TagDataType.Float32);
+        Assert.DoesNotContain(dialogVm.AvailableOutputTags, t => t != null && t.DataType == TagDataType.Float32);
+
+        // Case 2: One pin is REAL -> InferredType is REAL
+        var floatInputTag = new TagModel { Name = "AI_REAL", Index = 200, DataType = TagDataType.Float32, Kind = TagKind.AnalogInput };
+        catalog.NumericTags.Add(floatInputTag);
+        dialogVm.Pins[0].IsConstant = false;
+        dialogVm.Pins[0].Tag = floatInputTag;
+        dialogVm.UpdateSimulation();
+
+        Assert.Equal("REAL", dialogVm.InferredType);
+        Assert.Contains(dialogVm.AvailableOutputTags, t => t != null && t.DataType == TagDataType.Float32);
+        Assert.DoesNotContain(dialogVm.AvailableOutputTags, t => t != null && t.DataType != TagDataType.Float32);
+    }
+
+    [Fact]
+    public void MathConfigDialog_WiredOutput_DisablesSelectionAndRetainsAssignedTag()
+    {
+        var node = new MathNodeViewModel();
+        var catalog = new TagCatalogViewModel();
+        var vreg0 = new TagModel { Name = "VREG0", Index = 100, DataType = TagDataType.Int32, Kind = TagKind.VirtualRegister };
+        catalog.RegisterTags.Add(vreg0);
+        node.OutputTag = vreg0;
+        node.OutputConnectors[0].IsConnected = true;
+
+        var dialogVm = new MathConfigDialogViewModel(node, catalog);
+
+        Assert.True(dialogVm.IsOutputWiredFromCanvas);
+        Assert.Equal(vreg0, dialogVm.OutputTag);
+    }
+
+    #endregion
 }

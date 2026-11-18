@@ -203,6 +203,16 @@ public partial class DtuHttpFieldModel : ObservableObject
     /// Cho biết trường CustomValue có được phép chỉnh sửa hay không (chỉ khi ValueSource == "Custom").
     /// </summary>
     public bool IsCustomValueEditable => string.Equals(ValueSource, "Custom", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Sao chép sâu đối tượng DtuHttpFieldModel.
+    /// </summary>
+    public DtuHttpFieldModel Clone() => new()
+    {
+        Key = this.Key,
+        ValueSource = this.ValueSource,
+        CustomValue = this.CustomValue
+    };
 }
 
 /// <summary>
@@ -342,6 +352,7 @@ public class ProjectNodeData
     public string MqttUnit { get; set; } = string.Empty;
     public bool MqttIncludeDevice { get; set; } = true;
     public bool MqttIncludeTimestamp { get; set; } = true;
+    public string MqttTriggerTagName { get; set; } = string.Empty;
     public List<MqttPayloadFieldData> MqttFields { get; set; } = new();
 
     // MQTT Subscribe node properties
@@ -426,6 +437,164 @@ public class ProjectNodeData
     public string MathOperator { get; set; } = "Add";
     public string MathTypeMode { get; set; } = "Auto";
     public List<MathPinProjectData> MathPins { get; set; } = new();
+
+    /// <summary>
+    /// Thực hiện Deep Clone toàn bộ thuộc tính cấu hình và danh sách sub-pin của khối.
+    /// Phục vụ cơ chế Copy/Paste và Duplicate không làm mất mát dữ liệu hoặc đột biến khối gốc.
+    /// </summary>
+    /// <returns>Bản sao độc lập mới của ProjectNodeData.</returns>
+    public ProjectNodeData Clone()
+    {
+        return new ProjectNodeData
+        {
+            Id = this.Id,
+            Type = this.Type,
+            LocationX = this.LocationX,
+            LocationY = this.LocationY,
+            CustomLabel = this.CustomLabel,
+            StableOrder = this.StableOrder,
+
+            // Input node properties
+            TagName = this.TagName,
+
+            // Trigger node properties
+            TriggerType = this.TriggerType,
+            ForMs = this.ForMs,
+
+            // Guard node properties
+            CompareOp = this.CompareOp,
+            ThresholdLo = this.ThresholdLo,
+            ThresholdHi = this.ThresholdHi,
+            Negate = this.Negate,
+
+            // Action node properties
+            ActionType = this.ActionType,
+            TargetTagName = this.TargetTagName,
+            ActionParam = this.ActionParam,
+
+            // Timer node properties
+            TimerMode = this.TimerMode,
+            PresetMs = this.PresetMs,
+            TimeUnit = this.TimeUnit,
+            DurationValue = this.DurationValue,
+            OutputTagName = this.OutputTagName,
+            OnTimeMs = this.OnTimeMs,
+            OffTimeMs = this.OffTimeMs,
+            StartWithOn = this.StartWithOn,
+
+            // Counter node properties
+            CounterMode = this.CounterMode,
+            CvTagName = this.CvTagName,
+            PresetValue = this.PresetValue,
+            ResetTagName = this.ResetTagName,
+
+            // Scale node properties
+            Gain = this.Gain,
+            Offset = this.Offset,
+            Unit = this.Unit,
+            DecimalPlaces = this.DecimalPlaces,
+            IsClamped = this.IsClamped,
+            ClampMin = this.ClampMin,
+            ClampMax = this.ClampMax,
+
+            // MQTT Publish node properties
+            MqttTopic = this.MqttTopic,
+            MqttPayloadMode = this.MqttPayloadMode,
+            MqttCustomTemplate = this.MqttCustomTemplate,
+            MqttQos = this.MqttQos,
+            MqttRetain = this.MqttRetain,
+            MqttPublishMode = this.MqttPublishMode,
+            MqttDeadband = this.MqttDeadband,
+            MqttUnit = this.MqttUnit,
+            MqttIncludeDevice = this.MqttIncludeDevice,
+            MqttIncludeTimestamp = this.MqttIncludeTimestamp,
+            MqttTriggerTagName = this.MqttTriggerTagName,
+            MqttFields = this.MqttFields.Select(f => f.Clone()).ToList(),
+
+            // MQTT Subscribe node properties
+            MqttSubTopic = this.MqttSubTopic,
+            MqttSubQos = this.MqttSubQos,
+            MqttSubQueueMode = this.MqttSubQueueMode,
+            MqttSubQueueCapacity = this.MqttSubQueueCapacity,
+            MqttSubIgnoreRetained = this.MqttSubIgnoreRetained,
+            MqttSubTimeoutMs = this.MqttSubTimeoutMs,
+            MqttSubFailSafeAction = this.MqttSubFailSafeAction,
+            MqttSubPins = this.MqttSubPins.Select(p => p.Clone()).ToList(),
+
+            // Modbus Read node properties
+            ModbusPortIndex = this.ModbusPortIndex,
+            ModbusSlaveId = this.ModbusSlaveId,
+            ModbusFunctionCode = this.ModbusFunctionCode,
+            ModbusReadMode = this.ModbusReadMode,
+            ModbusTrigTagIndex = this.ModbusTrigTagIndex,
+            ModbusStartAddress = this.ModbusStartAddress,
+            ModbusRegCount = this.ModbusRegCount,
+            ModbusPollIntervalMs = this.ModbusPollIntervalMs,
+            ModbusTimeoutMs = this.ModbusTimeoutMs,
+            ModbusPins = this.ModbusPins.Select(p => p.Clone()).ToList(),
+
+            // Modbus Write node properties
+            ModbusWritePortIndex = this.ModbusWritePortIndex,
+            ModbusWriteSlaveId = this.ModbusWriteSlaveId,
+            ModbusWriteMode = this.ModbusWriteMode,
+            ModbusWriteFunctionCode = this.ModbusWriteFunctionCode,
+            ModbusWriteStartAddress = this.ModbusWriteStartAddress,
+            ModbusWritePointCount = this.ModbusWritePointCount,
+            ModbusWriteBaseAddressCommand = this.ModbusWriteBaseAddressCommand,
+            ModbusWriteBaseAddressParam = this.ModbusWriteBaseAddressParam,
+            ModbusWriteChannelCount = this.ModbusWriteChannelCount,
+            ModbusWriteIsExclusiveChannel = this.ModbusWriteIsExclusiveChannel,
+            ModbusWriteTriggerMode = this.ModbusWriteTriggerMode,
+            ModbusWriteCyclicIntervalMs = this.ModbusWriteCyclicIntervalMs,
+            ModbusWriteTimeoutMs = this.ModbusWriteTimeoutMs,
+            ModbusWriteDeadband = this.ModbusWriteDeadband,
+            ModbusWritePins = this.ModbusWritePins.Select(p => p.Clone()).ToList(),
+
+            // Direct Write node properties
+            DirectWriteTargetPin = this.DirectWriteTargetPin,
+            DirectWriteMode = this.DirectWriteMode,
+            DirectWriteChannelCount = this.DirectWriteChannelCount,
+            DirectWriteIsExclusiveChannel = this.DirectWriteIsExclusiveChannel,
+            DirectWritePulseWidthUs = this.DirectWritePulseWidthUs,
+            DirectWritePwmFrequencyHz = this.DirectWritePwmFrequencyHz,
+            DirectWriteTriggerMode = this.DirectWriteTriggerMode,
+            DirectWriteDeadband = this.DirectWriteDeadband,
+            DirectWriteTimeoutMs = this.DirectWriteTimeoutMs,
+            DirectWriteDefaultColorRgb = this.DirectWriteDefaultColorRgb,
+
+            // DTU Gateway node properties
+            DtuPortIndex = this.DtuPortIndex,
+            DtuSerialMode = this.DtuSerialMode,
+            DtuUplinkMode = this.DtuUplinkMode,
+            DtuCustomJsonTemplate = this.DtuCustomJsonTemplate,
+            DtuHttpFields = this.DtuHttpFields.Select(f => f.Clone()).ToList(),
+
+            // HTTP Client node properties
+            HttpUrl = this.HttpUrl,
+            HttpMethod = this.HttpMethod,
+            HttpHeaders = this.HttpHeaders,
+            HttpTimeoutSec = this.HttpTimeoutSec,
+            HttpTriggerMode = this.HttpTriggerMode,
+            HttpIntervalSec = this.HttpIntervalSec,
+            HttpPayloadMode = this.HttpPayloadMode,
+            HttpCustomTemplate = this.HttpCustomTemplate,
+
+            // TCP Client node properties
+            TcpRemoteHost = this.TcpRemoteHost,
+            TcpRemotePort = this.TcpRemotePort,
+            TcpReconnectDelaySec = this.TcpReconnectDelaySec,
+            TcpHeartbeatIntervalSec = this.TcpHeartbeatIntervalSec,
+            TcpHeartbeatPayload = this.TcpHeartbeatPayload,
+            TcpRegistrationType = this.TcpRegistrationType,
+            TcpRegistrationPayload = this.TcpRegistrationPayload,
+            TcpPayloadMode = this.TcpPayloadMode,
+
+            // Math node properties
+            MathOperator = this.MathOperator,
+            MathTypeMode = this.MathTypeMode,
+            MathPins = this.MathPins.Select(p => p.Clone()).ToList()
+        };
+    }
 }
 
 /// <summary>
@@ -438,6 +607,18 @@ public class MathPinProjectData
     public bool IsConstant { get; set; }
     public double ConstantValue { get; set; }
     public string TagName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sao chép sâu chân toán hạng khối Math.
+    /// </summary>
+    public MathPinProjectData Clone() => new()
+    {
+        Id = this.Id,
+        Label = this.Label,
+        IsConstant = this.IsConstant,
+        ConstantValue = this.ConstantValue,
+        TagName = this.TagName
+    };
 }
 
 /// <summary>
@@ -448,6 +629,16 @@ public class MqttPayloadFieldData
     public string Key { get; set; } = string.Empty;
     public string TagName { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sao chép sâu trường ánh xạ payload MQTT.
+    /// </summary>
+    public MqttPayloadFieldData Clone() => new()
+    {
+        Key = this.Key,
+        TagName = this.TagName,
+        Unit = this.Unit
+    };
 }
 
 /// <summary>
@@ -464,6 +655,22 @@ public class MqttSubPinData
     public double? MinValue { get; set; }
     public double? MaxValue { get; set; }
     public double DefaultValue { get; set; } = 0.0;
+
+    /// <summary>
+    /// Sao chép sâu chân đăng ký nhận MQTT.
+    /// </summary>
+    public MqttSubPinData Clone() => new()
+    {
+        Id = this.Id,
+        Label = this.Label,
+        JsonPath = this.JsonPath,
+        DataType = this.DataType,
+        TargetTagName = this.TargetTagName,
+        TargetTagIndex = this.TargetTagIndex,
+        MinValue = this.MinValue,
+        MaxValue = this.MaxValue,
+        DefaultValue = this.DefaultValue
+    };
 }
 
 /// <summary>
@@ -479,6 +686,21 @@ public class ModbusPinData
     public float Multiplier { get; set; } = 1.0f;
     public string TargetTagName { get; set; } = string.Empty;
     public ushort? TargetTagIndex { get; set; }
+
+    /// <summary>
+    /// Sao chép sâu chân cấu hình Modbus.
+    /// </summary>
+    public ModbusPinData Clone() => new()
+    {
+        Id = this.Id,
+        Label = this.Label,
+        RegOffset = this.RegOffset,
+        DataType = this.DataType,
+        Endianness = this.Endianness,
+        Multiplier = this.Multiplier,
+        TargetTagName = this.TargetTagName,
+        TargetTagIndex = this.TargetTagIndex
+    };
 }
 
 /// <summary>
@@ -492,6 +714,19 @@ public class ProjectConnectionData
     public string TargetNodeId { get; set; } = string.Empty;
     public int TargetConnectorIndex { get; set; }
     public string TargetConnectorTitle { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sao chép dây nối giữa các khối.
+    /// </summary>
+    public ProjectConnectionData Clone() => new()
+    {
+        SourceNodeId = this.SourceNodeId,
+        SourceConnectorIndex = this.SourceConnectorIndex,
+        SourceConnectorTitle = this.SourceConnectorTitle,
+        TargetNodeId = this.TargetNodeId,
+        TargetConnectorIndex = this.TargetConnectorIndex,
+        TargetConnectorTitle = this.TargetConnectorTitle
+    };
 }
 
 /// <summary>

@@ -22,6 +22,11 @@ namespace SimplePLC.Studio.Tests;
 /// </summary>
 public class AiChatViewAndMarkdownTests
 {
+    public AiChatViewAndMarkdownTests()
+    {
+        LocalizationService.Instance.CurrentLanguage = "vi";
+    }
+
     private static void RunOnSta(Action action)
     {
         var tcs = new TaskCompletionSource<bool>();

@@ -74,6 +74,12 @@ public static class ModbusRegisterMap
     /// </summary>
     public const ushort GuardTagNone = 0x7FFF;
 
+    /// <summary>
+    /// Giá trị Sentinel quy định chỉ số Tag không được cấu hình hoặc để trống (Unassigned Tag Sentinel, 0xFFFF = 65535).
+    /// Tuân thủ SPLC-SPEC-MQTT-001, SPLC-SPEC-MBM-001, SPLC-SPEC-ACT-001.
+    /// </summary>
+    public const ushort TagIndexNone = 0xFFFF;
+
     // ==========================================
     // 2. PHÂN VÙNG CORE & RUNTIME (0x0000 - 0x0A02)
     // ==========================================

@@ -11,15 +11,27 @@ using SimplePLC.Studio.Services.Ai;
 
 namespace SimplePLC.Studio.Services;
 
+/// <summary>
+/// Đại diện cho kết quả phản hồi từ mô hình AI, bao gồm lời giải thích kỹ thuật và danh sách các lệnh gọi công cụ FBD.
+/// </summary>
+/// <param name="Explanation">Văn bản giải thích, phân tích kỹ thuật hoặc hướng dẫn cho người dùng.</param>
+/// <param name="ToolCalls">Danh sách các thao tác gọi công cụ (ví dụ: tạo khối add_node, nối dây connect_wires).</param>
 public record GeminiToolResponse(string Explanation, List<AiToolCall> ToolCalls);
 
+/// <summary>
+/// Client kết nối trực tiếp đến Google Generative Language (Gemini) REST API v1beta.
+/// Hỗ trợ Function Calling đa tầng và tùy biến thời gian chờ mạng.
+/// </summary>
 public class GeminiApiClient
 {
     private static readonly HttpClient HttpClient = new()
     {
-        Timeout = TimeSpan.FromSeconds(30)
+        Timeout = TimeSpan.FromSeconds(90)
     };
 
+    /// <summary>
+    /// Gửi yêu cầu sinh nội dung văn bản thông thường không kèm công cụ.
+    /// </summary>
     public async Task<string> GenerateContentAsync(
         AiSettingsModel settings,
         string systemInstruction,
@@ -30,6 +42,9 @@ public class GeminiApiClient
         return result.Explanation;
     }
 
+    /// <summary>
+    /// Gửi yêu cầu sinh nội dung có kèm định nghĩa công cụ FBD (Function Declarations).
+    /// </summary>
     public async Task<GeminiToolResponse> GenerateContentWithToolsAsync(
         AiSettingsModel settings,
         string systemInstruction,
@@ -37,13 +52,14 @@ public class GeminiApiClient
         JsonArray? tools = null,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(settings.ApiKey))
+        string apiKey = settings.EffectiveGeminiApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new InvalidOperationException("Chưa cấu hình API Key. Vui lòng vào Cài đặt (icon ⚙️) để nhập Gemini API Key miễn phí.");
         }
 
-        string model = string.IsNullOrWhiteSpace(settings.ModelName) ? "gemini-2.0-flash" : settings.ModelName.Trim();
-        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.ApiKey.Trim()}";
+        string model = string.IsNullOrWhiteSpace(settings.ModelName) ? "gemini-3.8-flash" : settings.ModelName.Trim();
+        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey.Trim()}";
 
         // Build Payload
         var rootNode = new JsonObject();
@@ -116,7 +132,7 @@ public class GeminiApiClient
         }
         catch (TaskCanceledException ex)
         {
-            throw new TimeoutException("Hết thời gian chờ phản hồi từ Google Gemini (Timeout 30s).", ex);
+            throw new TimeoutException("Hết thời gian chờ phản hồi từ Google Gemini (Timeout 90s). Kiểm tra lại kết nối mạng hoặc thử lại sau.", ex);
         }
 
         string responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);

@@ -97,8 +97,48 @@ public abstract partial class GraphNodeViewModel : ObservableObject, IDisposable
 
     protected virtual void OnLanguageChanged()
     {
+        TryTranslateAiCustomLabel();
         OnPropertyChanged(nameof(DisplayTitle));
         OnPropertyChanged(nameof(SummaryText));
+    }
+
+    private void TryTranslateAiCustomLabel()
+    {
+        if (string.IsNullOrWhiteSpace(CustomLabel)) return;
+
+        bool isVi = LocalizationService.Instance.IsVietnamese;
+        if (isVi)
+        {
+            // Chuyển nhãn chuẩn từ EN sang VI
+            if (CustomLabel.StartsWith("Time Window (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Khung giờ (" + CustomLabel.Substring("Time Window (".Length);
+            else if (CustomLabel.StartsWith("Action (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Tác vụ (" + CustomLabel.Substring("Action (".Length);
+            else if (CustomLabel.StartsWith("Input (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Ngõ vào (" + CustomLabel.Substring("Input (".Length);
+            else if (CustomLabel.StartsWith("CMP (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "So sánh (" + CustomLabel.Substring("CMP (".Length);
+            else if (CustomLabel.StartsWith("Trigger (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Kích hoạt (" + CustomLabel.Substring("Trigger (".Length);
+            else if (CustomLabel.StartsWith("Guard (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Khóa an toàn (" + CustomLabel.Substring("Guard (".Length);
+        }
+        else
+        {
+            // Chuyển nhãn chuẩn từ VI sang EN
+            if (CustomLabel.StartsWith("Khung giờ (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Time Window (" + CustomLabel.Substring("Khung giờ (".Length);
+            else if (CustomLabel.StartsWith("Tác vụ (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Action (" + CustomLabel.Substring("Tác vụ (".Length);
+            else if (CustomLabel.StartsWith("Ngõ vào (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Input (" + CustomLabel.Substring("Ngõ vào (".Length);
+            else if (CustomLabel.StartsWith("So sánh (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "CMP (" + CustomLabel.Substring("So sánh (".Length);
+            else if (CustomLabel.StartsWith("Kích hoạt (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Trigger (" + CustomLabel.Substring("Kích hoạt (".Length);
+            else if (CustomLabel.StartsWith("Khóa an toàn (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Guard (" + CustomLabel.Substring("Khóa an toàn (".Length);
+        }
     }
 
     public virtual void Dispose()

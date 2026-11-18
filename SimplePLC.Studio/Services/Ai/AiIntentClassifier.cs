@@ -39,7 +39,9 @@ public static class AiIntentClassifier
         "xung đột dữ liệu", "xung đột", "deadlock", "vòng lặp vô hạn", "kiểm tra xung đột",
         "kiểm tra an toàn", "mạch có an toàn không", "sơ đồ có an toàn không", "sao không chạy",
         "tại sao không chạy", "sao lại không chạy", "không hoạt động", "không chạy được",
-        "tại sao không chạy được", "không kích hoạt", "phát hiện lỗi", "kiểm tra giúp", "check sơ đồ"
+        "tại sao không chạy được", "không kích hoạt", "phát hiện lỗi", "kiểm tra giúp", "check sơ đồ",
+        "check error", "check errors", "diagnose", "debug", "find bugs", "find error",
+        "syntax error", "logic error", "why not working", "not working", "why is it not running", "safety audit"
     };
 
     private static readonly string[] ConsultativeKeywords =
@@ -59,7 +61,9 @@ public static class AiIntentClassifier
         "hardware interlock", "software interlock", "khóa chéo phần cứng", "khóa chéo phần mềm",
         "tiếp điểm thường đóng", "tiếp điểm thường mở", "nc hay no", "no hay nc",
         "giới hạn vật lý", "quá nhiệt", "dòng rò", "sụt áp",
-        "tư vấn", "cho tôi hỏi", "có nên", "khi nào nên", "hướng dẫn nguyên lý"
+        "tư vấn", "cho tôi hỏi", "có nên", "khi nào nên", "hướng dẫn nguyên lý",
+        "why", "how does", "how to", "explain", "tell me about", "what is",
+        "meaning of", "difference between", "compare", "pros and cons", "formula", "principle"
     };
 
     private static readonly string[] SynthesisKeywords =
@@ -72,7 +76,12 @@ public static class AiIntentClassifier
         "đổi tag", "đổi tên tag", "gán alias", "đặt tên tag", "lập trình mạch",
         "tạo rule", "sinh rule", "tạo logic", "tự động sinh", "mạch tự giữ",
         "mạch khởi động", "mạch đảo chiều", "mạch sao tam giác", "hẹn giờ",
-        "đếm sản phẩm", "đếm xung", "quy đổi cảm biến", "quy đổi", "scale áp suất", "scale nhiệt độ"
+        "start/stop", "start-stop", "start stop", "bật tắt", "mạch start", "mạch stop",
+        "mạch bơm", "bật bơm", "tắt bơm", "điều khiển bơm", "mạch điều khiển", "điều khiển",
+        "đếm sản phẩm", "đếm xung", "quy đổi cảm biến", "quy đổi", "scale áp suất", "scale nhiệt độ",
+        "create circuit", "design circuit", "generate circuit", "build circuit", "make circuit",
+        "create logic", "generate logic", "generate rules", "create rules", "draw circuit",
+        "pump control", "motor control", "control pump", "control motor"
     };
 
     /// <summary>
@@ -178,18 +187,35 @@ public static class AiIntentClassifier
                 return true;
         }
 
-        // Dạng thức hành động tự động hóa điển hình: "bật bơm DO0 khi...", "tắt quạt DO1...", "đóng van xả DO0 khi..."
+        // Bắt đầu bằng hoặc chứa "mạch " kết hợp với thiết bị (DO, DI, bơm, van, quạt, v.v.)
+        if (text.StartsWith("mạch ", StringComparison.OrdinalIgnoreCase) || text.Contains("mạch "))
+        {
+            if (text.Contains("do") || text.Contains("di") || text.Contains("bơm") ||
+                text.Contains("đèn") || text.Contains("van") || text.Contains("quạt") ||
+                text.Contains("motor") || text.Contains("động cơ") || text.Contains("tải"))
+            {
+                return true;
+            }
+        }
+
+        // Dạng thức hành động tự động hóa điển hình: "bật bơm DO0 khi...", "tắt quạt DO1...", "start pump DO0 with...", "turn on DO0 when..."
         bool hasActionVerb = text.Contains("bật") || text.Contains("tắt") || text.Contains("mở") ||
                              text.Contains("đóng") || text.Contains("ngắt") || text.Contains("kích") ||
-                             text.Contains("chạy") || text.Contains("dừng");
+                             text.Contains("chạy") || text.Contains("dừng") || text.Contains("start") ||
+                             text.Contains("stop") || text.Contains("turn on") || text.Contains("turn off") ||
+                             text.Contains("activate") || text.Contains("trigger");
 
         bool hasTargetDevice = text.Contains("do") || text.Contains("bơm") || text.Contains("đèn") ||
                                text.Contains("van") || text.Contains("tải") || text.Contains("còi") ||
-                               text.Contains("quạt") || text.Contains("động cơ");
+                               text.Contains("quạt") || text.Contains("động cơ") || text.Contains("pump") ||
+                               text.Contains("motor") || text.Contains("valve") || text.Contains("lamp");
 
         bool hasCondition = text.Contains("khi") || text.Contains("nếu") || text.Contains("vượt quá") ||
-                            text.Contains("đạt") || text.Contains("duy trì") || text.Contains("nhấn nút") ||
-                            text.Contains("cảm biến") || text.Contains("sau");
+                            text.Contains("đạt") || text.Contains("duy trì") || text.Contains("nhấn") ||
+                            text.Contains("nút") || text.Contains("cảm biến") || text.Contains("sau") ||
+                            text.Contains("với") || text.Contains("bằng") || text.Contains("di") ||
+                            text.Contains("when") || text.Contains("if") || text.Contains("with") ||
+                            text.Contains("button") || text.Contains("press") || text.Contains("sensor");
 
         if (hasActionVerb && hasTargetDevice && hasCondition)
         {
@@ -205,7 +231,8 @@ public static class AiIntentClassifier
         {
             "tại sao", "vì sao", "giải thích", "cho biết", "làm rõ", "là gì",
             "thế nào là", "như thế nào", "khác nhau", "khác biệt", "sự khác biệt",
-            "tính toán", "tính giúp", "tư vấn", "cho tôi hỏi", "có nên"
+            "tính toán", "tính giúp", "tư vấn", "cho tôi hỏi", "có nên",
+            "why", "how to", "how does", "explain", "what is", "tell me"
         };
 
         foreach (var qs in questionStarters)

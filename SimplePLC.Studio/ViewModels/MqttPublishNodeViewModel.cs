@@ -193,6 +193,20 @@ public partial class MqttPublishNodeViewModel : GraphNodeViewModel, ILiveTagBoun
     [NotifyPropertyChangedFor(nameof(PreviewPayloadText))]
     private TagModel? _dataTag;
 
+    /// <summary>
+    /// Tag liên kết với chân kích hoạt Trig (EN) khi ở chế độ Event (On Trig).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TriggerConnectionBadge))]
+    private TagModel? _triggerTag;
+
+    /// <summary>
+    /// Nhãn hiển thị kết nối của chân Trig (Visual Truth Guarantee).
+    /// </summary>
+    public string TriggerConnectionBadge => TriggerTag != null
+        ? $"Trig [{TriggerTag.Name}]"
+        : "Trig";
+
     // Visual Field Builder: Danh sách các trường dữ liệu gom nhóm
     public ObservableCollection<MqttPayloadFieldViewModel> Fields { get; } = new();
 

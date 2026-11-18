@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using SimplePLC.Studio.Controls;
 using SimplePLC.Studio.Models;
+using SimplePLC.Studio.Services;
 using SimplePLC.Studio.ViewModels;
 using Xunit;
 
@@ -479,6 +480,7 @@ public class MarkdownTextBlockStressTests
     [Fact]
     public void SuggestionChips_NullLogicVM_HandledSafelyWithStarterChips()
     {
+        LocalizationService.Instance.CurrentLanguage = "vi";
         var tagCatalog = new TagCatalogViewModel();
         var ruleTable = new RuleTableViewModel(tagCatalog, _ => { });
         var chatVM = new AiChatViewModel(() => tagCatalog.AllTags, () => ruleTable.Rules, () => null);

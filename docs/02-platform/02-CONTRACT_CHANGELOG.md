@@ -2,6 +2,26 @@
 
 # SimplePLC Platform Contract Changelog
 
+## [2.15.2 / Studio v2.15.2] - 2026-11-18 (MATH ALU CANVAS 2-WAY WIRING, IMPLICIT TYPE PROMOTION, DIALOG ERGONOMICS & AI COPILOT OPENAI-COMPATIBLE ENGINE - GitHub Release v2.15.2)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Đồng Bộ Hai Chiều Dây Nối FBD Canvas & Khối MATH ALU**:
+  - Tự động đồng bộ hóa toán hạng khi kéo dây trực tiếp trên Canvas: chân đầu vào có dây tự động nhận Tag nguồn và khóa điều khiển trên hộp thoại cấu hình.
+  - Tự động gán và khóa Tag ngõ ra `OUT` khi nối dây từ Math sang khối Action.
+  - Cho phép người dùng trực tiếp sửa đổi nhãn tên chân PIN (Rename Pin) trên hộp thoại và phản chiếu đồng bộ tức thì lên Canvas và thanh công thức.
+- **2. Tự Động Thăng Hạng Kiểu Dữ Liệu Đại Số (Implicit Type Promotion)**:
+  - Trình biên dịch `RuleCompiler` và `MathMacroLowering` tự động sinh vi mã `SCALE_TAG` ($k=1.0, b=0$) để chuyển đổi ngầm các biến nguyên sang số thực Float32 khi toán tử chạy ở chế độ REAL, đảm bảo chip STM32 thực thi chuẩn xác trong cùng một scan cycle.
+  - Phòng vệ nghiêm ngặt chống chia cho 0 với hằng số ngay tại tầng compiler (`SPLC-COMP-MATH-DIV-ZERO`).
+- **3. Tối Ưu Bố Cục Đơn Cột Chuẩn Microsoft Fluent 2 (MathConfigDialogView)**:
+  - Tái cấu trúc cửa sổ cấu hình từ 2 cột sang 1 cột tinh gọn ($750 \times 620$), tự động ôm khít nội dung (`SizeToContent="Height"`).
+  - Tích hợp thanh tính toán công thức đại số và kết quả mô phỏng tức thời vào chung một dải Inset Console gọn gàng (cao 34px), đồng nhất phông chữ `Consolas` 12px và màu mực kỹ thuật `#111827`.
+- **4. Nâng Cấp Nền Tảng AI Copilot Công Nghiệp**:
+  - Bổ sung `OpenAiCompatibleApiClient` hỗ trợ đa nhà cung cấp LLM chuẩn OpenAI (DeepSeek, Local LLM, Qwen, v.v.).
+  - Tối ưu hóa bộ ngữ cảnh `AiContextAggregator`, bộ phân loại ý định `AiIntentClassifier`, bộ tổng hợp giải thích `AiExplanationSynthesizer`, và đồng bộ song ngữ.
+- **5. Năng Lực Phần Cứng & Cờ Giám Sát Sức Khỏe Firmware**:
+  - Khai báo Bit 16 `SPLC_CAP_MATH_ALU = 0x00010000` trong `SPLC_HardwareCapabilities` tại thanh ghi `0x0A08`.
+  - Khai báo Bit 3 `SPLC_HEALTH_MATH_FAULT = 1 << 3` trong `SPLC_HealthFlags`.
+
 ## [2.15.1 / Studio v2.15.1] - 2026-11-16 (INNO SETUP 6 WINDOWS DESKTOP INSTALLER, MATH ALU BLOCK & MULTI-DISTRIBUTION PACKAGING - GitHub Release v2.15.1)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

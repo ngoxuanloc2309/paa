@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 
 namespace SimplePLC.Studio.Models;
 
+/// <summary>
+/// Mô hình đặc tả luật logic 32-byte do AI sinh ra hoặc nạp vào Bảng Rule (Wire Contract V1.7).
+/// </summary>
 public class AiRuleSpecModel
 {
     [JsonPropertyName("narrative")]
@@ -49,8 +52,24 @@ public class AiRuleSpecModel
 
     [JsonPropertyName("param")]
     public int Param { get; set; } = 1;
+
+    /// <summary>
+    /// Tham số phụ cho Action (Reg 14..15 của chuẩn 32-byte V1.7):
+    /// Lưu hệ số lệch b của SCALE_TAG hoặc toán hạng thứ 2 của MATH_OP.
+    /// </summary>
+    [JsonPropertyName("aux_param")]
+    public int AuxParam { get; set; } = 0;
+
+    /// <summary>
+    /// Cờ chỉ định dữ liệu số thực dấu chấm động Float32 IEEE-754 (Flags Bit 0 hoặc Bit 1).
+    /// </summary>
+    [JsonPropertyName("is_float")]
+    public bool IsFloat { get; set; } = false;
 }
 
+/// <summary>
+/// Bộ phân tích và trích xuất danh sách luật JSON từ phản hồi văn bản của mô hình AI.
+/// </summary>
 public static class AiRuleParser
 {
     private static readonly Regex RuleJsonBlockRegex = new(

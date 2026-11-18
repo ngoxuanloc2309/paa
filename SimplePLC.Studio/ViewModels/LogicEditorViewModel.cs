@@ -307,6 +307,11 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
 
     private DraftGraphTransaction? _currentAiTransaction;
 
+    /// <summary>
+    /// Giao dịch đồ thị nháp (Draft Graph Transaction) hiện tại của AI đang chờ người dùng phê duyệt trên Canvas.
+    /// </summary>
+    public DraftGraphTransaction? CurrentAiTransaction => _currentAiTransaction;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedInputNode))]
     [NotifyPropertyChangedFor(nameof(SelectedTriggerNode))]
@@ -2142,7 +2147,9 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         // 9. MQTT Publish Nodes: Nhận tín hiệu kích hoạt từ upstream và hiển thị giá trị live
         foreach (var mqttNode in Nodes.OfType<MqttPublishNodeViewModel>())
         {
-            var mqttConn = Connections.FirstOrDefault(c => c.Target?.Node == mqttNode);
+            var mqttConn = Connections.FirstOrDefault(c => c.Target?.Node == mqttNode &&
+                (c.Target == mqttNode.TriggerConnector || string.Equals(c.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Target.Title, "EN", StringComparison.OrdinalIgnoreCase)))
+                ?? Connections.FirstOrDefault(c => c.Target?.Node == mqttNode);
             bool mqttActive = mqttConn != null && mqttConn.IsActive;
             if (mqttNode.IsSimActive != mqttActive) mqttNode.IsSimActive = mqttActive;
             if (mqttNode.IsLiveActive != mqttActive) mqttNode.IsLiveActive = mqttActive;
@@ -2685,6 +2692,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             InputNodeViewModel inVm => inVm.Tag,
             TriggerNodeViewModel trgVm => trgVm.InputTag,
             ScaleNodeViewModel sclVm => sclVm.OutputTag ?? sclVm.InputTag,
+            MathNodeViewModel mathVm => mathVm.OutputTag,
             ComparatorNodeViewModel cmpVm => cmpVm.InputTag,
             CounterNodeViewModel cntVm => cntVm.OutputTag,
             TimerNodeViewModel tmVm => tmVm.OutputTag,
@@ -2751,7 +2759,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         {
             if (target == mqttNode.TriggerConnector || string.Equals(target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(target.Title, "EN", StringComparison.OrdinalIgnoreCase))
             {
-                // Trig pin: do not overwrite DataTag
+                mqttNode.TriggerTag = sourceTag;
             }
             else if (target == mqttNode.DefaultValConnector || string.Equals(target.Title, "Val", StringComparison.OrdinalIgnoreCase))
             {
@@ -2773,6 +2781,19 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 }
             }
         }
+        // 10. Target: MathNodeViewModel (Sync wired tag to corresponding pin)
+        else if (target.Node is MathNodeViewModel mathTarget)
+        {
+            var pin = mathTarget.Pins.FirstOrDefault(p =>
+                p.Connector == target ||
+                string.Equals(p.Label, target.Title, StringComparison.OrdinalIgnoreCase));
+            if (pin != null)
+            {
+                pin.Tag = sourceTag;
+                pin.IsConstant = false;
+                mathTarget.NotifyBindingChanged();
+            }
+        }
 
         // 10. Source: Output to ActionNodeViewModel (Counter, Timer, Scale, ModbusRead)
         if (target.Node is ActionNodeViewModel actNode && actNode.TargetTag != null)
@@ -2788,6 +2809,10 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             else if (source.Node is ScaleNodeViewModel scaleNodeFrom)
             {
                 scaleNodeFrom.OutputTag = actNode.TargetTag;
+            }
+            else if (source.Node is MathNodeViewModel mathNodeFrom)
+            {
+                mathNodeFrom.OutputTag = actNode.TargetTag;
             }
             else if (source.Node is ModbusReadNodeViewModel mbReadNode)
             {
@@ -2871,7 +2896,11 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             }
             else if (conn.Target?.Node is MqttPublishNodeViewModel mqttTarget)
             {
-                if (conn.Target == mqttTarget.DefaultValConnector || string.Equals(conn.Target.Title, "Val", StringComparison.OrdinalIgnoreCase))
+                if (conn.Target == mqttTarget.TriggerConnector || string.Equals(conn.Target.Title, "Trig", StringComparison.OrdinalIgnoreCase) || string.Equals(conn.Target.Title, "EN", StringComparison.OrdinalIgnoreCase))
+                {
+                    mqttTarget.TriggerTag = null;
+                }
+                else if (conn.Target == mqttTarget.DefaultValConnector || string.Equals(conn.Target.Title, "Val", StringComparison.OrdinalIgnoreCase))
                 {
                     mqttTarget.DataTag = null;
                 }
@@ -2882,6 +2911,17 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                     {
                         matchedField.Tag = null;
                     }
+                }
+            }
+            else if (conn.Target?.Node is MathNodeViewModel mathTarget)
+            {
+                var pin = mathTarget.Pins.FirstOrDefault(p =>
+                    p.Connector == conn.Target ||
+                    string.Equals(p.Label, conn.Target.Title, StringComparison.OrdinalIgnoreCase));
+                if (pin != null)
+                {
+                    pin.Tag = null;
+                    mathTarget.NotifyBindingChanged();
                 }
             }
 
@@ -2896,6 +2936,10 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             else if (conn.Source?.Node is ScaleNodeViewModel sclSource)
             {
                 sclSource.OutputTag = null;
+            }
+            else if (conn.Source?.Node is MathNodeViewModel mathSource)
+            {
+                mathSource.OutputTag = null;
             }
             else if (conn.Source?.Node is ModbusReadNodeViewModel mbReadSource)
             {
@@ -3712,6 +3756,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         else if (node is TriggerNodeViewModel trig)
         {
             pNode.Type = "Trigger";
+            pNode.TagName = trig.InputTag?.Name ?? string.Empty;
             pNode.TriggerType = trig.TriggerType;
             pNode.ForMs = trig.ForMs;
             pNode.CompareOp = trig.CompareOp;
@@ -3794,6 +3839,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 TagName = f.Tag?.Name ?? string.Empty,
                 Unit = f.Unit
             }).ToList();
+            pNode.MqttTriggerTagName = mqtt.TriggerTag?.Name ?? string.Empty;
             pNode.TagName = mqtt.DataTag?.Name ?? string.Empty;
         }
         else if (node is MqttSubscribeNodeViewModel sub)
@@ -3941,11 +3987,20 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         }
         else if (string.Equals(type, "Trigger", StringComparison.OrdinalIgnoreCase))
         {
+            var inTag = !string.IsNullOrWhiteSpace(pNode.TagName)
+                ? TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.TagName, StringComparison.OrdinalIgnoreCase))
+                : null;
+            var cmpOp = pNode.CompareOp != CompareOp.NONE
+                ? pNode.CompareOp
+                : (pNode.TriggerType == TriggerType.TIME_WINDOW
+                    ? (pNode.ThresholdHi > pNode.ThresholdLo && pNode.ThresholdLo > 0 ? CompareOp.BETWEEN : CompareOp.EQ)
+                    : CompareOp.NONE);
             node = new TriggerNodeViewModel
             {
+                InputTag = inTag,
                 TriggerType = pNode.TriggerType,
                 ForMs = pNode.ForMs,
-                CompareOp = pNode.CompareOp,
+                CompareOp = cmpOp,
                 ThresholdLo = pNode.ThresholdLo,
                 ThresholdHi = pNode.ThresholdHi
             };
@@ -4054,6 +4109,11 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 IncludeDevice = pNode.MqttIncludeDevice,
                 IncludeTimestamp = pNode.MqttIncludeTimestamp
             };
+
+            if (!string.IsNullOrWhiteSpace(pNode.MqttTriggerTagName))
+            {
+                mqtt.TriggerTag = TagCatalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, pNode.MqttTriggerTagName, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (pNode.MqttFields != null && pNode.MqttFields.Count > 0)
             {
@@ -4824,6 +4884,30 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             ? $"Đề xuất AI: +{tx.AddedNodes.Count} khối, +{tx.AddedWires.Count} dây"
             : summaryText;
 
+        // 0. Phòng thủ tầng sâu chống xung đột ID với các khối hiện hữu trên Canvas
+        var existingIds = new HashSet<string>(Nodes.Select(n => n.Id), StringComparer.OrdinalIgnoreCase);
+        var remappedIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dn in tx.AddedNodes)
+        {
+            if (existingIds.Contains(dn.Id))
+            {
+                string newId = $"{dn.Id}_{Guid.NewGuid().ToString("N")[..6]}";
+                remappedIds[dn.Id] = newId;
+                dn.Id = newId;
+            }
+            existingIds.Add(dn.Id);
+        }
+
+        if (remappedIds.Count > 0)
+        {
+            foreach (var dw in tx.AddedWires)
+            {
+                if (remappedIds.TryGetValue(dw.SourceNodeId, out var newSrc)) dw.SourceNodeId = newSrc;
+                if (remappedIds.TryGetValue(dw.TargetNodeId, out var newTgt)) dw.TargetNodeId = newTgt;
+            }
+        }
+
         // 1. Tạo các node Ghost
         var nodeMap = new Dictionary<string, GraphNodeViewModel>();
         foreach (var dn in tx.AddedNodes)
@@ -4876,6 +4960,42 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 !string.IsNullOrEmpty(dn.InputTagName) && dn.InputTagName != "NONE")
             {
                 pNode.TagName = dn.InputTagName;
+            }
+
+            // For Math nodes, configure output tag, operator, type mode and input pins
+            bool isMath = string.Equals(dn.NodeType, "MATH", StringComparison.OrdinalIgnoreCase);
+            if (isMath)
+            {
+                pNode.OutputTagName = !string.IsNullOrWhiteSpace(dn.OutputTagName) && dn.OutputTagName != "NONE"
+                    ? dn.OutputTagName
+                    : dn.TagName;
+                pNode.MathOperator = !string.IsNullOrWhiteSpace(dn.MathOperator) ? dn.MathOperator : "ADD";
+                pNode.MathTypeMode = !string.IsNullOrWhiteSpace(dn.MathTypeMode) ? dn.MathTypeMode : "Auto";
+                pNode.ClampMin = dn.ClampMin;
+                pNode.ClampMax = dn.ClampMax;
+
+                if (!string.IsNullOrWhiteSpace(dn.Pin1TagOrValue) || !string.IsNullOrWhiteSpace(dn.Pin2TagOrValue))
+                {
+                    pNode.MathPins = new List<MathPinProjectData>
+                    {
+                        new()
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            Label = "IN1",
+                            IsConstant = dn.Pin1IsConstant,
+                            ConstantValue = dn.Pin1IsConstant && double.TryParse(dn.Pin1TagOrValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var c1) ? c1 : 0.0,
+                            TagName = !dn.Pin1IsConstant ? (dn.Pin1TagOrValue ?? string.Empty) : string.Empty
+                        },
+                        new()
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            Label = "IN2",
+                            IsConstant = dn.Pin2IsConstant,
+                            ConstantValue = dn.Pin2IsConstant && double.TryParse(dn.Pin2TagOrValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var c2) ? c2 : 0.0,
+                            TagName = !dn.Pin2IsConstant ? (dn.Pin2TagOrValue ?? string.Empty) : string.Empty
+                        }
+                    };
+                }
             }
 
             var node = CreateNodeFromData(pNode);
@@ -5150,24 +5270,11 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             string newId = Guid.NewGuid().ToString("N")[..8];
             idMap[pNode.Id] = newId;
 
-            var copyPNode = new ProjectNodeData
-            {
-                Id = newId,
-                Type = pNode.Type,
-                LocationX = pNode.LocationX + offset,
-                LocationY = pNode.LocationY + offset,
-                CustomLabel = pNode.CustomLabel,
-                TagName = pNode.TagName,
-                TriggerType = pNode.TriggerType,
-                ForMs = pNode.ForMs,
-                CompareOp = pNode.CompareOp,
-                ThresholdLo = pNode.ThresholdLo,
-                ThresholdHi = pNode.ThresholdHi,
-                Negate = pNode.Negate,
-                TargetTagName = pNode.TargetTagName,
-                ActionType = pNode.ActionType,
-                ActionParam = pNode.ActionParam
-            };
+            // Deep clone để bảo toàn 100% dữ liệu của mọi loại khối
+            var copyPNode = pNode.Clone();
+            copyPNode.Id = newId;
+            copyPNode.LocationX = pNode.LocationX + offset;
+            copyPNode.LocationY = pNode.LocationY + offset;
 
             var node = CreateNodeFromData(copyPNode);
             if (node != null)

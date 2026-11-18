@@ -38,6 +38,14 @@ public class DraftNode
     public bool IsClamped { get; set; } = true;
     public double ClampMin { get; set; } = 0.0;
     public double ClampMax { get; set; } = 100.0;
+
+    // Macro props (Math ALU)
+    public string MathOperator { get; set; } = "ADD";
+    public string MathTypeMode { get; set; } = "Auto";
+    public string Pin1TagOrValue { get; set; } = "0";
+    public bool Pin1IsConstant { get; set; }
+    public string Pin2TagOrValue { get; set; } = "0";
+    public bool Pin2IsConstant { get; set; }
 }
 
 /// <summary>
@@ -111,6 +119,15 @@ public class DraftGraphTransaction
                 if (node.TagName != "NONE" && !string.IsNullOrWhiteSpace(node.TagName))
                 {
                     node.InputTagName = node.TagName;
+                }
+
+                // Nếu là khối MATH và có tag_name hợp lệ, mặc định gán vào OutputTagName
+                if (string.Equals(node.NodeType, "MATH", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (node.TagName != "NONE" && !string.IsNullOrWhiteSpace(node.TagName))
+                    {
+                        node.OutputTagName = node.TagName;
+                    }
                 }
 
                 AddedNodes.Add(node);
@@ -201,6 +218,42 @@ public class DraftGraphTransaction
                     {
                         targetNode.OutputTagName = args["output_tag_name"]?.GetValue<string>() ?? targetNode.OutputTagName;
                     }
+                }
+                break;
+            }
+
+            case "configure_math":
+            {
+                string? nodeId = args["node_id"]?.GetValue<string>();
+                var targetNode = AddedNodes.FirstOrDefault(n => n.Id == nodeId);
+                if (targetNode != null)
+                {
+                    targetNode.MathOperator = args["operator"]?.GetValue<string>() ?? "ADD";
+                    targetNode.MathTypeMode = args["type_mode"]?.GetValue<string>() ?? "Auto";
+                    targetNode.OutputTagName = args["output_tag"]?.GetValue<string>() ?? "VREG0";
+                    targetNode.Pin1TagOrValue = args["pin1_tag_or_value"]?.GetValue<string>() ?? "0";
+                    targetNode.Pin1IsConstant = GetBool(args["pin1_is_constant"]);
+                    targetNode.Pin2TagOrValue = args["pin2_tag_or_value"]?.GetValue<string>() ?? "0";
+                    targetNode.Pin2IsConstant = GetBool(args["pin2_is_constant"]);
+                    targetNode.ClampMin = GetDouble(args["clamp_min"]);
+                    targetNode.ClampMax = GetDouble(args["clamp_max"]);
+                    if (!targetNode.Pin1IsConstant && !string.IsNullOrWhiteSpace(targetNode.Pin1TagOrValue))
+                    {
+                        targetNode.InputTagName = targetNode.Pin1TagOrValue;
+                    }
+                }
+                break;
+            }
+
+            case "configure_comparator":
+            {
+                string? nodeId = args["node_id"]?.GetValue<string>();
+                var targetNode = AddedNodes.FirstOrDefault(n => n.Id == nodeId);
+                if (targetNode != null)
+                {
+                    targetNode.CompareOp = args["compare_op"]?.GetValue<string>() ?? "GT";
+                    targetNode.ThresholdLo = GetInt(args["threshold_lo"]);
+                    targetNode.ThresholdHi = GetInt(args["threshold_hi"]);
                 }
                 break;
             }

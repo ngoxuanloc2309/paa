@@ -55,7 +55,7 @@ public class AiContextAggregator
         var hwNode = new JsonObject
         {
             ["status"] = _hardwareStatusProvider?.Invoke() ?? "OFFLINE",
-            ["target"] = "SynaptiX Industrial Controller / Modbus RTU V1.7",
+            ["target"] = "SynaptiX Industrial Controller / Modbus RTU V1.7 (SPLC-SPEC-SLAVE-001)",
             ["rule_capacity"] = "100 rules (32 bytes per rule)"
         };
         root["hardware_profile"] = hwNode;
@@ -90,6 +90,18 @@ public class AiContextAggregator
                 {
                     if (sclNode.InputTag != null) usedTagNames.Add(sclNode.InputTag.Name);
                     if (sclNode.OutputTag != null) usedTagNames.Add(sclNode.OutputTag.Name);
+                }
+                else if (n is ComparatorNodeViewModel cmpNode)
+                {
+                    if (cmpNode.InputTag != null) usedTagNames.Add(cmpNode.InputTag.Name);
+                }
+                else if (n is MathNodeViewModel mathNode)
+                {
+                    if (mathNode.OutputTag != null) usedTagNames.Add(mathNode.OutputTag.Name);
+                    foreach (var pin in mathNode.Pins)
+                    {
+                        if (!pin.IsConstant && pin.Tag != null) usedTagNames.Add(pin.Tag.Name);
+                    }
                 }
             }
         }
@@ -158,11 +170,18 @@ public class AiContextAggregator
                     {
                         InputNodeViewModel => "INPUT",
                         TriggerNodeViewModel => "TRIGGER",
+                        ComparatorNodeViewModel => "COMPARATOR",
                         GuardNodeViewModel => "GUARD",
                         ActionNodeViewModel => "ACTION",
                         TimerNodeViewModel => "TIMER",
                         CounterNodeViewModel => "COUNTER",
                         ScaleNodeViewModel => "SCALE",
+                        MathNodeViewModel => "MATH",
+                        MqttPublishNodeViewModel => "MQTT_PUB",
+                        MqttSubscribeNodeViewModel => "MQTT_SUB",
+                        ModbusReadNodeViewModel => "MODBUS_READ",
+                        ModbusWriteNodeViewModel => "MODBUS_WRITE",
+                        DirectWriteNodeViewModel => "DIRECT_WRITE",
                         _ => "UNKNOWN"
                     },
                     ["label"] = n.DisplayTitle,
@@ -171,13 +190,39 @@ public class AiContextAggregator
                     ["summary"] = n.SummaryText
                 };
 
-                // Thuộc tính Tag liên kết
+                // Thuộc tính Tag và tham số đặc thù của từng khối
                 if (n is InputNodeViewModel inNode && inNode.Tag != null)
                     nObj["tag"] = inNode.Tag.Name;
                 else if (n is ActionNodeViewModel actNode && actNode.TargetTag != null)
                     nObj["tag"] = actNode.TargetTag.Name;
                 else if (n is GuardNodeViewModel grdNode && grdNode.GuardTag != null)
                     nObj["tag"] = grdNode.GuardTag.Name;
+                else if (n is ComparatorNodeViewModel cmpNode)
+                {
+                    if (cmpNode.InputTag != null) nObj["tag"] = cmpNode.InputTag.Name;
+                    nObj["compare_op"] = cmpNode.CompareOp.ToString();
+                    nObj["threshold_lo"] = cmpNode.ThresholdLo;
+                    nObj["threshold_hi"] = cmpNode.ThresholdHi;
+                }
+                else if (n is TriggerNodeViewModel trgNode && trgNode.TriggerType == TriggerType.TIME_WINDOW)
+                {
+                    nObj["is_time_window"] = true;
+                    nObj["start_hhmm"] = trgNode.ThresholdLo;
+                    nObj["end_hhmm"] = trgNode.ThresholdHi;
+                }
+                else if (n is MathNodeViewModel mathNode)
+                {
+                    nObj["operator"] = mathNode.Operator.ToString();
+                    if (mathNode.OutputTag != null) nObj["output_tag"] = mathNode.OutputTag.Name;
+                }
+                else if (n is ScaleNodeViewModel sclNode)
+                {
+                    if (sclNode.InputTag != null) nObj["tag"] = sclNode.InputTag.Name;
+                    if (sclNode.OutputTag != null) nObj["output_tag"] = sclNode.OutputTag.Name;
+                    nObj["gain"] = sclNode.Gain;
+                    nObj["offset"] = sclNode.Offset;
+                    nObj["unit"] = sclNode.Unit;
+                }
 
                 nodesArray.Add(nObj);
             }

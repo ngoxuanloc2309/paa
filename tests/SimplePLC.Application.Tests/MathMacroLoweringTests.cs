@@ -252,7 +252,15 @@ public class MathMacroLoweringTests
         var result = _compiler.Compile(graph, _product);
 
         Assert.True(result.IsSuccess, $"Compilation must succeed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
-        var rule = result.Program!.Rules[0];
+        // Option B: AI0 (INT32) được tự động thăng hạng sang Float32 qua Rule 0 (SCALE)
+        // Rule 1 thực hiện MATH_OP cộng với hằng số 2.5f
+        Assert.Equal(2, result.Program!.Rules.Count);
+
+        var promoRule = result.Program.Rules[0];
+        Assert.Equal(ActionKind.ScaleTag, promoRule.Action.Type);
+        Assert.True(promoRule.Action.IsFloat);
+
+        var rule = result.Program.Rules[1];
         Assert.Equal(ActionKind.MathOp, rule.Action.Type);
         Assert.True(rule.Action.IsFloat);
         var dto = RuleMapper.ToDto(rule);
@@ -415,5 +423,160 @@ public class MathMacroLoweringTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == RuleCompiler.ErrMathNoInput);
+    }
+
+    [Theory]
+    [InlineData(MathOperator.Div, 0.0)]
+    [InlineData(MathOperator.Div, 1e-10)]
+    [InlineData(MathOperator.Mod, 0.0)]
+    public void Math_DivOrMod_WithConstantZero_EmitsDivZeroDiagnosticError(MathOperator op, double zeroVal)
+    {
+        var ai0 = _product.FindTagByName("AI0")!;
+        var vreg0 = _product.FindTagByName("VREG0")!;
+
+        var graph = new LogicGraph();
+        var mathNode = new LogicNode
+        {
+            Id = "MATH_DIV_ZERO",
+            Kind = LogicNodeKind.Math,
+            Label = "DivZeroTest",
+            MathData = new MathNodeData
+            {
+                Operator = op,
+                TypeMode = MathTypeMode.Auto,
+                OutTagIndex = vreg0.TagIndex,
+                Pins = new List<MathPinData>
+                {
+                    new() { Label = "IN1", IsConstant = false, TagIndex = ai0.TagIndex },
+                    new() { Label = "IN2", IsConstant = true, ConstantValue = zeroVal }
+                }
+            }
+        };
+        graph.Nodes.Add(mathNode);
+
+        var result = _compiler.Compile(graph, _product);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == "SPLC-COMP-MATH-DIV-ZERO");
+    }
+
+    [Fact]
+    public void Math_MixedIntAndFloatTags_AutomaticallyPromotesWithImplicitScaleRule()
+    {
+        var tags = new List<TagDefinition>(_product.Tags)
+        {
+            new TagDefinition(300, "FLOAT_TAG", TagKind.VirtualRegister, TagDataType.Float32, isReadOnly: false, "Float Tag"),
+            new TagDefinition(301, "FLOAT_OUT", TagKind.VirtualRegister, TagDataType.Float32, isReadOnly: false, "Float Out")
+        };
+        var productWithFloat = new ProductDefinition(
+            _product.ProductName,
+            _product.DeviceClass,
+            _product.ProductVariant,
+            _product.MaxRules,
+            _product.Resources,
+            tags,
+            _product.WireProfile);
+
+        var ai0 = productWithFloat.FindTagByName("AI0")!; // Int32
+        var floatTag = productWithFloat.FindTagByName("FLOAT_TAG")!; // Float32
+        var floatOut = productWithFloat.FindTagByName("FLOAT_OUT")!; // Float32
+
+        var graph = new LogicGraph();
+        var mathNode = new LogicNode
+        {
+            Id = "MATH_MIXED_TYPE",
+            Kind = LogicNodeKind.Math,
+            Label = "MixedTypePromoTest",
+            MathData = new MathNodeData
+            {
+                Operator = MathOperator.Add,
+                TypeMode = MathTypeMode.Auto,
+                OutTagIndex = floatOut.TagIndex,
+                Pins = new List<MathPinData>
+                {
+                    new() { Label = "IN1", IsConstant = false, TagIndex = ai0.TagIndex },
+                    new() { Label = "IN2", IsConstant = false, TagIndex = floatTag.TagIndex }
+                }
+            }
+        };
+        graph.Nodes.Add(mathNode);
+
+        // Act
+        var result = _compiler.Compile(graph, productWithFloat);
+
+        // Assert: Option B - Tự động thăng hạng kiểu, biên dịch thành công!
+        Assert.True(result.IsSuccess, $"Compilation must succeed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
+        Assert.NotNull(result.Program);
+        // Sinh ra 2 rules: Rule 0 là SCALE ngầm cho AI0, Rule 1 là MATH_OP cộng float
+        Assert.Equal(2, result.Program.Rules.Count);
+
+        var promoRule = result.Program.Rules[0];
+        Assert.Equal(ai0.TagIndex, promoRule.Trigger.Tag.TagIndex);
+        Assert.Equal(ActionKind.ScaleTag, promoRule.Action.Type);
+        Assert.True(promoRule.Action.IsFloat);
+        Assert.Equal(1.0, promoRule.Action.Parameter);
+
+        var mathRule = result.Program.Rules[1];
+        // Op1 của MathRule chính là target của promoRule
+        Assert.Equal(promoRule.Action.TargetTag.TagIndex, mathRule.Trigger.Tag.TagIndex);
+        Assert.Equal(floatTag.TagIndex, mathRule.Guard.Tag!.TagIndex);
+        Assert.Equal(floatOut.TagIndex, mathRule.Action.TargetTag.TagIndex);
+        Assert.Equal(ActionKind.MathOp, mathRule.Action.Type);
+        Assert.True(mathRule.Action.IsFloat);
+    }
+
+    [Fact]
+    public void Math_ThreePin_MixedIntAndFloatTags_GeneratesChainedPromotionAndMathRules()
+    {
+        var tags = new List<TagDefinition>(_product.Tags)
+        {
+            new TagDefinition(300, "FLOAT_TAG", TagKind.VirtualRegister, TagDataType.Float32, isReadOnly: false, "Float Tag"),
+            new TagDefinition(301, "FLOAT_OUT", TagKind.VirtualRegister, TagDataType.Float32, isReadOnly: false, "Float Out")
+        };
+        var productWithFloat = new ProductDefinition(
+            _product.ProductName,
+            _product.DeviceClass,
+            _product.ProductVariant,
+            _product.MaxRules,
+            _product.Resources,
+            tags,
+            _product.WireProfile);
+
+        var ai0 = productWithFloat.FindTagByName("AI0")!; // Int32
+        var floatTag = productWithFloat.FindTagByName("FLOAT_TAG")!; // Float32
+        var floatOut = productWithFloat.FindTagByName("FLOAT_OUT")!; // Float32
+
+        var graph = new LogicGraph();
+        var mathNode = new LogicNode
+        {
+            Id = "MATH_3PIN_MIXED",
+            Kind = LogicNodeKind.Math,
+            Label = "ThreePinMixedTest",
+            MathData = new MathNodeData
+            {
+                Operator = MathOperator.Add,
+                TypeMode = MathTypeMode.Auto,
+                OutTagIndex = floatOut.TagIndex,
+                Pins = new List<MathPinData>
+                {
+                    new() { Label = "IN1", IsConstant = false, TagIndex = ai0.TagIndex },
+                    new() { Label = "IN2", IsConstant = true, ConstantValue = 10.0 },
+                    new() { Label = "IN3", IsConstant = false, TagIndex = floatTag.TagIndex }
+                }
+            }
+        };
+        graph.Nodes.Add(mathNode);
+
+        // Act
+        var result = _compiler.Compile(graph, productWithFloat);
+
+        // Assert: 1 promo rule (cho AI0) + 2 math step rules = 3 rules tổng cộng
+        Assert.True(result.IsSuccess, $"Compilation must succeed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
+        Assert.NotNull(result.Program);
+        Assert.Equal(3, result.Program.Rules.Count);
+
+        var promoRule = result.Program.Rules[0];
+        Assert.Equal(ai0.TagIndex, promoRule.Trigger.Tag.TagIndex);
+        Assert.Equal(ActionKind.ScaleTag, promoRule.Action.Type);
     }
 }

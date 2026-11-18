@@ -525,4 +525,70 @@ public class CanvasWireAutoBindingTests
         Assert.StartsWith($"{vflag1.Name}:", trigNode.TriggerActionText);
     }
 
+    [Fact]
+    public void Connect_InputNode_To_MathNode_AutoBinds_PinTag_And_Updates_FormulaExpression()
+    {
+        // Arrange
+        var ai0 = _tagCatalog.AllTags.First(t => t.Name == "AI0");
+        var inNode = new InputNodeViewModel(ai0);
+        var mathNode = new MathNodeViewModel { Operator = MathOperator.Add };
+
+        _vm.Nodes.Add(inNode);
+        _vm.Nodes.Add(mathNode);
+
+        // Act: Connect InputNode (AI0) to Math pin 0 (IN1)
+        _vm.Connect(inNode.OutputConnectors[0], mathNode.InputConnectors[0]);
+
+        // Assert: Pin 0 gets AI0 tag, IsConstant is cleared, formula contains AI0
+        Assert.Equal(ai0, mathNode.Pins[0].Tag);
+        Assert.False(mathNode.Pins[0].IsConstant);
+        Assert.Contains("AI0", mathNode.FormulaExpression);
+    }
+
+    [Fact]
+    public void Disconnect_MathNode_InputPin_Clears_PinTag()
+    {
+        // Arrange
+        var ai0 = _tagCatalog.AllTags.First(t => t.Name == "AI0");
+        var inNode = new InputNodeViewModel(ai0);
+        var mathNode = new MathNodeViewModel { Operator = MathOperator.Add };
+
+        _vm.Nodes.Add(inNode);
+        _vm.Nodes.Add(mathNode);
+        _vm.Connect(inNode.OutputConnectors[0], mathNode.InputConnectors[0]);
+        Assert.Equal(ai0, mathNode.Pins[0].Tag);
+
+        // Act: Disconnect wire
+        var conn = _vm.Connections.First(c => c.Source == inNode.OutputConnectors[0] && c.Target == mathNode.InputConnectors[0]);
+        _vm.RemoveConnection(conn);
+
+        // Assert: Pin 0 tag cleared
+        Assert.Null(mathNode.Pins[0].Tag);
+    }
+
+    [Fact]
+    public void Connect_MathNode_Output_To_ActionNode_AutoBinds_MathOutputTag()
+    {
+        // Arrange
+        var vreg0 = _tagCatalog.AllTags.First(t => t.Name == "VREG0");
+        var mathNode = new MathNodeViewModel { Operator = MathOperator.Add };
+        var actNode = new ActionNodeViewModel(vreg0);
+
+        _vm.Nodes.Add(mathNode);
+        _vm.Nodes.Add(actNode);
+
+        // Act: Connect Math out to Action in
+        _vm.Connect(mathNode.OutputConnectors[0], actNode.InputConnectors[0]);
+
+        // Assert: MathNode OutputTag is automatically set to VREG0
+        Assert.Equal(vreg0, mathNode.OutputTag);
+        Assert.Contains("VREG0 =", mathNode.FormulaExpression);
+
+        // Act: Disconnect wire
+        var conn = _vm.Connections.First(c => c.Source == mathNode.OutputConnectors[0] && c.Target == actNode.InputConnectors[0]);
+        _vm.RemoveConnection(conn);
+
+        // Assert: MathNode OutputTag is cleared to null (None)
+        Assert.Null(mathNode.OutputTag);
+    }
 }

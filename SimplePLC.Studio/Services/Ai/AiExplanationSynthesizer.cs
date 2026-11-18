@@ -26,6 +26,7 @@ public static class AiExplanationSynthesizer
         var timerNodes = tx.AddedNodes.Where(n => IsType(n, "TIMER")).ToList();
         var counterNodes = tx.AddedNodes.Where(n => IsType(n, "COUNTER")).ToList();
         var scaleNodes = tx.AddedNodes.Where(n => IsType(n, "SCALE")).ToList();
+        var mathNodes = tx.AddedNodes.Where(n => IsType(n, "MATH")).ToList();
 
         var sb = new StringBuilder();
 
@@ -37,9 +38,54 @@ public static class AiExplanationSynthesizer
             {
                 sb.AppendLine($"• {DescribeChainPrinciple(chain)}");
             }
+
+            sb.AppendLine();
+            sb.AppendLine("```text");
+            int rIdx = 1;
+            foreach (var chain in ruleChains)
+            {
+                string guardText = !string.IsNullOrWhiteSpace(chain.GuardTag) && chain.GuardTag != "NONE"
+                    ? $"[Guard: {chain.GuardTag}]"
+                    : "[Guard: NONE]";
+                string actText = $"[Action: {chain.ActionTag}={(chain.ActionType == "SET_TAG" ? chain.ActionParam.ToString() : chain.ActionType)}]";
+
+                string line;
+                if (string.Equals(chain.TriggerType, "TIME_WINDOW", StringComparison.OrdinalIgnoreCase))
+                {
+                    string timeFormatted = chain.ThresholdLo > 0
+                        ? $"{(int)chain.ThresholdLo / 100:D2}:{(int)chain.ThresholdLo % 100:D2}"
+                        : "00:00";
+                    string trgText = $"[Trigger: TIME_WINDOW ({timeFormatted})]";
+                    line = $"{trgText} ➔ {guardText} ➔ {actText}";
+                }
+                else if (!string.IsNullOrWhiteSpace(chain.CompareOp) && !string.Equals(chain.CompareOp, "NONE", StringComparison.OrdinalIgnoreCase))
+                {
+                    string inText = $"[Input: {chain.InputTag}]";
+                    string cmpText = $"[Comparator: CMP ({chain.CompareOp} {chain.ThresholdLo})]";
+                    line = $"{inText} ➔ {cmpText} ➔ {guardText} ➔ {actText}";
+                }
+                else
+                {
+                    string inText = $"[Input: {chain.InputTag}]";
+                    string trgText = chain.DebounceMs > 0
+                        ? $"[Trigger: {chain.TriggerType} ({chain.DebounceMs}ms)]"
+                        : $"[Trigger: {chain.TriggerType}]";
+                    line = $"{inText} ➔ {trgText} ➔ {guardText} ➔ {actText}";
+                }
+
+                string boxTitle = $"┌── Rule {rIdx}: {DescribeChainPrinciple(chain)} ";
+                if (boxTitle.Length < 70) boxTitle += new string('─', 70 - boxTitle.Length) + "┐";
+                else boxTitle += "┐";
+
+                sb.AppendLine(boxTitle);
+                sb.AppendLine($"│ {line}");
+                sb.AppendLine("└" + new string('─', Math.Max(50, line.Length + 4)));
+                rIdx++;
+            }
+            sb.AppendLine("```");
         }
 
-        if (timerNodes.Count > 0 || counterNodes.Count > 0 || scaleNodes.Count > 0)
+        if (timerNodes.Count > 0 || counterNodes.Count > 0 || scaleNodes.Count > 0 || mathNodes.Count > 0)
         {
             foreach (var tm in timerNodes)
             {
@@ -60,6 +106,27 @@ public static class AiExplanationSynthesizer
                 string inTag = ResolveInTag(sc, tx, "AI0");
                 string outTag = ResolveOutTag(sc, tx, "VREG0");
                 sb.AppendLine($"• Khối biến đổi tuyến tính SCALE (Gain={sc.Gain}, Offset={sc.Offset}): Chuyển đổi tín hiệu {inTag} sang {outTag} ({sc.Unit}).");
+            }
+            foreach (var mn in mathNodes)
+            {
+                string outTag = !string.IsNullOrWhiteSpace(mn.OutputTagName) && mn.OutputTagName != "NONE"
+                    ? mn.OutputTagName
+                    : ResolveOutTag(mn, tx, "VREG0");
+                string p1 = mn.Pin1IsConstant ? mn.Pin1TagOrValue : (string.IsNullOrWhiteSpace(mn.Pin1TagOrValue) || mn.Pin1TagOrValue == "0" ? ResolveInTag(mn, tx, "AI0") : mn.Pin1TagOrValue);
+                string p2 = mn.Pin2IsConstant ? mn.Pin2TagOrValue : (string.IsNullOrWhiteSpace(mn.Pin2TagOrValue) || mn.Pin2TagOrValue == "0" ? "0" : mn.Pin2TagOrValue);
+                string opSymbol = mn.MathOperator?.ToUpperInvariant() switch
+                {
+                    "ADD" => "+",
+                    "SUB" => "-",
+                    "MUL" => "*",
+                    "DIV" => "/",
+                    "MOD" => "%",
+                    "MIN" => "min",
+                    "MAX" => "max",
+                    "CLAMP" => "clamp",
+                    _ => "+"
+                };
+                sb.AppendLine($"• Khối tính toán số học MATH ALU ({mn.MathOperator}): Tính {outTag} = {p1} {opSymbol} {p2} (Kiểu dữ liệu: {mn.MathTypeMode}).");
             }
         }
         else if (ruleChains.Count == 0)
@@ -84,6 +151,8 @@ public static class AiExplanationSynthesizer
             if (!string.IsNullOrWhiteSpace(n.OutputTagName) && n.OutputTagName != "NONE") allTags.Add(n.OutputTagName);
             if (!string.IsNullOrWhiteSpace(n.CvTagName) && n.CvTagName != "NONE") allTags.Add(n.CvTagName);
             if (!string.IsNullOrWhiteSpace(n.ResetTagName) && n.ResetTagName != "NONE") allTags.Add(n.ResetTagName);
+            if (!n.Pin1IsConstant && !string.IsNullOrWhiteSpace(n.Pin1TagOrValue) && n.Pin1TagOrValue != "0") allTags.Add(n.Pin1TagOrValue);
+            if (!n.Pin2IsConstant && !string.IsNullOrWhiteSpace(n.Pin2TagOrValue) && n.Pin2TagOrValue != "0") allTags.Add(n.Pin2TagOrValue);
         }
         foreach (var tag in allTags)
         {
@@ -95,6 +164,10 @@ public static class AiExplanationSynthesizer
         sb.AppendLine("### 3. Cơ chế an toàn công nghiệp");
         sb.AppendLine("• Chống dội tín hiệu (Hardware Debounce) lọc xung nhiễu đầu vào.");
         sb.AppendLine("• Cơ chế Fail-Safe tự động ngắt tải khi phát hiện sự cố truyền thông hoặc mất kết nối.");
+        if (mathNodes.Count > 0)
+        {
+            sb.AppendLine("• Phòng vệ số học: Bảo vệ chống chia cho 0 và kẹp an toàn (Clamping) ngăn ngừa lỗi tràn số vi điều khiển.");
+        }
         sb.AppendLine();
 
         // Khối JSON ẩn để đồng bộ rule (không hiển thị với người dùng — bị strip bởi AiRuleParser)
@@ -470,6 +543,59 @@ public static class AiExplanationSynthesizer
             });
         }
 
+        // 5. Sinh rule cho Macro Math ALU (MATH) theo chuẩn 32-byte mới (MATH_OP = 8)
+        foreach (var mn in tx.AddedNodes.Where(n => IsType(n, "MATH")))
+        {
+            string outTag = !string.IsNullOrWhiteSpace(mn.OutputTagName) && mn.OutputTagName != "NONE"
+                ? mn.OutputTagName
+                : ResolveOutTag(mn, tx, "VREG0");
+            string inTag1 = mn.Pin1IsConstant ? "AI0" : (string.IsNullOrWhiteSpace(mn.Pin1TagOrValue) || mn.Pin1TagOrValue == "0" ? ResolveInTag(mn, tx, "AI0") : mn.Pin1TagOrValue);
+            string op = string.IsNullOrWhiteSpace(mn.MathOperator) ? "ADD" : mn.MathOperator.ToUpperInvariant();
+            bool isFloat = string.Equals(mn.MathTypeMode, "ForceReal", StringComparison.OrdinalIgnoreCase) ||
+                           inTag1.StartsWith("AI", StringComparison.OrdinalIgnoreCase) ||
+                           outTag.StartsWith("AO", StringComparison.OrdinalIgnoreCase);
+
+            string guardTag = "NONE";
+            int paramVal = 0;
+            int auxVal = 0;
+
+            if (mn.Pin2IsConstant)
+            {
+                if (int.TryParse(mn.Pin2TagOrValue, out var parsedInt))
+                {
+                    paramVal = parsedInt;
+                    auxVal = parsedInt;
+                }
+                else if (float.TryParse(mn.Pin2TagOrValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedFloat))
+                {
+                    paramVal = BitConverter.SingleToInt32Bits(parsedFloat);
+                    auxVal = paramVal;
+                }
+            }
+            else
+            {
+                guardTag = !string.IsNullOrWhiteSpace(mn.Pin2TagOrValue) && mn.Pin2TagOrValue != "0" ? mn.Pin2TagOrValue : "AI1";
+            }
+
+            rules.Add(new AiRuleSpecModel
+            {
+                Narrative = $"MATH {mn.Id}: {outTag} = {inTag1} {op} {(mn.Pin2IsConstant ? mn.Pin2TagOrValue : guardTag)}",
+                InputTag = inTag1,
+                Trigger = "ON_CHANGE",
+                CompareOp = op,
+                ThresholdLo = 0,
+                ThresholdHi = 0,
+                ForMs = 0,
+                GuardTag = guardTag,
+                GuardNegated = false,
+                ActionTag = outTag,
+                ActionType = "MATH_OP",
+                Param = paramVal,
+                AuxParam = auxVal,
+                IsFloat = isFloat
+            });
+        }
+
         return rules;
     }
 
@@ -540,6 +666,9 @@ public static class AiExplanationSynthesizer
         return string.Equals(node.NodeType, expectedType, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Chuỗi luật logic tổng hợp được trích xuất từ các dây nối và khối trên FBD Canvas.
+    /// </summary>
     public class SynthesizedRuleChain
     {
         public string InputTag { get; set; } = "DI0";
@@ -572,9 +701,9 @@ public static class AiExplanationSynthesizer
                     ? tx.AddedNodes.FirstOrDefault(n => n.Id == incomingToAct.SourceNodeId)
                     : null;
 
-                // Nếu Action được cấp tín hiệu từ một khối Macro (TIMER, COUNTER, SCALE),
+                // Nếu Action được cấp tín hiệu từ một khối Macro (TIMER, COUNTER, SCALE, MATH),
                 // các rule của Macro đã tự quản lý ngõ ra -> không tạo thêm ECA chain dư thừa
-                if (prevNode != null && (IsType(prevNode, "TIMER") || IsType(prevNode, "COUNTER") || IsType(prevNode, "SCALE")))
+                if (prevNode != null && (IsType(prevNode, "TIMER") || IsType(prevNode, "COUNTER") || IsType(prevNode, "SCALE") || IsType(prevNode, "MATH")))
                 {
                     continue;
                 }
@@ -588,6 +717,7 @@ public static class AiExplanationSynthesizer
 
                 DraftNode? guardNode = null;
                 DraftNode? triggerNode = null;
+                DraftNode? comparatorNode = null;
                 DraftNode? inputNode = null;
 
                 if (prevNode != null && IsType(prevNode, "GUARD"))
@@ -599,7 +729,15 @@ public static class AiExplanationSynthesizer
                         : null;
                 }
 
-                if (prevNode != null && IsType(prevNode, "TRIGGER"))
+                if (prevNode != null && IsType(prevNode, "COMPARATOR"))
+                {
+                    comparatorNode = prevNode;
+                    var incomingToCmp = tx.AddedWires.FirstOrDefault(w => w.TargetNodeId == comparatorNode.Id);
+                    prevNode = incomingToCmp != null
+                        ? tx.AddedNodes.FirstOrDefault(n => n.Id == incomingToCmp.SourceNodeId)
+                        : null;
+                }
+                else if (prevNode != null && IsType(prevNode, "TRIGGER"))
                 {
                     triggerNode = prevNode;
                     var incomingToTrig = tx.AddedWires.FirstOrDefault(w => w.TargetNodeId == triggerNode.Id);
@@ -614,9 +752,13 @@ public static class AiExplanationSynthesizer
                 }
 
                 // Nếu không nối dây đầy đủ, fallback tìm theo danh sách node có sẵn
-                if (triggerNode == null)
+                if (comparatorNode == null && triggerNode == null)
                 {
-                    triggerNode = tx.AddedNodes.FirstOrDefault(n => IsType(n, "TRIGGER"));
+                    comparatorNode = tx.AddedNodes.FirstOrDefault(n => IsType(n, "COMPARATOR"));
+                    if (comparatorNode == null)
+                    {
+                        triggerNode = tx.AddedNodes.FirstOrDefault(n => IsType(n, "TRIGGER"));
+                    }
                 }
                 if (inputNode == null)
                 {
@@ -632,7 +774,17 @@ public static class AiExplanationSynthesizer
                     chain.InputLabel = inputNode.Label;
                 }
 
-                if (triggerNode != null)
+                if (comparatorNode != null)
+                {
+                    chain.CompareOp = string.IsNullOrWhiteSpace(comparatorNode.CompareOp) || comparatorNode.CompareOp == "NONE" ? "GT" : comparatorNode.CompareOp;
+                    chain.ThresholdLo = comparatorNode.ThresholdLo;
+                    chain.ThresholdHi = comparatorNode.ThresholdHi;
+                    if (inputNode == null && !string.IsNullOrWhiteSpace(comparatorNode.TagName) && comparatorNode.TagName != "NONE")
+                    {
+                        chain.InputTag = comparatorNode.TagName;
+                    }
+                }
+                else if (triggerNode != null)
                 {
                     chain.TriggerType = string.IsNullOrWhiteSpace(triggerNode.TriggerType) || triggerNode.TriggerType == "NONE" ? "ON_RISE" : triggerNode.TriggerType;
                     chain.CompareOp = triggerNode.CompareOp;
@@ -679,6 +831,20 @@ public static class AiExplanationSynthesizer
     private static string DescribeChainPrinciple(SynthesizedRuleChain chain)
     {
         string actVerb = chain.ActionParam == 0 ? "Tắt" : "Bật";
+
+        if (string.Equals(chain.TriggerType, "TIME_WINDOW", StringComparison.OrdinalIgnoreCase))
+        {
+            string timeFormatted = chain.ThresholdLo > 0
+                ? $"{(int)chain.ThresholdLo / 100:D2}:{(int)chain.ThresholdLo % 100:D2}"
+                : "00:00";
+            return $"Khi đồng hồ đạt thời điểm {timeFormatted} ➔ Hệ thống lập tức **{actVerb}** ngõ ra chấp hành **{chain.ActionTag}**.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(chain.CompareOp) && !string.Equals(chain.CompareOp, "NONE", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Khi tín hiệu {chain.InputTag} thỏa mãn điều kiện ({chain.CompareOp} {chain.ThresholdLo}) ➔ Hệ thống lập tức **{actVerb}** ngõ ra chấp hành **{chain.ActionTag}**.";
+        }
+
         string inputAction = chain.TriggerType == "ON_RISE" ? "nhấn kích hoạt" :
                              chain.TriggerType == "ON_FALL" ? "nhả hoặc ngắt" :
                              chain.TriggerType == "ON_CHANGE" ? "thay đổi trạng thái" : "kích hoạt";

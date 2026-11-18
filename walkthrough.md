@@ -2,6 +2,103 @@
 
 # SynaptiX IDE Engineering Walkthrough & Living Documentation
 
+## 24. Tái Kiến Trúc Lazy Compact Knowledge Kernel & Triệt Tiêu Ảo Giác Tri Thức SynaptiX AI Copilot
+
+### 24.1. Bối cảnh & Hiện Tượng Cần Khắc Phục
+- **Hiện tượng 1 (Rò rỉ cú pháp Structured Text trong ConsultativeQnA):**
+  - Khi kỹ sư hỏi: *"Tôi muốn tạo 1 rule đúng 8h sáng còi kêu"*, AI Copilot ở chế độ tư vấn do thiếu bản thể FBD đã truy xuất tri thức PLC truyền thống (Codesys, Siemens, Beckhoff) và trả lời bằng cú pháp Structured Text:
+    ```pascal
+    IF Clock.HH = 8 AND Clock.MM = 0 THEN DO_Buzzer := TRUE;
+    IF DO_Buzzer = TRUE THEN T_off(IN:=TRUE, PT:=T#5s);
+    ```
+  - **Vi phạm kiến trúc:** SynaptiX IDE chạy thuần túy trên mô hình **Rule Pipeline 32-byte** và **Sơ đồ khối FBD Canvas**. Hệ thống **hoàn toàn không có** Structured Text, không có câu lệnh `IF...THEN`, không có đối tượng `Clock.HH`.
+- **Hiện tượng 2 (Đưa System Tag sai ngữ cảnh trong FbdSynthesis):**
+  - Khi người dùng yêu cầu *"sinh rule trên canva cho tôi"*, AI sinh 2 Rule hẹn giờ `TIME_WINDOW (800-800)` và `TIME_WINDOW (801-801)`.
+  - Nhưng ở mục *"2. Danh mục Tag"*, AI tự ý nhét `SYS_RTC_HOUR, SYS_RTC_MINUTE, DO0 (Còi)`.
+  - **Phân định Ground Truth:** Trong `SystemTagConstants`, SynaptiX **thực sự có 8 System Tags** (Index 1000..1007, gồm `SYS_RTC_HOUR` và `SYS_RTC_MINUTE`). Tuy nhiên, Trigger `TIME_WINDOW` hoạt động bằng cách vi điều khiển MCU tự đọc thanh ghi RTC phần cứng ngầm (`input_tag = "NONE"`). Trên Canvas FBD của sơ đồ này **hoàn toàn không có Node Input nào kết nối với `SYS_RTC_HOUR` hay `SYS_RTC_MINUTE`**. Việc đưa 2 tag này vào Danh mục Tag vi phạm **Axiom 2 — The Visual Truth (Single Source of Truth)**.
+- **Hiện tượng 3 (Giải pháp còi báo ca ngắn hạn):**
+  - `TIME_WINDOW` trong SynaptiX có độ phân giải theo Phút. Để còi chỉ kêu đúng 5 giây, phương án chuẩn công nghiệp là sử dụng `TIME_WINDOW (800-800)` kích hoạt khối Macro **`TP (Pulse Timer)`** với `PT = 5s`, ngõ ra `Q` đóng `DO0 (Còi)`.
+
+---
+
+### 24.2. Kiến Trúc Giải Pháp 3-Layer Prompt Stack & Lazy Compact Kernel
+
+Đã tái cấu trúc `AiPromptBuilder.cs` theo mô hình 3 tầng (dựa trên kỹ thuật Structural Template Abstraction):
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       3-LAYER PROMPT ARCHITECTURE                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  LAYER 0: Base Compact Kernel (compile-time const, ~400 tokens)             │
+│  - Ontological Boundary: NO ST, NO IF...THEN, NO Codesys POU                │
+│  - 17-Node Taxonomy (Pipeline, Macro, IO/Comm)                              │
+│  - Zero-Hallucination Closed-World Tag Catalog Contract                     │
+│  - Industrial Pattern Library: 15 Archetypes (Start, Stop, RTC, TP, CMP...) │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  LAYER 1: Intent Personality & Behavioral Directives                        │
+│  - Consultative: Súc tích (100-150 từ), không JSON, không ST, chỉ giải thích│
+│  - Diagnose: Safety audit, Linter, nhận diện TIME_WINDOW=NONE là hợp lệ     │
+│  - Synthesis: 1 Input ➔ 1 Output, ASCII Box, Tag Catalog chuẩn, JSON Rules │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  LAYER 2: Project Context Data (Tags & Rules CSV compression)               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1. Biên soạn Shared Kernel bất biến (`EnglishKernel` & `VietnameseKernel`)
+- Khai báo dưới dạng `private const string` để compiler tối ưu hóa thành hằng số compile-time, zero allocation trên heap.
+- Bao phủ đầy đủ 17 Node:
+  - 4 Pipeline: `INPUT`, `TRIGGER`, `COMPARATOR`, `GUARD`, `ACTION`.
+  - 2 Macro: `TIMER` (TON, TOF, TP, CYCLE), `COUNTER` (CTU, CTD với CV $\rightarrow$ `VREG_RETAIN`).
+  - 11 IO/Comm: `SCALE`, `MATH`, `MODBUS_READ`, `MODBUS_WRITE`, `MQTT_PUBLISH`, `MQTT_SUBSCRIBE`, `DIRECT_WRITE`, `HTTP_CLIENT`, `TCP_CLIENT`.
+- Thư viện 15 khuôn mẫu công nghiệp chuẩn, trong đó có mẫu Còi báo ca ngắn hạn dùng `TP (Pulse Timer, PT=5s)` và `TIME_WINDOW`.
+
+#### 2. Khóa chặt quy chuẩn Danh mục Tag (Closed-World Assumption)
+$$\text{DanhMụcTag} = (\text{InputTag} \cup \text{GuardTag} \cup \text{ActionTag} \cup \text{MacroTag}) \setminus \{\text{"NONE"}\}$$
+- Quy định rõ: Chỉ liệt kê các Tag (gồm Physical, Internal, hoặc System) **thực sự xuất hiện trên các Node của sơ đồ**.
+- Khi sơ đồ dùng `TIME_WINDOW` (`input_tag = "NONE"`), cấm tuyệt đối đưa `SYS_RTC_HOUR` hay `SYS_RTC_MINUTE` vào danh mục tag.
+- Chỉ khi kỹ sư thực sự kết nối Node Input vào `SYS_RTC_HOUR` (ví dụ nối vào Comparator `[CMP: EQ 8]`), `SYS_CLOCK_1S` (nhấp nháy đèn), hay `SYS_FIRST_SCAN` thì tag hệ thống đó mới được liệt kê.
+
+#### 3. Tối ưu hóa Context JSON sang Compact CSV
+- Rút gọn định dạng từng Tag từ:
+  `- DI0 (Bí danh: Nút Start): Loại=DiscreteInput, Địa chỉ=0x0000`
+- Sang định dạng CSV tinh gọn:
+  `- DI0 (Nút Start, DiscreteInput, 0x0000)`
+- Tiết kiệm ~400 tokens trên mỗi request có 40 tags, giúp tốc độ phản hồi qua Groq Free Tier đạt $\ge 5.5$ requests/phút.
+
+---
+
+### 24.3. Bằng Chứng Kiểm Định & Kết Quả Thử Nghiệm
+
+1. **Bộ kiểm thử AI chuyên sâu (`AiUniversalKnowledgeTests`):**
+   - Đã bổ sung 10 nhóm bài test đơn vị hermetic mới (tương ứng 40 test cases qua `[Theory]`):
+     - `AllModes_ContainOntologicalBoundary`: Cả 3 chế độ ở 2 ngôn ngữ đều có ranh giới cấm ST/IF...THEN.
+     - `AllModes_ContainTimerAndCounterKnowledge`: Hiểu rõ TON, TOF, TP, CTU, VREG_RETAIN.
+     - `AllModes_ContainZeroHallucinationContract`: Cấm đưa SYS_RTC_* vào sơ đồ TIME_WINDOW.
+     - `AllModes_Contain15Archetypes`: Chứa đủ MQTT, MODBUS, SCALE, COMPARATOR.
+     - `DiagnoseMode_KnowsTimeWindowWithoutInputIsNormal`: Nhận diện TIME_WINDOW không có input là bình thường.
+     - `ConsultativeMode_KnowsPulseTimerForShortAlarms`: Tư vấn khối TP Pulse Timer cho còi ngắn hạn.
+     - `AllModes_PromptLengthUnderSafeTokenBudget`: Đảm bảo prompt < 10,000 chars (< 2,500 tokens).
+     - `BuildSynthesisInstruction_LengthConstraint_SatisfiesRange`: Nằm trong dải [6,000, 25,000] chars.
+     - `BuildContextPrompt_TagFormatting_RetainsAliasAndAddress`: Định dạng CSV giữ trọn vẹn thông tin.
+     - `TagCatalogRule_ExplicitlyForbidsSysRtcTagsWhenInputIsNone`: Chặn đứng việc đưa SYS_RTC_* khi input=NONE.
+   - Kết quả: **132/132 AI tests PASS 100%**.
+
+2. **Kiểm tra hồi quy toàn Solution:**
+   - Biên dịch: `0 Warning(s), 0 Error(s)`.
+   - Chạy toàn bộ 5 test projects:
+     - `SimplePLC.Domain.Tests`: 55/55 passed
+     - `SimplePLC.Protocol.Tests`: 243/243 passed
+     - `SimplePLC.Infrastructure.Tests`: 210/210 passed
+     - `SimplePLC.Application.Tests`: 283/283 passed
+     - `SimplePLC.Studio.Tests`: 1,551/1,551 passed
+   - **Tổng cộng: 2,342 / 2,342 tests PASS 100%**.
+
+3. **Kiểm tra quy chuẩn Clean Architecture & TDD:**
+   - `validate-backend-arch.ps1`: **PASS 0 architecture violations**.
+   - `validate-tdd-docs.ps1`: **PASS 0 QA/TDD violations**.
+
+---
+
 ## 22. Tinh Chỉnh Công Thái Học Giao Diện Wi-Fi, RS-485 Dialog & Deploy Pipeline Auto-Reset
 
 ### 22.1. Loại Bỏ Trùng Lặp RSSI Wi-Fi & Bổ Sung Nút Bật/Tắt Trong Popup Wi-Fi
@@ -2062,3 +2159,72 @@ Theo học thuyết **SynaptiX Documentation & Living Docs Architecture (3 Pilla
 ### 43.3. Kết quả Kiểm thử & Nghiệm thu
 - **Biên dịch Inno Setup Độc lập:** Tạo thành công `installer/dist/SynaptiX_IDE_Setup_v2.15.1.exe`.
 - **Local CI/CD Runner:** `.\cicd_local.bat` hoàn thành 100% với exit code 0, tạo đủ 3 định dạng trong `publish/release/` cho phiên bản `v2.15.1`.
+
+---
+
+## 44. Tinh Chỉnh Khối MATH ALU, Đồng Bộ Hóa Dây Nối FBD Canvas & Chốt Hợp Đồng Wire Giao Tiếp Firmware
+
+### 44.1. Bối cảnh & Yêu cầu Kỹ thuật
+- Hoàn thiện trải nghiệm người dùng trên hộp thoại cấu hình khối `MATH` (`MathConfigDialogView.xaml` & `MathConfigDialogViewModel.cs`):
+  1. Loại bỏ banner tĩnh `IEC 61131-3 Industrial Rules` theo yêu cầu trực quan của người dùng.
+  2. Cho phép đổi tên nhãn chân PIN trực tiếp (Rename Pin) thông qua ô TextBox với cập nhật hai chiều đồng bộ tới Connector trên Canvas, công thức Algebraic Formula và bảng mô phỏng Live Simulation.
+  3. Tự động đồng bộ toán hạng khi nối dây trên Canvas: chân đã có dây nối sẽ khóa ô chọn (disable control) và hiển thị trực tiếp Tag nối từ Canvas mà không thêm chữ thừa rườm rà.
+  4. Quản lý Tag ngõ ra `OUT`: giữ ô chọn trên popup nhưng tự động khóa lại khi chân `OUT` của Math đã được kéo dây vào khối Action; đồng thời lọc động danh mục `AvailableOutputTags` theo kiểu dữ liệu suy diễn (`INT32` -> các tag thanh ghi nguyên; `REAL` -> các tag thanh ghi số thực Float32).
+- Thống nhất và chốt hợp đồng wire 32-byte với phân hệ Firmware MCU:
+  1. Giữ nguyên 5 toán tử số học cơ bản (`ADD=0, SUB=1, MUL=2, DIV=3, MOD=4`), tạm hoãn 3 hàm `MIN/MAX/CLAMP`.
+  2. Bắt lỗi chia cho 0 với hằng số ngay tại tầng biên dịch compiler (`SPLC-COMP-MATH-DIV-ZERO`).
+  3. Phòng thủ an toàn kiểu dữ liệu nghiêm ngặt: cấm trộn trực tiếp tag `INT32` và tag `Float32` trong cùng một khối Math (`SPLC-COMP-MATH-TYPE-MISMATCH`).
+  4. Khai báo Bit 16 (`SPLC_CAP_MATH_ALU = 0x00010000`) trong `SPLC_HardwareCapabilities` tại thanh ghi 0x0A08.
+  5. Khai báo Bit 3 (`SPLC_HEALTH_MATH_FAULT = 1 << 3`) trong `SPLC_HealthFlags` để firmware báo cờ chia 0 khi chạy thực tế.
+
+### 44.2. Các Giải Pháp Đã Triển Khai
+1. **Frontend UI/UX ([`MathConfigDialogView.xaml`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Views/MathConfigDialogView.xaml) & [`MathConfigDialogViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/MathConfigDialogViewModel.cs)):**
+   - **Tái cấu trúc bố cục 1 cột dọc chuẩn Fluent 2 (Single-Column Architecture):** Thu gọn kích thước cửa sổ từ `1060 × 720` về `750 × 620` (nhỏ gọn, vừa vặn không chiếm trọn màn hình).
+   - **Phân bổ lại diện tích hợp lý:**
+     * Cột Tên chân PIN được tăng chiều rộng từ `54px` lên **`130px`**, khắc phục triệt để lỗi cụt chữ khi người dùng nhập tên dài (`counter 1`, `Sensor_Temp`).
+     * Ô chọn `Output Tag (OUT)` được tăng tỷ lệ lên `2*` (gần 50% hàng) để hiển thị đầy đủ tên Tag + Alias.
+     * Cột chọn toán hạng Tag/Constant được mở rộng trọn chiều ngang (`Width="*"`), thênh thang cho tên tag công nghiệp.
+     * Cột chế độ Mode thu gọn về `95px`, `#` là `32px`, `Type` là `65px`, `Delete` là `32px`.
+   - **Gỡ bỏ cột phải trùng lặp:** Loại bỏ bảng danh sách chân thứ hai và khối xám inset cồng kềnh. Chuyển dòng công thức đại số và kết quả mô phỏng tức thời xuống thành **Thanh Preview Bar tích hợp ngang** gọn gàng (cao 40px) dưới chân bảng toán hạng.
+   - **Đồng nhất 100% thị giác & Typography:**
+     * Toàn bộ nhãn, nút bấm, header dùng font `Segoe UI`.
+     * Tên biến, công thức, giá trị số dùng font monospace `Consolas` sắc nét.
+     * Toàn bộ màu sắc dùng chuẩn `{DynamicResource ...}` từ `Colors.xaml`, loại bỏ badge `• Add (ALU)` thừa thãi trên header.
+   - Thêm `InverseBooleanConverter` để khóa các điều khiển khi `IsWiredFromCanvas` hoặc `IsOutputWiredFromCanvas` là `true`.
+   - Bổ sung hàm `UpdateAvailableOutputTags(bool isReal)` tự động cập nhật danh sách thanh ghi hợp lệ phù hợp với kiểu dữ liệu kết quả suy diễn từ các toán hạng đầu vào.
+   - Khóa nút xóa chân (`CanDelete = false`) khi chân đó đang có dây kết nối trên Canvas.
+2. **Logic Editor Canvas & Reactive Wire Binding ([`LogicEditorViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/LogicEditorViewModel.cs)):**
+   - Trong `SyncWireBinding`: bổ sung nhánh xử lý khi nối dây vào chân vào của `MathNodeViewModel` (`pin.Tag = sourceTag; pin.IsConstant = false; mathTarget.NotifyBindingChanged()`) và khi nối chân ra của `MathNodeViewModel` vào khối `ActionNode` (`mathNodeFrom.OutputTag = actNode.TargetTag`).
+   - Trong `ClearWireBinding`: bổ sung nhánh dọn dẹp tương ứng khi tháo dây nối.
+3. **Trình Biên Dịch Compiler Diagnostics & Lowering ([`MathMacroLowering.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Compilation/MacroLowering/MathMacroLowering.cs) & [`RuleCompiler.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Application/Logic/Compilation/RuleCompiler.cs)):**
+   - Bổ sung mã lỗi `SPLC-COMP-MATH-DIV-ZERO` phát hiện chia cho hằng số 0 ($|val| < 10^{-9}$).
+   - **Hiện thực hóa Phương án B (Tự động thăng hạng kiểu dữ liệu - Implicit Type Promotion):** Khi biểu thức số học chạy ở chế độ số thực (`isFloat == true`), toàn bộ các toán hạng là biến số nguyên (`INT32` / `AnalogInput`) được Compiler tự động sinh micro-rule `SCALE_TAG` ngầm ($k=1.0, b=0$) nạp vào thanh ghi nháp `VREG_SCRATCH` trước khi thực thi lệnh Math. Đảm bảo chip STM32 thực thi chuẩn xác 100% trong cùng một scan cycle mà người dùng không cần thủ công kéo thêm khối chuyển đổi.
+4. **Giao Thức Giao Tiếp & Năng Lực Phần Cứng ([`SPLC_HardwareCapabilities.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Domain/Enums/SPLC_HardwareCapabilities.cs) & [`DeviceEnums.cs`](file:///g:/HoaNV/Projects/SimplePLC/src/SimplePLC.Protocol/Enums/DeviceEnums.cs)):**
+   - Bổ sung `MATH_ALU = 0x00010000` (Bit 16).
+   - Bổ sung `MATH_FAULT = 1 << 3` (Bit 3) trong `SPLC_HealthFlags`.
+
+### 44.3. Kết Quả Kiểm Thử & Nghiệm Thu
+- **Unit Tests:**
+  - `MathMacroLoweringTests.cs`: 18/18 tests PASS (kiểm tra đầy đủ chia 0 với hằng, modulo với hằng 0, tự động thăng hạng kiểu dữ liệu 2 chân và chuỗi 3 chân hỗn hợp qua rule SCALE ngầm).
+  - `MathNodeViewModelTests.cs`: 18/18 tests PASS (kiểm tra đổi tên nhãn chân, đồng bộ 2 chiều dialog/node, cấm xóa chân có dây, lọc tag ngõ ra theo kiểu dữ liệu, bảo lưu tag khi nối dây).
+  - `CanvasWireAutoBindingTests.cs`: 22/22 tests PASS (kiểm tra nối dây tự động gán tag, tháo dây tự động xóa tag cho cả input và output của khối Math).
+  - Toàn bộ solution: **2,302 / 2,302 tests PASS (100%)** không có bất kỳ test nào thất bại hay bị bỏ qua.
+- **Bộ 4 Script Kiểm Tra Tiêu Chuẩn Công Nghiệp:**
+  - `validate-xaml-tokens.ps1`: PASS (0 violations).
+  - `validate-backend-arch.ps1`: PASS (0 violations).
+  - `validate-tdd-docs.ps1`: PASS (0 violations, 100% test pass).
+  - `validate-docs.ps1`: PASS (0 violations, VitePress build sạch sẽ).
+
+### 44.4. Tinh Chỉnh Giao Diện & Đồng Nhất Typography Card 3 (MathConfigDialogView)
+- **Căn Chỉnh Thẳng Hàng Hoàn Tuyệt (Eliminate Layout Misalignment):**
+  - Hợp nhất toàn bộ hàng hiển thị công thức và kết quả mô phỏng vào chung một dải container Inset (`Border` có `Height="34"` và `Padding="12,0"`).
+  - Công thức đại số nằm bên trái (`Column="0"`, `VerticalAlignment="Center"`), nhãn kết quả và giá trị số nằm bên phải (`Column="1"`, `VerticalAlignment="Center"`), triệt tiêu hoàn toàn hiện tượng kết quả số bị bay lên cao ngang hàng với tiêu đề.
+  - Hàng tiêu đề của Card 3 đưa nhãn công thức sang trái và huy hiệu kiểu dữ liệu (`Type: REAL` / `INT32`) cùng trạng thái (`VALID` / `FAULT`) sang góc phải trên cùng một đường cơ sở ngang (`DockPanel`).
+- **Khử Khoảng Trống Thừa Bên Dưới (Eliminate Bottom Vertical Void):**
+  - Chuyển `Window` từ chiều cao cố định `Height="620"` sang cơ chế tự động co giãn theo nội dung `SizeToContent="Height"`, kèm theo giới hạn `MinHeight="380"`.
+  - Hộp thoại ôm khít vừa vặn 3 card nội dung (General, Operands, Formula), loại bỏ triệt để khoảng trống xám vô nghĩa giữa Card 3 và thanh nút bấm thao tác ở chân hộp thoại.
+- **Đồng Nhất Một Màu Đen Duy Nhất Cho Văn Bản (Single Black Color Doctrine):**
+  - Chuyển toàn bộ màu chữ của công thức, kết quả số, nhãn kết quả, kiểu dữ liệu và trạng thái từ màu xanh petrol (`PrimaryBrush`) hoặc xám mờ (`TextMutedBrush`) sang màu đen kỹ thuật chuẩn `{DynamicResource TextPrimaryBrush}` (`#111827`).
+- **Đồng Bộ Phông Chữ & Kích Thước (Harmonized Typography):**
+  - Toàn bộ dải tính toán bên trong khung Inset sử dụng thống nhất một họ font monospace kỹ thuật `Consolas` kích thước 12px.
+  - Loại bỏ hoàn toàn kích thước số khổng lồ 18pt gây lệch lạc thị giác, đảm bảo tính thẩm mỹ chuẩn công nghiệp ANSI/ISA-101 và Microsoft Fluent 2.

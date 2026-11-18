@@ -12,6 +12,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Bộ kiểm thử đơn vị cho phân loại ý định kỹ sư (Intent Classification) và quản lý bộ nhớ đệm đa lượt (Context Memory).
+/// </summary>
 public class AiIntentAndMemoryTests
 {
     // =========================================================================
@@ -29,6 +32,11 @@ public class AiIntentAndMemoryTests
     [InlineData("Nguyên lý hoạt động của relay nhiệt và cách đấu nối")]
     [InlineData("Giải thích nguyên lý tạo mạch tự giữ")]
     [InlineData("Khái niệm Fail-Safe trong điều khiển công nghiệp là gì?")]
+    [InlineData("Giải thích giúp tôi mạch này hoạt động ra sao")]
+    [InlineData("Tại sao nút Stop lại dùng tiếp điểm NC và trigger ON_FALL?")]
+    [InlineData("Explain how this circuit works in detail")]
+    [InlineData("Why does the Stop push button use a normally closed contact?")]
+    [InlineData("What is the difference between TON and TOF timer?")]
     [InlineData("")]
     public void AiIntentClassifier_ConsultativeQueries_ClassifiedAsConsultativeQnA(string prompt)
     {
@@ -47,6 +55,11 @@ public class AiIntentAndMemoryTests
     [InlineData("Cấu hình counter CTU đếm 50 sản phẩm")]
     [InlineData("Đổi tag DI1 thành EmergencyStop")]
     [InlineData("Tạo mạch tự giữ và giải thích nguyên lý hoạt động")]
+    [InlineData("Mạch Start/Stop bật tắt bơm DO0 với nút nhấn DI0 (Start) và DI1 (Stop)")]
+    [InlineData("Mạch start stop bơm DO0 với DI0 và DI1")]
+    [InlineData("Create a Start/Stop circuit for pump DO0 with push buttons DI0 (Start) and DI1 (Stop)")]
+    [InlineData("Start and stop pump DO0 with DI0 and DI1")]
+    [InlineData("Design pump control circuit for DO0 with DI0 button")]
     public void AiIntentClassifier_SynthesisQueries_ClassifiedAsFbdSynthesis(string prompt)
     {
         var intent = AiIntentClassifier.Classify(prompt, hasCanvasElements: true, hasLinterErrors: false);
@@ -59,6 +72,9 @@ public class AiIntentAndMemoryTests
     [InlineData("Tại sao mạch của tôi không chạy?")]
     [InlineData("Mạch đang báo lỗi gì vậy?")]
     [InlineData("Check lỗi cú pháp và linter")]
+    [InlineData("Check errors in the current diagram")]
+    [InlineData("Why is my circuit not working?")]
+    [InlineData("Diagnose write conflicts on canvas")]
     public void AiIntentClassifier_DiagnosticQueries_ClassifiedAsProjectDiagnose(string prompt)
     {
         var intent = AiIntentClassifier.Classify(prompt, hasCanvasElements: true, hasLinterErrors: false);

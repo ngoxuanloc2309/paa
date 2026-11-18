@@ -23,10 +23,35 @@ public static class AiToolDeclarations
             BuildDisconnectWireSchema(),
             BuildConfigureTimerCounterSchema(),
             BuildConfigureScaleSchema(),
+            BuildConfigureMathSchema(),
+            BuildConfigureComparatorSchema(),
             BuildRenameTagSchema(),
             BuildAutoLayoutGraphSchema(),
             BuildDiagnoseLogicBugsSchema()
         };
+    }
+
+    /// <summary>
+    /// Trả về mảng định nghĩa công cụ theo chuẩn OpenAI / Groq Chat Completions API.
+    /// Mỗi phần tử được bọc dưới dạng: { "type": "function", "function": { ... } }
+    /// </summary>
+    /// <returns>JsonArray chứa các công cụ theo đặc tả OpenAI Tools.</returns>
+    public static JsonArray GetOpenAiFunctionDeclarations()
+    {
+        var geminiTools = GetGeminiFunctionDeclarations();
+        var openAiTools = new JsonArray();
+        foreach (var tool in geminiTools)
+        {
+            if (tool != null)
+            {
+                openAiTools.Add(new JsonObject
+                {
+                    ["type"] = "function",
+                    ["function"] = tool.DeepClone()
+                });
+            }
+        }
+        return openAiTools;
     }
 
     private static JsonObject BuildAddNodeSchema()
@@ -45,7 +70,7 @@ public static class AiToolDeclarations
                     {
                         ["type"] = "string",
                         ["description"] = "Loại khối logic cần tạo.",
-                        ["enum"] = new JsonArray { "INPUT", "TRIGGER", "GUARD", "ACTION", "TIMER", "COUNTER", "SCALE" }
+                        ["enum"] = new JsonArray { "INPUT", "TRIGGER", "GUARD", "ACTION", "TIMER", "COUNTER", "SCALE", "MATH", "COMPARATOR" }
                     },
                     ["custom_label"] = new JsonObject { ["type"] = "string", ["description"] = "Nhãn gợi nhớ hiển thị trên đỉnh của khối." },
                     ["position_x"] = new JsonObject { ["type"] = "number", ["description"] = "Tọa độ X trên canvas (bước nhảy lưới tiêu chuẩn 240px)." },
@@ -55,7 +80,7 @@ public static class AiToolDeclarations
                     {
                         ["type"] = "string",
                         ["description"] = "Kiểu kích hoạt (chỉ áp dụng cho TRIGGER).",
-                        ["enum"] = new JsonArray { "NONE", "ON_CHANGE", "ON_RISE", "ON_FALL", "INTERVAL" }
+                        ["enum"] = new JsonArray { "NONE", "ON_CHANGE", "ON_RISE", "ON_FALL", "INTERVAL", "TIME_WINDOW" }
                     },
                     ["compare_op"] = new JsonObject
                     {
@@ -205,6 +230,69 @@ public static class AiToolDeclarations
                     ["clamp_max"] = new JsonObject { ["type"] = "number", ["description"] = "Giá trị kẹp trên an toàn." }
                 },
                 ["required"] = new JsonArray { "node_id", "gain", "offset", "unit", "decimal_places", "is_clamped", "clamp_min", "clamp_max" }
+            }
+        };
+    }
+
+    private static JsonObject BuildConfigureMathSchema()
+    {
+        return new JsonObject
+        {
+            ["name"] = "configure_math",
+            ["description"] = "Cấu hình tham số vận hành cho khối tính toán số học Math ALU (IEC 61131-3) trên Canvas: toán tử (ADD, SUB, MUL, DIV, MOD, MIN, MAX, CLAMP), kiểu dữ liệu (Auto, ForceInt32, ForceReal), Tag ngõ ra và giá trị/Tag cho 2 toán hạng ngõ vào.",
+            ["parameters"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["node_id"] = new JsonObject { ["type"] = "string", ["description"] = "ID của khối MATH cần cấu hình." },
+                    ["operator"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Toán tử số học đại số.",
+                        ["enum"] = new JsonArray { "ADD", "SUB", "MUL", "DIV", "MOD", "MIN", "MAX", "CLAMP" }
+                    },
+                    ["type_mode"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Chế độ kiểu dữ liệu kết quả.",
+                        ["enum"] = new JsonArray { "Auto", "ForceInt32", "ForceReal" }
+                    },
+                    ["output_tag"] = new JsonObject { ["type"] = "string", ["description"] = "Tag ngõ ra đích ghi nhận kết quả (vd: 'VREG0', 'AO0')." },
+                    ["pin1_tag_or_value"] = new JsonObject { ["type"] = "string", ["description"] = "Tên Tag hoặc giá trị hằng số cho toán hạng đầu vào 1 (IN1)." },
+                    ["pin1_is_constant"] = new JsonObject { ["type"] = "boolean", ["description"] = "True nếu toán hạng 1 là hằng số cố định, False nếu là Tag." },
+                    ["pin2_tag_or_value"] = new JsonObject { ["type"] = "string", ["description"] = "Tên Tag hoặc giá trị hằng số cho toán hạng đầu vào 2 (IN2)." },
+                    ["pin2_is_constant"] = new JsonObject { ["type"] = "boolean", ["description"] = "True nếu toán hạng 2 là hằng số cố định, False nếu là Tag." },
+                    ["clamp_min"] = new JsonObject { ["type"] = "number", ["description"] = "Giá trị chặn dưới an toàn khi toán tử là CLAMP (mặc định 0)." },
+                    ["clamp_max"] = new JsonObject { ["type"] = "number", ["description"] = "Giá trị chặn trên an toàn khi toán tử là CLAMP (mặc định 100)." }
+                },
+                ["required"] = new JsonArray { "node_id", "operator", "type_mode", "output_tag", "pin1_tag_or_value", "pin1_is_constant", "pin2_tag_or_value", "pin2_is_constant", "clamp_min", "clamp_max" }
+            }
+        };
+    }
+
+    private static JsonObject BuildConfigureComparatorSchema()
+    {
+        return new JsonObject
+        {
+            ["name"] = "configure_comparator",
+            ["description"] = "Cấu hình toán tử so sánh quan hệ và ngưỡng so sánh cho khối COMPARATOR (CMP).",
+            ["parameters"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["node_id"] = new JsonObject { ["type"] = "string", ["description"] = "ID của khối COMPARATOR cần cấu hình." },
+                    ["compare_op"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Toán tử so sánh (EQ, NEQ, GT, LT, GTE, LTE, BETWEEN).",
+                        ["enum"] = new JsonArray { "EQ", "NEQ", "GT", "LT", "GTE", "LTE", "BETWEEN" }
+                    },
+                    ["threshold_lo"] = new JsonObject { ["type"] = "number", ["description"] = "Ngưỡng so sánh dưới." },
+                    ["threshold_hi"] = new JsonObject { ["type"] = "number", ["description"] = "Ngưỡng so sánh trên (chỉ dùng khi BETWEEN)." }
+                },
+                ["required"] = new JsonArray { "node_id", "compare_op", "threshold_lo" }
             }
         };
     }
