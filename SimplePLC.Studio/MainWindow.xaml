@@ -501,6 +501,9 @@
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="6">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsStartPageActive}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
@@ -516,6 +519,9 @@
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
                                         <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsStartPageActive}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -905,15 +911,35 @@
                             </Border>
                         </StackPanel>
                     </StackPanel>
+                    <!-- Start Page Context (When ON Start Page) -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStartPageActive}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Loc[StartPageStatusReady]}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+
                     <!-- Device & Modbus Configuration Context (When ON Tab 0: Thiết Bị) -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <StackPanel.Style>
                             <Style TargetType="StackPanel">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding SelectedTabIndex}" Value="0" />
+                                            <Condition Binding="{Binding IsStartPageActive}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
                                         <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
+                                    </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
@@ -1112,6 +1138,16 @@
 
                     <Border Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="2" Padding="6,2" Margin="0,0,0,0" VerticalAlignment="Center"
                             ToolTip="{Binding DeviceProductToolTip}" Cursor="Hand">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStartPageActive}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <Border.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding ShowDeviceInfoCommand}" />
                         </Border.InputBindings>

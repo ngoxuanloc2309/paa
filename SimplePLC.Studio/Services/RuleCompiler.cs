@@ -993,6 +993,43 @@ public sealed class RuleCompiler : IRuleCompiler
                     });
                     break;
 
+                case MathNodeViewModel math:
+                    ushort? mathOutTag = math.OutputTag != null && math.OutputTag.Kind != TagKind.None
+                        ? ResolveTagIndex(math.OutputTag, targetProduct)
+                        : null;
+
+                    var mathData = new MathNodeData
+                    {
+                        Operator = math.Operator,
+                        TypeMode = math.TypeMode,
+                        OutTagIndex = mathOutTag
+                    };
+
+                    foreach (var pin in math.Pins)
+                    {
+                        ushort? pinTag = pin.Tag != null && pin.Tag.Kind != TagKind.None
+                            ? ResolveTagIndex(pin.Tag, targetProduct)
+                            : null;
+
+                        mathData.Pins.Add(new MathPinData
+                        {
+                            Id = pin.Id,
+                            Label = pin.Label,
+                            TagIndex = pinTag,
+                            IsConstant = pin.IsConstant,
+                            ConstantValue = pin.ConstantValue
+                        });
+                    }
+
+                    graph.Nodes.Add(new LogicNode
+                    {
+                        Id = math.Id,
+                        Kind = LogicNodeKind.Math,
+                        Label = math.DisplayTitle,
+                        MathData = mathData
+                    });
+                    break;
+
                 default:
                     studioDiagnostics.Add(new(SimplePLC.Studio.Models.DiagnosticSeverity.Error, LocalizationService.Tr("DiagUnsupportedNode"), NodeId: node.Id));
                     break;

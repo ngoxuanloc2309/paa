@@ -122,6 +122,20 @@ public abstract partial class GraphNodeViewModel : ObservableObject, IDisposable
                 CustomLabel = "Kích hoạt (" + CustomLabel.Substring("Trigger (".Length);
             else if (CustomLabel.StartsWith("Guard (", StringComparison.OrdinalIgnoreCase))
                 CustomLabel = "Khóa an toàn (" + CustomLabel.Substring("Guard (".Length);
+            else if (CustomLabel.StartsWith("Rising Edge (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Sườn lên (" + CustomLabel.Substring("Rising Edge (".Length);
+            else if (CustomLabel.StartsWith("Falling Edge (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Sườn xuống (" + CustomLabel.Substring("Falling Edge (".Length);
+            else if (CustomLabel.StartsWith("Interval (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Chu kỳ (" + CustomLabel.Substring("Interval (".Length);
+            else if (CustomLabel.Equals("Periodic Interval", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Chu kỳ lặp";
+            else if (CustomLabel.StartsWith("Turn ON (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Bật (" + CustomLabel.Substring("Turn ON (".Length);
+            else if (CustomLabel.StartsWith("Turn OFF (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Tắt (" + CustomLabel.Substring("Turn OFF (".Length);
+            else if (CustomLabel.StartsWith("Toggle (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Đảo (" + CustomLabel.Substring("Toggle (".Length);
         }
         else
         {
@@ -138,6 +152,20 @@ public abstract partial class GraphNodeViewModel : ObservableObject, IDisposable
                 CustomLabel = "Trigger (" + CustomLabel.Substring("Kích hoạt (".Length);
             else if (CustomLabel.StartsWith("Khóa an toàn (", StringComparison.OrdinalIgnoreCase))
                 CustomLabel = "Guard (" + CustomLabel.Substring("Khóa an toàn (".Length);
+            else if (CustomLabel.StartsWith("Sườn lên (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Rising Edge (" + CustomLabel.Substring("Sườn lên (".Length);
+            else if (CustomLabel.StartsWith("Sườn xuống (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Falling Edge (" + CustomLabel.Substring("Sườn xuống (".Length);
+            else if (CustomLabel.StartsWith("Chu kỳ (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Interval (" + CustomLabel.Substring("Chu kỳ (".Length);
+            else if (CustomLabel.Equals("Chu kỳ lặp", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Periodic Interval";
+            else if (CustomLabel.StartsWith("Bật (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Turn ON (" + CustomLabel.Substring("Bật (".Length);
+            else if (CustomLabel.StartsWith("Tắt (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Turn OFF (" + CustomLabel.Substring("Tắt (".Length);
+            else if (CustomLabel.StartsWith("Đảo (", StringComparison.OrdinalIgnoreCase))
+                CustomLabel = "Toggle (" + CustomLabel.Substring("Đảo (".Length);
         }
     }
 
@@ -2083,6 +2111,18 @@ public partial class TimerNodeViewModel : GraphNodeViewModel, ILiveTagBoundNode
     [NotifyPropertyChangedFor(nameof(BoundTagIndex))]
     private TagModel? _outputTag;
 
+    public int? LastKnownOutputTagIndex { get; private set; }
+    public string? LastKnownOutputTagName { get; private set; }
+
+    partial void OnOutputTagChanged(TagModel? value)
+    {
+        if (value != null && value.Kind != TagKind.None)
+        {
+            LastKnownOutputTagIndex = value.Index;
+            LastKnownOutputTagName = value.Name;
+        }
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(InputBadgeText))]
@@ -2285,12 +2325,36 @@ public partial class CounterNodeViewModel : GraphNodeViewModel, ILiveTagBoundNod
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     private TagModel? _cvTag;
 
+    public int? LastKnownCvTagIndex { get; private set; }
+    public string? LastKnownCvTagName { get; private set; }
+
+    partial void OnCvTagChanged(TagModel? value)
+    {
+        if (value != null && value.Kind != TagKind.None)
+        {
+            LastKnownCvTagIndex = value.Index;
+            LastKnownCvTagName = value.Name;
+        }
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     [NotifyPropertyChangedFor(nameof(OutputBadgeText))]
     [NotifyPropertyChangedFor(nameof(NarrativeText))]
     [NotifyPropertyChangedFor(nameof(BoundTagIndex))]
     private TagModel? _outputTag;
+
+    public int? LastKnownOutputTagIndex { get; private set; }
+    public string? LastKnownOutputTagName { get; private set; }
+
+    partial void OnOutputTagChanged(TagModel? value)
+    {
+        if (value != null && value.Kind != TagKind.None)
+        {
+            LastKnownOutputTagIndex = value.Index;
+            LastKnownOutputTagName = value.Name;
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ResetBadgeText))]

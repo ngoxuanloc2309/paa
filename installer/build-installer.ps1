@@ -29,7 +29,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
         $Version = $proj.Project.PropertyGroup.Version
     }
     if ([string]::IsNullOrWhiteSpace($Version)) {
-        $Version = "2.15.2"
+        $Version = "2.15.4"
     }
 }
 $Version = $Version.TrimStart('v')

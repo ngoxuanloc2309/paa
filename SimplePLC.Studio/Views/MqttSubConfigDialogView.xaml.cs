@@ -13,6 +13,10 @@ public partial class MqttSubConfigDialogView : Window
 
     private void ApplyButton_Click(object sender, RoutedEventArgs e)
     {
+        if (DataContext is MqttSubConfigDialogViewModel vm)
+        {
+            vm.Node.SimInputPayload = vm.SimulationInput;
+        }
         Close();
     }
 }

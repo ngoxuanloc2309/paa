@@ -422,6 +422,62 @@ public class MqttSubscribeNodeViewModelTests
         Assert.Contains("\"color\": 1", dialog.SimulationInput);
         Assert.True(dialog.IsSimulationSuccess);
     }
+
+    [Fact]
+    public void MqttPinBinding_WhenSimulatedWithWrappedJson_PreservesCleanJsonPathInDto()
+    {
+        var node = new MqttSubscribeNodeViewModel("spx/cmd");
+        var pin = new MqttPinBindingViewModel
+        {
+            Label = "grid",
+            JsonPath = "grid",
+            DataType = MqttDataType.Int16
+        };
+        node.AddPin(pin);
+
+        // Simulation with wrapped JSON
+        var result = node.ProcessInboundPayload("{\"device\": \"Controller\", \"values\": {\"grid\": 5}}");
+        Assert.True(result.IsSuccess);
+        Assert.Equal("values.grid", pin.ResolvedPath);
+
+        // Hardware Ground Truth: DTO sent to device must preserve clean JsonPath, not "values.grid"
+        var dto = pin.ToDto();
+        Assert.Equal("grid", dto.JsonPath);
+    }
+
+    [Fact]
+    public void MqttSub_WhenCustomPayloadEntered_PersistsAcrossExportAndImport()
+    {
+        var editor = new LogicEditorViewModel(new TagCatalogViewModel());
+        var node = new MqttSubscribeNodeViewModel("spx/cmd")
+        {
+            SimInputPayload = "{\"custom_key\": 123}"
+        };
+
+        var pData = LogicEditorViewModel.ExportSingleNodeData(node);
+        Assert.Equal("{\"custom_key\": 123}", pData.MqttSubSimPayload);
+
+        var restored = editor.CreateNodeFromData(pData) as MqttSubscribeNodeViewModel;
+        Assert.NotNull(restored);
+        Assert.Equal("{\"custom_key\": 123}", restored.SimInputPayload);
+    }
+
+    [Fact]
+    public void MqttSubConfig_WhenNodeHasExistingPayload_DoesNotOverwriteWithDefaultSample()
+    {
+        var tagCatalog = new TagCatalogViewModel();
+        var node = new MqttSubscribeNodeViewModel();
+        node.AddPin(new MqttPinBindingViewModel { Label = "grid", JsonPath = "grid" });
+        node.SimInputPayload = "{\"grid\": 99}";
+
+        var dialog = new MqttSubConfigDialogViewModel(node, tagCatalog);
+
+        // Must retain user's saved payload, NOT auto-generate wrapper with "values"
+        Assert.Equal("{\"grid\": 99}", dialog.SimulationInput);
+        Assert.True(dialog.IsUserModified);
+        Assert.DoesNotContain("\"values\"", dialog.SimulationInput);
+        Assert.True(dialog.IsSimulationSuccess);
+    }
 }
 
 

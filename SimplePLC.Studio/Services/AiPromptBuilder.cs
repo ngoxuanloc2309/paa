@@ -16,14 +16,15 @@ public static class AiPromptBuilder
     /// </summary>
     /// <param name="intent">Ý định xử lý của người dùng (AiUserIntent).</param>
     /// <param name="isEnglish">True nếu cần tạo System Instruction bằng tiếng Anh; False cho tiếng Việt.</param>
+    /// <param name="isAppEnglish">True nếu giao diện phần mềm SynaptiX IDE đang ở chế độ Tiếng Anh (App Presentation Language: English).</param>
     /// <returns>Chuỗi chỉ dẫn chuyên sâu cho AI LLM.</returns>
-    public static string BuildSystemInstruction(AiUserIntent intent = AiUserIntent.FbdSynthesis, bool isEnglish = false)
+    public static string BuildSystemInstruction(AiUserIntent intent = AiUserIntent.FbdSynthesis, bool isEnglish = false, bool isAppEnglish = false)
     {
         return intent switch
         {
             AiUserIntent.ConsultativeQnA => BuildConsultativeInstruction(isEnglish),
             AiUserIntent.ProjectDiagnose => BuildDiagnoseInstruction(isEnglish),
-            _ => BuildSynthesisInstruction(isEnglish)
+            _ => BuildSynthesisInstruction(isEnglish, isAppEnglish)
         };
     }
 
@@ -189,7 +190,7 @@ Bạn là SynaptiX Senior Automation Diagnostic & Safety Auditor — chuyên gia
 """;
     }
 
-    private static string BuildSynthesisInstruction(bool isEnglish = false)
+    private static string BuildSynthesisInstruction(bool isEnglish = false, bool isAppEnglish = false)
     {
         if (isEnglish)
         {
@@ -268,12 +269,13 @@ Present the response cleanly in 3 concise sections in English:
    - Concluding notice:
      `*Draft preview has been outlined on Canvas FBD. Please review and click [✓ Apply] below to sync into system!*`
 
-4. **STRICT PROHIBITIONS**:
+4. **STRICT PROHIBITIONS & TOOL CALLING CONSTRAINTS**:
    - NEVER output Structured Text (ST) code or IF...THEN statements.
    - DO NOT list unreferenced system tags (SYS_RTC_*) in Tag Catalog when input_tag is "NONE".
    - DO NOT write manual mouse click/drag instructions.
    - DO NOT print 32-byte Hex Bytecode tables in chat text.
    - DO NOT claim Trigger handles comparison without a Comparator.
+   - All `custom_label` arguments in tool calls (`add_node`) MUST be in ENGLISH (e.g. 'Alarm Sensor', 'Door Close Trigger', 'Close Door Action').
 
 ### 5. Mandatory Machine-Readable JSON Block:
 At the very end of your response, ALWAYS include the proposed rules in a ```json:rules ... ``` block:
@@ -312,7 +314,24 @@ At the very end of your response, ALWAYS include the proposed rules in a ```json
 """;
         }
 
-        return """
+        string canvasLangRule = isAppEnglish
+            ? """
+### 🔴 QUY TẮC BẮT BUỘC VỀ NGÔN NGỮ HIỂN THỊ KHỐI TRÊN CANVAS (BILINGUAL PRESENTATION):
+- Giao diện người dùng phần mềm SynaptiX IDE hiện đang ở chế độ TIẾNG ANH (App Presentation Language: English).
+- BẮT BUỘC: Mọi tham số `custom_label` khi gọi Tool Calls (`add_node`) PHẢI VIẾT BẰNG TIẾNG ANH CHUẨN CÔNG NGHIỆP!
+  - Ví dụ ngõ vào: 'Alarm Sensor', 'Door Sensor', 'Start Button'.
+  - Ví dụ kích hoạt: 'Rising Edge (50ms)', 'Falling Edge (50ms)', 'Interval (1h)', 'Time Window (06:00)'.
+  - Ví dụ tác vụ: 'Close Door Action', 'Turn ON Lamp', 'Turn OFF Lamp', 'Toggle Buzzer'.
+- TUYỆT ĐỐI KHÔNG DÙNG TIẾNG VIỆT CHO `custom_label` khi phần mềm đang ở giao diện Tiếng Anh!
+- Lời giải thích phân tích (Explanation text) trong Chatbox vẫn trả lời bằng Tiếng Việt theo ngôn ngữ giao tiếp của kỹ sư.
+"""
+            : """
+### 🔴 QUY TẮC VỀ NGÔN NGỮ HIỂN THỊ KHỐI TRÊN CANVAS (BILINGUAL PRESENTATION):
+- Giao diện người dùng phần mềm SynaptiX IDE hiện đang ở chế độ TIẾNG VIỆT (App Presentation Language: Vietnamese).
+- Các tham số `custom_label` khi gọi Tool Calls (`add_node`) nên viết bằng Tiếng Việt cô đọng, rõ nghĩa (ví dụ: 'Cảm Biến Báo Động', 'Kích Hoạt Đóng Cửa', 'Đóng Cửa').
+""";
+
+        return $$"""
 Bạn là SynaptiX Industrial PLC AI Assistant — chuyên gia cố vấn kỹ thuật lập trình điều khiển công nghiệp trong phần mềm SynaptiX IDE.
 Nhiệm vụ của bạn là lắng nghe bài toán tự động hóa từ kỹ sư và đưa ra ngay cấu hình Rule PLC 32-byte chuẩn xác, an toàn và tối ưu nhất.
 
@@ -393,6 +412,8 @@ BẮT BUỘC trình bày cực kỳ ngắn gọn, súc tích theo 3 phần (tự
    - KHÔNG viết hướng dẫn thao tác click chuột kéo thả thủ công.
    - KHÔNG in bảng mã Bytecode Hex 32-byte trong phần chat.
    - KHÔNG gán chức năng so sánh vào Trigger. Khối chuyên trách so sánh điều kiện là Comparator (CMP)!
+
+{{canvasLangRule}}
 
 ### 5. QUY TẮC BẮT BUỘC KHI GỌI TOOL CALLS & KHỐI CẤU TRÚC MÁY ĐỌC BẮT BUỘC (MACHINE-READABLE JSON):
 Ở CUỐI CÙNG CÂU TRẢ LỜI, BẮT BUỘC LUÔN KÈM THEO MỘT KHỐI JSON trong thẻ ```json:rules ... ```:

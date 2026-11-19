@@ -119,10 +119,14 @@
                                       AllowOnlyConnectors="True" />
         </DataTemplate>
 
-        <!-- Tactile Toolbar Button Style with clear Hover and Pressed feedback -->
+        <!-- Tactile Toolbar Button Style with clear Hover and Pressed feedback (Fluent 2 Desktop) -->
         <Style x:Key="TactileToolbarBtnStyle" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{DynamicResource BgPanelBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="Height" Value="27" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="UseLayoutRounding" Value="True" />
             <Setter Property="Template">
@@ -138,11 +142,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryBrush}" />
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource BgSubtleBrush}" />
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource IndustrialSurfaceInsetBrush}" />
-                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{StaticResource IndustrialPrimaryHoverBrush}" />
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource IndustrialPrimaryHoverBrush}" />
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
                                         <TranslateTransform Y="1" />
@@ -1284,93 +1289,80 @@
                     Visibility="{Binding IsSimulationMode, Converter={StaticResource BoolToVis}}">
                 <DockPanel LastChildFill="True">
                     <!-- Drawer Header: Industrial Simulation Console Toolbar -->
-                    <Border DockPanel.Dock="Top" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="10,4">
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource BgSubtleBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,0,1" Padding="8,4">
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <!-- Cột Trái: Toàn bộ công cụ vận hành liền mạch -->
                                 <ColumnDefinition Width="*" />
+                                <!-- Cột Phải: Thống kê chu kỳ & Nút thoát -->
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Left: Status Pill, Clocks, Primary Controls, Filter & Tools (Flat Compact Bar, No Scrollbar) -->
+                            <!-- BÊN TRÁI: DÒNG CHẢY LIÊN TỤC 3 CỤM (ĐO LƯỜNG | ĐIỀU KHIỂN | CÔNG CỤ) -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <!-- Running / Paused Pill -->
-                                <Border CornerRadius="4" Padding="6,2.5" Margin="0,0,6,0" VerticalAlignment="Center">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="{DynamicResource IndustrialBorderDefaultBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderLightBrush}" />
-                                            <Setter Property="BorderThickness" Value="1" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSimRunning}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource BgSubtleBrush}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
+
+                                <!-- CỤM 1: ĐO LƯỜNG & CHỈ SỐ QUÉT (GỌN GÀNG, KHÔNG PHÌNH TO) -->
+                                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Height="27" Padding="4,0" VerticalAlignment="Center" Margin="0,0,6,0">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Ellipse Width="6.5" Height="6.5" Margin="0,0,4,0" VerticalAlignment="Center">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSimRunning}" Value="True">
-                                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                        <TextBlock Text="{Binding SimRunStatusText}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSimRunning}" Value="True">
-                                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <!-- Trạng thái RUN / PAUSED Pill -->
+                                        <Border CornerRadius="3" Padding="6,2" Margin="0,0,5,0" VerticalAlignment="Center" Background="{DynamicResource IndustrialSurfaceInsetBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Ellipse Width="6.5" Height="6.5" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSimRunning}" Value="True">
+                                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="{Binding SimRunStatusText}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Scan Number & Elapsed Time -->
+                                        <TextBlock Text="#" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,2,0" />
+                                        <TextBlock Text="{Binding SimScanNumber}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Consolas" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                        <TextBlock Text="·" FontSize="10" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                        <TextBlock Text="{Binding SimElapsedDisplay}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" FontFamily="Consolas" VerticalAlignment="Center" Margin="0,0,4,0" />
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Scan Counter & Cycle Details -->
-                                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2.5" VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="#" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,2,0" />
-                                        <TextBlock Text="{Binding SimScanNumber}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Consolas" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                        <TextBlock Text="·" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                        <TextBlock Text="{Binding SimElapsedDisplay}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" FontFamily="Consolas" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Gate Alert Pill -->
-                                <Border Background="{DynamicResource DangerLightBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="5,2" VerticalAlignment="Center" Margin="0,0,6,0"
+                                <!-- Cảnh báo Gate Alert Pill (nếu có) -->
+                                <Border Background="{DynamicResource DangerLightBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Height="27" Padding="6,0" VerticalAlignment="Center" Margin="0,0,6,0"
                                         Visibility="{Binding HasSimGateWarning, Converter={StaticResource BoolToVis}}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysAlertTriangle}" Stroke="{DynamicResource WarningBrush}" Width="10" Height="10" Margin="0,0,3,0" />
-                                        <TextBlock Text="{Binding SimGateWarning}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysAlertTriangle}" Stroke="{DynamicResource WarningBrush}" Width="10" Height="10" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding SimGateWarning}" FontSize="9.5" FontWeight="SemiBold" FontFamily="Segoe UI" Foreground="{DynamicResource DangerBrush}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Action Buttons: Step, Auto-Run/Pause, Reset -->
+                                <!-- Vạch phân cách 1 -->
+                                <Border Width="1" Height="16" Background="{DynamicResource IndustrialBorderDefaultBrush}" Margin="2,0,8,0" VerticalAlignment="Center" />
+
+                                <!-- CỤM 2: ĐIỀU KHIỂN CHU TRÌNH PLC (NẰM LIỀN KỀ CỤM 1) -->
+                                <!-- Step 1 Scan Button -->
                                 <Button Command="{Binding StepSimScanCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
-                                        Padding="7,3" Margin="0,0,4,0" Cursor="Hand"
+                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                        MinWidth="88" Height="27" Padding="7,3" Margin="0,0,5,0" Cursor="Hand"
                                         ToolTip="{Binding [SimStepTip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlay}" Stroke="{DynamicResource SuccessBrush}" Width="10" Height="10" Margin="0,0,3,0" />
-                                        <TextBlock Text="{Binding [SimBarStep], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysPlay}" Stroke="{DynamicResource SuccessBrush}" Width="9" Height="9" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding [SimBarStep], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </StackPanel>
                                 </Button>
 
+                                <!-- Play / Pause Button -->
                                 <Button Command="{Binding ToggleSimPlayPauseCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
-                                        Padding="7,3" Margin="0,0,5,0" Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Width="10" Height="10" Margin="0,0,4,0" VerticalAlignment="Center">
+                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                        MinWidth="76" Height="27" Padding="7,3" Margin="0,0,5,0" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Width="9" Height="9" Margin="0,0,4,0" VerticalAlignment="Center">
                                             <Path.Style>
                                                 <Style TargetType="Path" BasedOn="{StaticResource IecStatusIconStyle}">
                                                     <Setter Property="Data" Value="{StaticResource IconSysPlay}" />
@@ -1384,7 +1376,7 @@
                                                 </Style>
                                             </Path.Style>
                                         </Path>
-                                        <TextBlock Text="{Binding SimPlayPauseButtonText}" FontSize="10" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SimPlayPauseButtonText}" FontSize="10" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </StackPanel>
                                 </Button>
 
@@ -1394,77 +1386,78 @@
                                           DisplayMemberPath="DisplayText"
                                           Background="{DynamicResource BgPanelBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
                                           FontSize="10" FontFamily="Segoe UI" FontWeight="Medium"
-                                          Padding="4,2" Width="78" VerticalAlignment="Center" Margin="0,0,4,0"
+                                          Height="27" Padding="5,2" Width="80" VerticalAlignment="Center" Margin="0,0,5,0"
                                           ToolTip="{Binding [SimBarSpeed], Source={x:Static services:LocalizationService.Instance}}" />
 
                                 <!-- Reset Button -->
                                 <Button Command="{Binding ResetSimCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
-                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                        FontWeight="Medium" FontSize="10" FontFamily="Segoe UI"
-                                        Padding="7,3" Margin="0,0,4,0" Cursor="Hand"
+                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                        Height="27" Padding="7,3" Margin="0,0,0,0" Cursor="Hand"
                                         ToolTip="{Binding [SimResetTip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" Stroke="{DynamicResource TextSecondaryBrush}" Width="10" Height="10" Margin="0,0,4,0" />
-                                        <TextBlock Text="{Binding [SimBtnResetPlc], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysReset}" Stroke="{DynamicResource TextMutedBrush}" Width="9" Height="9" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding [SimBtnResetPlc], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Separator -->
-                                <Border Width="1" Height="16" Background="{DynamicResource IndustrialBorderDefaultBrush}" Margin="3,0,5,0" VerticalAlignment="Center" />
+                                <!-- Vạch phân cách 2 -->
+                                <Border Width="1" Height="16" Background="{DynamicResource IndustrialBorderDefaultBrush}" Margin="6,0,8,0" VerticalAlignment="Center" />
 
+                                <!-- CỤM 3: CÔNG CỤ CHẨN ĐOÁN & NHẬT KÝ (NẰM LIỀN KỀ CỤM 2) -->
                                 <!-- Filter Changed Scans Only Checkbox -->
                                 <CheckBox IsChecked="{Binding FilterChangedScansOnly}"
                                           Style="{StaticResource TactileToolbarCheckBoxStyle}"
                                           Content="{Binding [SimFilterChanged], Source={x:Static services:LocalizationService.Instance}}"
                                           FontSize="10" FontFamily="Segoe UI" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}"
-                                          VerticalAlignment="Center" Margin="0,0,4,0"
+                                          Height="27" Padding="7,3" VerticalAlignment="Center" Margin="0,0,5,0"
                                           ToolTip="{Binding [SimFilterTip], Source={x:Static services:LocalizationService.Instance}}" />
 
                                 <!-- Clear Scan Log Button -->
                                 <Button Command="{Binding ClearScanLogCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
-                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Foreground="{DynamicResource TextMutedBrush}"
-                                        FontWeight="Medium" FontSize="10" FontFamily="Segoe UI"
-                                        Padding="7,3" Margin="0,0,4,0" Cursor="Hand"
+                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                        Height="27" Padding="7,3" Margin="0,0,5,0" Cursor="Hand"
                                         ToolTip="{Binding [SimClearTip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource TextMutedBrush}" Width="10" Height="10" Margin="0,0,3,0" />
-                                        <TextBlock Text="{Binding [SimBtnClearLog], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysTrash}" Stroke="{DynamicResource TextMutedBrush}" Width="9" Height="9" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding [SimBtnClearLog], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- Toggle Virtual I/O Board Button -->
                                 <Button Command="{Binding ToggleVirtualIoBoardCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
-                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" Foreground="{DynamicResource PrimaryBrush}"
-                                        FontWeight="Medium" FontSize="10" FontFamily="Segoe UI"
-                                        Padding="7,3" Margin="2,0,0,0" Cursor="Hand"
+                                        Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+                                        Height="27" Padding="7,3" Margin="0,0,0,0" Cursor="Hand"
                                         ToolTip="{Binding [VirtualIoToggleTip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysSettings}" Stroke="{DynamicResource TextMutedBrush}" Width="10" Height="10" Margin="0,0,3,0" />
-                                        <TextBlock Text="{Binding [VirtualIoBoardBtn], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysSettings}" Stroke="{DynamicResource PrimaryBrush}" Width="9" Height="9" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding [VirtualIoBoardBtn], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="SemiBold" FontFamily="Segoe UI" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryBrush}" />
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
 
-                            <!-- Right Controls: History Count & Exit Simulation (Always Visible, Never Overlapped) -->
+                            <!-- BÊN PHẢI: TỔNG CHU KỲ (THẲNG HÀNG HOÀN HẢO) & NÚT THOÁT -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding [SimTotalCycles], Source={x:Static services:LocalizationService.Instance}}" FontSize="10.5" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" />
-                                    <TextBlock Text=": " FontSize="10.5" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" />
-                                    <TextBlock Text="{Binding SimScanHistory.Count}" FontSize="10.5" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
+                                <!-- Total Cycles Card: Khung đo lường liền khối Height 27px, CornerRadius 4px, Segoe UI 10pt đồng nhất tuyệt đối trên cùng 1 đường thẳng -->
+                                <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="4" Height="27" Padding="8,0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding [SimTotalCycles], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontFamily="Segoe UI" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text=": " FontSize="10" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SimScanHistory.Count}" FontSize="10" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
 
-                                <!-- Exit Simulation Button -->
+                                <!-- Exit Simulation Button: Crimson Red #B91C1C, Height 27px, Padding thoáng, FontSize 10pt khớp toolbar -->
                                 <Button Command="{Binding StopSimulationCommand}"
                                         Style="{StaticResource TactileToolbarBtnStyle}"
                                         Background="{DynamicResource DangerLightBrush}" BorderBrush="{DynamicResource DangerBrush}" Foreground="{DynamicResource DangerBrush}"
-                                        FontWeight="SemiBold" FontSize="11" FontFamily="Segoe UI"
-                                        Padding="10,4" Cursor="Hand"
+                                        FontWeight="SemiBold" FontSize="10" FontFamily="Segoe UI"
+                                        Height="27" Padding="10,3" Cursor="Hand"
                                         ToolTip="{Binding [SimExitTip], Source={x:Static services:LocalizationService.Instance}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysClear}" Stroke="{DynamicResource TextMutedBrush}" Width="9" Height="9" Margin="0,0,4,0" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Style="{StaticResource IecStatusIconStyle}" Data="{StaticResource IconSysClear}" Stroke="{DynamicResource DangerBrush}" Width="8" Height="8" Margin="0,0,4,0" />
                                         <TextBlock Text="{Binding [SimBarStop], Source={x:Static services:LocalizationService.Instance}}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
@@ -1504,7 +1497,7 @@
                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                       ScrollViewer.CanContentScroll="True"
                                       Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="0,0,1,0"
-                                      Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Segoe UI" FontSize="11"
+                                      Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Segoe UI" FontSize="10"
                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                 <ListView.Resources>
@@ -1589,7 +1582,7 @@
                                                                  </Style.Triggers>
                                                              </Style>
                                                          </Border.Style>
-                                                         <TextBlock Text="{Binding ActivityBadgeText}" FontSize="9.5" FontWeight="Bold">
+                                                         <TextBlock Text="{Binding ActivityBadgeText}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI">
                                                              <TextBlock.Style>
                                                                  <Style TargetType="TextBlock">
                                                                      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1625,7 +1618,7 @@
                                              <GridViewColumn.CellTemplate>
                                                  <DataTemplate>
                                                      <DockPanel LastChildFill="True">
-                                                         <TextBlock Text="{Binding TriggerResult}" FontWeight="Bold" Margin="0,0,6,0" DockPanel.Dock="Left">
+                                                         <TextBlock Text="{Binding TriggerResult}" FontWeight="Bold" FontFamily="Segoe UI" Margin="0,0,6,0" DockPanel.Dock="Left">
                                                              <TextBlock.Style>
                                                                  <Style TargetType="TextBlock">
                                                                      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1637,7 +1630,7 @@
                                                                  </Style>
                                                              </TextBlock.Style>
                                                          </TextBlock>
-                                                         <TextBlock Text="{Binding TriggerReason}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding TriggerReason}" />
+                                                         <TextBlock Text="{Binding TriggerReason}" FontFamily="Segoe UI" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding TriggerReason}" />
                                                      </DockPanel>
                                                  </DataTemplate>
                                              </GridViewColumn.CellTemplate>
@@ -1645,7 +1638,7 @@
                                          <GridViewColumn Header="{Binding [SimColGuard], Source={x:Static services:LocalizationService.Instance}}" Width="200">
                                              <GridViewColumn.CellTemplate>
                                                  <DataTemplate>
-                                                     <TextBlock Text="{Binding GuardReason}" FontWeight="Medium" TextTrimming="CharacterEllipsis" ToolTip="{Binding GuardReason}">
+                                                     <TextBlock Text="{Binding GuardReason}" FontWeight="Medium" FontFamily="Segoe UI" TextTrimming="CharacterEllipsis" ToolTip="{Binding GuardReason}">
                                                          <TextBlock.Style>
                                                              <Style TargetType="TextBlock">
                                                                  <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1735,17 +1728,17 @@
                                          <!-- Header of Snapshot -->
                                          <DockPanel LastChildFill="True" Margin="0,0,0,8">
                                              <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                                                 <TextBlock Text="{Binding [SimDetailTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                                 <TextBlock Text="{Binding SelectedScanItem.ScanDisplay}" FontSize="12" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                 <TextBlock Text="{Binding [SimDetailTitle], Source={x:Static services:LocalizationService.Instance}}" FontSize="11" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                 <TextBlock Text="{Binding SelectedScanItem.ScanDisplay}" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                                              </StackPanel>
-                                             <TextBlock Text="{Binding SelectedScanItem.TimeDisplay, StringFormat='{}T = {0}'}" FontSize="11" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                             <TextBlock Text="{Binding SelectedScanItem.TimeDisplay, StringFormat='{}T = {0}'}" FontSize="11" FontWeight="SemiBold" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                          </DockPanel>
 
                                          <!-- Card 1: Ngõ vào -->
                                          <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,6" Margin="0,0,0,6">
                                              <StackPanel>
-                                                 <TextBlock Text="{Binding [SimDetailInput], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" />
-                                                 <TextBlock Text="{Binding SelectedScanItem.InputChange}" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                                 <TextBlock Text="{Binding [SimDetailInput], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,3" />
+                                                 <TextBlock Text="{Binding SelectedScanItem.InputChange}" FontFamily="Consolas" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                              </StackPanel>
                                          </Border>
 
@@ -1753,8 +1746,8 @@
                                          <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,6" Margin="0,0,0,6">
                                              <StackPanel>
                                                  <DockPanel LastChildFill="True" Margin="0,0,0,3">
-                                                     <TextBlock Text="{Binding [SimDetailTrigger], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                                     <TextBlock Text="{Binding SelectedScanItem.TriggerResult}" FontWeight="Bold" FontSize="10.5" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                                     <TextBlock Text="{Binding [SimDetailTrigger], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                     <TextBlock Text="{Binding SelectedScanItem.TriggerResult}" FontWeight="Bold" FontSize="10" FontFamily="Segoe UI" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                                          <TextBlock.Style>
                                                              <Style TargetType="TextBlock">
                                                                  <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1767,7 +1760,7 @@
                                                          </TextBlock.Style>
                                                      </TextBlock>
                                                  </DockPanel>
-                                                 <TextBlock Text="{Binding SelectedScanItem.TriggerReason}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                                 <TextBlock Text="{Binding SelectedScanItem.TriggerReason}" FontSize="10" FontFamily="Segoe UI" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                                              </StackPanel>
                                          </Border>
 
@@ -1775,8 +1768,8 @@
                                          <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,6" Margin="0,0,0,6">
                                              <StackPanel>
                                                  <DockPanel LastChildFill="True" Margin="0,0,0,3">
-                                                     <TextBlock Text="{Binding [SimDetailGuard], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                                     <TextBlock Text="{Binding SelectedScanItem.GuardStatus}" FontWeight="Bold" FontSize="10.5" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                                     <TextBlock Text="{Binding [SimDetailGuard], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                     <TextBlock Text="{Binding SelectedScanItem.GuardStatus}" FontWeight="Bold" FontSize="10" FontFamily="Segoe UI" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                                          <TextBlock.Style>
                                                              <Style TargetType="TextBlock">
                                                                  <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1795,7 +1788,7 @@
                                                          </TextBlock.Style>
                                                      </TextBlock>
                                                  </DockPanel>
-                                                 <TextBlock Text="{Binding SelectedScanItem.GuardReason}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                                 <TextBlock Text="{Binding SelectedScanItem.GuardReason}" FontSize="10" FontFamily="Segoe UI" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                                              </StackPanel>
                                          </Border>
 
@@ -1803,8 +1796,8 @@
                                          <Border Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}" BorderThickness="1" CornerRadius="2" Padding="8,6">
                                              <StackPanel>
                                                  <DockPanel LastChildFill="True" Margin="0,0,0,3">
-                                                     <TextBlock Text="{Binding [SimDetailAction], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                                     <TextBlock Text="{Binding SelectedScanItem.ActionStatus}" FontWeight="Bold" FontSize="10.5" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                                     <TextBlock Text="{Binding [SimDetailAction], Source={x:Static services:LocalizationService.Instance}}" FontSize="9.5" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                     <TextBlock Text="{Binding SelectedScanItem.ActionStatus}" FontWeight="Bold" FontSize="10" FontFamily="Segoe UI" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                                          <TextBlock.Style>
                                                              <Style TargetType="TextBlock">
                                                                  <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -1817,8 +1810,8 @@
                                                          </TextBlock.Style>
                                                      </TextBlock>
                                                  </DockPanel>
-                                                 <TextBlock Text="{Binding SelectedScanItem.ActionDetails}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                                                 <TextBlock FontSize="10" Foreground="{DynamicResource WarningBrush}" Margin="0,2,0,0">
+                                                 <TextBlock Text="{Binding SelectedScanItem.ActionDetails}" FontSize="10" FontFamily="Segoe UI" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                                 <TextBlock FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource WarningBrush}" Margin="0,2,0,0">
                                                      <Run Text="{Binding [SimDetailDwell], Source={x:Static services:LocalizationService.Instance}, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding SelectedScanItem.DwellStatus, Mode=OneWay}" />
                                                  </TextBlock>
                                              </StackPanel>

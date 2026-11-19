@@ -134,7 +134,7 @@ public partial class MqttSubscribeNodeViewModel : GraphNodeViewModel
 
     // Khung giả lập Simulation
     [ObservableProperty]
-    private string _simInputPayload = "{\"grid\": 5, \"color\": 1}";
+    private string _simInputPayload = string.Empty;
 
     [ObservableProperty]
     private string _simParseResultText = string.Empty;

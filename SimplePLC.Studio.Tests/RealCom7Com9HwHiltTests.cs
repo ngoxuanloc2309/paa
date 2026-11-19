@@ -20,12 +20,16 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+[CollectionDefinition("SerialPortExclusiveCollection", DisableParallelization = true)]
+public class SerialPortExclusiveCollectionDefinition { }
+
 /// <summary>
 /// Hardware-In-The-Loop (HIL) automation test suite executing real serial Modbus RTU wire transactions
 /// between COM7 (STM32 MCU Simulator Server) and COM9 (SynaptiX IDE Host Transport Client).
 /// Covers 100% of newly added System Tab subsystems, associated rule logic scenarios,
 /// and physical layer transport invariants per IEC 61508-3.
 /// </summary>
+[Collection("SerialPortExclusiveCollection")]
 public class RealCom7Com9HwHiltTests
 {
     private const string McuPort = "COM7";
@@ -33,13 +37,30 @@ public class RealCom7Com9HwHiltTests
     private const int BaudRate = 115200;
 
     /// <summary>
-    /// Checks whether the physical/virtual COM7 and COM9 serial port pair exists on the host OS.
+    /// Checks whether the physical/virtual COM7 and COM9 serial port pair exists on the host OS
+    /// and can actually be opened without port lease contention.
     /// </summary>
     private static bool IsComPairAvailable()
     {
-        var ports = SerialPort.GetPortNames();
-        return ports.Contains(McuPort, StringComparer.OrdinalIgnoreCase) &&
-               ports.Contains(HostPort, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var ports = SerialPort.GetPortNames();
+            if (!ports.Contains(McuPort, StringComparer.OrdinalIgnoreCase) ||
+                !ports.Contains(HostPort, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            using var p1 = new SerialPort(McuPort);
+            p1.Open();
+            using var p2 = new SerialPort(HostPort);
+            p2.Open();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

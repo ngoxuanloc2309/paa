@@ -46,19 +46,23 @@ public class AiContextAggregator
     /// <summary>
     /// Tạo cấu trúc JsonObject mô tả toàn diện ngữ cảnh dự án gửi kèm prompt cho LLM.
     /// Áp dụng cơ chế lọc và ưu tiên Tag thông minh (Relevance-based Tag Injection) để tiết kiệm token.
+    /// Bổ sung cờ isUltraCompact dành riêng cho Groq Cloud để triệt tiêu các trường pixel và thu gọn tối đa payload.
     /// </summary>
-    public JsonObject BuildContextPayload()
+    public JsonObject BuildContextPayload(bool isUltraCompact = false)
     {
         var root = new JsonObject();
 
         // 1. Hardware & Connection
-        var hwNode = new JsonObject
+        if (!isUltraCompact)
         {
-            ["status"] = _hardwareStatusProvider?.Invoke() ?? "OFFLINE",
-            ["target"] = "SynaptiX Industrial Controller / Modbus RTU V1.7 (SPLC-SPEC-SLAVE-001)",
-            ["rule_capacity"] = "100 rules (32 bytes per rule)"
-        };
-        root["hardware_profile"] = hwNode;
+            var hwNode = new JsonObject
+            {
+                ["status"] = _hardwareStatusProvider?.Invoke() ?? "OFFLINE",
+                ["target"] = "SynaptiX Industrial Controller / Modbus RTU V1.7 (SPLC-SPEC-SLAVE-001)",
+                ["rule_capacity"] = "100 rules (32 bytes per rule)"
+            };
+            root["hardware_profile"] = hwNode;
+        }
 
         var logicVM = _logicEditorProvider();
 
@@ -108,21 +112,36 @@ public class AiContextAggregator
 
         // 3. Lọc và ưu tiên Tag (Prioritized Tag Selection)
         var allTags = (_tagsProvider() ?? Enumerable.Empty<TagModel>()).ToList();
-        var prioritizedTags = allTags
-            .Where(t =>
-                t.Kind != TagKind.None && (
+        List<TagModel> prioritizedTags;
+        if (isUltraCompact)
+        {
+            var compactCore = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DI0", "DO0", "AI0", "VREG0" };
+            prioritizedTags = allTags
+                .Where(t => t.Kind != TagKind.None && (
                     usedTagNames.Contains(t.Name) ||
                     (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ||
-                    CoreDefaultTagNames.Contains(t.Name)))
-            .OrderBy(t => usedTagNames.Contains(t.Name) ? 0 :
-                          (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ? 1 : 2)
-            .ThenBy(t => t.Index)
-            .ToList();
+                    compactCore.Contains(t.Name)))
+                .Take(25)
+                .ToList();
+        }
+        else
+        {
+            prioritizedTags = allTags
+                .Where(t =>
+                    t.Kind != TagKind.None && (
+                        usedTagNames.Contains(t.Name) ||
+                        (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ||
+                        CoreDefaultTagNames.Contains(t.Name)))
+                .OrderBy(t => usedTagNames.Contains(t.Name) ? 0 :
+                              (!string.IsNullOrWhiteSpace(t.Alias) && t.Alias != "Không chọn" && t.Alias != "NONE" && t.Alias != "— Không chọn —") ? 1 : 2)
+                .ThenBy(t => t.Index)
+                .ToList();
+        }
 
         // Dự phòng nếu không có tag nào khớp bộ lọc nhưng allTags có dữ liệu
         if (prioritizedTags.Count == 0 && allTags.Count > 0)
         {
-            prioritizedTags = allTags.Take(20).ToList();
+            prioritizedTags = allTags.Take(isUltraCompact ? 10 : 20).ToList();
         }
 
         var tagsArray = new JsonArray();
@@ -133,11 +152,14 @@ public class AiContextAggregator
                 ["index"] = t.Index,
                 ["name"] = t.Name,
                 ["kind"] = t.Kind.ToString(),
-                ["data_type"] = t.DataTypeText,
-                ["alias"] = string.IsNullOrWhiteSpace(t.Alias) ? string.Empty : t.Alias,
-                ["is_readonly"] = t.IsReadOnly,
-                ["is_in_canvas"] = usedTagNames.Contains(t.Name)
+                ["data_type"] = t.DataTypeText
             };
+            if (!string.IsNullOrWhiteSpace(t.Alias)) tagObj["alias"] = t.Alias;
+            if (!isUltraCompact)
+            {
+                tagObj["is_readonly"] = t.IsReadOnly;
+                tagObj["is_in_canvas"] = usedTagNames.Contains(t.Name);
+            }
 
             // Trích xuất giá trị Live nếu có
             if (_runtimeStateStoreProvider != null)
@@ -146,7 +168,7 @@ public class AiContextAggregator
                 if (store != null)
                 {
                     var snap = store.GetTag((ushort)t.Index);
-                    if (snap != null)
+                    if (snap != null && snap.RawValue != 0)
                     {
                         tagObj["live_val"] = snap.RawValue;
                     }
@@ -183,12 +205,15 @@ public class AiContextAggregator
                         ModbusWriteNodeViewModel => "MODBUS_WRITE",
                         DirectWriteNodeViewModel => "DIRECT_WRITE",
                         _ => "UNKNOWN"
-                    },
-                    ["label"] = n.DisplayTitle,
-                    ["pos_x"] = Math.Round(n.Location.X),
-                    ["pos_y"] = Math.Round(n.Location.Y),
-                    ["summary"] = n.SummaryText
+                    }
                 };
+                if (!isUltraCompact)
+                {
+                    nObj["label"] = n.DisplayTitle;
+                    nObj["pos_x"] = Math.Round(n.Location.X);
+                    nObj["pos_y"] = Math.Round(n.Location.Y);
+                    nObj["summary"] = n.SummaryText;
+                }
 
                 // Thuộc tính Tag và tham số đặc thù của từng khối
                 if (n is InputNodeViewModel inNode && inNode.Tag != null)

@@ -17,10 +17,17 @@ namespace SimplePLC.Studio.Services;
 /// </summary>
 public class OpenAiCompatibleApiClient
 {
-    private static readonly HttpClient HttpClient = new()
+    private static HttpClient? _customHttpClient;
+    private static readonly HttpClient DefaultHttpClient = new()
     {
         Timeout = TimeSpan.FromSeconds(60)
     };
+
+    public static HttpClient HttpClient
+    {
+        get => _customHttpClient ?? DefaultHttpClient;
+        set => _customHttpClient = value;
+    }
 
     /// <summary>
     /// Điểm cuối mặc định cho Groq Cloud API.
@@ -103,65 +110,106 @@ public class OpenAiCompatibleApiClient
         }
 
         string jsonPayload = rootNode.ToJsonString();
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
-        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+        HttpResponseMessage? response = null;
+        string responseBody = string.Empty;
+        const int maxRetries = 1;
 
-        HttpResponseMessage response;
-        try
+        for (int retry = 0; retry <= maxRetries; retry++)
         {
-            response = await HttpClient.SendAsync(request, ct).ConfigureAwait(false);
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new Exception($"Lỗi kết nối mạng: Không thể kết nối tới Groq Cloud. Kiểm tra lại kết nối Internet ({ex.Message})", ex);
-        }
-        catch (TaskCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw new OperationCanceledException("Yêu cầu đã bị hủy bởi người dùng.", ct);
-        }
-        catch (TaskCanceledException ex)
-        {
-            throw new TimeoutException("Hết thời gian chờ phản hồi từ Groq Cloud (Timeout 60s).", ex);
-        }
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-        string responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            try
+            {
+                response = await HttpClient.SendAsync(request, ct).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new Exception($"Lỗi kết nối mạng: Không thể kết nối tới Groq Cloud. Kiểm tra lại kết nối Internet ({ex.Message})", ex);
+            }
+            catch (TaskCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Yêu cầu đã bị hủy bởi người dùng.", ct);
+            }
+            catch (TaskCanceledException ex)
+            {
+                throw new TimeoutException("Hết thời gian chờ phản hồi từ Groq Cloud (Timeout 60s).", ex);
+            }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            string? errorMsg = null;
+            responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+            if (response.IsSuccessStatusCode)
+            {
+                break;
+            }
+
+            // Xử lý Rate Limit 429: tự động thử lại 1 lần nếu còn lượt retry
+            if ((int)response.StatusCode == 429 && retry < maxRetries)
+            {
+                string? errorMsg = null;
+                try
+                {
+                    var errorDoc = JsonNode.Parse(responseBody);
+                    errorMsg = errorDoc?["error"]?["message"]?.GetValue<string>();
+                }
+                catch
+                {
+                    /* Best-effort parse of error JSON payload; fallback to raw body if unparsable */
+                }
+
+                double waitSeconds = 2.0;
+                if (!string.IsNullOrWhiteSpace(errorMsg))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        errorMsg,
+                        @"try again in ([0-9]+(\.[0-9]+)?)s",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedSec))
+                    {
+                        waitSeconds = parsedSec;
+                    }
+                }
+
+                int delayMs = Math.Clamp((int)(waitSeconds * 1000) + 300, 1500, 5000);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            // Nếu không phải 429 hoặc đã hết lượt retry -> ném lỗi
+            string? failMsg = null;
             try
             {
                 var errorDoc = JsonNode.Parse(responseBody);
-                errorMsg = errorDoc?["error"]?["message"]?.GetValue<string>();
+                failMsg = errorDoc?["error"]?["message"]?.GetValue<string>();
             }
             catch
             {
-                // ignore parsing failure
+                /* Best-effort parse of failure JSON payload; fallback to raw reason phrase if unparsable */
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
                 response.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
-                throw new Exception($"Groq API Key không hợp lệ hoặc đã hết hạn: {errorMsg ?? response.ReasonPhrase}");
+                throw new Exception($"Groq API Key không hợp lệ hoặc đã hết hạn: {failMsg ?? response.ReasonPhrase}");
             }
 
             if ((int)response.StatusCode == 429)
             {
-                throw new Exception($"Hạn mức yêu cầu Groq tạm thời đã vượt quá (Rate Limit Exceeded): {errorMsg ?? response.ReasonPhrase}. Vui lòng đợi vài giây và thử lại.");
+                throw new Exception($"Hạn mức yêu cầu Groq tạm thời đã vượt quá (Rate Limit Exceeded): {failMsg ?? response.ReasonPhrase}. Vui lòng đợi vài giây và thử lại.");
             }
 
             if ((int)response.StatusCode == 413)
             {
-                throw new Exception($"Dung lượng yêu cầu vượt quá giới hạn token của Groq (Request Too Large): {errorMsg ?? response.ReasonPhrase}. Hãy thử lại với câu hỏi ngắn gọn hơn.");
+                throw new Exception($"Dung lượng yêu cầu vượt quá giới hạn token của Groq (Request Too Large): {failMsg ?? response.ReasonPhrase}. Hãy thử lại với câu hỏi ngắn gọn hơn.");
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Mô hình '{model}' không khả dụng trên tài khoản Groq của bạn. Hãy đổi sang 'llama-3.1-8b-instant' hoặc 'openai/gpt-oss-120b' trong Cài đặt (icon ⚙️). ({errorMsg ?? response.ReasonPhrase})");
+                throw new Exception($"Mô hình '{model}' không khả dụng trên tài khoản Groq của bạn. Hãy đổi sang 'llama-3.1-8b-instant' hoặc 'openai/gpt-oss-120b' trong Cài đặt (icon ⚙️). ({failMsg ?? response.ReasonPhrase})");
             }
 
-            throw new Exception($"Lỗi từ Groq Cloud [{(int)response.StatusCode}]: {errorMsg ?? response.ReasonPhrase ?? responseBody}");
+            throw new Exception($"Lỗi từ Groq Cloud [{(int)response.StatusCode}]: {failMsg ?? response.ReasonPhrase ?? responseBody}");
         }
 
         // Phân giải kết quả trả về từ Groq

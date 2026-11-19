@@ -248,4 +248,57 @@ public class StartupHubViewModelTests : IDisposable
         Assert.IsType<LogicEditorViewModel>(mainVM.CurrentView);
         Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
     }
+
+    [Fact]
+    public void StartupHub_InitialState_WindowTitleIsCleanWithoutProjectSuffix()
+    {
+        var mainVM = new MainViewModel(act => act());
+        mainVM.ConfirmBoxHandler = (msg, caption, btn, img) => System.Windows.MessageBoxResult.No;
+
+        // When in Start Page, WindowTitle must be clean "SynaptiX IDE" without "[Offline]" or project name
+        Assert.True(mainVM.IsStartPageActive);
+        Assert.Equal("SynaptiX IDE", mainVM.WindowTitle);
+    }
+
+    [Fact]
+    public void StartupHub_WhenNavigatingToWorkspace_WindowTitleShowsProjectAndPort()
+    {
+        var mainVM = new MainViewModel(act => act());
+        mainVM.ConfirmBoxHandler = (msg, caption, btn, img) => System.Windows.MessageBoxResult.No;
+
+        // Transition from Start Page to Workspace
+        mainVM.StartupHubVM.ContinueBlankCommand.Execute(null);
+        Assert.False(mainVM.IsStartPageActive);
+
+        // WindowTitle must now reflect the workspace project state
+        Assert.StartsWith("SynaptiX IDE - ", mainVM.WindowTitle);
+        Assert.True(mainVM.WindowTitle.Contains("Offline") || mainVM.WindowTitle.Contains("Chưa kết nối"));
+    }
+
+    [Fact]
+    public void StartupHub_WhenNavigatingBackToStartPage_WindowTitleRevertsToClean()
+    {
+        var mainVM = new MainViewModel(act => act());
+        mainVM.ConfirmBoxHandler = (msg, caption, btn, img) => System.Windows.MessageBoxResult.No;
+
+        // Transition to Workspace
+        mainVM.StartupHubVM.ContinueBlankCommand.Execute(null);
+        Assert.False(mainVM.IsStartPageActive);
+        Assert.NotEqual("SynaptiX IDE", mainVM.WindowTitle);
+
+        // Track PropertyChanged notifications
+        var propertyChangedList = new List<string>();
+        mainVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName != null)
+                propertyChangedList.Add(e.PropertyName);
+        };
+
+        // Re-open Start Page
+        mainVM.OpenStartPage();
+        Assert.True(mainVM.IsStartPageActive);
+        Assert.Equal("SynaptiX IDE", mainVM.WindowTitle);
+        Assert.Contains(nameof(MainViewModel.IsStartPageActive), propertyChangedList);
+        Assert.Contains(nameof(MainViewModel.WindowTitle), propertyChangedList);
+    }
 }

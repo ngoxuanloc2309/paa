@@ -242,6 +242,23 @@ public class MqttPublishNodeTests
     }
 
     [Fact]
+    public void MqttPublishNode_WrapValuesFalse_PersistsAcrossExportAndImport()
+    {
+        var node = new MqttPublishNodeViewModel
+        {
+            WrapValues = false
+        };
+
+        var pData = LogicEditorViewModel.ExportSingleNodeData(node);
+        Assert.False(pData.MqttWrapValues);
+
+        var vm = new LogicEditorViewModel(new TagCatalogViewModel());
+        var restoredNode = vm.CreateNodeFromData(pData) as MqttPublishNodeViewModel;
+        Assert.NotNull(restoredNode);
+        Assert.False(restoredNode.WrapValues);
+    }
+
+    [Fact]
     public void MqttPublishNode_HybridModes_ExposesCorrectFlagsAndInterval()
     {
         var node = new MqttPublishNodeViewModel();

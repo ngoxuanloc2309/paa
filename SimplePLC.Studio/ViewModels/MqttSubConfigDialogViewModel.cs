@@ -87,7 +87,24 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
             AttachPinListener(pin);
         }
         Node.Pins.CollectionChanged += OnPinsCollectionChanged;
-        GenerateAndApplySamplePayload();
+        if (!string.IsNullOrWhiteSpace(Node.SimInputPayload))
+        {
+            _isGeneratingSample = true;
+            try
+            {
+                SimulationInput = Node.SimInputPayload;
+                IsUserModified = true;
+                RunSimulation();
+            }
+            finally
+            {
+                _isGeneratingSample = false;
+            }
+        }
+        else
+        {
+            GenerateAndApplySamplePayload();
+        }
     }
 
     private void AttachPinListener(MqttPinBindingViewModel pin)
@@ -170,6 +187,7 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
         if (!_isGeneratingSample)
         {
             IsUserModified = !string.IsNullOrWhiteSpace(value);
+            Node.SimInputPayload = value;
         }
     }
 
@@ -203,6 +221,7 @@ public partial class MqttSubConfigDialogViewModel : ObservableObject
     public void ResetSamplePayload()
     {
         IsUserModified = false;
+        Node.SimInputPayload = string.Empty;
         GenerateAndApplySamplePayload();
     }
 

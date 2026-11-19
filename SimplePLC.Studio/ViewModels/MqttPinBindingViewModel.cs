@@ -376,7 +376,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
     {
         Id = Id,
         Label = Label,
-        JsonPath = !string.IsNullOrWhiteSpace(ResolvedPath) ? ResolvedPath : JsonPath,
+        JsonPath = !string.IsNullOrWhiteSpace(JsonPath) ? JsonPath : (!string.IsNullOrWhiteSpace(Label) ? Label : Id),
         DataType = DataType,
         TargetTagIndex = TargetTagIndex,
         MinValue = MinValue,

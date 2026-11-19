@@ -41,6 +41,12 @@ public enum TagAccessRole
 
 public partial class TagCatalogViewModel : ObservableObject
 {
+    /// <summary>
+    /// Sự kiện thông báo danh mục Tag vừa hoàn thành đồng bộ với thiết bị hoặc dự án.
+    /// Cho phép các ViewModel khác (như LogicEditorViewModel) thực hiện tái liên kết đồ thị.
+    /// </summary>
+    public event EventHandler? TagsSynchronized;
+
     private ProductResourceProfile? _currentResources;
     public ProductResourceProfile? CurrentResources => _currentResources;
 
@@ -310,23 +316,79 @@ public partial class TagCatalogViewModel : ObservableObject
         OnPropertyChanged(nameof(TitleText));
     }
 
+    /// <summary>
+    /// Đồng bộ nội dung ObservableCollection theo thuật toán in-place reconciliation (diffing).
+    /// Giữ nguyên các phần tử hợp lệ tại chỗ, không bao giờ gọi .Clear() để tránh kích hoạt
+    /// Selector.CoerceSelectedItem của WPF làm rớt mất dữ liệu đang chọn trên ComboBox (Axiom 0.2 & 0.3).
+    /// </summary>
+    private static void ReconcileCollection<T, TKey>(
+        ObservableCollection<T> target,
+        IEnumerable<T> desired,
+        Func<T, TKey> keySelector) where TKey : notnull
+    {
+        var desiredList = desired as IList<T> ?? desired.ToList();
+        var desiredKeys = new HashSet<TKey>(desiredList.Select(keySelector));
+
+        // 1. Gỡ bỏ các phần tử không còn tồn tại trong desired (duyệt ngược từ cuối về đầu)
+        for (int i = target.Count - 1; i >= 0; i--)
+        {
+            var key = keySelector(target[i]);
+            if (!desiredKeys.Contains(key))
+            {
+                target.RemoveAt(i);
+            }
+        }
+
+        // 2. Thêm hoặc cập nhật thứ tự cho các phần tử
+        for (int i = 0; i < desiredList.Count; i++)
+        {
+            var item = desiredList[i];
+            var key = keySelector(item);
+
+            int existingIndex = -1;
+            for (int j = i; j < target.Count; j++)
+            {
+                if (EqualityComparer<TKey>.Default.Equals(keySelector(target[j]), key))
+                {
+                    existingIndex = j;
+                    break;
+                }
+            }
+
+            if (existingIndex < 0)
+            {
+                if (i <= target.Count)
+                    target.Insert(i, item);
+                else
+                    target.Add(item);
+            }
+            else
+            {
+                if (existingIndex != i)
+                {
+                    target.Move(existingIndex, i);
+                }
+                if (!ReferenceEquals(target[i], item))
+                {
+                    target[i] = item;
+                }
+            }
+        }
+    }
+
     private void RebuildDerivedCollections()
     {
-        DigitalTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind == TagKind.None || t.IsDigital))
-            DigitalTags.Add(tag);
+        var digital = AllTags.Where(t => t.Kind == TagKind.None || t.IsDigital).ToList();
+        ReconcileCollection(DigitalTags, digital, t => t.Name);
 
-        OutputDigitalTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind == TagKind.DiscreteOutput || t.Kind == TagKind.VirtualFlag))
-            OutputDigitalTags.Add(tag);
+        var outputDigital = AllTags.Where(t => t.Kind == TagKind.DiscreteOutput || t.Kind == TagKind.VirtualFlag).ToList();
+        ReconcileCollection(OutputDigitalTags, outputDigital, t => t.Name);
 
-        RegisterTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind is TagKind.VirtualRegisterRetain or TagKind.VirtualRegister or TagKind.Counter))
-            RegisterTags.Add(tag);
+        var register = AllTags.Where(t => t.Kind is TagKind.VirtualRegisterRetain or TagKind.VirtualRegister or TagKind.Counter).ToList();
+        ReconcileCollection(RegisterTags, register, t => t.Name);
 
-        NumericTags.Clear();
-        foreach (var tag in AllTags.Where(t => t.Kind != TagKind.None && !t.IsDigital && t.DataType != TagDataType.Boolean))
-            NumericTags.Add(tag);
+        var numeric = AllTags.Where(t => t.Kind != TagKind.None && !t.IsDigital && t.DataType != TagDataType.Boolean).ToList();
+        ReconcileCollection(NumericTags, numeric, t => t.Name);
     }
 
     public void ResetAllAliases()
@@ -440,15 +502,20 @@ public partial class TagCatalogViewModel : ObservableObject
 
         _currentResources = product.Resources;
 
-        var existingMap = new Dictionary<int, TagModel>();
+        var existingByIndex = new Dictionary<int, TagModel>();
+        var existingByName = new Dictionary<string, TagModel>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in AllTags)
         {
-            existingMap[t.Index] = t;
+            existingByIndex[t.Index] = t;
+            if (!string.IsNullOrEmpty(t.Name))
+            {
+                existingByName[t.Name] = t;
+            }
         }
         var syncedTags = new List<TagModel>();
 
         // 1. Tag NONE (Index 65535) luôn luôn được giữ lại cho các ComboBox chọn Tag
-        if (!existingMap.TryGetValue(65535, out var noneTag))
+        if (!existingByIndex.TryGetValue(65535, out var noneTag))
         {
             noneTag = new TagModel
             {
@@ -477,9 +544,21 @@ public partial class TagCatalogViewModel : ObservableObject
             string group = MapGroup(def.Kind);
             int channel = CalculateChannel(def.Kind, def.TagIndex, layout);
 
-            if (existingMap.TryGetValue(def.TagIndex, out var existing))
+            // Ưu tiên tìm theo Tên Tag (Name) để bảo toàn đúng cổng I/O vật lý khi layout chỉ số thay đổi
+            TagModel? existing = null;
+            if (existingByName.TryGetValue(def.Name, out var byName))
+            {
+                existing = byName;
+            }
+            else if (existingByIndex.TryGetValue(def.TagIndex, out var byIndex) && byIndex.Kind == def.Kind)
+            {
+                existing = byIndex;
+            }
+
+            if (existing != null)
             {
                 // Giữ nguyên instance cũ để bảo toàn Alias đã đặt và liên kết của Rule
+                existing.Index = def.TagIndex;
                 existing.Name = def.Name;
                 existing.Kind = def.Kind;
                 existing.Group = group;
@@ -502,7 +581,7 @@ public partial class TagCatalogViewModel : ObservableObject
         }
 
         // 2.5. Bảo toàn các System Tags chuẩn (Index 1000..1007)
-        foreach (var sys in existingMap.Values.Where(t => t.Kind == TagKind.System).OrderBy(t => t.Index))
+        foreach (var sys in existingByIndex.Values.Where(t => t.Kind == TagKind.System).OrderBy(t => t.Index))
         {
             if (!syncedTags.Any(t => t.Index == sys.Index))
             {
@@ -510,12 +589,9 @@ public partial class TagCatalogViewModel : ObservableObject
             }
         }
 
-        // 3. Cập nhật AllTags
-        AllTags.Clear();
-        foreach (var tag in syncedTags)
-        {
-            AllTags.Add(tag);
-        }
+        // 3. Cập nhật AllTags theo thuật toán in-place reconciliation dựa trên Tên Tag duy nhất
+        ReconcileCollection(AllTags, syncedTags, t => t.Name);
+        RebuildTagIndex();
 
         // 4. Đồng bộ các collection phụ thuộc
         RebuildDerivedCollections();
@@ -530,6 +606,9 @@ public partial class TagCatalogViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalTagCount));
         OnPropertyChanged(nameof(TitleText));
         CurrentGroupInfo = GetGroupInfo(SelectedGroup);
+
+        // 7. Thông báo cho các ViewModel phụ thuộc (LogicEditorViewModel) để tái liên kết đồ thị
+        TagsSynchronized?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>

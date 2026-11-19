@@ -352,6 +352,10 @@ public class ProjectNodeData
     public string MqttUnit { get; set; } = string.Empty;
     public bool MqttIncludeDevice { get; set; } = true;
     public bool MqttIncludeTimestamp { get; set; } = true;
+    /// <summary>
+    /// Tùy chọn bọc mảng giá trị đo lường trong đối tượng "values": { ... } khi phát bản tin JSON.
+    /// </summary>
+    public bool MqttWrapValues { get; set; } = true;
     public string MqttTriggerTagName { get; set; } = string.Empty;
     public List<MqttPayloadFieldData> MqttFields { get; set; } = new();
 
@@ -363,6 +367,10 @@ public class ProjectNodeData
     public bool MqttSubIgnoreRetained { get; set; } = true;
     public uint MqttSubTimeoutMs { get; set; } = 0;
     public string MqttSubFailSafeAction { get; set; } = "KeepLastValue";
+    /// <summary>
+    /// Chuỗi JSON tùy biến phục vụ kiểm thử mô phỏng bóc tách dữ liệu trên giao diện Studio.
+    /// </summary>
+    public string MqttSubSimPayload { get; set; } = string.Empty;
     public List<MqttSubPinData> MqttSubPins { get; set; } = new();
 
     // Modbus Read node properties

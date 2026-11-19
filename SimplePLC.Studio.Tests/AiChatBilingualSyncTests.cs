@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using SimplePLC.Domain.Enums;
@@ -651,6 +652,142 @@ public class AiChatBilingualSyncTests
 
             // Khẳng định tab vẫn giữ ở LogicGraph, KHÔNG bị nhảy sang RuleTable
             Assert.Equal(AppTabIndices.LogicGraph, mainVM.SelectedTabIndex);
+        });
+    }
+
+    [Fact]
+    public void AiPromptBuilder_BuildSystemInstruction_WhenAppIsEnglish_EnforcesEnglishToolLabels()
+    {
+        // Act: Kỹ sư chat bằng Tiếng Việt (isEnglish=false) nhưng App đang ở chế độ Tiếng Anh (isAppEnglish=true)
+        string prompt = AiPromptBuilder.BuildSystemInstruction(AiUserIntent.FbdSynthesis, isEnglish: false, isAppEnglish: true);
+
+        // Assert
+        Assert.Contains("App Presentation Language: English", prompt);
+        Assert.Contains("custom_label", prompt);
+        Assert.Contains("PHẢI VIẾT BẰNG TIẾNG ANH CHUẨN CÔNG NGHIỆP", prompt);
+    }
+
+    [Fact]
+    public async Task AiChatViewModel_GeminiToolCalling_WhenAppIsEnglish_NormalizesVietnameseCustomLabels()
+    {
+        await Task.Run(() =>
+        {
+            RunOnSta(async () =>
+            {
+                // Arrange: Giao diện phần mềm đang là Tiếng Anh
+                LocalizationService.Instance.CurrentLanguage = "en";
+
+                var logicVM = new LogicEditorViewModel(new TagCatalogViewModel());
+                var tags = new List<TagModel>
+                {
+                    new() { Name = "DI2", DataType = TagDataType.Boolean, Alias = "Alarm Sensor" },
+                    new() { Name = "DO2", DataType = TagDataType.Boolean, Alias = "Door Actuator" }
+                };
+
+                var settings = new AiSettingsModel
+                {
+                    Provider = "Gemini",
+                    GeminiApiKey = "test-gemini-key",
+                    ModelName = "gemini-3.8-flash"
+                };
+
+                var chatVM = new AiChatViewModel(
+                    () => tags,
+                    () => Enumerable.Empty<RuleItemModel>(),
+                    () => logicVM,
+                    settings);
+
+                // Giả lập Gemini gọi tool call với nhãn tiếng Việt lọt vào
+                chatVM.ApiHandler = (st, sys, hist, tools, ct) =>
+                {
+                    var toolCalls = new List<AiToolCall>
+                    {
+                        new("add_node", new JsonObject
+                        {
+                            ["node_id"] = "node_in_test",
+                            ["node_type"] = "INPUT",
+                            ["custom_label"] = "Cảm Biến Báo Động",
+                            ["position_x"] = 60,
+                            ["position_y"] = 100,
+                            ["tag_name"] = "DI2",
+                            ["trigger_type"] = "NONE",
+                            ["compare_op"] = "NONE",
+                            ["threshold_lo"] = 0,
+                            ["threshold_hi"] = 0,
+                            ["debounce_ms"] = 0,
+                            ["action_type"] = "NONE",
+                            ["action_param"] = 0
+                        }),
+                        new("add_node", new JsonObject
+                        {
+                            ["node_id"] = "node_act_test",
+                            ["node_type"] = "ACTION",
+                            ["custom_label"] = "Kích hoạt Đóng Cửa",
+                            ["position_x"] = 300,
+                            ["position_y"] = 100,
+                            ["tag_name"] = "DO2",
+                            ["trigger_type"] = "NONE",
+                            ["compare_op"] = "NONE",
+                            ["threshold_lo"] = 0,
+                            ["threshold_hi"] = 0,
+                            ["debounce_ms"] = 0,
+                            ["action_type"] = "SET_TAG",
+                            ["action_param"] = 1
+                        })
+                    };
+
+                    return Task.FromResult(new GeminiToolResponse("Đã tạo mạch điều khiển cửa.", toolCalls));
+                };
+
+                // Act
+                chatVM.InputText = "tiến hành tạo rule khi mà cảm biến kêu thì đóng cửa";
+                await chatVM.SendMessageCommand.ExecuteAsync(null);
+
+                // Assert: Các khối Ghost trên Canvas phải được chuẩn hóa sang tiếng Anh công nghiệp
+                Assert.Equal(2, logicVM.Nodes.Count);
+                var inputNode = logicVM.Nodes.FirstOrDefault(n => n.Id == "node_in_test");
+                var actionNode = logicVM.Nodes.FirstOrDefault(n => n.Id == "node_act_test");
+
+                Assert.NotNull(inputNode);
+                Assert.NotNull(actionNode);
+
+                Assert.Equal("Input (DI2)", inputNode.CustomLabel);
+                Assert.Equal("Turn ON (DO2)", actionNode.CustomLabel);
+            });
+        });
+    }
+
+    [Fact]
+    public void GraphNodeViewModel_TryTranslateAiCustomLabel_TranslatesBilingualBidirectionally()
+    {
+        RunOnSta(() =>
+        {
+            // Đảm bảo trạng thái ban đầu là English
+            LocalizationService.Instance.CurrentLanguage = "en";
+
+            var node = new TriggerNodeViewModel
+            {
+                CustomLabel = "Rising Edge (50ms)"
+            };
+
+            // Switch to Vietnamese
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("Sườn lên (50ms)", node.CustomLabel);
+
+            // Switch back to English
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("Rising Edge (50ms)", node.CustomLabel);
+
+            // Test Action node
+            var actNode = new ActionNodeViewModel
+            {
+                CustomLabel = "Turn ON (DO0)"
+            };
+            LocalizationService.Instance.CurrentLanguage = "vi";
+            Assert.Equal("Bật (DO0)", actNode.CustomLabel);
+
+            LocalizationService.Instance.CurrentLanguage = "en";
+            Assert.Equal("Turn ON (DO0)", actNode.CustomLabel);
         });
     }
 }

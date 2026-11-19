@@ -573,10 +573,11 @@ public partial class AiChatViewModel : ObservableObject
                                    logicVM?.HasSimGateWarning == true;
 
             var intent = AiIntentClassifier.Classify(userPrompt, hasCanvasElements, hasLinterErrors);
+            bool isGroq = Settings.Provider.Equals("Groq", StringComparison.OrdinalIgnoreCase);
 
-            // 2. Tổng hợp ngữ cảnh chuyên sâu (Layer 1 Context Aggregator)
+            // 2. Tổng hợp ngữ cảnh chuyên sâu (Layer 1 Context Aggregator - Ultra-compact cho Groq để chống 429)
             var aggregator = new AiContextAggregator(_tagsProvider, () => _logicEditorProvider?.Invoke());
-            var contextJson = aggregator.BuildContextPayload();
+            var contextJson = aggregator.BuildContextPayload(isUltraCompact: isGroq);
 
             // 3. Quản lý bộ nhớ hội thoại trượt tinh gọn (Tối đa 4 tin nhắn gần nhất để chống tràn Rate Limit)
             var history = new List<(string role, string text)>();
@@ -612,12 +613,13 @@ public partial class AiChatViewModel : ObservableObject
                     string sanitized = SanitizeHistoryMessage(m.Content);
                     if (!string.IsNullOrWhiteSpace(sanitized))
                     {
-                        // Rút gọn tin nhắn cũ của assistant (tối đa 350 ký tự) để tránh nổ token khi hỏi các lượt tiếp theo
-                        if (sanitized.Length > 350)
+                        // Rút gọn tin nhắn cũ của assistant (tối đa 150 ký tự cho Groq, 350 cho Gemini) để tránh nổ token
+                        int maxLen = isGroq ? 150 : 350;
+                        if (sanitized.Length > maxLen)
                         {
                             sanitized = isEnglish
-                                ? sanitized.Substring(0, 350) + "... [Summarized]"
-                                : sanitized.Substring(0, 350) + "... [Đã tóm lược]";
+                                ? sanitized.Substring(0, maxLen) + "... [Summarized]"
+                                : sanitized.Substring(0, maxLen) + "... [Đã tóm lược]";
                         }
                         history.Add((m.Role, sanitized));
                     }
@@ -625,17 +627,17 @@ public partial class AiChatViewModel : ObservableObject
                 else
                 {
                     string userContent = m.Content;
-                    if (userContent.Length > 250)
+                    int maxUserLen = isGroq ? 150 : 250;
+                    if (userContent.Length > maxUserLen)
                     {
-                        userContent = userContent.Substring(0, 250) + "...";
+                        userContent = userContent.Substring(0, maxUserLen) + "...";
                     }
                     history.Add((m.Role, userContent));
                 }
             }
 
             // 4. Chọn System Prompt và Tool Declarations tương ứng với Intent & Provider
-            string systemInstruction = AiPromptBuilder.BuildSystemInstruction(intent, isEnglish);
-            bool isGroq = Settings.Provider.Equals("Groq", StringComparison.OrdinalIgnoreCase);
+            string systemInstruction = AiPromptBuilder.BuildSystemInstruction(intent, isEnglish, isAppEnglish);
 
             // Groq Cloud Free Tier có trần giới hạn 8,000 ITPM (Input Tokens Per Minute).
             // Mảng 10 tool schemas của OpenAI chiếm tới ~3,500 - 4,000 tokens khiến tổng payload vượt trần ITPM và báo lỗi HTTP 413.
@@ -705,6 +707,20 @@ public partial class AiChatViewModel : ObservableObject
                     foreach (var tc in response.ToolCalls)
                     {
                         tx.ApplyToolCall(tc);
+                    }
+
+                    // Chốt chặn chuẩn hóa ngôn ngữ nhãn khối (Deterministic Client Enforcement)
+                    // Nếu giao diện phần mềm đang là Tiếng Anh mà LLM phát ra nhãn có dấu tiếng Việt,
+                    // tự động chuẩn hóa sang nhãn tiếng Anh công nghiệp chuẩn tương ứng.
+                    if (isAppEnglish)
+                    {
+                        foreach (var dn in tx.AddedNodes)
+                        {
+                            if (ContainsVietnamese(dn.Label))
+                            {
+                                dn.Label = NormalizeToEnglishLabel(dn);
+                            }
+                        }
                     }
 
                     if (tx.AddedNodes.Count > 0)
@@ -1457,5 +1473,51 @@ public partial class AiChatViewModel : ObservableObject
                     UseQuickPromptCommand, category: "General"));
             }
         }
+    }
+
+    public static bool ContainsVietnamese(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        const string vietnameseChars = "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ";
+        return text.Any(c => vietnameseChars.Contains(c));
+    }
+
+    public static string NormalizeToEnglishLabel(DraftNode dn)
+    {
+        string type = dn.NodeType.ToUpperInvariant();
+        return type switch
+        {
+            "INPUT" => (dn.TagName != "NONE" && !string.IsNullOrWhiteSpace(dn.TagName))
+                ? $"Input ({dn.TagName})"
+                : "Input Signal",
+            "ACTION" => (dn.TagName != "NONE" && !string.IsNullOrWhiteSpace(dn.TagName))
+                ? (dn.ActionType.ToUpperInvariant() switch
+                {
+                    "TOGGLE_TAG" => $"Toggle ({dn.TagName})",
+                    "SET_TAG" => dn.ActionParam == 1 ? $"Turn ON ({dn.TagName})" : $"Turn OFF ({dn.TagName})",
+                    "INC_COUNTER" => $"Count (+1) ({dn.TagName})",
+                    _ => $"Action ({dn.TagName})"
+                })
+                : "Action",
+            "TRIGGER" => dn.TriggerType.ToUpperInvariant() switch
+            {
+                "ON_RISE" => $"Rising Edge ({(dn.DebounceMs > 0 ? $"{dn.DebounceMs}ms" : "50ms")})",
+                "ON_FALL" => $"Falling Edge ({(dn.DebounceMs > 0 ? $"{dn.DebounceMs}ms" : "50ms")})",
+                "INTERVAL" => dn.ThresholdLo > 0 ? $"Interval ({dn.ThresholdLo}s)" : "Periodic Interval",
+                "TIME_WINDOW" => dn.ThresholdLo > 0 ? $"Time Window ({dn.ThresholdLo / 100:D2}:{dn.ThresholdLo % 100:D2})" : "Time Window",
+                _ => "Trigger"
+            },
+            "GUARD" => (dn.TagName != "NONE" && !string.IsNullOrWhiteSpace(dn.TagName))
+                ? $"Guard ({dn.TagName})"
+                : "Guard",
+            "COMPARATOR" => !string.IsNullOrEmpty(dn.CompareOp) && dn.CompareOp != "NONE"
+                ? $"CMP: {dn.CompareOp} {dn.ThresholdLo}"
+                : "Comparator",
+            "TIMER" => $"Timer ({(!string.IsNullOrEmpty(dn.Mode) ? dn.Mode : "TON")})",
+            "COUNTER" => $"Counter ({(!string.IsNullOrEmpty(dn.Mode) ? dn.Mode : "CTU")})",
+            "SCALE" => $"Scale ({(!string.IsNullOrEmpty(dn.Unit) ? dn.Unit : "Value")})",
+            "MATH" => $"Math ({(!string.IsNullOrEmpty(dn.MathOperator) ? dn.MathOperator : "ALU")})",
+            _ => $"Node ({dn.NodeType})"
+        };
     }
 }

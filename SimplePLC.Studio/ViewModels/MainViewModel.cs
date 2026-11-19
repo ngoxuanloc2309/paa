@@ -202,6 +202,7 @@ public partial class MainViewModel : ObservableObject
                 _currentView = value;
                 OnPropertyChanged(nameof(CurrentView));
                 OnPropertyChanged(nameof(IsStartPageActive));
+                OnPropertyChanged(nameof(WindowTitle));
                 UpdateTagPollingState();
             }
         }
@@ -285,6 +286,10 @@ public partial class MainViewModel : ObservableObject
     {
         get
         {
+            if (IsStartPageActive)
+            {
+                return "SynaptiX IDE";
+            }
             string dirty = IsProjectDirty ? "*" : "";
             string port = IsConnected ? SelectedPort : (Loc.IsVietnamese ? "Chưa kết nối" : "Offline");
             return $"SynaptiX IDE - {CurrentProjectName}{dirty} [{port}]";

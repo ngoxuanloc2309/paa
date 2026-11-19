@@ -72,7 +72,7 @@ public static class AiToolDeclarations
                         ["description"] = "Loại khối logic cần tạo.",
                         ["enum"] = new JsonArray { "INPUT", "TRIGGER", "GUARD", "ACTION", "TIMER", "COUNTER", "SCALE", "MATH", "COMPARATOR" }
                     },
-                    ["custom_label"] = new JsonObject { ["type"] = "string", ["description"] = "Nhãn gợi nhớ hiển thị trên đỉnh của khối." },
+                    ["custom_label"] = new JsonObject { ["type"] = "string", ["description"] = "Nhãn gợi nhớ hiển thị trên đỉnh của khối trên FBD Canvas. BẮT BUỘC viết theo ngôn ngữ giao diện phần mềm (App Presentation Language: English nếu UI đang English, Tiếng Việt nếu UI đang Tiếng Việt). Ví dụ: 'Alarm Sensor', 'Door Close Action' hoặc 'Cảm Biến Báo Động', 'Đóng Cửa'." },
                     ["position_x"] = new JsonObject { ["type"] = "number", ["description"] = "Tọa độ X trên canvas (bước nhảy lưới tiêu chuẩn 240px)." },
                     ["position_y"] = new JsonObject { ["type"] = "number", ["description"] = "Tọa độ Y trên canvas." },
                     ["tag_name"] = new JsonObject { ["type"] = "string", ["description"] = "Mã Tag liên kết (chỉ áp dụng cho INPUT, GUARD, ACTION). Vd: 'DI0', 'DO1', 'VFLAG0', hoặc 'NONE'." },

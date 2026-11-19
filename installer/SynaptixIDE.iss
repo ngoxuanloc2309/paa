@@ -1,6 +1,6 @@
 ; =====================================================================
 ; SynaptiX IDE - Official Inno Setup 6 Script
-; Version: 2.15.2 (64-bit)
+; Version: 2.15.4 (64-bit)
 ; Architecture: win-x64 Self-Contained
 ; Publisher: SynaptiX Corporation
 ; Standard: Microsoft Visual Studio Code & Git for Windows Reference
@@ -8,7 +8,7 @@
 
 #define MyAppName "SynaptiX IDE"
 #ifndef MyAppVersion
-#define MyAppVersion "2.15.2"
+#define MyAppVersion "2.15.4"
 #endif
 #define MyAppPublisher "SynaptiX Corporation"
 #define MyAppURL "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/"

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -340,5 +342,152 @@ public class AiChatProviderAndTokenOptimizationTests
                 Assert.Null(receivedTools);
             });
         });
+    }
+
+    [Fact]
+    public void AiContextAggregator_WhenUltraCompact_ReducesJsonPayloadSizeSignificantly()
+    {
+        // Arrange
+        var tags = new List<TagModel>
+        {
+            new() { Name = "DI0", DataType = TagDataType.Boolean, Alias = "Start Button" },
+            new() { Name = "DI1", DataType = TagDataType.Boolean, Alias = "Stop Button" },
+            new() { Name = "DO0", DataType = TagDataType.Boolean, Alias = "Pump Motor" },
+            new() { Name = "DO1", DataType = TagDataType.Boolean, Alias = "Valve Actuator" },
+            new() { Name = "AI0", DataType = TagDataType.Float32, Alias = "Pressure" }
+        };
+
+        var logicVM = new LogicEditorViewModel(new TagCatalogViewModel());
+        var node1 = new InputNodeViewModel { Id = "node1", Location = new System.Windows.Point(100, 200) };
+        var node2 = new ActionNodeViewModel { Id = "node2", Location = new System.Windows.Point(340, 200) };
+        logicVM.Nodes.Add(node1);
+        logicVM.Nodes.Add(node2);
+
+        var aggregator = new AiContextAggregator(() => tags, () => logicVM);
+
+        // Act
+        var normalPayload = aggregator.BuildContextPayload(isUltraCompact: false);
+        var ultraCompactPayload = aggregator.BuildContextPayload(isUltraCompact: true);
+
+        // Assert
+        Assert.NotNull(normalPayload["hardware_profile"]);
+        Assert.Null(ultraCompactPayload["hardware_profile"]);
+
+        var ultraNodes = ultraCompactPayload["canvas_nodes"]?.AsArray();
+        Assert.NotNull(ultraNodes);
+        foreach (var n in ultraNodes)
+        {
+            var obj = n!.AsObject();
+            Assert.False(obj.ContainsKey("pos_x"), "UltraCompact must omit pos_x");
+            Assert.False(obj.ContainsKey("pos_y"), "UltraCompact must omit pos_y");
+        }
+
+        string normalStr = normalPayload.ToJsonString();
+        string ultraStr = ultraCompactPayload.ToJsonString();
+        Assert.True(ultraStr.Length < normalStr.Length, "UltraCompact JSON payload must be noticeably shorter");
+    }
+
+    private class Mock429ThenSuccessHandler : HttpMessageHandler
+    {
+        private int _callCount = 0;
+        public int CallCount => _callCount;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _callCount++;
+            if (_callCount == 1)
+            {
+                var errorResponse = new HttpResponseMessage((HttpStatusCode)429)
+                {
+                    Content = new StringContent(
+                        "{\"error\": {\"message\": \"Rate limit reached for model openai/gpt-oss-120b on tokens per minute (TPM): Limit 8000, Used 2711, Requested 5532. Please try again in 0.05s.\"}}",
+                        System.Text.Encoding.UTF8,
+                        "application/json")
+                };
+                return Task.FromResult(errorResponse);
+            }
+
+            var successResponse = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": \"Success after 429 auto-retry!\"}}]}",
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+            return Task.FromResult(successResponse);
+        }
+    }
+
+    [Fact]
+    public async Task OpenAiCompatibleApiClient_WhenReceives429_RetriesAutomaticallyAndSucceeds()
+    {
+        // Arrange
+        var mockHandler = new Mock429ThenSuccessHandler();
+        var originalClient = OpenAiCompatibleApiClient.HttpClient;
+        OpenAiCompatibleApiClient.HttpClient = new HttpClient(mockHandler);
+
+        try
+        {
+            var client = new OpenAiCompatibleApiClient();
+            var settings = new AiSettingsModel
+            {
+                Provider = "Groq",
+                GroqApiKey = "gsk-mock-key-12345",
+                GroqModel = "openai/gpt-oss-120b"
+            };
+
+            var history = new List<(string role, string text)>
+            {
+                ("user", "Test prompt triggering retry")
+            };
+
+            // Act
+            var response = await client.GenerateContentAsync(settings, "System prompt", history);
+
+            // Assert
+            Assert.NotNull(response);
+            Assert.Contains("Success after 429 auto-retry", response);
+            Assert.Equal(2, mockHandler.CallCount);
+        }
+        finally
+        {
+            OpenAiCompatibleApiClient.HttpClient = originalClient;
+        }
+    }
+
+    [Fact]
+    public void AiChatViewModel_ContainsVietnamese_DetectsDiacriticsAccurately()
+    {
+        Assert.True(AiChatViewModel.ContainsVietnamese("Cảm Biến Báo Động"));
+        Assert.True(AiChatViewModel.ContainsVietnamese("Kích hoạt Đóng Cửa"));
+        Assert.True(AiChatViewModel.ContainsVietnamese("Chu kỳ 1 Giờ"));
+        Assert.True(AiChatViewModel.ContainsVietnamese("Đổi trạng thái Còi"));
+        Assert.True(AiChatViewModel.ContainsVietnamese("Đèn"));
+
+        Assert.False(AiChatViewModel.ContainsVietnamese("Alarm Sensor"));
+        Assert.False(AiChatViewModel.ContainsVietnamese("Door Close Action"));
+        Assert.False(AiChatViewModel.ContainsVietnamese("Rising Edge (50ms)"));
+        Assert.False(AiChatViewModel.ContainsVietnamese("Input (DI0)"));
+        Assert.False(AiChatViewModel.ContainsVietnamese(""));
+        Assert.False(AiChatViewModel.ContainsVietnamese(null));
+    }
+
+    [Fact]
+    public void AiChatViewModel_NormalizeToEnglishLabel_ConvertsVietnameseToStandardEnglish()
+    {
+        var inputNode = new DraftNode { NodeType = "INPUT", TagName = "DI2", Label = "Cảm Biến Báo Động" };
+        Assert.Equal("Input (DI2)", AiChatViewModel.NormalizeToEnglishLabel(inputNode));
+
+        var trgNode = new DraftNode { NodeType = "TRIGGER", TriggerType = "ON_RISE", DebounceMs = 50, Label = "Phát hiện kích hoạt" };
+        Assert.Equal("Rising Edge (50ms)", AiChatViewModel.NormalizeToEnglishLabel(trgNode));
+
+        var actNode = new DraftNode { NodeType = "ACTION", TagName = "DO2", ActionType = "SET_TAG", ActionParam = 1, Label = "Kích hoạt Đóng Cửa" };
+        Assert.Equal("Turn ON (DO2)", AiChatViewModel.NormalizeToEnglishLabel(actNode));
+
+        var toggleNode = new DraftNode { NodeType = "ACTION", TagName = "DO1", ActionType = "TOGGLE_TAG", Label = "Đổi trạng thái Còi" };
+        Assert.Equal("Toggle (DO1)", AiChatViewModel.NormalizeToEnglishLabel(toggleNode));
+
+        var intervalNode = new DraftNode { NodeType = "TRIGGER", TriggerType = "INTERVAL", ThresholdLo = 3600, Label = "Chu kỳ 1 Giờ" };
+        Assert.Equal("Interval (3600s)", AiChatViewModel.NormalizeToEnglishLabel(intervalNode));
     }
 }

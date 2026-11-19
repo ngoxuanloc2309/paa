@@ -2,6 +2,31 @@
 
 # SimplePLC Platform Contract Changelog
 
+## [2.15.4 / Studio v2.15.4] - 2026-11-19 (MQTT SUB JSON PAYLOAD PERSISTENCE, HARDWARE GROUND TRUTH JSON_KEY & 16-BLOCK COMPREHENSIVE TDD SUITE - GitHub Release v2.15.4)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Bảo Toàn Chuỗi JSON Tùy Biến MQTT Subscribe & Tùy Chọn Bọc Values MQTT Publish**:
+  - Bổ sung trường `MqttSubSimPayload` và `MqttWrapValues` vào `ProjectNodeData` để lưu trữ và phục hồi toàn vẹn cấu hình qua chu trình Lưu / Mở file `.splc`.
+  - Hộp thoại `MqttSubConfigDialogView` tự động nhận diện dữ liệu mô phỏng tùy biến của người dùng mà không bị ghi đè bởi payload mẫu mặc định.
+- **2. Chuẩn Hóa Khóa `json_key` Nạp Xuống Phần Cứng (Hardware Ground Truth Alignment)**:
+  - Khắc phục triệt để lỗi ô nhiễm tiền tố `"values."` trong `MqttPinBindingViewModel.ToDto()`. Khóa JSON hạ cấp xuống 12 bytes Modbus vi điều khiển luôn bảo toàn chuỗi cấu hình sạch của người dùng, tương thích tuyệt đối với các hệ thống SCADA gửi JSON phẳng (`{"grid": 10}`).
+- **3. Bộ Kiểm Thử TDD Đơn Vị & Tự Động Hóa Toàn Diện Cho 16 Khối Hàm FBD**:
+  - Triển khai `EveryBlockComprehensiveUnitAndAutomationTests.cs` kiểm chứng toàn bộ 16 khối hàm theo 4 Tiên đề Kỹ thuật Cốt lõi (Hardware Ground Truth, Visual Truth, FSM Input State Machine, End-to-End Custody).
+  - Tích hợp các bài kiểm tra giao diện Startup Hub và phím tắt điều hướng `MainWindow`.
+
+## [2.15.3 / Studio v2.15.3] - 2026-11-18 (TAG IDENTITY PRESERVATION, RESILIENT DATAGRID BINDINGS & AI COPILOT TOKEN OPTIMIZATION - GitHub Release v2.15.3)
+
+### Added & Standardized (Firmware MCU & App Studio Alignment)
+- **1. Kiến Trúc Bảo Toàn Danh Tính Tag (Tag Identity Preservation Architecture)**:
+  - Triển khai cơ chế cập nhật tại chỗ (in-place mutation) trong `TagCatalogViewModel.ApplyDeviceTags` và `SyncToProductDefinition`.
+  - Bảo lưu tham chiếu đối tượng `TagModel` hiện hữu, triệt tiêu hoàn toàn lỗi vỡ liên kết dữ liệu (broken DataGrid bindings) và reset lựa chọn ComboBox khi kết nối thiết bị phần cứng.
+- **2. Tối Ưu Hóa Ngữ Cảnh & Bộ Đếm Token AI Copilot**:
+  - Tinh chỉnh `AiContextAggregator` và `AiPromptBuilder` giảm tải kích thước ngữ cảnh nạp vào mô hình LLM.
+  - Hỗ trợ đầy đủ các endpoint tương thích OpenAI (`OpenAiCompatibleApiClient`), mở rộng khả năng tùy biến nhà cung cấp AI.
+- **3. Hoàn Thiện Bộ Test TDD Triad & Ổn Định Toàn Diện**:
+  - Bổ sung bộ kiểm thử `TagIdentityPreservationTests.cs`, `AiChatBilingualSyncTests.cs`, `AiChatProviderAndTokenOptimizationTests.cs`.
+  - Vượt qua 100% kiểm thử tự động toàn hệ thống.
+
 ## [2.15.2 / Studio v2.15.2] - 2026-11-18 (MATH ALU CANVAS 2-WAY WIRING, IMPLICIT TYPE PROMOTION, DIALOG ERGONOMICS & AI COPILOT OPENAI-COMPATIBLE ENGINE - GitHub Release v2.15.2)
 
 ### Added & Standardized (Firmware MCU & App Studio Alignment)

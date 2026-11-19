@@ -2228,3 +2228,66 @@ Theo học thuyết **SynaptiX Documentation & Living Docs Architecture (3 Pilla
 - **Đồng Bộ Phông Chữ & Kích Thước (Harmonized Typography):**
   - Toàn bộ dải tính toán bên trong khung Inset sử dụng thống nhất một họ font monospace kỹ thuật `Consolas` kích thước 12px.
   - Loại bỏ hoàn toàn kích thước số khổng lồ 18pt gây lệch lạc thị giác, đảm bảo tính thẩm mỹ chuẩn công nghiệp ANSI/ISA-101 và Microsoft Fluent 2.
+
+
+---
+
+## 45. Kiến Trúc Bảo Toàn Danh Tính Tag (Tag Identity Preservation), Tinh Chỉnh Nền Tảng AI Copilot & Phát Hành v2.15.3
+
+### 45.1. Bối cảnh & Yêu cầu Kỹ thuật
+1. **Bảo toàn danh tính Tag (Tag Identity Preservation):** Khi người dùng kết nối phần cứng PLC hoặc thực hiện đồng bộ `ProductDefinition`, phương thức `ApplyDeviceTags` trước đây khởi tạo lại các thực thể `TagModel` mới, dẫn đến việc các liên kết WPF DataGrid và ComboBox chọn tag bị reset hoặc mất kết nối. Cần cơ chế cập nhật tại chỗ (in-place mutation) để bảo lưu 100% tham chiếu đối tượng.
+2. **Nâng cấp nền tảng AI Copilot:**
+   - Tối ưu hóa kích thước prompt và bộ ngữ cảnh nạp vào mô hình LLM (`AiContextAggregator`, `AiPromptBuilder`).
+   - Hỗ trợ các endpoint tương thích chuẩn OpenAI (`OpenAiCompatibleApiClient`) với cơ chế xử lý lỗi và cấu hình linh hoạt.
+3. **Phát hành phiên bản v2.15.3:** Đóng gói toàn bộ các nâng cấp trên vào bộ cài đặt setup wizard `SynaptiX_IDE_Setup_v2.15.3.exe`, bản portable và tệp zip phân phối.
+
+### 45.2. Các Giải Pháp Đã Triển Khai
+1. **Tag Identity Preservation Architecture ([`TagCatalogViewModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/ViewModels/TagCatalogViewModel.cs)):**
+   - Áp dụng kỹ thuật in-place mutation cho các Tag hiện có: chỉ cập nhật giá trị thuộc tính (`Direction`, `DataType`, `Description`) thay vì xóa và tạo mới instance `TagModel`.
+   - Bổ sung bộ kiểm thử TDD chuyên sâu [`TagIdentityPreservationTests.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio.Tests/TagIdentityPreservationTests.cs) xác nhận tính ổn định của DataGrid binding.
+2. **AI Copilot Token & Provider Optimization:**
+   - Hoàn thiện `OpenAiCompatibleApiClient.cs` với token streaming và error handling.
+   - Bổ sung các bài kiểm thử `AiChatBilingualSyncTests.cs` và `AiChatProviderAndTokenOptimizationTests.cs`.
+3. **Đóng gói phát hành đa định dạng v2.15.3:**
+   - `SynaptiX_IDE_Setup_v2.15.3.exe` (Inno Setup 6).
+   - `SynaptixIDE.exe` / `SimplePLC.Studio.exe` (Portable).
+   - `SynaptiX-IDE-v2.15.3-win-x64.zip`.
+
+---
+
+## 46. Kiến Trúc Bảo Toàn Chuỗi JSON MQTT Subscribe, Chuẩn Hóa JSON Key Nạp Xuống Thiết Bị & Phát Hành v2.15.4
+
+### 46.1. Bối cảnh & Phát hiện Lỗi (The Visual Truth & Hardware Ground Truth Violations)
+- **Vấn đề phản hồi:** Khi người dùng mở hộp thoại cấu hình **MQTT SUB**, chỉnh sửa/xóa vỏ bọc `"values": { ... }` ở ô kiểm thử bên phải để test JSON phẳng (ví dụ `{"grid": 10}`), thực hiện lưu dự án (`Ctrl+S`) rồi mở lại thì chuỗi JSON lại tự động quay về mẫu mặc định có chứa `"values"`.
+- **Nguyên nhân kỹ thuật & rủi ro phần cứng:**
+  1. `ProjectNodeData` thiếu trường `MqttSubSimPayload`, khiến chuỗi `SimInputPayload` của khối MQTT Subscribe không bao giờ được ghi xuống đĩa khi lưu tệp `.splc`.
+  2. Constructor của `MqttSubConfigDialogViewModel` luôn tự động gọi `GenerateAndApplySamplePayload()` tạo ra mẫu có chứa `["values"] = valuesDict`, đè bẹp chuỗi do người dùng nhập.
+  3. **Rủi ro nghiêm trọng:** `MqttPinBindingViewModel.ToDto()` trước đây thực hiện:
+     ```csharp
+     JsonPath = !string.IsNullOrWhiteSpace(ResolvedPath) ? ResolvedPath : JsonPath;
+     ```
+     Khi ô test sinh ra mẫu có bọc `"values"`, `ResolvedPath` bị ô nhiễm thành `"values.grid"`, đẩy thẳng xuống 12 bytes Modbus `json_key` của vi điều khiển (MCU). Khi SCADA bên ngoài gửi gói tin phẳng `{"grid": 10}`, MCU tìm kiếm `"values.grid"` sẽ thất bại và từ chối gói tin.
+
+### 46.2. Các Giải Pháp Đã Triển Khai
+1. **Bảo Toàn Chuỗi JSON Test (Persistence & State Management):**
+   - Bổ sung `MqttSubSimPayload` vào `ProjectNodeData` ([`ProjectModel.cs`](file:///g:/HoaNV/Projects/SimplePLC/SimplePLC.Studio/Models/ProjectModel.cs)).
+   - Đồng bộ trong `LogicEditorViewModel.ExportSingleNodeData` và `CreateNodeFromData`.
+   - Bổ sung trường `MqttWrapValues` cho khối MQTT PUB để bảo toàn tùy chọn bỏ bọc `values`.
+2. **Khởi Tạo Hộp Thoại Thông Minh (Smart Dialog Initialization):**
+   - Trong `MqttSubConfigDialogViewModel`, nếu `Node.SimInputPayload` đã có dữ liệu tùy biến, nạp trực tiếp vào `SimulationInput`, đặt `IsUserModified = true` và chạy `RunSimulation()` mà không sinh đè mẫu.
+   - Nút `Reset Sample` khôi phục lại chế độ tự sinh (`Node.SimInputPayload = string.Empty; IsUserModified = false`).
+   - Nút *Apply* đảm bảo đồng bộ `Node.SimInputPayload = SimulationInput`.
+3. **Chuẩn Hóa `json_key` Gửi Xuống Phần Cứng (Hardware Ground Truth):**
+   - Trong `MqttPinBindingViewModel.ToDto()`, trường `JsonPath` gửi xuống Device luôn lấy theo cấu hình người dùng (`JsonPath` hoặc `Label`), tuyệt đối không bị kết quả chạy thử trong Simulator tự động gắn prefix `"values."`.
+
+### 46.3. Kết Quả Kiểm Thử & Nghiệm Thu
+- **Bộ Kiểm Thử Đơn Vị TDD Mới:**
+  - `MqttPinBinding_WhenSimulatedWithWrappedJson_PreservesCleanJsonPathInDto`: Xác nhận dù JSON mô phỏng có bọc `values: { grid: 5 }`, `ToDto().JsonPath` vẫn giữ sạch sẽ `"grid"`.
+  - `MqttSub_WhenCustomPayloadEntered_PersistsAcrossExportAndImport`: Xác nhận chuỗi JSON tùy biến được lưu và khôi phục toàn vẹn 100% qua chu trình Export/Import.
+  - `MqttSubConfig_WhenNodeHasExistingPayload_DoesNotOverwriteWithDefaultSample`: Xác nhận dialog khởi tạo từ node có sẵn payload không bị ghi đè bởi mẫu mặc định.
+  - `MqttPublishNode_WrapValuesFalse_PersistsAcrossExportAndImport`: Xác nhận tùy chọn bỏ bọc `values` của MQTT PUB được bảo lưu khi Save/Open.
+- **Toàn Bộ Test Suite:** **2,385 / 2,385 tests PASS (100%)**, 0 errors, 0 warnings.
+- **Bộ Kiểm Định Tiêu Chuẩn Công Nghiệp:**
+  - `validate-backend-arch.ps1`: PASS (0 violations).
+  - `validate-tdd-docs.ps1`: PASS (0 violations, 100% test pass).
+

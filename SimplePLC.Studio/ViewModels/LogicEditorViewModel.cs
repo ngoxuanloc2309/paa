@@ -302,6 +302,105 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnTagCatalogSynchronized(object? sender, EventArgs e)
+    {
+        SyncWithUpdatedTags(TagCatalog);
+    }
+
+    private static TagModel? ResolveUpdatedTag(TagCatalogViewModel catalog, TagModel? currentTag, int? lastIndex = null, string? lastName = null)
+    {
+        if (currentTag != null)
+        {
+            // 1. Ưu tiên tìm theo Tên Tag để bảo toàn đúng cổng I/O vật lý khi layout base offset thay đổi
+            var byName = catalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, currentTag.Name, StringComparison.OrdinalIgnoreCase));
+            if (byName != null) return byName;
+
+            // 2. Fallback tìm theo Index nếu cùng Kind
+            var byIndex = catalog.FindTagByIndex(currentTag.Index);
+            if (byIndex != null && byIndex.Kind == currentTag.Kind) return byIndex;
+
+            return currentTag;
+        }
+        if (!string.IsNullOrEmpty(lastName))
+        {
+            var byName = catalog.AllTags.FirstOrDefault(t => string.Equals(t.Name, lastName, StringComparison.OrdinalIgnoreCase));
+            if (byName != null) return byName;
+        }
+        if (lastIndex.HasValue)
+        {
+            return catalog.FindTagByIndex(lastIndex.Value);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Tái liên kết (Re-resolve / Re-bind) các tham chiếu Tag cho toàn bộ khối logic trên Canvas
+    /// sau khi danh mục Tag vừa được đồng bộ từ thiết bị hoặc file dự án (Axiom 0.2 & 0.4).
+    /// </summary>
+    public void SyncWithUpdatedTags(TagCatalogViewModel catalog)
+    {
+        if (catalog == null) return;
+
+        foreach (var node in Nodes)
+        {
+            switch (node)
+            {
+                case CounterNodeViewModel counter:
+                    counter.OutputTag = ResolveUpdatedTag(catalog, counter.OutputTag, counter.LastKnownOutputTagIndex, counter.LastKnownOutputTagName);
+                    counter.CvTag = ResolveUpdatedTag(catalog, counter.CvTag, counter.LastKnownCvTagIndex, counter.LastKnownCvTagName);
+                    break;
+
+                case TimerNodeViewModel timer:
+                    timer.OutputTag = ResolveUpdatedTag(catalog, timer.OutputTag, timer.LastKnownOutputTagIndex, timer.LastKnownOutputTagName);
+                    break;
+
+                case ActionNodeViewModel act:
+                    act.TargetTag = ResolveUpdatedTag(catalog, act.TargetTag);
+                    break;
+
+                case ComparatorNodeViewModel comp:
+                    comp.InputTag = ResolveUpdatedTag(catalog, comp.InputTag);
+                    break;
+
+                case GuardNodeViewModel grd:
+                    grd.GuardTag = ResolveUpdatedTag(catalog, grd.GuardTag);
+                    break;
+
+                case InputNodeViewModel inp:
+                    inp.Tag = ResolveUpdatedTag(catalog, inp.Tag);
+                    break;
+
+                case ScaleNodeViewModel scale:
+                    scale.OutputTag = ResolveUpdatedTag(catalog, scale.OutputTag);
+                    break;
+
+                case MathNodeViewModel math:
+                    math.OutputTag = ResolveUpdatedTag(catalog, math.OutputTag);
+                    break;
+
+                case ModbusWriteNodeViewModel mbw:
+                    foreach (var pin in mbw.Pins)
+                    {
+                        pin.TargetTag = ResolveUpdatedTag(catalog, pin.TargetTag);
+                    }
+                    break;
+
+                case MqttSubscribeNodeViewModel mqs:
+                    foreach (var pin in mqs.Pins)
+                    {
+                        pin.TargetTag = ResolveUpdatedTag(catalog, pin.TargetTag);
+                    }
+                    break;
+
+                case MqttPublishNodeViewModel mqp:
+                    mqp.TriggerTag = ResolveUpdatedTag(catalog, mqp.TriggerTag);
+                    break;
+            }
+        }
+
+        NotifyGraphModified();
+    }
+
     [ObservableProperty]
     private string _aiProposalSummaryText = string.Empty;
 
@@ -1103,6 +1202,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         if (TagCatalog != null)
         {
             TagCatalog.PropertyChanged += OnTagCatalogPropertyChanged;
+            TagCatalog.TagsSynchronized += OnTagCatalogSynchronized;
         }
         _ruleTable = ruleTable;
         _navigateToTab = navigateToTab;
@@ -3833,6 +3933,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             pNode.MqttUnit = mqtt.Unit;
             pNode.MqttIncludeDevice = mqtt.IncludeDevice;
             pNode.MqttIncludeTimestamp = mqtt.IncludeTimestamp;
+            pNode.MqttWrapValues = mqtt.WrapValues;
             pNode.MqttFields = mqtt.Fields.Select(f => new MqttPayloadFieldData
             {
                 Key = f.Key,
@@ -3851,6 +3952,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
             pNode.MqttSubIgnoreRetained = sub.IgnoreRetained;
             pNode.MqttSubFailSafeAction = sub.FailSafeAction.ToString();
             pNode.MqttSubTimeoutMs = sub.FailSafeTimeoutMs;
+            pNode.MqttSubSimPayload = sub.SimInputPayload;
             pNode.MqttSubPins = sub.Pins.Select(p => new MqttSubPinData
             {
                 Id = p.Id,
@@ -4107,7 +4209,8 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 Deadband = pNode.MqttDeadband,
                 Unit = string.IsNullOrWhiteSpace(pNode.MqttUnit) ? "bar" : pNode.MqttUnit,
                 IncludeDevice = pNode.MqttIncludeDevice,
-                IncludeTimestamp = pNode.MqttIncludeTimestamp
+                IncludeTimestamp = pNode.MqttIncludeTimestamp,
+                WrapValues = pNode.MqttWrapValues
             };
 
             if (!string.IsNullOrWhiteSpace(pNode.MqttTriggerTagName))
@@ -4135,6 +4238,10 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 IgnoreRetained = pNode.MqttSubIgnoreRetained,
                 FailSafeTimeoutMs = pNode.MqttSubTimeoutMs
             };
+            if (!string.IsNullOrEmpty(pNode.MqttSubSimPayload))
+            {
+                sub.SimInputPayload = pNode.MqttSubSimPayload;
+            }
             if (Enum.TryParse<MqttQueueMode>(pNode.MqttSubQueueMode, true, out var qm))
                 sub.QueueMode = qm;
             if (Enum.TryParse<MqttFailSafeAction>(pNode.MqttSubFailSafeAction, true, out var fsa))
