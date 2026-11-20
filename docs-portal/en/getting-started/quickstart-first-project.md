@@ -113,12 +113,12 @@ In this hands-on walkthrough, you will engineer, simulate, compile, atomically d
 
 ## Step 1: Provision a `SynaptiX Controller` Project (`Ctrl+N`)
 
-1. Launch **SynaptiX IDE** and press **`Ctrl+N`** (or select **File -> New Project**).
+1. Launch SynaptiX IDE and press `Ctrl+N` (or select **File -> New Project**).
 2. In the **Project Information** section:
    - **Project Name:** Enter `Tank_Cooling_Interlock`.
    - **Save Location:** Leave the default `Documents\SynaptiX\Projects` folder or click **Browse** to choose a custom workspace directory.
 3. In the **Target Hardware** section:
-   - Select **`SynaptiX Controller`** from the **Target Hardware Preset** dropdown (or click **Detect from Connected Device** if a physical `SynaptiX Controller` is already connected).
+   - Select `SynaptiX Controller` from the **Target Hardware Preset** dropdown (or click **Detect from Connected Device** if a physical `SynaptiX Controller` is already connected).
    - Verify on the right-hand **Hardware Specification Preview** card that the project allocates `8 DI`, `8 DO`, `4 AI`, `32 VFLAG`, `32 VREG`, `32 RETAIN`, `8 COUNTER` (`124 / 128 tags`) and `100 rules`.
 4. Click **Create Project**.
 
@@ -130,38 +130,38 @@ In this hands-on walkthrough, you will engineer, simulate, compile, atomically d
 
 Before wiring blocks, assign meaningful engineering names and physical data types so every block on your canvas is self-documenting:
 
-1. Switch to the **[Tag Catalog](/workspaces/tag-catalog-tab)** workspace by pressing **`Ctrl+3`**.
+1. Switch to the [Tag Catalog](/workspaces/tag-catalog-tab) workspace by pressing `Ctrl+3`.
 2. Locate the three process tags and configure their **Alias** and **Data Type** columns as follows:
 
 | Tag ID | Tag Kind | Alias to Enter | Data Type to Select | Engineering Role |
 | :--- | :--- | :--- | :---: | :--- |
-| **`AI0`** | Analog Input | `TankTemp` | **`REAL`** | Calibrated 32-bit IEEE-754 floating-point tank temperature (`°C`). |
-| **`DI0`** | Digital Input | `SafetyDoorOk` | `BOOL` *(Fixed)* | Maintenance door limit switch (`1` = Closed/Safe, `0` = Open). |
-| **`DO0`** | Digital Output | `CoolingFan` | `BOOL` *(Fixed)* | Cooling fan contactor relay output (`1` = Running, `0` = Stopped). |
+| `AI0` | Analog Input | `TankTemp` | `REAL` | Calibrated 32-bit IEEE-754 floating-point tank temperature (`°C`). |
+| `DI0` | Digital Input | `SafetyDoorOk` | `BOOL` *(Fixed)* | Maintenance door limit switch (`1` = Closed/Safe, `0` = Open). |
+| `DO0` | Digital Output | `CoolingFan` | `BOOL` *(Fixed)* | Cooling fan contactor relay output (`1` = Running, `0` = Stopped). |
 
 ![Configuring Symbolic Aliases and REAL Data Type in Tag Catalog](/images/synaptix_tag_catalog.png)
 
 ::: tip Why Switch `AI0` to `REAL` First?
-Changing `AI0` from default `INT32` to **`REAL`** tells **SynaptiX IDE**'s [Bad-Data Defense](/concepts/data-model-and-types#visual-truth-input-state-machine-bad-data-defense) engine that `TankTemp` represents an IEEE-754 floating-point number. Any downstream [`COMPARATOR`](/blocks/comparator) connected to `AI0` will automatically accept fractional thresholds (such as `65.0` or `65.5`) and format whole numbers like `"65"` into `"65.0"`.
+Changing `AI0` from default `INT32` to `REAL` tells SynaptiX IDE's [Bad-Data Defense](/concepts/data-model-and-types#visual-truth-input-state-machine-bad-data-defense) engine that `TankTemp` represents an IEEE-754 floating-point number. Any downstream [`COMPARATOR`](/blocks/comparator) connected to `AI0` will automatically accept fractional thresholds (such as `65.0` or `65.5`) and format whole numbers like `"65"` into `"65.0"`.
 :::
 
 ---
 
 ## Step 3: Wire the Interlock on Logic Graph (`Ctrl+2`)
 
-1. Press **`Ctrl+2`** to open the **[Logic Graph Canvas](/workspaces/logic-graph-tab)**.
+1. Press `Ctrl+2` to open the [Logic Graph Canvas](/workspaces/logic-graph-tab).
 2. **Build Rule 1 (Over-Temperature Fan Start with Door Safety Guard):**
-   - From the left **Block Toolbox**, drag **`INPUT`** (under *Process I/O*), **`COMPARATOR`** (under *Logic*), **`GUARD`** (under *Logic*), and **`ACTION`** (under *Process I/O*) onto the 20 px grid.
-   - Connect the output pin of **`INPUT`** -> input pin of **`COMPARATOR`** -> **`GUARD`** -> **`ACTION`**.
+   - From the left **Block Toolbox**, drag `INPUT` (under *Process I/O*), `COMPARATOR` (under *Logic*), `GUARD` (under *Logic*), and `ACTION` (under *Process I/O*) onto the 20 px grid.
+   - Connect the output pin of `INPUT` -> input pin of `COMPARATOR` -> `GUARD` -> `ACTION`.
    - Click each block and configure its parameters in the right-hand **Property Inspector**:
      - **`INPUT` Block:** Select Source Tag `[AI0] — TankTemp`.
      - **`COMPARATOR` Block:** Set Operator to `` `>` ``, Compare Mode to `Constant`, and Threshold Value to `65.0` *(notice typing `65` and pressing `Enter` auto-normalizes to `65.0`)*.
      - **`GUARD` Block:** Select Guard Tag `[DI0] — SafetyDoorOk`, Operator `` `==` ``, Value `1`.
      - **`ACTION` Block:** Select Target Tag `[DO0] — CoolingFan` and Operation `SET` (sets output to `1`).
 3. **Build Rule 2 & Rule 3 (Thermal Hysteresis Stop & Door-Open Cutout):**
-   - Add a second chain: **`INPUT`** (`[AI0] — TankTemp`) -> **`COMPARATOR`** (`` `<=` `` `60.0`) -> **`ACTION`** (`RESET` `[DO0] — CoolingFan`).
-   - Add a third safety cutout chain: **`INPUT`** (`[DI0] — SafetyDoorOk`) -> **`COMPARATOR`** (`` `==` `` `0`) -> **`ACTION`** (`RESET` `[DO0] — CoolingFan`).
-4. Press **`Alt+G`** to snap all blocks cleanly onto the engineering grid, and **`Ctrl+S`** to save the project.
+   - Add a second chain: `INPUT` (`[AI0] — TankTemp`) -> `COMPARATOR` (`` `<=` `` `60.0`) -> `ACTION` (`RESET` `[DO0] — CoolingFan`).
+   - Add a third safety cutout chain: `INPUT` (`[DI0] — SafetyDoorOk`) -> `COMPARATOR` (`` `==` `` `0`) -> `ACTION` (`RESET` `[DO0] — CoolingFan`).
+4. Press `Alt+G` to snap all blocks cleanly onto the engineering grid, and `Ctrl+S` to save the project.
 
 ![Visual Interlock Authoring on the Logic Graph Canvas](/images/synaptix_logic_editor.png)
 
@@ -171,7 +171,7 @@ Changing `AI0` from default `INT32` to **`REAL`** tells **SynaptiX IDE**'s [Bad-
 
 Never deploy untested control logic to plant machinery. Validate every nominal and fault path first using the built-in desktop simulator:
 
-1. Press **`F5`** to open the docked **[Offline Simulator](/tools/simulator-and-live-debug)** drawer at the bottom of the Logic Graph.
+1. Press `F5` to open the docked [Offline Simulator](/tools/simulator-and-live-debug) drawer at the bottom of the Logic Graph.
 2. **Test Case A — Blocked by Open Safety Door:**
    - Leave `[DI0] — SafetyDoorOk` at `0` (Door Open).
    - Set `[AI0] — TankTemp` to `70.0` and press `Enter`.
@@ -182,7 +182,7 @@ Never deploy untested control logic to plant machinery. Validate every nominal a
 4. **Test Case C — Hysteresis Hold & Cool-Down Reset:**
    - Lower `[AI0] — TankTemp` to `62.5`. Because `62.5` is between `60.0` and `65.0`, `CoolingFan` stays latched at `1` without chattering.
    - Lower `[AI0] — TankTemp` to `59.0`. Rule 2 fires and cleanly resets `CoolingFan` to `0`.
-5. Exit simulation (`F5`), press **`F7`** to run full **Compile**, and press **`Ctrl+4`** to inspect the **[Rule Table](/workspaces/rule-table-tab)** — confirming your 3 compiled 4-stage rules and `3 / 100` rule budget usage.
+5. Exit simulation (`F5`), press `F7` to run full **Compile**, and press `Ctrl+4` to inspect the [Rule Table](/workspaces/rule-table-tab) — confirming your 3 compiled 4-stage rules and `3 / 100` rule budget usage.
 
 ![Testing Nominal and Interlock-Blocked States in Offline Simulator](/images/synaptix_simulator.png)
 
@@ -190,21 +190,21 @@ Never deploy untested control logic to plant machinery. Validate every nominal a
 
 ## Step 5: Connect (`F4`), Atomic Deploy (`Ctrl+F5`) & Live Watch (`Ctrl+7`)
 
-With offline verification complete, commission the compiled logic onto a physical **SynaptiX Controller**:
+With offline verification complete, commission the compiled logic onto a physical SynaptiX Controller:
 
 1. **Connect (`F4`):**
-   - On the top-right Unified Connection Bar, choose **`USB CDC`** (and select your `COMx` port) or **`Modbus TCP`** (enter controller `IP : 502`).
-   - Press **`F4`** (or click **Connect**). Confirm the bottom status bar badge turns emerald green.
+   - On the top-right Unified Connection Bar, choose `USB CDC` (and select your `COMx` port) or `Modbus TCP` (enter controller `IP : 502`).
+   - Press `F4` (or click **Connect**). Confirm the bottom status bar badge turns emerald green.
 2. **Execute Two-Phase Atomic Deploy (`Ctrl+F5`):**
-   - Press **`Ctrl+6`** to open the **[Atomic Deploy](/workspaces/deploy-tab)** workspace (or press **`Ctrl+F5`** directly from any tab).
+   - Press `Ctrl+6` to open the [Atomic Deploy](/workspaces/deploy-tab) workspace (or press `Ctrl+F5` directly from any tab).
    - Review the **Pre-Flight Safety Gate** checklist (Hardware Class Match, Protocol Compatibility, Tag & Rule Capacity Within Limits).
-   - Confirm deployment. **SynaptiX IDE** transfers the configuration into isolated staging memory, verifies integrity checksums, and atomically swaps the active flash image so power interruptions can never corrupt the controller.
+   - Confirm deployment. SynaptiX IDE transfers the configuration into isolated staging memory, verifies integrity checksums, and atomically swaps the active flash image so power interruptions can never corrupt the controller.
 
 ![Pre-Flight Validation & Two-Phase Atomic Deploy Workspace](/images/synaptix_deploy_gate.png)
 
 3. **Verify Real-Time Trends in Live Watch (`Ctrl+7`) & Live Debug (`F8`):**
-   - Press **`Ctrl+7`** to switch to **[Live Watch & Trends](/workspaces/live-watch-tab)**. Add `TankTemp`, `SafetyDoorOk`, and `CoolingFan` to the multi-trace trend chart to observe live 20 FPS telemetry and export commissioning logs to CSV if required.
-   - Optionally return to **Logic Graph (`Ctrl+2`)** and press **`F8`** to activate **Online Live Debug**, watching physical sensor transitions illuminate your diagram wires in real time.
+   - Press `Ctrl+7` to switch to [Live Watch & Trends](/workspaces/live-watch-tab). Add `TankTemp`, `SafetyDoorOk`, and `CoolingFan` to the multi-trace trend chart to observe live 20 FPS telemetry and export commissioning logs to CSV if required.
+   - Optionally return to **Logic Graph (`Ctrl+2`)** and press `F8` to activate Online Live Debug, watching physical sensor transitions illuminate your diagram wires in real time.
 
 ![Monitoring Real-Time 20 FPS Tag Values and Trend Charts in Live Watch](/images/synaptix_live_watch.png)
 

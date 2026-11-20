@@ -7,25 +7,25 @@
   <span><strong>Tiêu chuẩn:</strong> IEC 61131-3 FBD &bull; ANSI/ISA-101</span>
 </div>
 
-Không gian **Sơ đồ Logic — Logic Graph Canvas** ([`Ctrl+2`](/vi/workspaces/logic-graph-tab)) trong **SynaptiX IDE** cung cấp môi trường thiết kế sơ đồ khối chức năng (FBD) tất định chuyên dụng cho điều khiển biên, thu thập dữ liệu truyền thông công nghiệp RS-485 và điện toán đám mây IIoT. Mỗi khối đồ họa tích hợp sẵn cơ chế kiểm tra chặt chẽ kiểu dữ liệu vật lý, mô phỏng chu kỳ chính xác trên máy tính (`F5`), biên dịch kiểm lỗi tiền triển khai (`F7`) và hiển thị trạng thái thời gian thực 20 FPS (`F8`) mà không cần viết mã kịch bản thủ công.
+Không gian Sơ đồ Logic — Logic Graph Canvas ([`Ctrl+2`](/vi/workspaces/logic-graph-tab)) trong SynaptiX IDE cung cấp môi trường thiết kế sơ đồ khối chức năng (FBD) tất định chuyên dụng cho điều khiển biên, thu thập dữ liệu truyền thông công nghiệp RS-485 và điện toán đám mây IIoT. Mỗi khối đồ họa tích hợp sẵn cơ chế kiểm tra chặt chẽ kiểu dữ liệu vật lý, mô phỏng chu kỳ chính xác trên máy tính (`F5`), biên dịch kiểm lỗi tiền triển khai (`F7`) và hiển thị trạng thái thời gian thực 20 FPS (`F8`) mà không cần viết mã kịch bản thủ công.
 
 ---
 
 ## 1. Bảng Danh mục Tổng thể các Khối hàm
 
-Thư viện khối hàm được phân thành **4 nhóm chức năng** đồng nhất với thanh công cụ bên trái trên **SynaptiX IDE**. Nhấp vào mã khối bất kỳ để mở trang đặc tả kỹ thuật (datasheet) chi tiết của khối đó.
+Thư viện khối hàm được phân thành **4 nhóm chức năng** đồng nhất với thanh công cụ bên trái trên SynaptiX IDE. Nhấp vào mã khối bất kỳ để mở trang đặc tả kỹ thuật (datasheet) chi tiết của khối đó.
 
 ### 1.1 Chuỗi Luật Cốt lõi (Core Rule Pipeline)
 
-Các khối thuộc Chuỗi Luật Cốt lõi được trình biên dịch hạ cấp trực tiếp thành các luật Sự kiện – Điều kiện – Hành động (ECA) thực thi đồng bộ ngay trong mỗi chu kỳ quét của **SynaptiX Runtime**.
+Các khối thuộc Chuỗi Luật Cốt lõi được trình biên dịch hạ cấp trực tiếp thành các luật Sự kiện – Điều kiện – Hành động (ECA) thực thi đồng bộ ngay trong mỗi chu kỳ quét của SynaptiX Runtime.
 
 | Mã khối | Tên khối hàm | Chân nối (`Vào` → `Ra`) | Vai trò Công nghiệp Trọng tâm |
 | :--- | :--- | :--- | :--- |
-| [`INPUT`](/vi/blocks/input) | **Khối Nguồn Tín hiệu Tag** | *(Không có)* → `Out` | Đưa giá trị Tag vật lý (`DI`, `DO`, `AI`) hoặc vùng nhớ ảo (`VFLAG`, `VREG`, `VREG_R`, `COUNTER`) vào mạng logic và hỗ trợ cưỡng bức/bơm giá trị thử nghiệm khi chạy Simulator. |
-| [`TRIGGER`](/vi/blocks/trigger) | **Phát hiện Sườn & Lịch RTC** | `In` → `Out` | Phát hiện sườn lên (`0 → 1`), sườn xuống (`1 → 0`), biến thiên giá trị, lọc nhiễu chống dội (`ForMs`), chu kỳ lặp định kỳ và lịch thời gian thực (`RTC`). |
-| [`COMPARATOR`](/vi/blocks/comparator) | **Bộ So sánh Quan hệ (`CMP`)** | `In` → `Out` | Đánh giá 7 toán tử quan hệ (`==`, `!=`, `>`, `<`, `>=`, `<=`, `BETWEEN`) khóa chặt theo kiểu dữ liệu `INT32`, `REAL` (dung sai `1e-5`) và `BOOL`. |
-| [`GUARD`](/vi/blocks/guard) | **Cổng Khóa Liên động An toàn** | `In` → `Out` | Chặn hoặc cho phép xung kích hoạt đi qua dựa trên trạng thái Tag khóa liên động số (`Cho qua khi 1/ON` hoặc đảo logic `NOT khi 0/OFF`). |
-| [`ACTION`](/vi/blocks/action) | **Khối Thực thi Lệnh Đích** | `In` → *(Không có)* | Kết thúc nhánh luật bằng thao tác ghi giá trị tất định (`SET_TAG`, `TOGGLE_TAG`, `INC_COUNTER`, `SCALE_TAG`), ghi từ xa, phát cảnh báo hoặc ghi nhật ký sự kiện. |
+| [`INPUT`](/vi/blocks/input) | Khối Nguồn Tín hiệu Tag | *(Không có)* → `Out` | Đưa giá trị Tag vật lý (`DI`, `DO`, `AI`) hoặc vùng nhớ ảo (`VFLAG`, `VREG`, `VREG_R`, `COUNTER`) vào mạng logic và hỗ trợ cưỡng bức/bơm giá trị thử nghiệm khi chạy Simulator. |
+| [`TRIGGER`](/vi/blocks/trigger) | Phát hiện Sườn & Lịch RTC | `In` → `Out` | Phát hiện sườn lên (`0 → 1`), sườn xuống (`1 → 0`), biến thiên giá trị, lọc nhiễu chống dội (`ForMs`), chu kỳ lặp định kỳ và lịch thời gian thực (`RTC`). |
+| [`COMPARATOR`](/vi/blocks/comparator) | Bộ So sánh Quan hệ (`CMP`) | `In` → `Out` | Đánh giá 7 toán tử quan hệ (`==`, `!=`, `>`, `<`, `>=`, `<=`, `BETWEEN`) khóa chặt theo kiểu dữ liệu `INT32`, `REAL` (dung sai `1e-5`) và `BOOL`. |
+| [`GUARD`](/vi/blocks/guard) | Cổng Khóa Liên động An toàn | `In` → `Out` | Chặn hoặc cho phép xung kích hoạt đi qua dựa trên trạng thái Tag khóa liên động số (`Cho qua khi 1/ON` hoặc đảo logic `NOT khi 0/OFF`). |
+| [`ACTION`](/vi/blocks/action) | Khối Thực thi Lệnh Đích | `In` → *(Không có)* | Kết thúc nhánh luật bằng thao tác ghi giá trị tất định (`SET_TAG`, `TOGGLE_TAG`, `INC_COUNTER`, `SCALE_TAG`), ghi từ xa, phát cảnh báo hoặc ghi nhật ký sự kiện. |
 
 ### 1.2 Định thời, Bộ đếm & Chuẩn hóa (Timing, Counting & Scaling)
 
@@ -33,14 +33,14 @@ Nhóm các khối lưu trạng thái phục vụ trễ đóng/ngắt, phát xung
 
 | Mã khối | Tên khối hàm | Chân nối (`Vào` → `Ra`) | Vai trò Công nghiệp Trọng tâm |
 | :--- | :--- | :--- | :--- |
-| [`TON`](/vi/blocks/ton) | **Hẹn giờ Trễ Đóng (On-Delay)** | `In` → `Q` | Trì hoãn bật ngõ ra `Q` cho đến khi tín hiệu `In` duy trì liên tục đủ thời gian `PresetMs` (`ms`, `s`, `min`, `h`); triệt tiêu nhiễu chập chờn từ cảm biến. |
-| [`TOF`](/vi/blocks/tof) | **Hẹn giờ Trễ Ngắt (Off-Delay)** | `In` → `Q` | Đóng `Q = 1` tức thì khi `In = 1` và duy trì `Q = 1` thêm khoảng `PresetMs` sau khi `In` ngắt `1 → 0` (ví dụ: quạt làm mát chạy trễ sau khi dừng trục chính). |
-| [`TP`](/vi/blocks/tp) | **Phát Xung Đơn ổn (Pulse)** | `In` → `Q` | Tạo một xung vuông có độ rộng cố định đúng bằng `PresetMs` ngay tại sườn lên của `In`, bất chấp tín hiệu `In` dao động trong suốt thời gian phát xung. |
-| [`CYCLE_TIMER`](/vi/blocks/cycle-timer) | **Tạo Xung Chu kỳ Bất đối xứng** | `In` → `Q` | Phát chuỗi xung vuông tuần hoàn với thời gian `OnTimeMs`, `OffTimeMs` độc lập và pha khởi đầu tùy chọn (`Bắt đầu bằng ON` / `OFF`) chừng nào `In = 1`. |
-| [`CTU`](/vi/blocks/ctu) | **Bộ Đếm Tiến (Count Up)** | `CU`, `R` → `Q` | Tăng giá trị đếm tức thời `CV` tại mỗi sườn lên chân `CU` và xuất `Q = 1` khi `CV >= PV`; xóa `CV` về `0` khi kích chân `R`. |
-| [`CTD`](/vi/blocks/ctd) | **Bộ Đếm Lùi (Count Down)** | `CD`, `R` → `Q` | Giảm `CV` lùi từ ngưỡng đặt `PV` tại mỗi sườn lên chân `CD` và xuất `Q = 1` khi `CV <= 0`; nạp lại `CV = PV` khi kích chân `R`. |
-| [`SCALE`](/vi/blocks/scale) | **Tuyến tính hóa & Hiệu chuẩn 2 Điểm** | `In` → `Out` | Nội suy tuyến tính giá trị thô ADC hoặc thanh ghi truyền thông (`[RawMin..RawMax]`) sang đơn vị vật lý thực tế (`[EngMin..EngMax]`) kèm tùy chọn kẹp biên. |
-| [`MATH`](/vi/blocks/math) | **Khối Tính toán Số học (ALU)** | `IN1..IN8` → `Out` | Thực hiện các phép toán đại số (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`) trên 2..8 toán hạng kèm cơ chế tự động nâng kiểu dữ liệu và chống chia cho 0. |
+| [`TON`](/vi/blocks/ton) | Hẹn giờ Trễ Đóng (On-Delay) | `In` → `Q` | Trì hoãn bật ngõ ra `Q` cho đến khi tín hiệu `In` duy trì liên tục đủ thời gian `PresetMs` (`ms`, `s`, `min`, `h`); triệt tiêu nhiễu chập chờn từ cảm biến. |
+| [`TOF`](/vi/blocks/tof) | Hẹn giờ Trễ Ngắt (Off-Delay) | `In` → `Q` | Đóng `Q = 1` tức thì khi `In = 1` và duy trì `Q = 1` thêm khoảng `PresetMs` sau khi `In` ngắt `1 → 0` (ví dụ: quạt làm mát chạy trễ sau khi dừng trục chính). |
+| [`TP`](/vi/blocks/tp) | Phát Xung Đơn ổn (Pulse) | `In` → `Q` | Tạo một xung vuông có độ rộng cố định đúng bằng `PresetMs` ngay tại sườn lên của `In`, bất chấp tín hiệu `In` dao động trong suốt thời gian phát xung. |
+| [`CYCLE_TIMER`](/vi/blocks/cycle-timer) | Tạo Xung Chu kỳ Bất đối xứng | `In` → `Q` | Phát chuỗi xung vuông tuần hoàn với thời gian `OnTimeMs`, `OffTimeMs` độc lập và pha khởi đầu tùy chọn (`Bắt đầu bằng ON` / `OFF`) chừng nào `In = 1`. |
+| [`CTU`](/vi/blocks/ctu) | Bộ Đếm Tiến (Count Up) | `CU`, `R` → `Q` | Tăng giá trị đếm tức thời `CV` tại mỗi sườn lên chân `CU` và xuất `Q = 1` khi `CV >= PV`; xóa `CV` về `0` khi kích chân `R`. |
+| [`CTD`](/vi/blocks/ctd) | Bộ Đếm Lùi (Count Down) | `CD`, `R` → `Q` | Giảm `CV` lùi từ ngưỡng đặt `PV` tại mỗi sườn lên chân `CD` và xuất `Q = 1` khi `CV <= 0`; nạp lại `CV = PV` khi kích chân `R`. |
+| [`SCALE`](/vi/blocks/scale) | Tuyến tính hóa & Hiệu chuẩn 2 Điểm | `In` → `Out` | Nội suy tuyến tính giá trị thô ADC hoặc thanh ghi truyền thông (`[RawMin..RawMax]`) sang đơn vị vật lý thực tế (`[EngMin..EngMax]`) kèm tùy chọn kẹp biên. |
+| [`MATH`](/vi/blocks/math) | Khối Tính toán Số học (ALU) | `IN1..IN8` → `Out` | Thực hiện các phép toán đại số (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`) trên 2..8 toán hạng kèm cơ chế tự động nâng kiểu dữ liệu và chống chia cho 0. |
 
 ### 1.3 Truyền thông Fieldbus & Xuất Phần cứng (Fieldbus & Hardware Actuation)
 
@@ -48,9 +48,9 @@ Các khối giao tiếp bất đồng bộ Modbus RTU Master trên bus RS-485 v�
 
 | Mã khối | Tên khối hàm | Chân nối (`Vào` → `Ra`) | Vai trò Công nghiệp Trọng tâm |
 | :--- | :--- | :--- | :--- |
-| [`MB_READ`](/vi/blocks/mb-read) | **Đọc Thiết bị Modbus RTU** | `EN` → `Valid`, `Error`, `ErrCode`, `Pin1..N` | Thu thập dữ liệu định kỳ từ thiết bị đo RS-485 (`FC01`, `FC02`, `FC03`, `FC04`) và giải mã vùng nhớ (`INT16`, `UINT16`, `INT32`, `FLOAT32`) ra các chân dữ liệu định kiểu. |
-| [`MB_WRITE`](/vi/blocks/mb-write) | **Ghi Chấp hành Modbus RTU** | `Trig`, `Pin1..N` (hoặc `Ch`/`Cmd`/`Param`) → `Done`, `Busy`, `Error`, `ErrCode` | Phát khung lệnh ghi đơn hoặc đa thanh ghi Modbus RTU (`FC05`, `FC06`, `FC15`, `FC16`) theo chế độ gắn chân tĩnh hoặc đánh chỉ số kênh động. |
-| [`DIRECT_WRITE`](/vi/blocks/direct-write) | **Xuất Trực tiếp DO / PWM / PTO / Bus** | `Trig` *(tùy chọn)*, `Val` → `Done`, `Busy`, `Err` | Điều khiển trực tiếp ngoại vi phần cứng trên bo mạch gồm ngõ ra số (`DO`), điều chế độ rộng xung `PWM`, phát chuỗi xung `PTO` và ngõ ra bus nội bộ. |
+| [`MB_READ`](/vi/blocks/mb-read) | Đọc Thiết bị Modbus RTU | `EN` → `Valid`, `Error`, `ErrCode`, `Pin1..N` | Thu thập dữ liệu định kỳ từ thiết bị đo RS-485 (`FC01`, `FC02`, `FC03`, `FC04`) và giải mã vùng nhớ (`INT16`, `UINT16`, `INT32`, `FLOAT32`) ra các chân dữ liệu định kiểu. |
+| [`MB_WRITE`](/vi/blocks/mb-write) | Ghi Chấp hành Modbus RTU | `Trig`, `Pin1..N` (hoặc `Ch`/`Cmd`/`Param`) → `Done`, `Busy`, `Error`, `ErrCode` | Phát khung lệnh ghi đơn hoặc đa thanh ghi Modbus RTU (`FC05`, `FC06`, `FC15`, `FC16`) theo chế độ gắn chân tĩnh hoặc đánh chỉ số kênh động. |
+| [`DIRECT_WRITE`](/vi/blocks/direct-write) | Xuất Trực tiếp DO / PWM / PTO / Bus | `Trig` *(tùy chọn)*, `Val` → `Done`, `Busy`, `Err` | Điều khiển trực tiếp ngoại vi phần cứng trên bo mạch gồm ngõ ra số (`DO`), điều chế độ rộng xung `PWM`, phát chuỗi xung `PTO` và ngõ ra bus nội bộ. |
 
 ### 1.4 Điện toán Biên IIoT & Mạng IP (IIoT Cloud & IP Network)
 
@@ -58,16 +58,16 @@ Nhóm khối truyền thông mạng IP không gây nghẽn (non-blocking) phục
 
 | Mã khối | Tên khối hàm | Chân nối (`Vào` → `Ra`) | Vai trò Công nghiệp Trọng tâm |
 | :--- | :--- | :--- | :--- |
-| [`MQTT_PUB`](/vi/blocks/mqtt-pub) | **Đẩy Telemetry lên Broker** | `Trig`, `Val1..N` → `Done`, `Err` | Đóng gói giá trị Tag và biến Macro hệ thống thành bản tin JSON hoặc chuỗi tùy chỉnh, đẩy lên MQTT / TLS Broker với cấu hình `QoS` và `Retain`. |
-| [`MQTT_SUB`](/vi/blocks/mqtt-sub) | **Nhận Lệnh Điều khiển JSON** | `EN` → `Valid`, `Err`, `Pin1..N` | Đăng ký lắng nghe Topic điều khiển từ Cloud, bóc tách khóa JSON ra các chân dữ liệu và phát xung `Valid` ngay khi nhận gói tin hợp lệ. |
-| [`HTTP_CLIENT`](/vi/blocks/http-client) | **Giao tiếp REST Webhook** | `Trig`, `Val1..N` → `Busy`, `Done`, `Error`, `StatusCode` | Gửi truy vấn `GET`, `POST` hoặc `PUT` HTTP/HTTPS kèm Header tùy biến và biểu mẫu JSON tới máy chủ MES, ERP hoặc dịch vụ Webhook. |
-| [`TCP_CLIENT`](/vi/blocks/tcp-client) | **Truyền nhận Raw Socket** | `Send`, `DataIn` → `Conn`, `Done`, `Error`, `DataOut` | Duy trì kết nối TCP Socket thô gửi/nhận chuỗi ASCII hoặc khung byte Hex với đầu đọc mã vạch, máy in công nghiệp, đầu cân điện tử. |
+| [`MQTT_PUB`](/vi/blocks/mqtt-pub) | Đẩy Telemetry lên Broker | `Trig`, `Val1..N` → `Done`, `Err` | Đóng gói giá trị Tag và biến Macro hệ thống thành bản tin JSON hoặc chuỗi tùy chỉnh, đẩy lên MQTT / TLS Broker với cấu hình `QoS` và `Retain`. |
+| [`MQTT_SUB`](/vi/blocks/mqtt-sub) | Nhận Lệnh Điều khiển JSON | `EN` → `Valid`, `Err`, `Pin1..N` | Đăng ký lắng nghe Topic điều khiển từ Cloud, bóc tách khóa JSON ra các chân dữ liệu và phát xung `Valid` ngay khi nhận gói tin hợp lệ. |
+| [`HTTP_CLIENT`](/vi/blocks/http-client) | Giao tiếp REST Webhook | `Trig`, `Val1..N` → `Busy`, `Done`, `Error`, `StatusCode` | Gửi truy vấn `GET`, `POST` hoặc `PUT` HTTP/HTTPS kèm Header tùy biến và biểu mẫu JSON tới máy chủ MES, ERP hoặc dịch vụ Webhook. |
+| [`TCP_CLIENT`](/vi/blocks/tcp-client) | Truyền nhận Raw Socket | `Send`, `DataIn` → `Conn`, `Done`, `Error`, `DataOut` | Duy trì kết nối TCP Socket thô gửi/nhận chuỗi ASCII hoặc khung byte Hex với đầu đọc mã vạch, máy in công nghiệp, đầu cân điện tử. |
 
 ---
 
 ## 2. Ngữ nghĩa Chân nối & Quy tắc Ngữ pháp Đi dây
 
-Mỗi chân kết nối (Connector Port) trên sơ đồ khối của **SynaptiX IDE** thuộc một trong hai miền tín hiệu tách biệt. Nắm vững sự khác biệt giữa **Chân Giá trị / Dữ liệu** và **Chân Sự kiện / Thực thi** giúp kỹ sư thiết kế mạch logic chuẩn xác ngay từ đầu và tránh lỗi cấu trúc khi biên dịch (`F7`).
+Mỗi chân kết nối (Connector Port) trên sơ đồ khối của SynaptiX IDE thuộc một trong hai miền tín hiệu tách biệt. Nắm vững sự khác biệt giữa **Chân Giá trị / Dữ liệu** và **Chân Sự kiện / Thực thi** giúp kỹ sư thiết kế mạch logic chuẩn xác ngay từ đầu và tránh lỗi cấu trúc khi biên dịch (`F7`).
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-input">
@@ -215,12 +215,12 @@ Mỗi chân kết nối (Connector Port) trên sơ đồ khối của **SynaptiX
 
 | Miền Tín hiệu | Các Chân Đại diện | Ngữ nghĩa trong Chu kỳ Quét |
 | :--- | :--- | :--- |
-| **Chân Giá trị / Dữ liệu** (`IsEvent = false`) | `INPUT.Out`, `SCALE.In` / `Out`, `COMPARATOR.In` / `Out`, `TON.Q`, `TOF.Q`, `TP.Q`, `CYCLE_TIMER.Q`, `CTU.Q`, `CTD.Q`, các chân dữ liệu động trên `MB_READ` & `MQTT_SUB` | Mang giá trị trạng thái vật lý hoặc vùng nhớ liên tục (`BOOL`, `INT32` hoặc `REAL`) được cập nhật ở mọi chu kỳ quét. Liên kết Tag từ khối nguồn tự động lan truyền sang khối nhận qua dây nối. |
-| **Chân Sự kiện / Thực thi** (`IsEvent = true`) | `TRIGGER.Out`, `GUARD.In` / `Out`, `ACTION.In`, `TON.In`, `TOF.In`, `TP.In`, `CYCLE_TIMER.In`, `CTU.CU` / `R`, `CTD.CD` / `R`, `Trig` / `Send` / `Done` / `Valid` / `Err` | Biểu diễn xung chuyển trạng thái rời rạc, cổng điều kiện cho phép hoặc xung báo hoàn tất giao dịch bất đồng bộ dùng để kích hoạt khối kế tiếp. |
+| Chân Giá trị / Dữ liệu (`IsEvent = false`) | `INPUT.Out`, `SCALE.In` / `Out`, `COMPARATOR.In` / `Out`, `TON.Q`, `TOF.Q`, `TP.Q`, `CYCLE_TIMER.Q`, `CTU.Q`, `CTD.Q`, các chân dữ liệu động trên `MB_READ` & `MQTT_SUB` | Mang giá trị trạng thái vật lý hoặc vùng nhớ liên tục (`BOOL`, `INT32` hoặc `REAL`) được cập nhật ở mọi chu kỳ quét. Liên kết Tag từ khối nguồn tự động lan truyền sang khối nhận qua dây nối. |
+| Chân Sự kiện / Thực thi (`IsEvent = true`) | `TRIGGER.Out`, `GUARD.In` / `Out`, `ACTION.In`, `TON.In`, `TOF.In`, `TP.In`, `CYCLE_TIMER.In`, `CTU.CU` / `R`, `CTD.CD` / `R`, `Trig` / `Send` / `Done` / `Valid` / `Err` | Biểu diễn xung chuyển trạng thái rời rạc, cổng điều kiện cho phép hoặc xung báo hoàn tất giao dịch bất đồng bộ dùng để kích hoạt khối kế tiếp. |
 
 ### 2.2 Quy tắc Ngữ pháp Đi dây Cấu trúc
 
-Trình biên dịch sơ đồ của **SynaptiX IDE** kiểm tra tính toàn vẹn cấu trúc mạng FBD theo thời gian thực ngay khi kéo dây trên Canvas và trong bước kiểm tra tiền triển khai (`F7`):
+Trình biên dịch sơ đồ của SynaptiX IDE kiểm tra tính toàn vẹn cấu trúc mạng FBD theo thời gian thực ngay khi kéo dây trên Canvas và trong bước kiểm tra tiền triển khai (`F7`):
 
 1. **Cho phép Rẽ nhánh Ngõ ra (`1:N`), Cấm Chập Ngõ vào (`1:1` trên mỗi chân nhận):** Một chân ngõ ra (như `INPUT.Out` hoặc `TRIGGER.Out`) có thể kéo dây đồng thời tới nhiều khối phía sau. Ngược lại, mỗi chân ngõ vào chỉ được phép nhận **tối đa một dây nối đến**.
 2. **Đồ thị Có hướng Không Chu trình (DAG):** Một khối không thể tự nối dây vào chính nó và không cho phép tạo vòng lặp dây nối khép kín trực tiếp trên cùng một mạng tổ hợp. Để phản hồi trạng thái sang chu kỳ quét kế tiếp, hãy dùng khối [`ACTION`](/vi/blocks/action) ghi vào biến trung gian (`VFLAG` hoặc `VREG`) và đọc lại thông qua một khối [`INPUT`](/vi/blocks/input) độc lập.
@@ -246,5 +246,5 @@ Trong chế độ **Mô phỏng Offline** (`F5`) và **Gỡ lỗi Trực tuyến
 | `[STALE]` | Hậu tố Cảnh báo Cam | Mọi Khối Gắn Tag (`INPUT`, `GUARD`, `ACTION`, `CMP`) | Đính kèm sau giá trị trực tuyến (ví dụ: `1 [STALE]` hoặc `450 [STALE]`) khi chất lượng dữ liệu suy giảm sang `Stale` do đứt cáp truyền thông hoặc quá hạn làm tươi dữ liệu. |
 
 ::: tip Lưu giữ Giá trị Cuối khi Ngắt Kết nối
-Khi ngắt phiên **Gỡ lỗi Trực tuyến** (`F8`), các khối gắn Tag vẫn hiển thị giá trị mẫu thu thập cuối cùng kèm chú thích rõ ràng (`[Last Known: ...]` / giá trị biết gần nhất) giúp kỹ sư đối chiếu hiện trường mà không nhầm lẫn giữa dữ liệu lưu đệm với tín hiệu đang sống.
+Khi ngắt phiên Gỡ lỗi Trực tuyến (`F8`), các khối gắn Tag vẫn hiển thị giá trị mẫu thu thập cuối cùng kèm chú thích rõ ràng (`[Last Known: ...]` / giá trị biết gần nhất) giúp kỹ sư đối chiếu hiện trường mà không nhầm lẫn giữa dữ liệu lưu đệm với tín hiệu đang sống.
 :::

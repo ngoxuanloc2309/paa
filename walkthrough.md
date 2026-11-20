@@ -1144,7 +1144,7 @@ Theo chỉ đạo kỹ thuật từ người dùng và nguyên tắc First Princ
 4. **Điều hướng Web Wiki ([`SimplePLC.Studio/ViewModels/MainViewModel.cs`](file:///SimplePLC.Studio/ViewModels/MainViewModel.cs) & [`AppUpdateService.cs`](file:///SimplePLC.Studio/Services/AppUpdateService.cs)):**
    - Trong `AppUpdateService`: Khai báo hằng số cấu hình:
      ```csharp
-     public const string DocumentationPortalUrl = "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/";
+     public const string DocumentationPortalUrl = "https://SynaptiXCompany.github.io/SynaptiX-IDE-Releases/";
      ```
    - Trong `MainViewModel`: Bổ sung phương thức `GetDocumentationUrl()` tự động phân luồng theo ngôn ngữ giao diện đang hoạt động (`/vi/` khi là Tiếng Việt, `/` khi là Tiếng Anh). Lệnh `OpenDocSpecCommand` mở liên kết này qua trình duyệt mặc định của hệ điều hành.
 5. **Unit Tests ([`SimplePLC.Studio.Tests/MainViewModelIntegrationTests.cs`](file:///SimplePLC.Studio.Tests/MainViewModelIntegrationTests.cs)):**

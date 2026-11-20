@@ -77,19 +77,51 @@ public class McuReferenceSimulatorMathTests
     #region 2. Boundary & Overflow Saturation Testing
 
     [Fact]
-    public void EvaluateMathAlu_Int32_Overflow_SaturatesToMaxInt()
+    public void EvaluateMathAlu_Int32_Add_Overflow_WrapsAroundMod2Pow32_PerSpec007()
     {
-        // Int32.MaxValue + 1000 -> Int32.MaxValue (không wrap-around âm gây nguy hiểm công nghiệp)
-        int result = McuReferenceSimulator.EvaluateMathAlu(int.MaxValue, 1000, (byte)SPLC_MathOp.ADD, isReal: false);
+        // 2_000_000_000 + 2_000_000_000 -> -294_967_296 (khớp Vector 5 chuẩn SPLC-SPEC-MATH-007)
+        int result = McuReferenceSimulator.EvaluateMathAlu(2_000_000_000, 2_000_000_000, (byte)SPLC_MathOp.ADD, isReal: false);
+        Assert.Equal(-294_967_296, result);
+    }
+
+    [Fact]
+    public void EvaluateMathAlu_Int32_Sub_Underflow_WrapsAroundMod2Pow32_PerSpec007()
+    {
+        // Int32.MinValue - 1000 -> wraps to positive 2147482648 (0x7FFFFC18)
+        int result = McuReferenceSimulator.EvaluateMathAlu(int.MinValue, 1000, (byte)SPLC_MathOp.SUB, isReal: false);
+        Assert.Equal(2147482648L, (long)result);
+    }
+
+    [Fact]
+    public void EvaluateMathAlu_Int32_Mul_Overflow_ClampsToMaxInt_PerSpec007()
+    {
+        // 1_000_000_000 * 10 -> kẹp về INT32_MAX qua int64 (khớp Vector 8)
+        int result = McuReferenceSimulator.EvaluateMathAlu(1_000_000_000, 10, (byte)SPLC_MathOp.MUL, isReal: false);
         Assert.Equal(int.MaxValue, result);
     }
 
     [Fact]
-    public void EvaluateMathAlu_Int32_Underflow_SaturatesToMinInt()
+    public void EvaluateMathAlu_Boundary_MinInt_Div_Minus1_ReturnsMaxInt_PerSpec007()
     {
-        // Int32.MinValue - 1000 -> Int32.MinValue
-        int result = McuReferenceSimulator.EvaluateMathAlu(int.MinValue, 1000, (byte)SPLC_MathOp.SUB, isReal: false);
-        Assert.Equal(int.MinValue, result);
+        // INT32_MIN / -1 -> INT32_MAX (khớp Vector 6)
+        int result = McuReferenceSimulator.EvaluateMathAlu(int.MinValue, -1, (byte)SPLC_MathOp.DIV, isReal: false);
+        Assert.Equal(int.MaxValue, result);
+    }
+
+    [Fact]
+    public void EvaluateMathAlu_Boundary_MinInt_Mod_Minus1_ReturnsZero_PerSpec007()
+    {
+        // INT32_MIN % -1 -> 0 (khớp Vector 7 và Q11)
+        int result = McuReferenceSimulator.EvaluateMathAlu(int.MinValue, -1, (byte)SPLC_MathOp.MOD, isReal: false);
+        Assert.Equal(0, result);
+    }
+
+    [Fact]
+    public void EvaluateMathAlu_C99NegativeModulo_ReturnsNegativeRemainder_PerSpec007()
+    {
+        // -7 % 3 = -1 (C99 dấu theo số bị chia, khớp Vector 10)
+        int result = McuReferenceSimulator.EvaluateMathAlu(-7, 3, (byte)SPLC_MathOp.MOD, isReal: false);
+        Assert.Equal(-1, result);
     }
 
     #endregion

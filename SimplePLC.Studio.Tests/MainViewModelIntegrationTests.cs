@@ -56,7 +56,7 @@ public class MainViewModelIntegrationTests
             string url = mainVM.GetDocumentationUrl();
 
             // Assert
-            Assert.Equal("https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/", url);
+            Assert.Equal("https://SynaptiXCompany.github.io/SynaptiX-IDE-Releases/", url);
         }
         finally
         {
@@ -78,7 +78,7 @@ public class MainViewModelIntegrationTests
             string url = mainVM.GetDocumentationUrl();
 
             // Assert
-            Assert.Equal("https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/vi/", url);
+            Assert.Equal("https://SynaptiXCompany.github.io/SynaptiX-IDE-Releases/vi/", url);
         }
         finally
         {

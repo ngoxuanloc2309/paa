@@ -19,21 +19,42 @@ public static class RuleMapper
         if (domainRule.Trigger.IsFloat) flags |= (byte)SPLC_RuleFlags.TRIGGER_FLOAT;
         if (domainRule.Action.IsFloat)  flags |= (byte)SPLC_RuleFlags.ACTION_FLOAT;
 
+        // SCALE_TAG thăng hạng kiểu: nguồn số nguyên sang đích Float32
+        if (domainRule.Action.Type == ActionKind.ScaleTag &&
+            domainRule.Trigger.Tag.DataType != TagDataType.Float32 &&
+            domainRule.Action.IsFloat)
+        {
+            flags |= (byte)(SPLC_RuleFlags.TRIGGER_FLOAT | SPLC_RuleFlags.ACTION_FLOAT | SPLC_RuleFlags.INT_TO_FLOAT);
+        }
+
+        bool isMathOp = domainRule.Action.Type == ActionKind.MathOp;
+
+        int thresholdLo = isMathOp ? 0 : (domainRule.Trigger.IsFloat
+            ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdLo)
+            : (int)Math.Round(domainRule.Trigger.ThresholdLo));
+
+        int thresholdHi = isMathOp ? 0 : (domainRule.Trigger.IsFloat
+            ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdHi)
+            : (int)Math.Round(domainRule.Trigger.ThresholdHi));
+
+        uint forMs = isMathOp ? 0 : domainRule.Trigger.ForMs;
+
+        // Đối với MATH_OP: Reg 6..7 (ActionParam) bắt buộc ghi 0 theo chuẩn SPLC-SPEC-MATH-007
+        int actionParam = isMathOp ? 0 : (domainRule.Action.IsFloat
+            ? BitConverter.SingleToInt32Bits((float)domainRule.Action.Parameter)
+            : (int)Math.Round(domainRule.Action.Parameter));
+
+        int auxParam = domainRule.Action.IsFloat
+            ? BitConverter.SingleToInt32Bits((float)domainRule.Action.AuxParameter)
+            : (int)Math.Round(domainRule.Action.AuxParameter);
+
         var dto = new RuleRecordDto
         {
-            ThresholdLo = domainRule.Trigger.IsFloat
-                ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdLo)
-                : (int)Math.Round(domainRule.Trigger.ThresholdLo),
-            ThresholdHi = domainRule.Trigger.IsFloat
-                ? BitConverter.SingleToInt32Bits((float)domainRule.Trigger.ThresholdHi)
-                : (int)Math.Round(domainRule.Trigger.ThresholdHi),
-            ForMs = domainRule.Trigger.ForMs,
-            ActionParam = domainRule.Action.IsFloat
-                ? BitConverter.SingleToInt32Bits((float)domainRule.Action.Parameter)
-                : (int)Math.Round(domainRule.Action.Parameter),
-            AuxParam = domainRule.Action.IsFloat
-                ? BitConverter.SingleToInt32Bits((float)domainRule.Action.AuxParameter)
-                : (int)Math.Round(domainRule.Action.AuxParameter),
+            ThresholdLo = thresholdLo,
+            ThresholdHi = thresholdHi,
+            ForMs = forMs,
+            ActionParam = actionParam,
+            AuxParam = auxParam,
             TriggerTag = domainRule.Trigger.Tag.TagIndex,
             ActionTag = domainRule.Action.TargetTag.TagIndex,
             Enabled = domainRule.Enabled,
@@ -48,6 +69,11 @@ public static class RuleMapper
             ushort guardTag = (ushort)((domainRule.Guard.Tag.TagIndex & ModbusRegisterMap.GuardTagIndexMask) |
                                       (domainRule.Guard.Negated ? ModbusRegisterMap.GuardTagNegateMask : 0));
             dto.GuardTag = guardTag;
+            if (isMathOp)
+            {
+                // Khi Op2 là tag động, AuxParam phải là 0
+                dto.AuxParam = 0;
+            }
         }
         else
         {
@@ -79,15 +105,27 @@ public static class RuleMapper
             ForMs = dto.ForMs
         };
 
+        bool isMathOp = (ActionKind)dto.ActionType == ActionKind.MathOp;
         double auxParam = isActionFloat
             ? (dto.AuxParam != 0 || dto.ThresholdHi == 0 ? dto.AuxParamFloat : dto.ThresholdHiFloat)
             : (dto.AuxParam != 0 || dto.ThresholdHi == 0 ? dto.AuxParam : dto.ThresholdHi);
 
+        double actionParamVal;
+        if (isMathOp)
+        {
+            // Đối với MathOp: nếu không có guard tag (0x7FFF), hằng số Op2 nằm ở auxParam
+            actionParamVal = !dto.HasGuard ? auxParam : 0.0;
+        }
+        else
+        {
+            actionParamVal = isActionFloat ? dto.ActionParamFloat : dto.ActionParam;
+        }
+
         var action = new ActionModel(
             actionTag,
             (ActionKind)dto.ActionType,
-            isActionFloat ? dto.ActionParamFloat : dto.ActionParam,
-            auxParam)
+            actionParamVal,
+            isMathOp ? actionParamVal : auxParam)
         {
             IsFloat = isActionFloat
         };

@@ -212,6 +212,17 @@ public partial class LogicEditorView : UserControl
                         return;
                 }
             }
+            else if (mods == (ModifierKeys.Control | ModifierKeys.Alt))
+            {
+                var sysKey = e.Key == Key.System ? e.SystemKey : e.Key;
+                switch (sysKey)
+                {
+                    case Key.G:
+                        vm.ToggleGrid();
+                        e.Handled = true;
+                        return;
+                }
+            }
             else if (mods == ModifierKeys.Alt)
             {
                 var sysKey = e.Key == Key.System ? e.SystemKey : e.Key;

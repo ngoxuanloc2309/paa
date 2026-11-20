@@ -236,7 +236,8 @@ public class TagCatalogEnhancementTests
         {
             if (t.Kind != TagKind.None)
             {
-                Assert.Equal(TagDataType.Float32, t.DataType);
+                Assert.True(t.DataType == TagDataType.Float32 || t.IsDataTypeEditable,
+                    $"Tag {t.Name} must be Float32 or have IsDataTypeEditable");
                 Assert.True(t.IsWritable);
             }
         });

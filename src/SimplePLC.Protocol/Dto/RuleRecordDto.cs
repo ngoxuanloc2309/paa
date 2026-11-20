@@ -58,6 +58,15 @@ public sealed class RuleRecordDto
     }
 
     /// <summary>
+    /// Bit 2 của Flags: 1 = SCALE_TAG nguồn INT32 ép kiểu sang Float32 trước khi nhân Gain & Offset (flags = 0x07).
+    /// </summary>
+    public bool IsIntToFloat
+    {
+        get => (Flags & (byte)SPLC_RuleFlags.INT_TO_FLOAT) != 0;
+        set => Flags = value ? (byte)(Flags | (byte)SPLC_RuleFlags.INT_TO_FLOAT) : (byte)(Flags & ~(byte)SPLC_RuleFlags.INT_TO_FLOAT);
+    }
+
+    /// <summary>
     /// Thuộc tính tương thích ngược: get trả về true nếu Trigger là float;
     /// set = true sẽ bật cả 2 cờ (0x03 = FLOAT_DATA) để tương thích chuẩn cũ.
     /// </summary>

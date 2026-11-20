@@ -9,7 +9,7 @@
 
 Chào mừng bạn đến với **Hướng dẫn Lập trình SynaptiX (SynaptiX Programming Guide)** — cẩm nang kỹ thuật chính thức và toàn diện dành cho việc thiết kế logic điều khiển, cấu hình truyền thông công nghiệp, mô phỏng kiểm thử, nạp chương trình an toàn và giám sát thời gian thực cho **Hệ sinh thái Tự động hóa Biên & IIoT SynaptiX**.
 
-Khác với các phần mềm cấu hình rời rạc tách biệt giữa điều khiển tại chỗ, đọc cảm biến RS-485 và đẩy dữ liệu đám mây, **SynaptiX IDE** hợp nhất toàn bộ quy trình từ thiết kế sơ đồ khối trực quan, kiểm soát chặt chẽ kiểu dữ liệu vật lý, mô phỏng chu kỳ chính xác không cần phần cứng, nạp Flash hai pha nguyên tử đến chẩn đoán trực tuyến 20 FPS trong một không gian làm việc duy nhất.
+Khác với các phần mềm cấu hình rời rạc tách biệt giữa điều khiển tại chỗ, đọc cảm biến RS-485 và đẩy dữ liệu đám mây, SynaptiX IDE hợp nhất toàn bộ quy trình từ thiết kế sơ đồ khối trực quan, kiểm soát chặt chẽ kiểu dữ liệu vật lý, mô phỏng chu kỳ chính xác không cần phần cứng, nạp Flash hai pha nguyên tử đến chẩn đoán trực tuyến 20 FPS trong một không gian làm việc duy nhất.
 
 ![Tổng quan Giao diện Kỹ thuật SynaptiX IDE](/images/synaptix_main_anatomy.png)
 
@@ -93,12 +93,12 @@ Toàn bộ tài liệu được tổ chức xuyên suốt theo **6 chương tu�
 
 | Trụ cột Thiết kế | Cam kết Kỹ thuật trong SynaptiX IDE | Tài liệu Chi tiết |
 | :--- | :--- | :--- |
-| **Sự thật Thị giác & Toàn vẹn Kiểu** | Mọi ô nhập liệu đều ràng buộc chặt chẽ với vùng nhớ vật lý (`BOOL`, `INT32`, IEEE-754 `REAL`), tự động chuẩn hóa định dạng hoặc hoàn nguyên tức thì khi nhập sai kiểu. | [Kiến trúc Bộ nhớ Tag & Kiểu Dữ liệu](./concepts/data-model-and-types) |
-| **Động cơ Thực thi Lai Tất định** | Kết hợp chuỗi luật Sự kiện – Điều kiện – Hành động 4 giai đoạn (tối đa 100 luật) với các khối định thời, bộ đếm, hiệu chuẩn tuyến tính và tiến trình truyền thông bất đồng bộ không gây nghẽn chu kỳ quét. | [Chu trình Thực thi Tất định](./concepts/execution-pipeline) |
-| **18 Khối Hàm Công nghiệp Chuyên biệt** | Không cần viết mã kịch bản phức tạp — tích hợp sẵn từ phát hiện sườn xung, lịch thời gian thực RTC, đọc/ghi Modbus RTU Master, điều khiển chân cứng DO/PWM/PTO đến đóng gói JSON MQTT, HTTP REST và luồng TCP thô. | [Tổng quan Danh mục Khối hàm](./blocks/overview) |
-| **Kiểm thử Offline Không cần Phần cứng** | Trình mô phỏng chu kỳ thực (`F5`) và khung bơm gói tin JSON giả lập giúp kiểm chứng 100% logic điều khiển ngay trên bàn làm việc trước khi ra hiện trường. | [Mô phỏng Offline & Gỡ lỗi Trực tuyến](./tools/simulator-and-live-debug) |
-| **Triển khai Nguyên tử An toàn** | Cơ chế nạp hai pha kèm kiểm tra tiền triển khai đảm bảo sự cố mất điện hoặc tuột cáp giữa chừng không bao giờ làm hỏng cấu hình đang chạy trên thiết bị biên. | [Không gian Triển khai — Deploy](./workspaces/deploy-tab) |
+| Sự thật Thị giác & Toàn vẹn Kiểu | Mọi ô nhập liệu đều ràng buộc chặt chẽ với vùng nhớ vật lý (`BOOL`, `INT32`, IEEE-754 `REAL`), tự động chuẩn hóa định dạng hoặc hoàn nguyên tức thì khi nhập sai kiểu. | [Kiến trúc Bộ nhớ Tag & Kiểu Dữ liệu](./concepts/data-model-and-types) |
+| Động cơ Thực thi Lai Tất định | Kết hợp chuỗi luật Sự kiện – Điều kiện – Hành động 4 giai đoạn (tối đa 100 luật) với các khối định thời, bộ đếm, hiệu chuẩn tuyến tính và tiến trình truyền thông bất đồng bộ không gây nghẽn chu kỳ quét. | [Chu trình Thực thi Tất định](./concepts/execution-pipeline) |
+| 18 Khối Hàm Công nghiệp Chuyên biệt | Không cần viết mã kịch bản phức tạp — tích hợp sẵn từ phát hiện sườn xung, lịch thời gian thực RTC, đọc/ghi Modbus RTU Master, điều khiển chân cứng DO/PWM/PTO đến đóng gói JSON MQTT, HTTP REST và luồng TCP thô. | [Tổng quan Danh mục Khối hàm](./blocks/overview) |
+| Kiểm thử Offline Không cần Phần cứng | Trình mô phỏng chu kỳ thực (`F5`) và khung bơm gói tin JSON giả lập giúp kiểm chứng 100% logic điều khiển ngay trên bàn làm việc trước khi ra hiện trường. | [Mô phỏng Offline & Gỡ lỗi Trực tuyến](./tools/simulator-and-live-debug) |
+| Triển khai Nguyên tử An toàn | Cơ chế nạp hai pha kèm kiểm tra tiền triển khai đảm bảo sự cố mất điện hoặc tuột cáp giữa chừng không bao giờ làm hỏng cấu hình đang chạy trên thiết bị biên. | [Không gian Triển khai — Deploy](./workspaces/deploy-tab) |
 
 ::: tip Chuyển đổi Song ngữ Tức thời
-Cả phần mềm **SynaptiX IDE** lẫn cổng tài liệu kỹ thuật này đều hỗ trợ chuyển đổi song ngữ tức thời giữa **Tiếng Việt** và **English** (thông qua nút chọn ngôn ngữ ở góc trên bên phải).
+Cả phần mềm SynaptiX IDE lẫn cổng tài liệu kỹ thuật này đều hỗ trợ chuyển đổi song ngữ tức thời giữa **Tiếng Việt** và **English** (thông qua nút chọn ngôn ngữ ở góc trên bên phải).
 :::

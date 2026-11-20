@@ -475,7 +475,8 @@ public class MathMacroLoweringTests
             _product.MaxRules,
             _product.Resources,
             tags,
-            _product.WireProfile);
+            _product.WireProfile,
+            hardwareCapabilities: _product.HardwareCapabilities);
 
         var ai0 = productWithFloat.FindTagByName("AI0")!; // Int32
         var floatTag = productWithFloat.FindTagByName("FLOAT_TAG")!; // Float32
@@ -540,7 +541,8 @@ public class MathMacroLoweringTests
             _product.MaxRules,
             _product.Resources,
             tags,
-            _product.WireProfile);
+            _product.WireProfile,
+            hardwareCapabilities: _product.HardwareCapabilities);
 
         var ai0 = productWithFloat.FindTagByName("AI0")!; // Int32
         var floatTag = productWithFloat.FindTagByName("FLOAT_TAG")!; // Float32

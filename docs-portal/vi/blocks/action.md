@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`ACTION`** là điểm kết thúc thực thi của một nhánh trong Chuỗi Luật Cốt lõi. Mỗi khi có xung sự kiện đi tới chân `In` — sau khi đã vượt qua các khâu kiểm tra của [`TRIGGER`](/vi/blocks/trigger), [`COMPARATOR`](/vi/blocks/comparator), [`GUARD`](/vi/blocks/guard), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu) hoặc chân báo hoàn tất của các khối truyền thông — khối `ACTION` thực thi nguyên tử thao tác ghi lên `TargetTag` hoặc hệ thống cảnh báo/nhật ký của bộ điều khiển.
+Khối `ACTION` là điểm kết thúc thực thi của một nhánh trong Chuỗi Luật Cốt lõi. Mỗi khi có xung sự kiện đi tới chân `In` — sau khi đã vượt qua các khâu kiểm tra của [`TRIGGER`](/vi/blocks/trigger), [`COMPARATOR`](/vi/blocks/comparator), [`GUARD`](/vi/blocks/guard), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu) hoặc chân báo hoàn tất của các khối truyền thông — khối `ACTION` thực thi nguyên tử thao tác ghi lên `TargetTag` hoặc hệ thống cảnh báo/nhật ký của bộ điều khiển.
 
 - **Cập nhật Vùng nhớ Đồng bộ Chu kỳ Quét:** Các thao tác biến đổi giá trị Tag (`SET_TAG`, `TOGGLE_TAG`, `INC_COUNTER`, `SCALE_TAG`) được chốt tất định trong pha xuất ngõ ra của chu kỳ quét hiện hành, đảm bảo thời gian đáp ứng cơ cấu chấp hành hoàn toàn nhất quán.
 - **Khóa Chặt Tham số theo Kiểu Tag Đích:** Ngay khi chọn `TargetTag`, ô tham số `ActionParam` trên Inspector tự động chuyển đổi giao diện tương ứng — hiển thị cặp nút nhị phân `[ 0 ]` / `[ 1 ]` đối với cuộn hút/cờ `BOOL`, bộ kiểm tra số nguyên cho thanh ghi `INT32`, và định dạng dấu phẩy động IEEE-754 (`0.0###`) cho thanh ghi `REAL`.
@@ -92,10 +92,10 @@ Một nút nhấn nhả tự phục hồi trên mặt tủ (`DI2`) được dùn
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Đặt khối **`INPUT`** (`Tag = DI2`) → **[`TRIGGER`](/vi/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 60` ms lọc dội tiếp điểm nút nhấn).
-2. Nối chân `TRIGGER.Out` sang khối **`ACTION`** thứ nhất cấu hình `ActionType = TOGGLE_TAG`, `TargetTag = DO1` (`CustomLabel = "Đảo Bồn Khuấy"`).
-3. Rẽ nhánh dây thứ hai từ cùng chân `TRIGGER.Out` sang khối **`ACTION`** thứ hai cấu hình `ActionType = INC_COUNTER`, `TargetTag = VREG_R0`, `ActionParam = 1` (`CustomLabel = "Đếm Chu kỳ Đóng cắt"`).
-4. Nhấn `F5` kiểm thử trên **Simulator**: nhấp liên tiếp nút mô phỏng `DI2` (`0 → 1` giữ trên `60 ms`), xác nhận `DO1` đảo trạng thái gọn gàng `0 → 1 → 0 → 1` trong khi `VREG_R0` tăng đều `1 → 2 → 3` không hề bị đếm đúp do dội nút nhấn.
+1. Đặt khối `INPUT` (`Tag = DI2`) → [`TRIGGER`](/vi/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 60` ms lọc dội tiếp điểm nút nhấn).
+2. Nối chân `TRIGGER.Out` sang khối `ACTION` thứ nhất cấu hình `ActionType = TOGGLE_TAG`, `TargetTag = DO1` (`CustomLabel = "Đảo Bồn Khuấy"`).
+3. Rẽ nhánh dây thứ hai từ cùng chân `TRIGGER.Out` sang khối `ACTION` thứ hai cấu hình `ActionType = INC_COUNTER`, `TargetTag = VREG_R0`, `ActionParam = 1` (`CustomLabel = "Đếm Chu kỳ Đóng cắt"`).
+4. Nhấn `F5` kiểm thử trên Simulator: nhấp liên tiếp nút mô phỏng `DI2` (`0 → 1` giữ trên `60 ms`), xác nhận `DO1` đảo trạng thái gọn gàng `0 → 1 → 0 → 1` trong khi `VREG_R0` tăng đều `1 → 2 → 3` không hề bị đếm đúp do dội nút nhấn.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-input">

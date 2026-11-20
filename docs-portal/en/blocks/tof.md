@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`TOF`** (**Timer Off-Delay**) block energizes its boolean output `Q` (`1`) instantaneously when input `In` asserts `1`, and **holds `Q = 1` for a configurable overrun duration `PresetMs`** after `In` transitions from `1 → 0`.
+The `TOF` (**Timer Off-Delay**) block energizes its boolean output `Q` (`1`) instantaneously when input `In` asserts `1`, and **holds `Q = 1` for a configurable overrun duration `PresetMs`** after `In` transitions from `1 → 0`.
 
 - **Zero-Latency Turn-On, Delayed Turn-Off:** While `In == 1`, `Q` stays `1` and elapsed off-time `ET` remains `0`. The monotonic countdown begins strictly on the **falling edge** (`In: 1 → 0`).
 - **Seamless Retrigger / Cancellation:** If `In` rises back to `1` while the off-delay countdown is still in progress (`0 < ET < PresetMs`), `ET` resets immediately to `0` and `Q` stays continuously `1` without any dropout glitch. Only when `In` stays `0` uninterrupted for the full `PresetMs` does `Q` return to `0`.
@@ -45,11 +45,11 @@ The table below details immediate turn-on (`In = 1`), falling-edge post-run hold
 
 | Waveform Phase | Input `In` | Elapsed Off-Time `ET` | Output `Q` | Engineering State |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Initial Idle** | `0` | `0 ms` | `0` | System at rest (`OFF`) |
-| **2. Input Energized** | `1` | `0 ms` | `1` (`ON`) | Immediate output activation (`0 ms` delay) |
-| **3. Falling Edge (`1 → 0`)** | `0` | `0 → PresetMs` | `1` (`ON`) | Post-run hold active; `ET` counting toward `PresetMs` |
-| **4. Re-Triggered Early** | `1` | Resets to `0 ms` | `1` (`ON`) | Seamless continuation with zero output chatter |
-| **5. Hold Expired** | `0` | `PresetMs` | `0` (`OFF`) | Post-run completed; output de-energizes |
+| 1. Initial Idle | `0` | `0 ms` | `0` | System at rest (`OFF`) |
+| 2. Input Energized | `1` | `0 ms` | `1` (`ON`) | Immediate output activation (`0 ms` delay) |
+| 3. Falling Edge (`1 → 0`) | `0` | `0 → PresetMs` | `1` (`ON`) | Post-run hold active; `ET` counting toward `PresetMs` |
+| 4. Re-Triggered Early | `1` | Resets to `0 ms` | `1` (`ON`) | Seamless continuation with zero output chatter |
+| 5. Hold Expired | `0` | `PresetMs` | `0` (`OFF`) | Post-run completed; output de-energizes |
 
 ---
 
@@ -82,10 +82,10 @@ When a high-speed CNC spindle inverter (`DI1` run-feedback contact) operates, it
 
 ### Step-by-Step Canvas Wiring
 
-1. Place **`INPUT`** (`Tag = DI1`, `CustomLabel = "Spindle Running"`).
-2. Select the `INPUT` block and click **`TOF`** in the toolbox to wire `INPUT.Out → TOF.In`.
-3. In the `TOF` **Inspector**, set `DurationValueText = "2"`, select `TimeUnit = "min"` (confirming `= 120,000 ms (2min)`), and bind `OutputTag = DO1` (`CustomLabel = "Cooling Post-Run"`).
-4. Press `F5` to verify in the **Simulator** (for rapid desktop verification, temporarily test with `3 s`, then restore `2 min` before deployment):
+1. Place `INPUT` (`Tag = DI1`, `CustomLabel = "Spindle Running"`).
+2. Select the `INPUT` block and click `TOF` in the toolbox to wire `INPUT.Out → TOF.In`.
+3. In the `TOF` Inspector, set `DurationValueText = "2"`, select `TimeUnit = "min"` (confirming `= 120,000 ms (2min)`), and bind `OutputTag = DO1` (`CustomLabel = "Cooling Post-Run"`).
+4. Press `F5` to verify in the Simulator (for rapid desktop verification, temporarily test with `3 s`, then restore `2 min` before deployment):
    - Toggle `DI1` `0 → 1`: `DO1` turns `1` immediately.
    - Toggle `DI1` `1 → 0`: `DO1` stays `1` while `ET` counts up toward `PresetMs`.
    - Toggle `DI1` `0 → 1` mid-countdown: `ET` resets to `0` and `DO1` stays `1` without flickering.

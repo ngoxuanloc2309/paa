@@ -41,6 +41,15 @@
         <KeyBinding Key="H" Modifiers="Alt+Shift" Command="{Binding DistributeNodesHorizontallyCommand}" />
         <KeyBinding Key="V" Modifiers="Alt+Shift" Command="{Binding DistributeNodesVerticallyCommand}" />
         <KeyBinding Key="G" Modifiers="Alt" Command="{Binding SnapAllNodesToGridCommand}" />
+        <KeyBinding Key="Up" Modifiers="Ctrl+Shift" Command="{Binding AlignTopCommand}" />
+        <KeyBinding Key="Down" Modifiers="Ctrl+Shift" Command="{Binding AlignBottomCommand}" />
+        <KeyBinding Key="Left" Modifiers="Ctrl+Shift" Command="{Binding AlignLeftCommand}" />
+        <KeyBinding Key="Right" Modifiers="Ctrl+Shift" Command="{Binding AlignRightCommand}" />
+        <KeyBinding Key="C" Modifiers="Ctrl+Shift" Command="{Binding AlignCenterCommand}" />
+        <KeyBinding Key="H" Modifiers="Ctrl+Shift" Command="{Binding DistributeNodesHorizontallyCommand}" />
+        <KeyBinding Key="V" Modifiers="Ctrl+Shift" Command="{Binding DistributeNodesVerticallyCommand}" />
+        <KeyBinding Key="G" Modifiers="Ctrl+Shift" Command="{Binding SnapAllNodesToGridCommand}" />
+        <KeyBinding Key="G" Modifiers="Ctrl+Alt" Command="{Binding ToggleGridCommand}" />
 
         <!-- Workspace Tabs Shortcuts (Ctrl+1 to Ctrl+7) -->
         <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding SelectTabCommand}" CommandParameter="0" />
@@ -69,6 +78,7 @@
         <KeyBinding Key="M" Modifiers="Ctrl+Shift" Command="{Binding OpenMqttBrokerConfigCommand}" />
         <KeyBinding Key="W" Modifiers="Ctrl+Shift" Command="{Binding OpenWifiConfigCommand}" />
         <KeyBinding Key="B" Modifiers="Ctrl+Shift" Command="{Binding OpenModbusPortConfigCommand}" />
+        <KeyBinding Key="D" Modifiers="Ctrl+Shift" Command="{Binding SelectTabCommand}" CommandParameter="0" />
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding ToggleAiCopilotCommand}" />
     </Window.InputBindings>
     
@@ -204,7 +214,7 @@
                 <Separator />
                 <MenuItem Header="{Binding Loc[MenuToggleSimulation]}" Command="{Binding ToggleSimulationCommand}" InputGestureText="F5" />
                 <MenuItem Header="{Binding Loc[MenuLiveDebug]}" Command="{Binding LogicEditorVM.ToggleLiveDebugCommand}" InputGestureText="F8" IsCheckable="True" IsChecked="{Binding LogicEditorVM.IsLiveDebugActive}" />
-                <MenuItem Header="{Binding Loc[MenuToggleGrid]}" Command="{Binding ToggleGridCommand}" IsCheckable="True" IsChecked="{Binding LogicEditorVM.IsGridVisible}" InputGestureText="Alt+G" Icon="▦" />
+                <MenuItem Header="{Binding Loc[MenuToggleGrid]}" Command="{Binding ToggleGridCommand}" IsCheckable="True" IsChecked="{Binding LogicEditorVM.IsGridVisible}" InputGestureText="Ctrl+Alt+G" Icon="▦" />
                 <MenuItem Header="{Binding Loc[MenuFullScreen]}" Command="{Binding ToggleFullScreenCommand}" InputGestureText="F11" />
             </MenuItem>
 

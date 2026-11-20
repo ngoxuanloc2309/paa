@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`TON`** (**Timer On-Delay — Hẹn giờ Trễ Đóng**) trì hoãn việc đóng ngõ ra nhị phân `Q` lên mức `1` cho đến khi tín hiệu điều khiển ở chân `In` duy trì liên tục ở mức tích cực (`1`) đủ khoảng thời gian đặt trước `PresetMs`.
+Khối `TON` (**Timer On-Delay — Hẹn giờ Trễ Đóng**) trì hoãn việc đóng ngõ ra nhị phân `Q` lên mức `1` cho đến khi tín hiệu điều khiển ở chân `In` duy trì liên tục ở mức tích cực (`1`) đủ khoảng thời gian đặt trước `PresetMs`.
 
 - **Hợp đồng Duy trì Liên tục:** Ngay tại sườn lên của `In` (`0 → 1`), bộ đếm thời gian trôi qua `ET` bắt đầu tăng dựa trên đồng hồ mili-giây đơn điệu của bộ điều khiển trong khi `Q` vẫn giữ mức `0`. Chỉ khi `ET` chạm mốc `PresetMs`, ngõ ra `Q` mới chuyển sang `1` (`Q = ON`).
 - **Xóa Tức thì Khi Ngõ vào Rớt Áp:** Nếu tín hiệu `In` tụt về `0` ở **bất kỳ thời điểm nào** — dù đang đếm dở (`0 < ET < PresetMs`) hay sau khi `Q` đã đóng lên `1` — cả `ET` lẫn `Q` đều lập tức trở về `0` ngay trong chu kỳ quét đó. Mọi gai nhiễu hoặc dao động chập chờn ngắn hơn `PresetMs` đều bị chặn đứng hoàn toàn.
@@ -45,11 +45,11 @@ Bảng dưới đây minh họa rõ sự khác biệt giữa **xung chập chờ
 
 | Giai đoạn Tín hiệu | Ngõ vào `In` | Thời gian Đếm `ET` | Ngõ ra `Q` | Nhãn Trạng thái trên Canvas |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Trạng thái Nghỉ** | `0` | `0 ms` | `0` | `3s (OFF)` / `PT: 3000 ms` |
-| **2. Xung Nhiễu Ngắn (`< PresetMs`)** | `1 → 0` sớm | Tăng dở rồi xóa ngay về `0 ms` | `0` (Không đổi) | Lập tức quay về `3s (OFF)` |
-| **3. Đang Đếm Trễ (`< PresetMs`)** | `1` | `0 → PresetMs` | `0` | `45% (3s)` · `1350 / 3000 ms` |
-| **4. Đủ Thời gian Đặt** | `1` | `PresetMs` (`3000 ms`) | `1` (`ON`) | `Q = ON` · `DONE · 3000 ms` |
-| **5. Ngắt Tín hiệu Vào** | `0` | `0 ms` | `0` (`OFF`) | `3s (OFF)` |
+| 1. Trạng thái Nghỉ | `0` | `0 ms` | `0` | `3s (OFF)` / `PT: 3000 ms` |
+| 2. Xung Nhiễu Ngắn (`< PresetMs`) | `1 → 0` sớm | Tăng dở rồi xóa ngay về `0 ms` | `0` (Không đổi) | Lập tức quay về `3s (OFF)` |
+| 3. Đang Đếm Trễ (`< PresetMs`) | `1` | `0 → PresetMs` | `0` | `45% (3s)` · `1350 / 3000 ms` |
+| 4. Đủ Thời gian Đặt | `1` | `PresetMs` (`3000 ms`) | `1` (`ON`) | `Q = ON` · `DONE · 3000 ms` |
+| 5. Ngắt Tín hiệu Vào | `0` | `0 ms` | `0` (`OFF`) | `3s (OFF)` |
 
 ---
 
@@ -71,7 +71,7 @@ Bảng dưới đây minh họa rõ sự khác biệt giữa **xung chập chờ
 
 ### Bài toán: Chống Dao động Mặt nước Phao Hố Thu Nước thải Cho Bơm Chìm `7.5 kW`
 
-Trong hố thu nước thải ngầm, dòng nước chảy mạnh làm phao báo mức cao (`DI0`) chao đảo liên tục trước khi mực nước thực sự dâng đầy. Nếu đóng khởi động từ bơm chìm `7.5 kW` (`DO0`) ngay theo từng cơn sóng vỗ sẽ gây dính tiếp điểm contactor và quá nhiệt cuộn dây động cơ. Sử dụng khối **`TON`** đặt trễ **`5 giây`** buộc phao phải ngập liên tục đủ `5 s` mới đóng bơm.
+Trong hố thu nước thải ngầm, dòng nước chảy mạnh làm phao báo mức cao (`DI0`) chao đảo liên tục trước khi mực nước thực sự dâng đầy. Nếu đóng khởi động từ bơm chìm `7.5 kW` (`DO0`) ngay theo từng cơn sóng vỗ sẽ gây dính tiếp điểm contactor và quá nhiệt cuộn dây động cơ. Sử dụng khối `TON` đặt trễ `5 giây` buộc phao phải ngập liên tục đủ `5 s` mới đóng bơm.
 
 ### Khai báo Bảng Tag
 
@@ -82,10 +82,10 @@ Trong hố thu nước thải ngầm, dòng nước chảy mạnh làm phao báo
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Đặt khối **`INPUT`** (`Tag = DI0`, `CustomLabel = "Phao Mức Cao"`).
-2. Chọn khối `INPUT` rồi nhấp thêm khối **`TON`** trên thanh công cụ để tự động nối dây `INPUT.Out → TON.In`.
-3. Trên bảng **Inspector** của `TON`, nhập `DurationValueText = "5"`, chọn `TimeUnit = "s"` (kiểm tra dòng quy đổi `= 5,000 ms (5s)`) và gán `OutputTag = DO0`.
-4. Kéo thêm dây từ `TON.Q` sang khối **[`MQTT_PUB`](/vi/blocks/mqtt-pub)** (`Topic = "nhamay/hothu/bom_chay"`) để gửi bản tin báo trạng thái bơm khởi động lên phòng điều hành trung tâm.
+1. Đặt khối `INPUT` (`Tag = DI0`, `CustomLabel = "Phao Mức Cao"`).
+2. Chọn khối `INPUT` rồi nhấp thêm khối `TON` trên thanh công cụ để tự động nối dây `INPUT.Out → TON.In`.
+3. Trên bảng Inspector của `TON`, nhập `DurationValueText = "5"`, chọn `TimeUnit = "s"` (kiểm tra dòng quy đổi `= 5,000 ms (5s)`) và gán `OutputTag = DO0`.
+4. Kéo thêm dây từ `TON.Q` sang khối [`MQTT_PUB`](/vi/blocks/mqtt-pub) (`Topic = "nhamay/hothu/bom_chay"`) để gửi bản tin báo trạng thái bơm khởi động lên phòng điều hành trung tâm.
 5. Nhấn `F5` kiểm thử: bật `DI0` lên `1` trong `2 giây` rồi tắt về `0` — xác nhận `ET` xóa ngay về `0 ms` và `DO0` không đóng. Tiếp theo bật giữ `DI0 = 1` đủ `5 giây` — xác nhận nhãn `Q = ON` bật sáng và bơm `DO0` vận hành ổn định.
 
 <div class="synx-node-chain">

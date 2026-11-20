@@ -19,7 +19,7 @@ param(
     [switch]$SkipTests,
     [switch]$SkipInstaller,
     [string]$GitHubToken = $env:RELEASE_TOKEN,
-    [string]$TargetRepo = "hoanv-synaptix/SynaptiX-IDE-Releases"
+    [string]$TargetRepo = "SynaptiXCompany/SynaptiX-IDE-Releases"
 )
 
 $ErrorActionPreference = "Stop"

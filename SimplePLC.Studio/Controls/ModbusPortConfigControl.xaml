@@ -840,6 +840,10 @@
 
                                                 <ColumnDefinition Width="5" />
 
+                                                <ColumnDefinition Width="120" />
+
+                                                <ColumnDefinition Width="5" />
+
                                                 <ColumnDefinition Width="110" />
 
                                                 <ColumnDefinition Width="5" />
@@ -849,10 +853,6 @@
                                                 <ColumnDefinition Width="5" />
 
                                                 <ColumnDefinition Width="60" />
-
-                                                <ColumnDefinition Width="5" />
-
-                                                <ColumnDefinition Width="120" />
 
                                                 <ColumnDefinition Width="5" />
 
@@ -896,9 +896,19 @@
 
 
 
-                                            <!-- Col 6: Data Type -->
+                                            <!-- Col 6: Target / Source Tag -->
 
-                                            <TextBlock Grid.Column="6" Text="{Binding [ModbusColDataTypeHeader], Source={x:Static services:LocalizationService.Instance}}"
+                                            <TextBlock Grid.Column="6" Text="{Binding [ModbusColTargetTagHeader], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+
+
+                                            <!-- Col 8: Data Type -->
+
+                                            <TextBlock Grid.Column="8" Text="{Binding [ModbusColDataTypeHeader], Source={x:Static services:LocalizationService.Instance}}"
 
                                                        ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
@@ -906,9 +916,9 @@
 
 
 
-                                            <!-- Col 8: Endianness -->
+                                            <!-- Col 10: Endianness -->
 
-                                            <TextBlock Grid.Column="8" Text="{Binding [ModbusColEndiannessHeader], Source={x:Static services:LocalizationService.Instance}}"
+                                            <TextBlock Grid.Column="10" Text="{Binding [ModbusColEndiannessHeader], Source={x:Static services:LocalizationService.Instance}}"
 
                                                        ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
@@ -916,23 +926,13 @@
 
 
 
-                                            <!-- Col 10: Scale (x) -->
+                                            <!-- Col 12: Scale (x) -->
 
-                                            <TextBlock Grid.Column="10" Text="{Binding [ModbusColScaleHeader], Source={x:Static services:LocalizationService.Instance}}"
+                                            <TextBlock Grid.Column="12" Text="{Binding [ModbusColScaleHeader], Source={x:Static services:LocalizationService.Instance}}"
 
                                                        ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
                                                        FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
-
-
-
-                                            <!-- Col 12: Target / Source Tag -->
-
-                                            <TextBlock Grid.Column="12" Text="{Binding [ModbusColTargetTagHeader], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                       ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
 
 
 
@@ -1064,6 +1064,10 @@
 
                                                             <ColumnDefinition Width="5" />
 
+                                                            <ColumnDefinition Width="120" />
+
+                                                            <ColumnDefinition Width="5" />
+
                                                             <ColumnDefinition Width="110" />
 
                                                             <ColumnDefinition Width="5" />
@@ -1073,10 +1077,6 @@
                                                             <ColumnDefinition Width="5" />
 
                                                             <ColumnDefinition Width="60" />
-
-                                                            <ColumnDefinition Width="5" />
-
-                                                            <ColumnDefinition Width="120" />
 
                                                             <ColumnDefinition Width="5" />
 
@@ -1134,71 +1134,9 @@
 
 
 
-                                                        <!-- Col 6: Data Type -->
+                                                        <!-- Col 6: Target / Source Device Tag -->
 
                                                         <ComboBox Grid.Column="6"
-
-                                                                  ToolTip="{Binding [ModbusColDataTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                  ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableDataTypes}"
-
-                                                                  SelectedValue="{Binding DataType}"
-
-                                                                  SelectedValuePath="Value"
-
-                                                                  DisplayMemberPath="DisplayName"
-
-                                                                  Style="{StaticResource FlatCellComboBoxStyle}"
-
-                                                                  Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-
-
-                                                        <!-- Col 8: Endianness (Smart context: dash if not applicable) -->
-
-                                                        <Grid Grid.Column="8">
-
-                                                            <ComboBox ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                      ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableEndianness}"
-
-                                                                      SelectedValue="{Binding Endianness}"
-
-                                                                      SelectedValuePath="Value"
-
-                                                                      DisplayMemberPath="DisplayName"
-
-                                                                      Style="{StaticResource FlatCellComboBoxStyle}"
-
-                                                                      Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center"
-
-                                                                      Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource BoolToVis}}" />
-
-                                                            <TextBlock Text="—" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" 
-
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-
-                                                                       Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource InverseBoolToVis}}" />
-
-                                                        </Grid>
-
-
-
-                                                        <!-- Col 10: Scale (x) -->
-
-                                                        <TextBox Grid.Column="10" Text="{Binding ScaleText, UpdateSourceTrigger=LostFocus}"
-
-                                                                 ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
-
-                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
-
-
-
-                                                        <!-- Col 12: Target / Source Device Tag -->
-
-                                                        <ComboBox Grid.Column="12"
                                                                   ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
                                                                   ItemsSource="{Binding TagOptions}"
                                                                   SelectedValue="{Binding TargetTag, Mode=TwoWay}"
@@ -1229,6 +1167,76 @@
                                                                 </DataTemplate>
                                                             </ComboBox.ItemTemplate>
                                                         </ComboBox>
+
+
+
+                                                        <!-- Col 8: Data Type (Auto-Badge from Target Tag, click to toggle 16-bit/32-bit when applicable) -->
+                                                        <Border Grid.Column="8"
+                                                                Background="{DynamicResource BgSubtleBrush}"
+                                                                BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}"
+                                                                BorderThickness="1" CornerRadius="2" Height="25" Padding="4,2"
+                                                                VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                                ToolTip="{Binding DataTypeTooltip}">
+                                                            <Border.InputBindings>
+                                                                <MouseBinding Gesture="LeftClick" Command="{Binding ToggleRegisterWidthCommand}" />
+                                                            </Border.InputBindings>
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding CanToggleRegisterWidth}" Value="True">
+                                                                            <Setter Property="Cursor" Value="Hand" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding DataTypeText}"
+                                                                       FontSize="10.5" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                        </Border>
+
+
+
+                                                        <!-- Col 10: Endianness (Smart context: dash if not applicable) -->
+
+                                                        <Grid Grid.Column="10">
+
+                                                            <ComboBox ToolTip="{Binding [ModbusColEndiannessTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                      ItemsSource="{x:Static viewModels:ModbusMasterChannelItemViewModel.AvailableEndianness}"
+
+                                                                      SelectedValue="{Binding Endianness}"
+
+                                                                      SelectedValuePath="Value"
+
+                                                                      DisplayMemberPath="DisplayName"
+
+                                                                      Style="{StaticResource FlatCellComboBoxStyle}"
+
+                                                                      Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center"
+
+                                                                      Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource BoolToVis}}" />
+
+                                                            <TextBlock Text="—" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" 
+
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                                                       Visibility="{Binding IsEndiannessApplicable, Converter={StaticResource InverseBoolToVis}}" />
+
+                                                        </Grid>
+
+
+
+                                                        <!-- Col 12: Scale (x) -->
+
+                                                        <TextBox Grid.Column="12" Text="{Binding ScaleText, UpdateSourceTrigger=LostFocus}"
+
+                                                                 ToolTip="{Binding [ModbusColScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Style="{StaticResource FlatCellTextBoxStyle}"
+
+                                                                 Padding="4,2" FontSize="11" TextAlignment="Center" />
 
 
 

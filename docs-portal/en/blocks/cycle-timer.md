@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`CYCLE_TIMER`** block is a continuous, level-enabled **asymmetric square-wave oscillator (flasher)**. Whenever its enable input `In` is active (`1`), `CYCLE_TIMER` alternates boolean output `Q` continuously between a configurable **ON phase (`OnTimeMs`)** and an independent **OFF phase (`OffTimeMs`)**, starting in either `ON` or `OFF` phase as configured.
+The `CYCLE_TIMER` block is a continuous, level-enabled **asymmetric square-wave oscillator (flasher)**. Whenever its enable input `In` is active (`1`), `CYCLE_TIMER` alternates boolean output `Q` continuously between a configurable **ON phase (`OnTimeMs`)** and an independent **OFF phase (`OffTimeMs`)**, starting in either `ON` or `OFF` phase as configured.
 
 - **Independent Asymmetric Duty Cycle:** Unlike fixed `50%` clock bits that require external counters and comparators to achieve short duty ratios, `CYCLE_TIMER` lets you combine millisecond pulses with minute/hour pauses in a single node (for example, `OnTimeMs = 500 ms` lubrication shot every `OffTimeMs = 15 min`).
 - **Configurable Initial Phase (`StartWithOn`):**
@@ -85,13 +85,13 @@ Whenever an unacknowledged machine fault latch (`VFLAG0` = `1`) is active, an am
 
 ### Step-by-Step Canvas Wiring
 
-1. **Rung 1 (Asymmetric Beacon Oscillator):** Place **`INPUT`** (`Tag = VFLAG0`, `CustomLabel = "Machine Fault Flag"`) and wire `INPUT.Out` → **`CYCLE_TIMER`**.
-2. In the `CYCLE_TIMER` **Inspector**, configure:
+1. **Rung 1 (Asymmetric Beacon Oscillator):** Place `INPUT` (`Tag = VFLAG0`, `CustomLabel = "Machine Fault Flag"`) and wire `INPUT.Out` → `CYCLE_TIMER`.
+2. In the `CYCLE_TIMER` Inspector, configure:
    - `OnDurationValueText = "250"`, `OnTimeUnit = "ms"` (`= 250 ms`)
    - `OffDurationValueText = "1750"`, `OffTimeUnit = "ms"` (or `"1.75"` `s`, `= 1,750 ms`)
    - `StartWithOn = Start with ON`
    - `OutputTag = DO3` (`CustomLabel = "Fault Strobe Beacon"`)
-3. **Rung 2 (Operator Fault Clear):** Place **`INPUT`** (`Tag = DI4`) → **[`TRIGGER`](/blocks/trigger)** (`ON_RISE`, `ForMs = 50` ms) → **[`ACTION`](/blocks/action)** (`SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 0`).
+3. **Rung 2 (Operator Fault Clear):** Place `INPUT` (`Tag = DI4`) → [`TRIGGER`](/blocks/trigger) (`ON_RISE`, `ForMs = 50` ms) → [`ACTION`](/blocks/action) (`SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 0`).
 4. Press `F5` to simulate: toggle `VFLAG0` to `1` and verify `DO3` immediately flashes `● ON` (`250 ms`) and `● OFF` (`1,750 ms`) repeatedly; press `DI4` to clear `VFLAG0 = 0` and verify `DO3` stops immediately at `0`.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">

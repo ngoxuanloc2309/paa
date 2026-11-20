@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`SCALE`** (**Analog Linear Scaler & Calibrator**) function block transforms raw integer hardware readings (such as `0–10,000 mV`, `4–20 mA` loop counts, `0–4095` 12-bit ADC codes, or unscaled Modbus registers) into calibrated IEEE-754 floating-point engineering units (`bar`, `°C`, `m³/h`, `RPM`, `%`).
+The `SCALE` (**Analog Linear Scaler & Calibrator**) function block transforms raw integer hardware readings (such as `0–10,000 mV`, `4–20 mA` loop counts, `0–4095` 12-bit ADC codes, or unscaled Modbus registers) into calibrated IEEE-754 floating-point engineering units (`bar`, `°C`, `m³/h`, `RPM`, `%`).
 
 Every scan cycle, `SCALE` evaluates the standard industrial linear transfer equation followed by optional saturation clamping:
 
@@ -27,8 +27,8 @@ To eliminate error-prone hand calculations during field commissioning, the Inspe
 
 | Pin | Direction | Signal Kind | Data Type | Visibility | Functional Contract |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`IN`** | Input | Value (`x`) | `INT32` / `REAL` | Always visible | **Raw Signal Input:** Receives raw transducer counts from an upstream `INPUT` / `MB_READ` wire or directly from `InputTag` (`AI0..AI3`, `VREG`). |
-| **`OUT`** | Output | Value (`y`) | `REAL` (`FLOAT32`) | Always visible | **Scaled Engineering Output:** Emits the calibrated, optionally clamped engineering value to downstream [`COMPARATOR`](/blocks/comparator), [`MQTT_PUB`](/blocks/mqtt-pub), or `OutputTag`. |
+| `IN` | Input | Value (`x`) | `INT32` / `REAL` | Always visible | Raw Signal Input: Receives raw transducer counts from an upstream `INPUT` / `MB_READ` wire or directly from `InputTag` (`AI0..AI3`, `VREG`). |
+| `OUT` | Output | Value (`y`) | `REAL` (`FLOAT32`) | Always visible | Scaled Engineering Output: Emits the calibrated, optionally clamped engineering value to downstream [`COMPARATOR`](/blocks/comparator), [`MQTT_PUB`](/blocks/mqtt-pub), or `OutputTag`. |
 
 ---
 
@@ -38,26 +38,26 @@ To eliminate error-prone hand calculations during field commissioning, the Inspe
 
 | Parameter | Property Key | Type & Domain | Default | Description & Physical Contract |
 | :--- | :--- | :--- | :---: | :--- |
-| **Input Tag** | `InputTag` | `TagModel?` | `null` | Source analog/integer tag (`AI0..AI3` or `VREG`). Displays `🔗 Connected: <Tag>` badge when linked. |
-| **Output Tag** | `OutputTag` | `TagModel?` (`REAL`) | `null` | Destination `FLOAT32` virtual register (`VREG`) storing the calibrated engineering result. |
-| **Gain (Slope)** | `Gain` | `Double` (`REAL`) | `0.01` | Linear multiplication factor applied to raw input `x`. |
-| **Offset (Intercept)** | `Offset` | `Double` (`REAL`) | `0.0` | Zero-point offset added after multiplying by `Gain`. Supports negative offsets (e.g., `-2.5` for `4–20 mA` zero elevation). |
-| **Engineering Unit** | `Unit` | `String` | `"bar"` | Physical unit label (`bar`, `°C`, `L/min`, `%`, `kPa`) rendered on the canvas pill and Live Watch. |
-| **Decimal Places** | `DecimalPlaces` | `INT32` (`0..3`) | `1` | Visual formatting precision (`0` to `3` fractional digits) on the canvas status badge. |
-| **Enable Clamping** | `IsClamped` | `BOOL` | `true` | Restricts `OUT` strictly within `[ClampMin .. ClampMax]` to prevent wire-break underflow spikes from corrupting control logic. |
-| **Clamp Minimum** | `ClampMin` | `Double` (`REAL`) | `0.0` | Lower saturation floor when `IsClamped = true`. |
-| **Clamp Maximum** | `ClampMax` | `Double` (`REAL`) | `100.0` | Upper saturation ceiling when `IsClamped = true`. |
+| Input Tag | `InputTag` | `TagModel?` | `null` | Source analog/integer tag (`AI0..AI3` or `VREG`). Displays `🔗 Connected: <Tag>` badge when linked. |
+| Output Tag | `OutputTag` | `TagModel?` (`REAL`) | `null` | Destination `FLOAT32` virtual register (`VREG`) storing the calibrated engineering result. |
+| Gain (Slope) | `Gain` | `Double` (`REAL`) | `0.01` | Linear multiplication factor applied to raw input `x`. |
+| Offset (Intercept) | `Offset` | `Double` (`REAL`) | `0.0` | Zero-point offset added after multiplying by `Gain`. Supports negative offsets (e.g., `-2.5` for `4–20 mA` zero elevation). |
+| Engineering Unit | `Unit` | `String` | `"bar"` | Physical unit label (`bar`, `°C`, `L/min`, `%`, `kPa`) rendered on the canvas pill and Live Watch. |
+| Decimal Places | `DecimalPlaces` | `INT32` (`0..3`) | `1` | Visual formatting precision (`0` to `3` fractional digits) on the canvas status badge. |
+| Enable Clamping | `IsClamped` | `BOOL` | `true` | Restricts `OUT` strictly within `[ClampMin .. ClampMax]` to prevent wire-break underflow spikes from corrupting control logic. |
+| Clamp Minimum | `ClampMin` | `Double` (`REAL`) | `0.0` | Lower saturation floor when `IsClamped = true`. |
+| Clamp Maximum | `ClampMax` | `Double` (`REAL`) | `100.0` | Upper saturation ceiling when `IsClamped = true`. |
 
 ### 3.2. Two-Point Calibration Calculator (`CalculateFromCalibPoints`)
 
-Instead of solving simultaneous linear equations manually, enter two empirical sensor points in the **2-Point Calibration** section and click **Calculate Gain & Offset**:
+Instead of solving simultaneous linear equations manually, enter two empirical sensor points in the 2-Point Calibration section and click **Calculate Gain & Offset**:
 
 | Calibration Input | ViewModel Field | Default | Meaning |
 | :--- | :--- | :---: | :--- |
-| **Point 1 — Raw (`X1`)** | `CalibRaw1` (`CalibX1`) | `0` | Raw ADC / mV / register reading at low reference point (e.g., `2000` mV at `4 mA`). |
-| **Point 1 — Eng (`Y1`)** | `CalibEng1` (`CalibY1`) | `0` | True engineering value at Point 1 (e.g., `0.0` bar). |
-| **Point 2 — Raw (`X2`)** | `CalibRaw2` (`CalibX2`) | `10000` | Raw ADC / mV / register reading at full-scale reference point (e.g., `10000` mV at `20 mA`). |
-| **Point 2 — Eng (`Y2`)** | `CalibEng2` (`CalibY2`) | `100` | True engineering value at Point 2 (e.g., `16.0` bar). |
+| Point 1 — Raw (`X1`) | `CalibRaw1` (`CalibX1`) | `0` | Raw ADC / mV / register reading at low reference point (e.g., `2000` mV at `4 mA`). |
+| Point 1 — Eng (`Y1`) | `CalibEng1` (`CalibY1`) | `0` | True engineering value at Point 1 (e.g., `0.0` bar). |
+| Point 2 — Raw (`X2`) | `CalibRaw2` (`CalibX2`) | `10000` | Raw ADC / mV / register reading at full-scale reference point (e.g., `10000` mV at `20 mA`). |
+| Point 2 — Eng (`Y2`) | `CalibEng2` (`CalibY2`) | `100` | True engineering value at Point 2 (e.g., `16.0` bar). |
 
 Upon clicking **Calculate**, the IDE computes:
 
@@ -69,10 +69,10 @@ and automatically sets `ClampMin = min(Y1, Y2)`, `ClampMax = max(Y1, Y2)`, and `
 
 | Sensor Standard | Raw Input Range (`X1 .. X2`) | Target Range (`Y1 .. Y2`) | Computed `Gain` | Computed `Offset` |
 | :--- | :---: | :---: | :---: | :---: |
-| **`0–10 V` Pressure (`0..10 bar`)** | `0 .. 10000` (mV) | `0.0 .. 10.0` bar | `0.001` | `0.0` |
-| **`4–20 mA` Pressure (`0..16 bar` via `500 Ω`)** | `2000 .. 10000` (mV) | `0.0 .. 16.0` bar | `0.002` | `-4.0` |
-| **`4–20 mA` PT100 Temp (`-50..+150 °C`)** | `4000 .. 20000` (µA) | `-50.0 .. 150.0` °C | `0.0125` | `-100.0` |
-| **`12-Bit ADC` Level (`0..4095` → `0..100 %`)** | `0 .. 4095` (counts) | `0.0 .. 100.0` % | `0.02442` | `0.0` |
+| `0–10 V` Pressure (`0..10 bar`) | `0 .. 10000` (mV) | `0.0 .. 10.0` bar | `0.001` | `0.0` |
+| `4–20 mA` Pressure (`0..16 bar` via `500 Ω`) | `2000 .. 10000` (mV) | `0.0 .. 16.0` bar | `0.002` | `-4.0` |
+| `4–20 mA` PT100 Temp (`-50..+150 °C`) | `4000 .. 20000` (µA) | `-50.0 .. 150.0` °C | `0.0125` | `-100.0` |
+| `12-Bit ADC` Level (`0..4095` → `0..100 %`) | `0 .. 4095` (counts) | `0.0 .. 100.0` % | `0.02442` | `0.0` |
 
 ---
 
@@ -89,7 +89,7 @@ The `SCALE` block computes its calibrated output across two deterministic stages
 - **Zero-Span Division Guard:** In the 2-Point Calibration Calculator, if `|CalibRaw2 - CalibRaw1| < 1e-6` (identical raw points), the calculator safely aborts without overwriting `Gain` or producing `NaN` / `Infinity`.
 - **Inverted Clamp Order Safety:** Even if an operator enters `ClampMin > ClampMax` for a reverse-acting sensor, the runtime normalizes `min = Math.Min(ClampMin, ClampMax)` and `max = Math.Max(ClampMin, ClampMax)` deterministically.
 - **Type-Safe Target Binding:** Always bind `OutputTag` to a **`REAL` (`FLOAT32`)** virtual register in [Tag Catalog](/workspaces/tag-catalog-tab) so fractional precision (e.g., `6.45 bar`) is preserved in physical memory without integer truncation.
-- **Live Canvas Progress Bar (`F8`):** Displays both the live formula (`y = 0.002·AI0 - 4`) when idle and the real-time scaled readout with span percentage **`6.4 bar (40%)`** when online.
+- **Live Canvas Progress Bar (`F8`):** Displays both the live formula (`y = 0.002·AI0 - 4`) when idle and the real-time scaled readout with span percentage `6.4 bar (40%)` when online.
 
 ---
 
@@ -194,9 +194,9 @@ The `SCALE` block computes its calibrated output across two deterministic stages
 
 **Configuration Steps:**
 1. Create `VREG0_PipeBar` in [Tag Catalog](/workspaces/tag-catalog-tab) with Data Type = **`REAL` (`FLOAT32`)**.
-2. Drop a **`SCALE`** block onto the canvas, open the **2-Point Calibration** tool in Inspector, and enter:
+2. Drop a `SCALE` block onto the canvas, open the 2-Point Calibration tool in Inspector, and enter:
    - `CalibRaw1` = `2000`, `CalibEng1` = `0`
    - `CalibRaw2` = `10000`, `CalibEng2` = `16`
    - Click **Calculate** → `Gain` becomes `0.002`, `Offset` becomes `-4`, `ClampMin` = `0`, `ClampMax` = `16`, `IsClamped` = `true`.
 3. Set `Unit` = `"bar"`, `DecimalPlaces` = `2`, `InputTag` = `AI0`, and `OutputTag` = `VREG0_PipeBar`.
-4. Wire **`OUT`** to [`COMPARATOR`](/blocks/comparator) (`> 12.5`) and [`MQTT_PUB`](/blocks/mqtt-pub) (`COV`, `Deadband = 0.2`).
+4. Wire `OUT` to [`COMPARATOR`](/blocks/comparator) (`> 12.5`) and [`MQTT_PUB`](/blocks/mqtt-pub) (`COV`, `Deadband = 0.2`).

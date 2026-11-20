@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`GUARD`** là cổng khóa liên động và điều kiện cho phép (permissive gate) nằm xen giữa nguồn phát sự kiện ([`TRIGGER`](/vi/blocks/trigger), [`INPUT`](/vi/blocks/input), [`COMPARATOR`](/vi/blocks/comparator), [`MB_READ`](/vi/blocks/mb-read) hoặc [`MQTT_SUB`](/vi/blocks/mqtt-sub)) và khối thực thi phía sau ([`ACTION`](/vi/blocks/action), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu), [`MB_WRITE`](/vi/blocks/mb-write), [`DIRECT_WRITE`](/vi/blocks/direct-write) hoặc các khối mạng IIoT).
+Khối `GUARD` là cổng khóa liên động và điều kiện cho phép (permissive gate) nằm xen giữa nguồn phát sự kiện ([`TRIGGER`](/vi/blocks/trigger), [`INPUT`](/vi/blocks/input), [`COMPARATOR`](/vi/blocks/comparator), [`MB_READ`](/vi/blocks/mb-read) hoặc [`MQTT_SUB`](/vi/blocks/mqtt-sub)) và khối thực thi phía sau ([`ACTION`](/vi/blocks/action), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu), [`MB_WRITE`](/vi/blocks/mb-write), [`DIRECT_WRITE`](/vi/blocks/direct-write) hoặc các khối mạng IIoT).
 
 - **Cơ chế Cổng Chặn Xung Đồng bộ:** Bản thân khối `GUARD` không bao giờ tự phát xung sự kiện. Thay vào đó, ngay tại chu kỳ quét khi có xung kích hoạt đi tới chân `In`, `GUARD` kiểm tra tức thời trạng thái chốt trong ảnh tiến trình của `GuardTag`:
   - **Cho qua (`Điều kiện Đúng`):** Xung sự kiện truyền thẳng qua chân `Out` ngay trong cùng chu kỳ quét đó (độ trễ `0` chu kỳ).
@@ -37,15 +37,15 @@ Trình biên dịch không cho phép nối chuỗi hai cổng `GUARD` trực ti�
 | Tham số | Kiểu / Tùy chọn | Mặc định | Ràng buộc & Giới hạn | Hành vi Thời gian thực |
 | :--- | :--- | :--- | :--- | :--- |
 | `GuardTag` | Bộ chọn Tag Số (`DI`, `DO`, `VFLAG`) | Chưa gán *(bắt buộc chọn)* | Phải trỏ tới một Tag số kiểu nhị phân (`IsDigital == true`). Chọn nhầm Tag tương tự/thanh ghi sẽ bật cờ cảnh báo `IsInvalidTagType`. | Được đọc đồng bộ từ ảnh tiến trình ngay tại thời điểm có xung kích hoạt đi vào chân `In`. |
-| `Negate` | Cờ Đảo Cực tính (`Cho qua khi 1/ON` so với `Đảo NOT — Cho qua khi 0/OFF`) | `false` (`Cho qua khi 1/ON`) | Lựa chọn nhị phân 2 chế độ. | **`false`:** Cho xung đi qua khi `GuardTag != 0`. **`true`:** Chỉ cho xung đi qua khi `GuardTag == 0` (hiển thị ký hiệu `! Tên_Tag`). |
+| `Negate` | Cờ Đảo Cực tính (`Cho qua khi 1/ON` so với `Đảo NOT — Cho qua khi 0/OFF`) | `false` (`Cho qua khi 1/ON`) | Lựa chọn nhị phân 2 chế độ. | `false`: Cho xung đi qua khi `GuardTag != 0`. `true`: Chỉ cho xung đi qua khi `GuardTag == 0` (hiển thị ký hiệu `! Tên_Tag`). |
 | `CustomLabel` | Chuỗi văn bản tự do | Rỗng (`"Guard"`) | Nhãn tùy biến trên sơ đồ. | Tùy chỉnh tiêu đề hiển thị trên thẻ khối đồ họa. |
 
 ### Bảng Chân trị Cực tính Khóa Liên động
 
 | Cấu hình `Negate` | Nhãn trên Khối | Khi `GuardTag = 0` (`OFF`) | Khi `GuardTag = 1` (`ON`) | Mẫu Đấu dây Hiện trường Điển hình |
 | :--- | :--- | :--- | :--- | :--- |
-| `false` (Thuận) | `Tag` (`1/ON`) | **CHẶN LẠI** (Hủy xung) | **CHO QUA** (Phát xung `Out`) | Tiếp điểm an toàn thường đóng NC (`1` = Bình thường / Đã đóng kín) |
-| `true` (Đảo `NOT`) | `! Tag` (`0/OFF`) | **CHO QUA** (Phát xung `Out`) | **CHẶN LẠI** (Hủy xung) | Cờ báo lỗi hoặc cờ báo bận (`0` = Không có lỗi tồn tại) |
+| `false` (Thuận) | `Tag` (`1/ON`) | CHẶN LẠI (Hủy xung) | CHO QUA (Phát xung `Out`) | Tiếp điểm an toàn thường đóng NC (`1` = Bình thường / Đã đóng kín) |
+| `true` (Đảo `NOT`) | `! Tag` (`0/OFF`) | CHO QUA (Phát xung `Out`) | CHẶN LẠI (Hủy xung) | Cờ báo lỗi hoặc cờ báo bận (`0` = Không có lỗi tồn tại) |
 
 ---
 
@@ -87,8 +87,8 @@ Nút nhấn khởi động chu kỳ dập tại `DI0` điều khiển cuộn hú
 
 ### Trình tự Đấu nối trên Canvas
 
-1. **Nhánh 1 (Khởi động có Khóa liên động):** Đấu nối **`INPUT`** (`DI0`) → **[`TRIGGER`](/vi/blocks/trigger)** (`ON_RISE`, `ForMs = 50` ms lọc dội nút nhấn) → **`GUARD`** (`GuardTag = DI1`, `Negate = false`) → **[`ACTION`](/vi/blocks/action)** (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 1`).
-2. **Nhánh 2 (Ngắt Khẩn cấp khi Chắn Tia):** Đấu nối **`INPUT`** (`DI1`) → **[`TRIGGER`](/vi/blocks/trigger)** (`ON_FALL`, `ForMs = 0` ms tác động tức thì) → **[`ACTION`](/vi/blocks/action)** (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
+1. **Nhánh 1 (Khởi động có Khóa liên động):** Đấu nối `INPUT` (`DI0`) → [`TRIGGER`](/vi/blocks/trigger) (`ON_RISE`, `ForMs = 50` ms lọc dội nút nhấn) → `GUARD` (`GuardTag = DI1`, `Negate = false`) → [`ACTION`](/vi/blocks/action) (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 1`).
+2. **Nhánh 2 (Ngắt Khẩn cấp khi Chắn Tia):** Đấu nối `INPUT` (`DI1`) → [`TRIGGER`](/vi/blocks/trigger) (`ON_FALL`, `ForMs = 0` ms tác động tức thì) → [`ACTION`](/vi/blocks/action) (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
 3. Nhấn `F5` kiểm chứng đầy đủ các tình huống an toàn:
    - Để `DI1 = 0` (vùng dập đang vướng vật cản), bấm `DI0` `0 → 1`: khối `GUARD` báo **ĐÃ CHẶN** và `DO0` giữ nguyên `0`.
    - Chuyển `DI1 = 1` (rào quang thông thoáng), bấm giữ `DI0` `0 → 1` qua `50 ms`: khối `GUARD` báo **CHO QUA**, van `DO0` đóng lên `1`.

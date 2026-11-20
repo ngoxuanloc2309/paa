@@ -21,7 +21,21 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path "$scriptDir\..").Path
+$originalRepoRoot = $repoRoot
 Set-Location $repoRoot
+
+# Workaround for Windows WOW64 32-bit redirection if workspace is inside C:\Windows\System32 (self-hosted runner)
+$mappedDrive = $null
+if ($repoRoot -like "*\System32\*") {
+    $driveLetter = "X:"
+    Write-Host "Detected System32 workspace path. Mapping virtual drive $driveLetter to prevent 32-bit WOW64 redirection..." -ForegroundColor Yellow
+    subst $driveLetter /D 2>$null
+    subst $driveLetter $repoRoot
+    $mappedDrive = $driveLetter
+    $repoRoot = $driveLetter
+    $scriptDir = "$driveLetter\installer"
+    Set-Location $repoRoot
+}
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
     if (Test-Path "$repoRoot\SimplePLC.Studio\SimplePLC.Studio.csproj") {
@@ -133,8 +147,17 @@ if (Test-Path $targetSetupExe) {
 }
 
 Write-Host "  Compiling with Inno Setup (Version: $Version)..." -ForegroundColor Gray
-& $isccPath "/DMyAppVersion=$Version" $issPath
-if ($LASTEXITCODE -ne 0) { throw "ISCC compilation failed with exit code $LASTEXITCODE." }
+try {
+    & $isccPath "/DMyAppVersion=$Version" $issPath
+    if ($LASTEXITCODE -ne 0) { throw "ISCC compilation failed with exit code $LASTEXITCODE." }
+} finally {
+    if ($mappedDrive) {
+        Write-Host "Unmapping virtual drive $mappedDrive and restoring root..." -ForegroundColor Gray
+        Set-Location $originalRepoRoot
+        subst $mappedDrive /D 2>$null
+        $targetSetupExe = "$originalRepoRoot\installer\dist\SynaptiX_IDE_Setup_v$Version.exe"
+    }
+}
 
 if (Test-Path $targetSetupExe) {
     $item = Get-Item $targetSetupExe

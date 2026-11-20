@@ -87,6 +87,11 @@ public sealed class ProductDefinition
     public bool SupportsModbusMaster => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_MASTER) != 0;
 
     /// <summary>
+    /// Năng lực tập lệnh tính toán số học phần cứng MATH_ALU (0x00010000, Bit 16).
+    /// </summary>
+    public bool SupportsMathAlu => (HardwareCapabilities & SPLC_HardwareCapabilities.MATH_ALU) != 0;
+
+    /// <summary>
     /// Năng lực phân hệ Modbus RTU Slave & Sandbox (0x1500).
     /// </summary>
     public bool SupportsModbusSlave => (HardwareCapabilities & SPLC_HardwareCapabilities.MODBUS_SLAVE) != 0;
@@ -313,7 +318,7 @@ public sealed class ProductDefinition
         var tags = DeviceProfileBuilder.GenerateTags(profile);
         var effectiveCaps = hardwareCapabilities != SPLC_HardwareCapabilities.NONE
             ? hardwareCapabilities
-            : (SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER);
+            : (SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.FLOAT32 | SPLC_HardwareCapabilities.MATH_ALU);
         return new ProductDefinition(
             "Remote I/O (8DI-8DO-4AI)",
             deviceClass: 1, // REMOTE_IO

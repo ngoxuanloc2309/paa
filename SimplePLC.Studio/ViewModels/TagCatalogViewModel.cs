@@ -904,11 +904,11 @@ public partial class TagCatalogViewModel : ObservableObject
                 query = query.Where(t => t.IsDigital || t.DataType == TagDataType.Boolean);
                 break;
             case MqttDataType.Float:
-                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Float32);
+                query = query.Where(t => (!t.IsDigital && t.DataType == TagDataType.Float32) || t.IsDataTypeEditable);
                 break;
             case MqttDataType.Int16:
             case MqttDataType.Int32:
-                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Int32);
+                query = query.Where(t => (!t.IsDigital && t.DataType == TagDataType.Int32) || t.IsDataTypeEditable);
                 break;
             case MqttDataType.String:
                 // Chuỗi ký tự không lưu trực tiếp vào thanh ghi số 16-bit của PLC
@@ -945,10 +945,10 @@ public partial class TagCatalogViewModel : ObservableObject
                 query = query.Where(t => t.IsDigital || t.DataType == TagDataType.Boolean);
                 break;
             case ModbusDataType.Real:
-                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Float32);
+                query = query.Where(t => (!t.IsDigital && t.DataType == TagDataType.Float32) || t.IsDataTypeEditable);
                 break;
             default: // Int16, UInt16, Int32, UInt32
-                query = query.Where(t => !t.IsDigital && t.DataType == TagDataType.Int32);
+                query = query.Where(t => (!t.IsDigital && t.DataType == TagDataType.Int32) || t.IsDataTypeEditable);
                 break;
         }
 

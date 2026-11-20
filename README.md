@@ -1,6 +1,6 @@
 # SynaptiX IDE — Industrial PLC Programming & Automation Environment
 
-[![Latest Release](https://img.shields.io/github/v/release/hoanv-synaptix/SynaptiX-IDE-Releases?color=107C41&label=Latest%20Release)](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/SynaptiXCompany/SynaptiX-IDE-Releases?color=107C41&label=Latest%20Release)](https://github.com/SynaptiXCompany/SynaptiX-IDE-Releases/releases/latest)
 [![Platform](https://img.shields.io/badge/.NET-8.0%20WPF%20(x64)-006487?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Architecture](https://img.shields.io/badge/Hardware-ARM%20Cortex--M33%20Core-006487)](https://dotnet.microsoft.com/)
 [![Execution Model](https://img.shields.io/badge/Scan%20Cycle-10ms%20Deterministic%20Loop-107C41)](#2-system-architecture)
@@ -19,10 +19,10 @@ SynaptiX IDE is distributed in two official editions: **Desktop Setup Installer 
 
 | Edition | Architecture | Download File | Notes |
 | :---: | :---: | :---: | :--- |
-| **v2.15.4 (Installer)** | Windows x64 (.exe) | [**Download `SynaptiX_IDE_Setup_v2.15.4.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SynaptiX_IDE_Setup_v2.15.4.exe) | **Recommended** — Full installer wizard with desktop & start menu shortcuts, `.synx` file association, and bundled MCU Emulator |
-| **v2.15.4 (Portable)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file standalone executable for Windows 10/11 |
+| **v2.15.5 (Installer)** | Windows x64 (.exe) | [**Download `SynaptiX_IDE_Setup_v2.15.5.exe`**](https://github.com/SynaptiXCompany/SynaptiX-IDE-Releases/releases/latest/download/SynaptiX_IDE_Setup_v2.15.5.exe) | **Recommended** — Full installer wizard with desktop & start menu shortcuts, `.synx` file association, and bundled MCU Emulator |
+| **v2.15.5 (Portable)** | Windows x64 (.exe) | [**Download `SimplePLC.Studio.exe`**](https://github.com/SynaptiXCompany/SynaptiX-IDE-Releases/releases/latest/download/SimplePLC.Studio.exe) | Portable single-file standalone executable for Windows 10/11 |
 
-| **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
+| **All Releases** | GitHub Releases | [**Browse Release History**](https://github.com/SynaptiXCompany/SynaptiX-IDE-Releases/releases) | Full changelog, release notes, and assets |
 
 ### Official User Manual & Technical Documentation:
 - **English Editions:**

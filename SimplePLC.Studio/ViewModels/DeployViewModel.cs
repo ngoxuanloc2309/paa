@@ -163,18 +163,23 @@ public partial class DeployViewModel : ObservableObject
     public int GetTab0ModbusChannelsCount(ProjectMetadata? meta)
     {
         if (meta?.ModbusPorts == null) return 0;
-        return meta.ModbusPorts.Where(p => p.Enabled && p.MasterChannels != null).Sum(p => p.MasterChannels.Count);
+        return meta.ModbusPorts
+            .Where(p => p.Enabled && p.MasterChannels != null)
+            .Sum(p => p.MasterChannels.Count(c => string.IsNullOrEmpty(c.LinkedNodeId)));
     }
 
     /// <summary>
     /// Kiểm tra tính hợp lệ của quyền sở hữu ghi Tag đối với các luồng truyền thông ngoại vi (Modbus Read & MQTT Subscribe).
     /// Từ chối nạp cấu hình nếu phát hiện xung đột race condition (nhiều luồng ghi vào cùng một Tag).
+    /// Hỗ trợ song ngữ chuẩn theo cài đặt hệ thống (LocalizationService).
     /// </summary>
     public (bool IsValid, string? ErrorMessage) ValidateIngestionOwnership(
         IReadOnlyList<ModbusMasterReadConfigDto>? modbusReads,
         IReadOnlyList<MqttSubscriptionConfigDto>? mqttSubs)
     {
         var claims = new Dictionary<int, string>();
+        var allTags = _logicEditorVM?.TagCatalog?.AllTags;
+        bool isVi = LocalizationService.Instance.IsVietnamese;
 
         if (modbusReads != null)
         {
@@ -186,11 +191,22 @@ public partial class DeployViewModel : ObservableObject
                     if (pin.TargetTagIndex.HasValue)
                     {
                         int tagIdx = pin.TargetTagIndex.Value;
+                        string nodeInfo = !string.IsNullOrWhiteSpace(read.NodeId)
+                            ? (isVi ? $" (Khối '{read.NodeId}')" : $" (Node '{read.NodeId}')")
+                            : "";
+                        string currentSource = string.Format(
+                            LocalizationService.Tr("DeployOwnershipModbusMasterSource"),
+                            read.PortIndex,
+                            read.StartAddress,
+                            nodeInfo);
+
                         if (claims.TryGetValue(tagIdx, out var existingSource))
                         {
-                            return (false, $"Xung đột sở hữu ghi độc quyền: Tag {tagIdx} bị ghi đồng thời bởi {existingSource} và Modbus Master (Port {read.PortIndex}, Addr {read.StartAddress}).");
+                            var tag = allTags?.FirstOrDefault(t => t.Index == tagIdx);
+                            string tagDisplay = tag != null ? $"{tag.Name} (Index {tagIdx})" : $"Tag {tagIdx}";
+                            return (false, string.Format(LocalizationService.Tr("DeployOwnershipConflict"), tagDisplay, existingSource, currentSource));
                         }
-                        claims[tagIdx] = "Modbus Master";
+                        claims[tagIdx] = currentSource;
                     }
                 }
             }
@@ -206,11 +222,17 @@ public partial class DeployViewModel : ObservableObject
                     if (pin.TargetTagIndex.HasValue)
                     {
                         int tagIdx = pin.TargetTagIndex.Value;
+                        string currentSource = string.Format(
+                            LocalizationService.Tr("DeployOwnershipMqttSubSource"),
+                            sub.Topic);
+
                         if (claims.TryGetValue(tagIdx, out var existingSource))
                         {
-                            return (false, $"Xung đột sở hữu ghi độc quyền: Tag {tagIdx} bị ghi đồng thời bởi {existingSource} và MQTT Subscribe ('{sub.Topic}').");
+                            var tag = allTags?.FirstOrDefault(t => t.Index == tagIdx);
+                            string tagDisplay = tag != null ? $"{tag.Name} (Index {tagIdx})" : $"Tag {tagIdx}";
+                            return (false, string.Format(LocalizationService.Tr("DeployOwnershipConflict"), tagDisplay, existingSource, currentSource));
                         }
-                        claims[tagIdx] = "MQTT Subscribe";
+                        claims[tagIdx] = currentSource;
                     }
                 }
             }
@@ -652,11 +674,16 @@ public partial class DeployViewModel : ObservableObject
         catch { }
     }
 
-    private (List<ModbusMasterReadConfigDto> reads, List<ModbusMasterWriteConfigDto> writes) ExtractTab0ModbusChannels(
+    /// <summary>
+    /// Trích xuất các kênh Modbus Master cấu hình trực tiếp ở Tab Thiết Bị (Standalone),
+    /// tự động đối soát và loại trừ các kênh/Tag đã được sở hữu bởi các khối đồ thị FBD trên Canvas.
+    /// </summary>
+    public (List<ModbusMasterReadConfigDto> reads, List<ModbusMasterWriteConfigDto> writes) ExtractTab0ModbusChannels(
         ProjectMetadata? meta,
         IReadOnlyList<ModbusMasterReadConfigDto>? canvasReads,
         IReadOnlyList<ModbusMasterWriteConfigDto>? canvasWrites)
     {
+        var allTags = _logicEditorVM?.TagCatalog?.AllTags;
         var claimedReadTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (canvasReads != null)
         {
@@ -664,6 +691,14 @@ public partial class DeployViewModel : ObservableObject
             {
                 foreach (var pin in r.Pins)
                 {
+                    if (pin.TargetTagIndex.HasValue && allTags != null)
+                    {
+                        var tag = allTags.FirstOrDefault(t => t.Index == pin.TargetTagIndex.Value);
+                        if (tag != null && !string.IsNullOrWhiteSpace(tag.Name))
+                        {
+                            claimedReadTags.Add(tag.Name);
+                        }
+                    }
                     if (!string.IsNullOrWhiteSpace(pin.Label)) claimedReadTags.Add(pin.Label);
                 }
             }
@@ -675,15 +710,26 @@ public partial class DeployViewModel : ObservableObject
             foreach (var w in canvasWrites)
             {
                 // if direct write has pins or command tag
-                if (w.CommandTagIndex.HasValue)
+                if (w.CommandTagIndex.HasValue && allTags != null)
                 {
-                    var tag = _logicEditorVM?.TagCatalog?.AllTags.FirstOrDefault(t => t.Index == w.CommandTagIndex.Value);
-                    if (tag != null) claimedWriteTags.Add(tag.Name);
+                    var tag = allTags.FirstOrDefault(t => t.Index == w.CommandTagIndex.Value);
+                    if (tag != null && !string.IsNullOrWhiteSpace(tag.Name)) claimedWriteTags.Add(tag.Name);
+                }
+                if (w.Pins != null && allTags != null)
+                {
+                    foreach (var pin in w.Pins)
+                    {
+                        if (pin.TargetTagIndex.HasValue)
+                        {
+                            var tag = allTags.FirstOrDefault(t => t.Index == pin.TargetTagIndex.Value);
+                            if (tag != null && !string.IsNullOrWhiteSpace(tag.Name)) claimedWriteTags.Add(tag.Name);
+                        }
+                        if (!string.IsNullOrWhiteSpace(pin.Label)) claimedWriteTags.Add(pin.Label);
+                    }
                 }
             }
         }
 
-        var allTags = _logicEditorVM?.TagCatalog?.AllTags;
         Func<string, ushort?> tagIndexResolver = (tagName) =>
         {
             if (string.IsNullOrWhiteSpace(tagName) || allTags == null) return null;
@@ -835,7 +881,7 @@ public partial class DeployViewModel : ObservableObject
             {
                 Steps[0].Status = StepStatus.Failed;
                 DeployState = DeployState.Failed;
-                PreflightSummary = ownershipError ?? "Xung đột sở hữu ghi độc quyền Tag.";
+                PreflightSummary = ownershipError ?? LocalizationService.Tr("DeployOwnershipFallbackSummary");
                 StatusMessage = PreflightSummary;
                 AppendLog($"[SAFETY ABORT] {PreflightSummary}");
                 IsDeploying = false;

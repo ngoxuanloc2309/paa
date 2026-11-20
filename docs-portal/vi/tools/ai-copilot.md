@@ -7,7 +7,7 @@
   <span><strong>Mô hình An toàn:</strong> Xem trước Đề xuất &bull; Bắt buộc Kỹ sư Nghiệm thu (Human-in-the-Loop)</span>
 </div>
 
-**SynaptiX AI Copilot** là trợ lý kỹ thuật tự động hóa công nghiệp được nhúng trực tiếp bên trong **SynaptiX IDE**. Chỉ cần nhấn `Ctrl+Space` từ bất kỳ màn hình nào để mở bảng trợ lý rộng 380 px bên cạnh, mô tả bài toán điều khiển hoặc thu thập dữ liệu bằng tiếng Việt hoặc tiếng Anh tự nhiên — Copilot sẽ tự động cấp phát biến Tag đúng kiểu vật lý, thiết kế chuỗi luật 4 tầng, khối hẹn giờ/bộ đếm, hàm quy đổi tuyến tính, bộ quét RS-485 Modbus và đường ống đẩy dữ liệu JSON lên MQTT.
+**SynaptiX AI Copilot** là trợ lý kỹ thuật tự động hóa công nghiệp được nhúng trực tiếp bên trong SynaptiX IDE. Chỉ cần nhấn `Ctrl+Space` từ bất kỳ màn hình nào để mở bảng trợ lý rộng 380 px bên cạnh, mô tả bài toán điều khiển hoặc thu thập dữ liệu bằng tiếng Việt hoặc tiếng Anh tự nhiên — Copilot sẽ tự động cấp phát biến Tag đúng kiểu vật lý, thiết kế chuỗi luật 4 tầng, khối hẹn giờ/bộ đếm, hàm quy đổi tuyến tính, bộ quét RS-485 Modbus và đường ống đẩy dữ liệu JSON lên MQTT.
 
 ![Bảng Trợ lý Kỹ thuật SynaptiX AI Copilot & Tổng hợp Sơ đồ Khối](/images/synaptix_ai_copilot.png)
 
@@ -22,7 +22,7 @@
 ### 1.2 Thanh Ngữ cảnh Trực tiếp & Chip Gợi ý Thông minh
 Khác biệt hoàn toàn với các công cụ hỏi đáp AI rời rạc trên trình duyệt không hề biết cấu hình phần cứng của bạn, SynaptiX AI Copilot đọc trực tiếp ngữ cảnh dự án thời gian thực:
 - **Quỹ Tài nguyên Thiết bị:** Tự động tuân thủ số lượng chân `DI`, `DO`, `AI`, `VREG`, `VREG_RETAIN` và `COUNTER` của [Cấu hình Thiết bị (Device Preset)](/vi/concepts/ecosystem-overview) đang mở.
-- **Thanh Trạng thái Ngữ cảnh:** Liên tục theo dõi **Số lượng Khối trên bản vẽ**, **Tổng số Tag**, **Trạng thái Biên dịch** (bao gồm cả mã lỗi biên dịch hiện hành để AI giải thích và tự sửa lỗi) và **Các khối đang được bôi chọn**.
+- **Thanh Trạng thái Ngữ cảnh:** Liên tục theo dõi **Số lượng Khối trên bản vẽ**, **Tổng số Tag**, Trạng thái Biên dịch (bao gồm cả mã lỗi biên dịch hiện hành để AI giải thích và tự sửa lỗi) và **Các khối đang được bôi chọn**.
 - **Chip Gợi ý Động (`SuggestionChips`):** Đề xuất các mẫu câu lệnh 1 chạm phù hợp với trạng thái hiện tại của sơ đồ.
 
 ---
@@ -124,11 +124,11 @@ Khác biệt hoàn toàn với các công cụ hỏi đáp AI rời rạc trên 
 
 | Phân hệ Tự động hóa | Kết quả Đầu ra Được Sinh tự động |
 | :--- | :--- |
-| **Quy hoạch Danh mục Biến** | Cấp phát các ô nhớ `DI`, `DO`, `AI`, `VFLAG`, `VREG` hoặc `VREG_RETAIN` còn trống, gán chuẩn kiểu vật lý `BOOL` / `INT32` / `REAL` kèm tên gợi nhớ (`Alias`) và đơn vị đo. |
-| **Mạch Khóa Liên động Chuẩn** | Xây dựng trọn vẹn đường ống `INPUT -> TRIGGER -> COMPARATOR -> GUARD -> ACTION` với cơ chế tự giữ `Set` / `Reset` và cổng khóa an toàn dừng khẩn cấp E-Stop. |
-| **Định thời, Đếm & Quy đổi** | Nối dây bộ trễ đóng [`TON`](/vi/blocks/ton), trễ ngắt quạt làm mát [`TOF`](/vi/blocks/tof), phát xung [`TP`](/vi/blocks/tp), đếm sản phẩm [`CTU`](/vi/blocks/ctu) và tuyến tính hóa cảm biến `4..20 mA` bằng [`SCALE`](/vi/blocks/scale). |
-| **Truyền thông RS-485 & IIoT** | Khởi tạo khối đọc [`MB_READ`](/vi/blocks/mb-read), khối đóng gói JSON đa biến [`MQTT_PUB`](/vi/blocks/mqtt-pub) và khối nhận lệnh điều khiển [`MQTT_SUB`](/vi/blocks/mqtt-sub). |
-| **Chẩn đoán & Sửa lỗi Biên dịch** | Phân tích nguyên nhân lỗi ngữ pháp sơ đồ hoặc lỗi xung đột ghi trùng biến và đề xuất phương án đấu dây chuẩn xác. |
+| Quy hoạch Danh mục Biến | Cấp phát các ô nhớ `DI`, `DO`, `AI`, `VFLAG`, `VREG` hoặc `VREG_RETAIN` còn trống, gán chuẩn kiểu vật lý `BOOL` / `INT32` / `REAL` kèm tên gợi nhớ (`Alias`) và đơn vị đo. |
+| Mạch Khóa Liên động Chuẩn | Xây dựng trọn vẹn đường ống `INPUT -> TRIGGER -> COMPARATOR -> GUARD -> ACTION` với cơ chế tự giữ `Set` / `Reset` và cổng khóa an toàn dừng khẩn cấp E-Stop. |
+| Định thời, Đếm & Quy đổi | Nối dây bộ trễ đóng [`TON`](/vi/blocks/ton), trễ ngắt quạt làm mát [`TOF`](/vi/blocks/tof), phát xung [`TP`](/vi/blocks/tp), đếm sản phẩm [`CTU`](/vi/blocks/ctu) và tuyến tính hóa cảm biến `4..20 mA` bằng [`SCALE`](/vi/blocks/scale). |
+| Truyền thông RS-485 & IIoT | Khởi tạo khối đọc [`MB_READ`](/vi/blocks/mb-read), khối đóng gói JSON đa biến [`MQTT_PUB`](/vi/blocks/mqtt-pub) và khối nhận lệnh điều khiển [`MQTT_SUB`](/vi/blocks/mqtt-sub). |
+| Chẩn đoán & Sửa lỗi Biên dịch | Phân tích nguyên nhân lỗi ngữ pháp sơ đồ hoặc lỗi xung đột ghi trùng biến và đề xuất phương án đấu dây chuẩn xác. |
 
 ---
 
@@ -138,9 +138,9 @@ Các câu mô tả mơ hồ dễ dẫn tới mạch thiếu điều kiện bảo
 
 | Bài toán Điều khiển | Câu lệnh Mơ hồ (Không khuyến nghị) | Câu lệnh Kỹ thuật Chuẩn Công nghiệp (Khuyến nghị) |
 | :--- | :--- | :--- |
-| **Xả Áp suất Quá ngưỡng Có Trễ & Khóa E-Stop** | *"Khi áp suất cao quá thì mở van xả."* | *"Quy đổi cảm biến áp suất `AI0` (`4..20 mA`) sang dải `0.0..16.0 bar` lưu vào `VREG0` (`ApSuatLoHoi_Bar`). Nếu `VREG0 >= 12.5 bar` duy trì liên tục `5 giây` (`TON`) thì đóng van xả `DO0`, có khóa an toàn nút dừng khẩn cấp thường đóng `DI2 == 1`. Ngắt van `DO0` khi `VREG0 <= 10.5 bar`."* |
-| **Trễ Ngắt Quạt Làm mát Sau Khi Dừng Máy** | *"Tắt máy xong giữ quạt chạy thêm một lúc."* | *"Mạch khởi động trục chính `DO0` bằng sườn lên nút Start `DI0` và dừng bằng nút Stop `DI1`, khóa liên động rơ-le nhiệt bình thường `DI3 == 1`. Điều khiển quạt làm mát `DO1` qua khối `TOF` để `DO1` bật cùng `DO0` và tiếp tục chạy thêm `15 giây` sau khi `DO0` ngắt."* |
-| **Quét Đồng hồ RS-485 Đẩy Lên MQTT** | *"Đọc nhiệt độ Modbus gửi lên MQTT."* | *"Dùng `MB_READ` trên cổng `RS-485 #1` đọc Slave ID `2`: thanh ghi `40001` (`INT16`, hệ số `0.1`) vào `VREG1` (`NhietDoBuong_C`) và `40002` (`UINT16`, hệ số `0.1`) vào `VREG2` (`DoAmBuong_Pct`) chu kỳ `1000 ms`. Đóng gói cả 2 biến kèm mã thiết bị và dấu thời gian UTC đẩy lên MQTT topic `nhamay/lo1/telemetry` mỗi `10 giây` (`QoS 1`)."* |
+| Xả Áp suất Quá ngưỡng Có Trễ & Khóa E-Stop | *"Khi áp suất cao quá thì mở van xả."* | *"Quy đổi cảm biến áp suất `AI0` (`4..20 mA`) sang dải `0.0..16.0 bar` lưu vào `VREG0` (`ApSuatLoHoi_Bar`). Nếu `VREG0 >= 12.5 bar` duy trì liên tục `5 giây` (`TON`) thì đóng van xả `DO0`, có khóa an toàn nút dừng khẩn cấp thường đóng `DI2 == 1`. Ngắt van `DO0` khi `VREG0 <= 10.5 bar`."* |
+| Trễ Ngắt Quạt Làm mát Sau Khi Dừng Máy | *"Tắt máy xong giữ quạt chạy thêm một lúc."* | *"Mạch khởi động trục chính `DO0` bằng sườn lên nút Start `DI0` và dừng bằng nút Stop `DI1`, khóa liên động rơ-le nhiệt bình thường `DI3 == 1`. Điều khiển quạt làm mát `DO1` qua khối `TOF` để `DO1` bật cùng `DO0` và tiếp tục chạy thêm `15 giây` sau khi `DO0` ngắt."* |
+| Quét Đồng hồ RS-485 Đẩy Lên MQTT | *"Đọc nhiệt độ Modbus gửi lên MQTT."* | *"Dùng `MB_READ` trên cổng `RS-485 #1` đọc Slave ID `2`: thanh ghi `40001` (`INT16`, hệ số `0.1`) vào `VREG1` (`NhietDoBuong_C`) và `40002` (`UINT16`, hệ số `0.1`) vào `VREG2` (`DoAmBuong_Pct`) chu kỳ `1000 ms`. Đóng gói cả 2 biến kèm mã thiết bị và dấu thời gian UTC đẩy lên MQTT topic `nhamay/lo1/telemetry` mỗi `10 giây` (`QoS 1`)."* |
 
 ::: tip Xem trước Đề xuất & Hoàn tác Nguyên tử (`Ctrl+Z`)
 Mọi sơ đồ do Copilot tạo ra đều hiển thị ở chế độ xem trước (`HasPendingAiProposal`) với bố cục dàn trang tự động gọn gàng. Ngay cả sau khi bạn nhấn **Áp dụng** đưa lên [Sơ đồ Logic (`Ctrl+2`)](/vi/workspaces/logic-graph-tab), toàn bộ thao tác chèn đa khối được gom thành một bước lịch sử duy nhất — nhấn `Ctrl+Z` bất kỳ lúc nào để hoàn tác tức thì về trạng thái cũ.

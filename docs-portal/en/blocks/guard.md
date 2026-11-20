@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`GUARD`** block is a synchronous permissive and safety interlock gate placed inline between an upstream event source ([`TRIGGER`](/blocks/trigger), [`INPUT`](/blocks/input), [`COMPARATOR`](/blocks/comparator), [`MB_READ`](/blocks/mb-read), or [`MQTT_SUB`](/blocks/mqtt-sub)) and a downstream executor ([`ACTION`](/blocks/action), [`TON`](/blocks/ton), [`CTU`](/blocks/ctu), [`MB_WRITE`](/blocks/mb-write), [`DIRECT_WRITE`](/blocks/direct-write), or IIoT client).
+The `GUARD` block is a synchronous permissive and safety interlock gate placed inline between an upstream event source ([`TRIGGER`](/blocks/trigger), [`INPUT`](/blocks/input), [`COMPARATOR`](/blocks/comparator), [`MB_READ`](/blocks/mb-read), or [`MQTT_SUB`](/blocks/mqtt-sub)) and a downstream executor ([`ACTION`](/blocks/action), [`TON`](/blocks/ton), [`CTU`](/blocks/ctu), [`MB_WRITE`](/blocks/mb-write), [`DIRECT_WRITE`](/blocks/direct-write), or IIoT client).
 
 - **Pass-or-Block Event Gating:** `GUARD` never initiates an execution pulse on its own. Instead, at the exact scan cycle when an upstream pulse arrives at `In`, `GUARD` inspects the latched process image state of `GuardTag`:
   - **Pass (`Condition True`):** The execution pulse propagates unimpeded out of `Out` within the same scan cycle (`0` scan delay).
@@ -37,15 +37,15 @@ Direct guard chaining (`GUARD → GUARD`) and backward loops (`GUARD → TRIGGER
 | Parameter | Type / Options | Default | Constraints | Runtime Behavior |
 | :--- | :--- | :--- | :--- | :--- |
 | `GuardTag` | Digital Tag Selector (`DI`, `DO`, `VFLAG`) | Unassigned *(must be selected)* | Must reference a digital boolean tag (`IsDigital == true`). Selecting an analog/register tag triggers `IsInvalidTagType`. | Sampled synchronously from the process image whenever an incoming pulse arrives on `In`. |
-| `Negate` | Boolean Toggle (`Pass when 1/ON` vs. `Invert NOT — Pass when 0/OFF`) | `false` (`Pass when 1/ON`) | Binary polarity option. | **`false`:** Passes pulse when `GuardTag != 0`. **`true`:** Passes pulse only when `GuardTag == 0` (renders `! TagName` badge). |
+| `Negate` | Boolean Toggle (`Pass when 1/ON` vs. `Invert NOT — Pass when 0/OFF`) | `false` (`Pass when 1/ON`) | Binary polarity option. | `false`: Passes pulse when `GuardTag != 0`. `true`: Passes pulse only when `GuardTag == 0` (renders `! TagName` badge). |
 | `CustomLabel` | Free-text String | Empty (`"Guard"`) | Optional schematic title override. | Customizes the node header on the Logic Graph Canvas. |
 
 ### Polarity Truth Table
 
 | `Negate` Setting | Canvas Badge | `GuardTag = 0` (`OFF`) | `GuardTag = 1` (`ON`) | Typical Wiring Pattern |
 | :--- | :--- | :--- | :--- | :--- |
-| `false` (Normal) | `Tag` (`1/ON`) | **BLOCKED** (Pulse dropped) | **PASSED** (`Out` fires) | Fail-safe NC safety circuit (`1` = Healthy / Closed) |
-| `true` (Inverted `NOT`) | `! Tag` (`0/OFF`) | **PASSED** (`Out` fires) | **BLOCKED** (Pulse dropped) | Fault flag or busy inhibit (`0` = No Fault Active) |
+| `false` (Normal) | `Tag` (`1/ON`) | BLOCKED (Pulse dropped) | PASSED (`Out` fires) | Fail-safe NC safety circuit (`1` = Healthy / Closed) |
+| `true` (Inverted `NOT`) | `! Tag` (`0/OFF`) | PASSED (`Out` fires) | BLOCKED (Pulse dropped) | Fault flag or busy inhibit (`0` = No Fault Active) |
 
 ---
 
@@ -87,8 +87,8 @@ An operator start pushbutton on `DI0` triggers the downward stroke solenoid (`DO
 
 ### Step-by-Step Canvas Wiring
 
-1. **Rung 1 (Gated Start):** Place **`INPUT`** (`DI0`) → **[`TRIGGER`](/blocks/trigger)** (`ON_RISE`, `ForMs = 50` ms pushbutton debounce) → **`GUARD`** (`GuardTag = DI1`, `Negate = false`) → **[`ACTION`](/blocks/action)** (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 1`).
-2. **Rung 2 (Immediate Beam-Break Trip):** Place **`INPUT`** (`DI1`) → **[`TRIGGER`](/blocks/trigger)** (`ON_FALL`, `ForMs = 0` ms immediate) → **[`ACTION`](/blocks/action)** (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
+1. **Rung 1 (Gated Start):** Place `INPUT` (`DI0`) → [`TRIGGER`](/blocks/trigger) (`ON_RISE`, `ForMs = 50` ms pushbutton debounce) → `GUARD` (`GuardTag = DI1`, `Negate = false`) → [`ACTION`](/blocks/action) (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 1`).
+2. **Rung 2 (Immediate Beam-Break Trip):** Place `INPUT` (`DI1`) → [`TRIGGER`](/blocks/trigger) (`ON_FALL`, `ForMs = 0` ms immediate) → [`ACTION`](/blocks/action) (`SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
 3. Press `F5` to verify both nominal and fault scenarios:
    - With `DI1 = 0` (beam obstructed), toggle `DI0` `0 → 1`: `GUARD` reports **BLOCKED** and `DO0` stays `0`.
    - Set `DI1 = 1` (curtain clear), toggle `DI0` `0 → 1` for `50 ms`: `GUARD` reports **PASSED** and `DO0` energizes to `1`.

@@ -21,13 +21,13 @@ Nhấn tổ hợp phím `Ctrl+Shift+M` (hoặc vào menu **Thiết bị -> Cấu
 
 | Tham số | Mặc định | Giới hạn / Định dạng | Giải thích Chức năng Kỹ thuật |
 | :--- | :--- | :--- | :--- |
-| **Kích hoạt Dịch vụ MQTT** | `Tắt` | `Bật` / `Tắt` | Công tắc tổng khởi chạy tiến trình MQTT Client bất đồng bộ trên thiết bị. |
-| **Broker Host / IP** | *(Trống)* | Tối đa `64` ký tự ASCII | Tên miền đầy đủ FQDN (VD: `a1b2c3d4-ats.iot.ap-southeast-1.amazonaws.com`, `broker.emqx.io`) hoặc địa chỉ IPv4 nội bộ (VD: `192.168.1.200`). |
-| **Cổng kết nối (`Port`)** | `1883` (`8883` khi bật TLS) | `1 .. 65535` | Tự động chuyển đổi thông minh giữa `1883` (TCP thuần) và `8883` (MQTTS mã hóa) khi gạt nút **Sử dụng TLS**, đồng thời vẫn cho phép nhập cổng tùy chỉnh của doanh nghiệp. |
-| **Client ID** | Số Serial thiết bị | Tối đa `32` ký tự ASCII | Mã định danh phiên MQTT duy nhất. Phải khác biệt trên toàn máy chủ Broker để tránh hiện tượng hai thiết bị đá văng kết nối của nhau liên tục (`Session Takeover`). |
-| **Username / Password** | *(Trống)* | Tối đa `32` ký tự ASCII/trường | Tài khoản xác thực cho các Broker dùng mật khẩu (EMQX, HiveMQ Cloud, Mosquitto, RabbitMQ). Để trống nếu Broker xác thực thuần bằng chứng chỉ mTLS (như AWS IoT Core). |
-| **Chu kỳ Keep-Alive** | `60 giây` | `10 .. 3600 giây` | Khoảng thời gian nhàn rỗi tối đa trước khi thiết bị tự phát gói `PINGREQ` nhằm duy trì phiên NAT trên tường lửa và kiểm tra kết nối sống tới Broker. |
-| **Clean Session** | `Bật` (`true`) | `true` / `false` | Khi `true`, thiết lập phiên sạch mỗi lần kết nối lại. Đặt `false` nếu muốn Broker lưu giữ hàng đợi lệnh điều khiển `QoS 1` / `QoS 2` gửi xuống khối [`MQTT_SUB`](/vi/blocks/mqtt-sub) trong lúc thiết bị tạm thời rớt mạng. |
+| Kích hoạt Dịch vụ MQTT | `Tắt` | `Bật` / `Tắt` | Công tắc tổng khởi chạy tiến trình MQTT Client bất đồng bộ trên thiết bị. |
+| Broker Host / IP | *(Trống)* | Tối đa `64` ký tự ASCII | Tên miền đầy đủ FQDN (VD: `a1b2c3d4-ats.iot.ap-southeast-1.amazonaws.com`, `broker.emqx.io`) hoặc địa chỉ IPv4 nội bộ (VD: `192.168.1.200`). |
+| Cổng kết nối (`Port`) | `1883` (`8883` khi bật TLS) | `1 .. 65535` | Tự động chuyển đổi thông minh giữa `1883` (TCP thuần) và `8883` (MQTTS mã hóa) khi gạt nút Sử dụng TLS, đồng thời vẫn cho phép nhập cổng tùy chỉnh của doanh nghiệp. |
+| Client ID | Số Serial thiết bị | Tối đa `32` ký tự ASCII | Mã định danh phiên MQTT duy nhất. Phải khác biệt trên toàn máy chủ Broker để tránh hiện tượng hai thiết bị đá văng kết nối của nhau liên tục (`Session Takeover`). |
+| Username / Password | *(Trống)* | Tối đa `32` ký tự ASCII/trường | Tài khoản xác thực cho các Broker dùng mật khẩu (EMQX, HiveMQ Cloud, Mosquitto, RabbitMQ). Để trống nếu Broker xác thực thuần bằng chứng chỉ mTLS (như AWS IoT Core). |
+| Chu kỳ Keep-Alive | `60 giây` | `10 .. 3600 giây` | Khoảng thời gian nhàn rỗi tối đa trước khi thiết bị tự phát gói `PINGREQ` nhằm duy trì phiên NAT trên tường lửa và kiểm tra kết nối sống tới Broker. |
+| Clean Session | `Bật` (`true`) | `true` / `false` | Khi `true`, thiết lập phiên sạch mỗi lần kết nối lại. Đặt `false` nếu muốn Broker lưu giữ hàng đợi lệnh điều khiển `QoS 1` / `QoS 2` gửi xuống khối [`MQTT_SUB`](/vi/blocks/mqtt-sub) trong lúc thiết bị tạm thời rớt mạng. |
 
 ---
 
@@ -37,11 +37,11 @@ Khi một trạm biên tại nhà máy bị cúp nguồn 24V DC đột ngột ho
 
 | Trường Cấu hình LWT | Giá trị Mặc định | Khuyến nghị Vận hành Thực tế |
 | :--- | :--- | :--- |
-| **Kích hoạt LWT (`WillEnabled`)** | `Tắt` | **Luôn Bật** cho mọi trạm thu thập dữ liệu và điều khiển từ xa. |
-| **Topic Di chúc (`WillTopic`)** | `synaptix/device/status` | Đặt theo phân cấp nhà máy, ví dụ: `factory/line1/node01/status`. |
-| **Nội dung Di chúc (`WillPayload`)** | `offline` | Chuỗi văn bản thuần báo trạng thái ngắt kết nối (tối đa 30 ký tự). Khuyến nghị dùng text thuần (`offline`, `0`, `lost`) thay cho JSON để tránh ký tự `"` gây lỗi lệnh AT của module Wi-Fi. |
-| **Mức QoS Di chúc (`WillQos`)** | `QoS 1` | Chọn `QoS 1` (Ít nhất một lần) để đảm bảo phần mềm giám sát chắc chắn nhận được cảnh báo rớt trạm. |
-| **Lưu giữ (`WillRetain`)** | `true` | Đặt `true` để bất kỳ màn hình Web/SCADA nào vừa mở lên đều biết ngay trạng thái trực tuyến hiện hành của trạm. |
+| Kích hoạt LWT (`WillEnabled`) | `Tắt` | Luôn Bật cho mọi trạm thu thập dữ liệu và điều khiển từ xa. |
+| Topic Di chúc (`WillTopic`) | `synaptix/device/status` | Đặt theo phân cấp nhà máy, ví dụ: `factory/line1/node01/status`. |
+| Nội dung Di chúc (`WillPayload`) | `offline` | Chuỗi văn bản thuần báo trạng thái ngắt kết nối (tối đa 30 ký tự). Khuyến nghị dùng text thuần (`offline`, `0`, `lost`) thay cho JSON để tránh ký tự `"` gây lỗi lệnh AT của module Wi-Fi. |
+| Mức QoS Di chúc (`WillQos`) | `QoS 1` | Chọn `QoS 1` (Ít nhất một lần) để đảm bảo phần mềm giám sát chắc chắn nhận được cảnh báo rớt trạm. |
+| Lưu giữ (`WillRetain`) | `true` | Đặt `true` để bất kỳ màn hình Web/SCADA nào vừa mở lên đều biết ngay trạng thái trực tuyến hiện hành của trạm. |
 
 ---
 
@@ -199,10 +199,10 @@ Nhằm đảm bảo trải nghiệm vận hành nhất quán và không làm ph�
 
 | Thông số | Mặc định | Giới hạn / Cơ chế | Khuyến nghị Triển khai |
 | :--- | :--- | :--- | :--- |
-| **Kích hoạt Wi-Fi (`IsEnabled`)** | `Tắt` | `Bật` / `Tắt` | Bật phân hệ thu phát không dây ở chế độ Station (`STA`). |
-| **Tự động Kết nối lại (`AutoReconnect`)** | `Bật` (`true`) | Tự động thử lại giãn cách | **Luôn bật** để thiết bị tự động bắt sóng lại ngay khi bộ phát sóng AP nhà xưởng khởi động lại hoặc sau nhiễu tức thời. |
-| **Tên mạng Wi-Fi (`Ssid`)** | *(Trống)* | Tối đa `32` byte UTF-8 | Nhập tay (cho mạng ẩn SSID) hoặc chọn 1 chạm từ **Trình Quét Trạm phát Trực tiếp**. |
-| **Mật khẩu (`Password`)** | *(Trống)* | Tối đa `64` ký tự ASCII | Tương thích chuẩn Open, WPA-PSK, WPA2-PSK, WPA/WPA2-Mixed và WPA3-SAE. Có nút con mắt ẩn/hiện kiểm tra ký tự. |
+| Kích hoạt Wi-Fi (`IsEnabled`) | `Tắt` | `Bật` / `Tắt` | Bật phân hệ thu phát không dây ở chế độ Station (`STA`). |
+| Tự động Kết nối lại (`AutoReconnect`) | `Bật` (`true`) | Tự động thử lại giãn cách | Luôn bật để thiết bị tự động bắt sóng lại ngay khi bộ phát sóng AP nhà xưởng khởi động lại hoặc sau nhiễu tức thời. |
+| Tên mạng Wi-Fi (`Ssid`) | *(Trống)* | Tối đa `32` byte UTF-8 | Nhập tay (cho mạng ẩn SSID) hoặc chọn 1 chạm từ Trình Quét Trạm phát Trực tiếp. |
+| Mật khẩu (`Password`) | *(Trống)* | Tối đa `64` ký tự ASCII | Tương thích chuẩn Open, WPA-PSK, WPA2-PSK, WPA/WPA2-Mixed và WPA3-SAE. Có nút con mắt ẩn/hiện kiểm tra ký tự. |
 
 ---
 
@@ -220,10 +220,10 @@ SynaptiX IDE quy đổi tuyến tính chỉ số `RSSI (dBm)` sang phần trăm 
 
 | Dải Cường độ (`dBm`) | Chất lượng Sóng (`%`) | Đánh giá Đường truyền RF & Khuyến nghị Lắp đặt Tủ điện |
 | :--- | :--- | :--- |
-| `>= -50 dBm` | `100%` | **Rất mạnh:** Tầm nhìn thẳng tới AP công nghiệp; tối ưu cho `MQTT_PUB` chu kỳ ngắn và `Modbus TCP`. |
-| `-65 .. -51 dBm` | `70% .. 98%` | **Tốt (Khuyến nghị):** Đảm bảo vận hành sản xuất liên tục 24/7 với biên độ dự phòng suy hao an toàn. |
-| `-75 .. -66 dBm` | `50% .. 68%` | **Trung bình / Cảnh báo:** Dễ trễ gói tin khi đặt gần biến tần công suất lớn. **Bắt buộc kéo ăng-ten dây nối dài SMA ra ngoài vỏ tủ sắt!** |
-| `<= -76 dBm` | `<= 48%` | **Yếu / Chập chờn:** Nguy cơ cao lỗi bắt tay TLS và rớt phiên TCP. Cần bổ sung bộ phát AP công nghiệp hoặc chuyển sang cáp Ethernet / RS-485. |
+| `>= -50 dBm` | `100%` | Rất mạnh: Tầm nhìn thẳng tới AP công nghiệp; tối ưu cho `MQTT_PUB` chu kỳ ngắn và `Modbus TCP`. |
+| `-65 .. -51 dBm` | `70% .. 98%` | Tốt (Khuyến nghị): Đảm bảo vận hành sản xuất liên tục 24/7 với biên độ dự phòng suy hao an toàn. |
+| `-75 .. -66 dBm` | `50% .. 68%` | Trung bình / Cảnh báo: Dễ trễ gói tin khi đặt gần biến tần công suất lớn. Bắt buộc kéo ăng-ten dây nối dài SMA ra ngoài vỏ tủ sắt! |
+| `<= -76 dBm` | `<= 48%` | Yếu / Chập chờn: Nguy cơ cao lỗi bắt tay TLS và rớt phiên TCP. Cần bổ sung bộ phát AP công nghiệp hoặc chuyển sang cáp Ethernet / RS-485. |
 
 ---
 
@@ -231,8 +231,8 @@ SynaptiX IDE quy đổi tuyến tính chỉ số `RSSI (dBm)` sang phần trăm 
 
 | Chế độ IPv4 | Các trường Cấu hình | Khi nào Nên Sử dụng |
 | :--- | :--- | :--- |
-| **DHCP (Cấp phát tự động)** *(Mặc định)* | Tự động nhận IP, Subnet Mask, Gateway và DNS từ Router mạng nhà máy. | Phù hợp khi thiết bị chỉ chủ động đẩy dữ liệu chiều đi (`MQTT_PUB`, `HTTP_CLIENT`) lên máy chủ đám mây. |
-| **Static IPv4 (IP Tĩnh)** | **Static IP** (`192.168.1.50`), **Subnet Mask** (`255.255.255.0`), **Gateway** (`192.168.1.1`), **Primary DNS** (`8.8.8.8`). | **Bắt buộc** khi hệ thống SCADA/HMI chủ động truy vấn vào thiết bị qua **Modbus TCP (Cổng `502`)** hoặc **TCP Server**, đảm bảo địa chỉ IP của trạm không bao giờ bị đổi sau khi mất điện. |
+| DHCP (Cấp phát tự động) *(Mặc định)* | Tự động nhận IP, Subnet Mask, Gateway và DNS từ Router mạng nhà máy. | Phù hợp khi thiết bị chỉ chủ động đẩy dữ liệu chiều đi (`MQTT_PUB`, `HTTP_CLIENT`) lên máy chủ đám mây. |
+| Static IPv4 (IP Tĩnh) | Static IP (`192.168.1.50`), Subnet Mask (`255.255.255.0`), Gateway (`192.168.1.1`), Primary DNS (`8.8.8.8`). | Bắt buộc khi hệ thống SCADA/HMI chủ động truy vấn vào thiết bị qua Modbus TCP (Cổng `502`) hoặc TCP Server, đảm bảo địa chỉ IP của trạm không bao giờ bị đổi sau khi mất điện. |
 
 Khi đang kết nối trực tuyến với phần cứng (`IsDeviceConnected == true`), thanh **Giám sát Trạng thái Trực tiếp** tự động làm tươi mỗi `1.5 giây`, cung cấp:
 - **Trạng thái Kết nối:** `Đã ngắt kết nối`, `Đang kết nối...`, `Đã kết nối`, `Đã nhận IP`, `Sai mật khẩu xác thực`, hoặc `Không tìm thấy SSID`.

@@ -189,7 +189,7 @@ public sealed class ModbusPortConfigViewModelTests
         Assert.Equal((byte)3, ch1.FunctionCode);
         Assert.True(ch1.IsReadOperation);
         Assert.False(ch1.IsWriteOperation);
-        Assert.Equal(SimplePLC.Protocol.Enums.ModbusDataType.Int16, ch1.DataType);
+        Assert.Null(ch1.DataType);
         Assert.Equal(SimplePLC.Protocol.Enums.ModbusEndianness.BigEndian_ABCD, ch1.Endianness);
         Assert.Equal(1.0, ch1.Scale);
 

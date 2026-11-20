@@ -107,5 +107,6 @@ public enum SPLC_RuleFlags : byte
 {
     NONE = 0x00,
     TRIGGER_FLOAT = 0x01, // Bit 0: Ngưỡng Trigger là số thực Float32 IEEE-754
-    ACTION_FLOAT = 0x02   // Bit 1: Tham số Action là số thực Float32 IEEE-754
+    ACTION_FLOAT = 0x02,  // Bit 1: Tham số Action là số thực Float32 IEEE-754
+    INT_TO_FLOAT = 0x04   // Bit 2: SCALE_TAG nguồn INT32 ép kiểu sang Float32 trước khi nhân Gain & Offset (flags = 0x07)
 }

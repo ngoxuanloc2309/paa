@@ -9,7 +9,7 @@
 
 ## 1. Tổng quan & Ngữ nghĩa Thực thi
 
-Khối hàm **`MQTT_SUB`** (**IIoT MQTT Inbound Subscriber**) là **khối nguồn lắng nghe ngầm thuần túy**, chuyên đăng ký nhận gói tin điều khiển và điểm đặt (Setpoint) từ máy chủ Cloud / MES / WMS, kiểm tra nghiêm ngặt cấu trúc và dải giới hạn an toàn, sau đó bóc tách từng trường dữ liệu ra chân cắm sơ đồ khối và vùng nhớ Tag nội bộ.
+Khối hàm `MQTT_SUB` (**IIoT MQTT Inbound Subscriber**) là khối nguồn lắng nghe ngầm thuần túy, chuyên đăng ký nhận gói tin điều khiển và điểm đặt (Setpoint) từ máy chủ Cloud / MES / WMS, kiểm tra nghiêm ngặt cấu trúc và dải giới hạn an toàn, sau đó bóc tách từng trường dữ liệu ra chân cắm sơ đồ khối và vùng nhớ Tag nội bộ.
 
 ![Hộp thoại Cấu hình Khối Nhận Dữ liệu MQTT_SUB & Khung Giả lập JSON](/images/synaptix_mqtt_sub.png)
 
@@ -27,9 +27,9 @@ Khối `MQTT_SUB` để trống hoàn toàn cạnh trái (0 chân vào) và xu�
 | Tên chân | Chiều | Bản chất Tín hiệu | Kiểu dữ liệu | Điều kiện Hiển thị | Hợp đồng Chức năng |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | *(Không có)* | Ngõ vào | — | — | Luôn để trống | Khối nguồn tự lắng nghe ngầm; không cần nối dây cấp nguồn cho phép. |
-| **`Valid`** | Ngõ ra | Sự kiện (Xung 1 chu kỳ) | `BOOL` | Luôn hiển thị | **Xung Chốt Dữ liệu Hợp lệ:** Phát xung mức `1` kéo dài đúng 1 chu kỳ quét (`10 ms`) ngay khi bản tin JSON vượt qua toàn bộ điều kiện kiểm tra và cập nhật đồng thời các chân ra. |
-| **`Err`** | Ngõ ra | Giá trị (Chốt trạng thái) | `BOOL` | Luôn hiển thị | **Cờ Báo Lỗi Gói Tin / Mạng:** Bật mức `1` khi lỗi cú pháp JSON, thiếu trường, sai kiểu, vượt ngưỡng Min/Max, tràn hàng đợi FIFO hoặc đứt mạng quá hạn. Tự xóa về `0` khi nhận gói hợp lệ mới. |
-| **`<Pin.Label>`** | Ngõ ra *(Động)* | Giá trị | `BOOL`, `INT16`, `INT32`, `FLOAT`, `STRING` | 1 chân ứng với mỗi dòng trong `Pins` | **Giá trị Trường JSON Trích xuất:** Xuất dữ liệu bóc từ `JsonPath` (tự động nhận diện cả JSON phẳng `{"grid": 5}` lẫn JSON bọc `{"values": {"grid": 5}}`) và ghi vào `TargetTag`. |
+| `Valid` | Ngõ ra | Sự kiện (Xung 1 chu kỳ) | `BOOL` | Luôn hiển thị | Xung Chốt Dữ liệu Hợp lệ: Phát xung mức `1` kéo dài đúng 1 chu kỳ quét (`10 ms`) ngay khi bản tin JSON vượt qua toàn bộ điều kiện kiểm tra và cập nhật đồng thời các chân ra. |
+| `Err` | Ngõ ra | Giá trị (Chốt trạng thái) | `BOOL` | Luôn hiển thị | Cờ Báo Lỗi Gói Tin / Mạng: Bật mức `1` khi lỗi cú pháp JSON, thiếu trường, sai kiểu, vượt ngưỡng Min/Max, tràn hàng đợi FIFO hoặc đứt mạng quá hạn. Tự xóa về `0` khi nhận gói hợp lệ mới. |
+| `<Pin.Label>` | Ngõ ra *(Động)* | Giá trị | `BOOL`, `INT16`, `INT32`, `FLOAT`, `STRING` | 1 chân ứng với mỗi dòng trong `Pins` | Giá trị Trường JSON Trích xuất: Xuất dữ liệu bóc từ `JsonPath` (tự động nhận diện cả JSON phẳng `{"grid": 5}` lẫn JSON bọc `{"values": {"grid": 5}}`) và ghi vào `TargetTag`. |
 
 ---
 
@@ -39,23 +39,23 @@ Khối `MQTT_SUB` để trống hoàn toàn cạnh trái (0 chân vào) và xu�
 
 | Tham số | Khóa Thuộc tính | Kiểu & Miền giá trị | Mặc định | Mô tả Kỹ thuật & Ý nghĩa An toàn Công nghiệp |
 | :--- | :--- | :--- | :---: | :--- |
-| **Chủ đề Lắng nghe (`Topic`)** | `Topic` | `String` | `"synaptix/commands/inbound"` | Bộ lọc chủ đề MQTT (có nút làm sạch `SanitizeTopic`; hỗ trợ ký tự đại diện đơn cấp `+` và đa cấp `#` chuẩn MQTT). |
-| **Mức Dịch vụ (`QoS`)** | `Qos` | `0` \| `1` \| `2` | `1` | Mặc định `QoS 1` (giao ít nhất 1 lần) đảm bảo không thất lạc lệnh điều khiển từ xa. |
-| **Chế độ Hàng đợi** | `QueueMode` | `FIFO` \| `LatestWins` | `FIFO` | **`FIFO`** (`Sức chứa = 16`): xử lý tuần tự từng gói tin theo thứ tự đến (1 gói / chu kỳ quét) để không nuốt đơn phân loại hàng gửi dồn dập. **`LatestWins`**: hủy gói cũ, chỉ áp dụng giá trị điểm đặt mới nhất. |
-| **Sức chứa Hàng đợi** | `QueueCapacity` | `INT32` | `16` | Độ sâu bộ đệm vòng khi hoạt động ở chế độ `QueueMode = FIFO`. |
-| **Bỏ qua Tin Lưu cữu Lúc Bật máy** | `IgnoreRetainedOnBoot` | `BOOL` | `true` | Tự động loại bỏ gói tin gắn cờ `Retained` mà Broker đẩy xuống ngay lúc vừa kết nối, chống kích hoạt cơ cấu chấp hành ngoài ý muốn. |
-| **Thời gian Chờ Fail-Safe** | `FailSafeTimeoutMs` (`TimeoutMs`) | `UINT32` (`ms`, `0` = Tắt) | `0` | Bộ canh thời gian mất liên lạc (mili-giây). Nếu quá hạn không nhận được tin mới hợp lệ, thực thi `FailSafeAction` và báo mã `TimeoutExpired`. |
-| **Hành vi Fail-Safe** | `FailSafeAction` | `KeepLastValue` \| `ResetToZero` \| `ResetToDefault` | `KeepLastValue` | Chiến lược dự phòng áp dụng cho toàn bộ chân động khi hết thời gian chờ hoặc rớt kết nối Broker. |
+| Chủ đề Lắng nghe (`Topic`) | `Topic` | `String` | `"synaptix/commands/inbound"` | Bộ lọc chủ đề MQTT (có nút làm sạch `SanitizeTopic`; hỗ trợ ký tự đại diện đơn cấp `+` và đa cấp `#` chuẩn MQTT). |
+| Mức Dịch vụ (`QoS`) | `Qos` | `0` \| `1` \| `2` | `1` | Mặc định `QoS 1` (giao ít nhất 1 lần) đảm bảo không thất lạc lệnh điều khiển từ xa. |
+| Chế độ Hàng đợi | `QueueMode` | `FIFO` \| `LatestWins` | `FIFO` | `FIFO` (`Sức chứa = 16`): xử lý tuần tự từng gói tin theo thứ tự đến (1 gói / chu kỳ quét) để không nuốt đơn phân loại hàng gửi dồn dập. `LatestWins`: hủy gói cũ, chỉ áp dụng giá trị điểm đặt mới nhất. |
+| Sức chứa Hàng đợi | `QueueCapacity` | `INT32` | `16` | Độ sâu bộ đệm vòng khi hoạt động ở chế độ `QueueMode = FIFO`. |
+| Bỏ qua Tin Lưu cữu Lúc Bật máy | `IgnoreRetainedOnBoot` | `BOOL` | `true` | Tự động loại bỏ gói tin gắn cờ `Retained` mà Broker đẩy xuống ngay lúc vừa kết nối, chống kích hoạt cơ cấu chấp hành ngoài ý muốn. |
+| Thời gian Chờ Fail-Safe | `FailSafeTimeoutMs` (`TimeoutMs`) | `UINT32` (`ms`, `0` = Tắt) | `0` | Bộ canh thời gian mất liên lạc (mili-giây). Nếu quá hạn không nhận được tin mới hợp lệ, thực thi `FailSafeAction` và báo mã `TimeoutExpired`. |
+| Hành vi Fail-Safe | `FailSafeAction` | `KeepLastValue` \| `ResetToZero` \| `ResetToDefault` | `KeepLastValue` | Chiến lược dự phòng áp dụng cho toàn bộ chân động khi hết thời gian chờ hoặc rớt kết nối Broker. |
 
 ### 3.2. Cấu hình Chân Ngõ ra Động (`MqttPinBindingViewModel`)
 
 | Trường Cấu hình | Khóa Thuộc tính | Tùy chọn Hỗ trợ | Mô tả Chi tiết |
 | :--- | :--- | :--- | :--- |
-| **Tên Trường / Đường dẫn JSON** | `FieldName` / `JsonPath` | ví dụ: `grid`, `setpoint_temp`, `values.speed` | Tên khóa JSON cần bóc tách; tự động đồng bộ làm nhãn chân cắm `Label` trên vùng vẽ Canvas. |
-| **Kiểu Dữ liệu** | `DataType` | `Int16`, `Int32`, `Float`, `Bool`, `String` | Hợp đồng kiểu dữ liệu đích (`Bool` hiểu cả `true`/`false`, `1`/`0`, `"TRUE"`/`"FALSE"`). |
-| **Giới hạn Min / Max** | `MinValue`, `MaxValue` | `Double?` (tùy chọn) | Từ chối toàn bộ bản tin (`OutOfRange`) nếu giá trị số vượt ra ngoài khoảng an toàn `[MinValue .. MaxValue]`. |
-| **Giá trị Mặc định An toàn** | `DefaultValue` | `Double` (`0.0`) | Giá trị an toàn nạp xuống chân ra khi kích hoạt `FailSafeAction = ResetToDefault`. |
-| **Biến Đích (`TargetTag`)** | `TargetTag` | `TagModel?` | Gán trực tiếp vào biến `VREG`, `VBIT` hoặc `DO` trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab). |
+| Tên Trường / Đường dẫn JSON | `FieldName` / `JsonPath` | ví dụ: `grid`, `setpoint_temp`, `values.speed` | Tên khóa JSON cần bóc tách; tự động đồng bộ làm nhãn chân cắm `Label` trên vùng vẽ Canvas. |
+| Kiểu Dữ liệu | `DataType` | `Int16`, `Int32`, `Float`, `Bool`, `String` | Hợp đồng kiểu dữ liệu đích (`Bool` hiểu cả `true`/`false`, `1`/`0`, `"TRUE"`/`"FALSE"`). |
+| Giới hạn Min / Max | `MinValue`, `MaxValue` | `Double?` (tùy chọn) | Từ chối toàn bộ bản tin (`OutOfRange`) nếu giá trị số vượt ra ngoài khoảng an toàn `[MinValue .. MaxValue]`. |
+| Giá trị Mặc định An toàn | `DefaultValue` | `Double` (`0.0`) | Giá trị an toàn nạp xuống chân ra khi kích hoạt `FailSafeAction = ResetToDefault`. |
+| Biến Đích (`TargetTag`) | `TargetTag` | `TagModel?` | Gán trực tiếp vào biến `VREG`, `VBIT` hoặc `DO` trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab). |
 
 ---
 
@@ -74,14 +74,14 @@ Khối `MQTT_SUB` để trống hoàn toàn cạnh trái (0 chân vào) và xu�
 
 | Mã số | Định danh Enum | Điều kiện Phát sinh Sự cố | Cam kết Bảo vệ Bộ nhớ Thực thi |
 | :---: | :--- | :--- | :--- |
-| **`0`** | `None` | Phân tích và chốt dữ liệu thành công. | Cập nhật đồng bộ tất cả các chân; tăng `MsgCount`. |
-| **`1`** | `ConnectionLost` | Đứt kết nối mạng TCP/TLS tới Broker. | Kích hoạt `FailSafeAction`; bật cờ `Err = 1`. |
-| **`2`** | `JsonSyntaxError` | Chuỗi nhận về sai cú pháp ngoặc `{}`, dấu phẩy hoặc nháy kép. | Hủy gói tin (`DroppedCount++`); giữ nguyên giá trị cũ. |
-| **`3`** | `MissingField` | Bản tin thiếu mất khóa `JsonPath` đã khai báo. | Hủy nguyên tử toàn gói; chỉ rõ tên trường bị thiếu (`FaultyField`). |
-| **`4`** | `TypeMismatch` | Truyền chuỗi chữ (ví dụ `"abc"`) vào chân số `Int16`/`Float`. | Hủy nguyên tử toàn gói; không làm hỏng thanh ghi số. |
-| **`5`** | `OutOfRange` | Giá trị vượt khỏi ngưỡng an toàn `[MinValue .. MaxValue]`. | Hủy nguyên tử toàn gói; chặn điểm đặt nguy hiểm cho thiết bị. |
-| **`6`** | `QueueOverflow` | Tốc độ gửi dồn dập vượt quá `16` ngăn hàng đợi `FIFO`. | Cảnh báo quá tải để kỹ sư tối ưu tần suất gửi hoặc chu kỳ xử lý. |
-| **`7`** | `TimeoutExpired` | Quá thời gian `FailSafeTimeoutMs` không có gói tin mới. | Chuyển về `KeepLastValue`, `ResetToZero` hoặc `ResetToDefault`. |
+| `0` | `None` | Phân tích và chốt dữ liệu thành công. | Cập nhật đồng bộ tất cả các chân; tăng `MsgCount`. |
+| `1` | `ConnectionLost` | Đứt kết nối mạng TCP/TLS tới Broker. | Kích hoạt `FailSafeAction`; bật cờ `Err = 1`. |
+| `2` | `JsonSyntaxError` | Chuỗi nhận về sai cú pháp ngoặc `{}`, dấu phẩy hoặc nháy kép. | Hủy gói tin (`DroppedCount++`); giữ nguyên giá trị cũ. |
+| `3` | `MissingField` | Bản tin thiếu mất khóa `JsonPath` đã khai báo. | Hủy nguyên tử toàn gói; chỉ rõ tên trường bị thiếu (`FaultyField`). |
+| `4` | `TypeMismatch` | Truyền chuỗi chữ (ví dụ `"abc"`) vào chân số `Int16`/`Float`. | Hủy nguyên tử toàn gói; không làm hỏng thanh ghi số. |
+| `5` | `OutOfRange` | Giá trị vượt khỏi ngưỡng an toàn `[MinValue .. MaxValue]`. | Hủy nguyên tử toàn gói; chặn điểm đặt nguy hiểm cho thiết bị. |
+| `6` | `QueueOverflow` | Tốc độ gửi dồn dập vượt quá `16` ngăn hàng đợi `FIFO`. | Cảnh báo quá tải để kỹ sư tối ưu tần suất gửi hoặc chu kỳ xử lý. |
+| `7` | `TimeoutExpired` | Quá thời gian `FailSafeTimeoutMs` không có gói tin mới. | Chuyển về `KeepLastValue`, `ResetToZero` hoặc `ResetToDefault`. |
 
 - **Khung Bơm Thử nghiệm Gói JSON Trực tiếp (`SimInputPayload`):** Ngay trên thanh Inspector và trong hộp thoại cấu hình `MQTT_SUB` đều tích hợp sẵn ô **Giả lập Gói tin JSON** (`SimulateSend`). Kỹ sư có thể dán trực tiếp mẫu JSON từ đội phần mềm Cloud và nhấn **Chạy thử** để kiểm tra kết quả bóc tách từng chân và thử nghiệm chặn lỗi vượt biên mà chưa cần dựng MQTT Broker thật!
 
@@ -187,7 +187,7 @@ Khối `MQTT_SUB` để trống hoàn toàn cạnh trái (0 chân vào) và xu�
 </div>
 
 **Các bước cấu hình:**
-1. Kéo khối **`MQTT_SUB`** ra vùng vẽ và cài đặt `Topic = "synaptix/hvac/chiller1/setpoint"`, `Qos = 1`, `QueueMode = LatestWins`, `IgnoreRetainedOnBoot = true`.
+1. Kéo khối `MQTT_SUB` ra vùng vẽ và cài đặt `Topic = "synaptix/hvac/chiller1/setpoint"`, `Qos = 1`, `QueueMode = LatestWins`, `IgnoreRetainedOnBoot = true`.
 2. Đặt `FailSafeTimeoutMs = 60000` và `FailSafeAction = ResetToDefault`.
 3. Thêm 2 chân ngõ ra động:
    - `temp_sp`: `DataType = Float`, `MinValue = 4.0`, `MaxValue = 18.0`, `DefaultValue = 12.0`, `TargetTag = VREG_TempSp` (`REAL`).

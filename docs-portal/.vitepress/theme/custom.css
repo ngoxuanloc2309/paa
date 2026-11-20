@@ -1678,3 +1678,320 @@
     border-top-color: #94a3b8;
   }
 }
+
+/* ==========================================================================
+   INDUSTRIAL PROTOCOL & WIRING SCHEMATICS (Strict ANSI/ISA-101 Slate Palette)
+   ========================================================================== */
+.synx-proto-card {
+  background-color: var(--vp-c-bg, #ffffff);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.synx-proto-header {
+  background-color: var(--vp-c-bg-mute, #f1f5f9);
+  color: var(--vp-c-text-1, #0f172a);
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--vp-c-divider, #cbd5e1);
+}
+
+.synx-proto-status {
+  background-color: var(--vp-c-bg-soft, #e2e8f0);
+  color: var(--vp-c-text-2, #334155);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--vp-font-family-mono, monospace);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+}
+
+.synx-proto-body {
+  padding: 12px 14px;
+}
+
+.synx-proto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.synx-proto-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.synx-proto-label {
+  color: var(--vp-c-text-2, #64748b);
+  font-size: 0.78rem;
+}
+
+.synx-proto-val {
+  color: var(--vp-c-text-1, #0f172a);
+  font-weight: 600;
+}
+
+.synx-proto-val.font-mono {
+  font-family: var(--vp-font-family-mono, monospace);
+}
+
+.synx-proto-badge-ok {
+  background-color: var(--vp-c-bg-mute, #f1f5f9);
+  color: var(--vp-c-text-2, #334155);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+  margin-left: 4px;
+}
+
+.synx-proto-divider {
+  height: 1px;
+  background-color: var(--vp-c-divider, #e2e8f0);
+  margin: 10px 0;
+}
+
+.synx-proto-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.synx-stream-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.synx-stream-tag {
+  color: var(--vp-c-text-1, #334155);
+  font-weight: 700;
+  min-width: 130px;
+  font-size: 0.80rem;
+}
+
+.synx-byte-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.synx-byte-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.synx-byte {
+  background-color: var(--vp-c-bg-mute, #f8fafc);
+  color: var(--vp-c-text-1, #0f172a);
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--vp-font-family-mono, monospace);
+  border: 1px solid var(--vp-c-divider, #94a3b8);
+}
+
+.synx-byte-sub {
+  font-size: 0.65rem;
+  color: var(--vp-c-text-3, #64748b);
+  font-weight: 600;
+}
+
+/* RS-485 BUS SCHEMATIC */
+.synx-rs485-schematic {
+  background-color: var(--vp-c-bg, #ffffff);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  padding: 14px;
+}
+
+.synx-rs485-nodes {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.synx-rs485-node {
+  background-color: var(--vp-c-bg, #ffffff);
+  border: 1px solid var(--vp-c-text-3, #475569);
+  border-radius: 3px;
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.synx-rs485-node-header {
+  background-color: var(--vp-c-bg-mute, #f1f5f9);
+  color: var(--vp-c-text-1, #0f172a);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--vp-c-divider, #cbd5e1);
+}
+
+.synx-rs485-terminals {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.synx-rs485-term {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background-color: var(--vp-c-bg-mute, #f8fafc);
+  color: var(--vp-c-text-1, #1e293b);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+  font-family: var(--vp-font-family-mono, monospace);
+}
+
+.synx-rs485-resistor {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.synx-resistor-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background-color: var(--vp-c-bg-mute, #f1f5f9);
+  color: var(--vp-c-text-2, #334155);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+}
+
+.synx-rs485-trunk {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0 4px;
+  flex: 0.35;
+  gap: 14px;
+}
+
+.synx-trunk-line {
+  height: 1px;
+  width: 100%;
+  background-color: var(--vp-c-text-2, #334155);
+}
+
+.synx-trunk-line.is-gnd {
+  border-top: 1px dashed var(--vp-c-text-3, #64748b);
+  background: transparent;
+}
+
+/* ZIGBEE MESH TOPOLOGY */
+.synx-mesh-schematic {
+  background-color: var(--vp-c-bg, #ffffff);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  padding: 14px;
+}
+
+.synx-mesh-level {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.synx-mesh-node {
+  background-color: var(--vp-c-bg, #ffffff);
+  border: 1px solid var(--vp-c-text-3, #64748b);
+  border-radius: 3px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.synx-mesh-node.is-coord {
+  border: 1.5px solid var(--vp-c-text-1, #0f172a);
+  background-color: var(--vp-c-bg-mute, #f8fafc);
+}
+
+.synx-mesh-node.is-router {
+  border: 1px solid var(--vp-c-text-2, #475569);
+}
+
+.synx-mesh-node.is-end {
+  border: 1px solid var(--vp-c-divider, #94a3b8);
+}
+
+.synx-mesh-role {
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: #334155;
+  color: #ffffff;
+}
+
+.synx-mesh-node.is-router .synx-mesh-role {
+  background-color: #64748b;
+  color: #ffffff;
+}
+
+.synx-mesh-node.is-end .synx-mesh-role {
+  background-color: var(--vp-c-bg-mute, #e2e8f0);
+  color: var(--vp-c-text-2, #334155);
+  border: 1px solid var(--vp-c-divider, #cbd5e1);
+}
+
+.synx-mesh-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1, #0f172a);
+}
+
+.synx-mesh-connector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--vp-c-text-3, #64748b);
+  font-size: 0.75rem;
+  margin: 4px 0;
+  gap: 10px;
+}
+
+.synx-mesh-connector::before,
+.synx-mesh-connector::after {
+  content: "";
+  height: 1px;
+  width: 50px;
+  background-color: var(--vp-c-divider, #94a3b8);
+}

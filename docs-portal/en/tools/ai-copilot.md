@@ -7,7 +7,7 @@
   <span><strong>Safety Model:</strong> Preview-Before-Commit &bull; Mandatory Human-in-the-Loop Verification</span>
 </div>
 
-**SynaptiX AI Copilot** is an integrated industrial engineering assistant docked inside **SynaptiX IDE**. Press `Ctrl+Space` from any workspace to slide open the 380 px Copilot side panel, describe your automation requirement in plain English or Vietnamese, and let Copilot synthesize typed tags, 4-stage control rules, IEC timers/counters, linear calibrators, RS-485 Modbus pollers, and MQTT JSON telemetry pipelines directly onto your project.
+**SynaptiX AI Copilot** is an integrated industrial engineering assistant docked inside SynaptiX IDE. Press `Ctrl+Space` from any workspace to slide open the 380 px Copilot side panel, describe your automation requirement in plain English or Vietnamese, and let Copilot synthesize typed tags, 4-stage control rules, IEC timers/counters, linear calibrators, RS-485 Modbus pollers, and MQTT JSON telemetry pipelines directly onto your project.
 
 ![SynaptiX AI Copilot Side Panel & Graph Synthesis](/images/synaptix_ai_copilot.png)
 
@@ -124,11 +124,11 @@ Unlike generic web chatbots that have no visibility into your hardware I/O layou
 
 | Synthesis Domain | Generated Artifacts |
 | :--- | :--- |
-| **Tag Catalog Provisioning** | Allocates unused `DI`, `DO`, `AI`, `VFLAG`, `VREG`, or `VREG_RETAIN` slots, enforces `BOOL` / `INT32` / `REAL` physical types, and populates descriptive aliases and units. |
-| **Interlocked Control Loops** | Builds complete `INPUT -> TRIGGER -> COMPARATOR -> GUARD -> ACTION` chains with proper `Set` / `Reset` latching and E-Stop permissive gating. |
-| **Timing, Counting & Scaling** | Wires [`TON`](/blocks/ton) debounce delays, [`TOF`](/blocks/tof) cooling overruns, [`TP`](/blocks/tp) fixed pulses, [`CTU`](/blocks/ctu) batch counters, and [`SCALE`](/blocks/scale) `4..20 mA` two-point linearizers. |
-| **RS-485 & IIoT Telemetry** | Generates [`MB_READ`](/blocks/mb-read) register polling pins, [`MQTT_PUB`](/blocks/mqtt-pub) multi-field JSON builders, and [`MQTT_SUB`](/blocks/mqtt-sub) inbound command decoders. |
-| **Compiler Error Remediation** | Explains structural grammar or write-conflict diagnostics in plain language and proposes corrected wiring. |
+| Tag Catalog Provisioning | Allocates unused `DI`, `DO`, `AI`, `VFLAG`, `VREG`, or `VREG_RETAIN` slots, enforces `BOOL` / `INT32` / `REAL` physical types, and populates descriptive aliases and units. |
+| Interlocked Control Loops | Builds complete `INPUT -> TRIGGER -> COMPARATOR -> GUARD -> ACTION` chains with proper `Set` / `Reset` latching and E-Stop permissive gating. |
+| Timing, Counting & Scaling | Wires [`TON`](/blocks/ton) debounce delays, [`TOF`](/blocks/tof) cooling overruns, [`TP`](/blocks/tp) fixed pulses, [`CTU`](/blocks/ctu) batch counters, and [`SCALE`](/blocks/scale) `4..20 mA` two-point linearizers. |
+| RS-485 & IIoT Telemetry | Generates [`MB_READ`](/blocks/mb-read) register polling pins, [`MQTT_PUB`](/blocks/mqtt-pub) multi-field JSON builders, and [`MQTT_SUB`](/blocks/mqtt-sub) inbound command decoders. |
+| Compiler Error Remediation | Explains structural grammar or write-conflict diagnostics in plain language and proposes corrected wiring. |
 
 ---
 
@@ -138,9 +138,9 @@ Ambiguous prompts produce generic logic. Writing structured engineering prompts 
 
 | Prompt Dimension | Weak / Ambiguous Prompt | Strong Industrial Engineering Prompt |
 | :--- | :--- | :--- |
-| **Pump Pressure Control with Dwell & E-Stop** | *"Turn on the relief valve when pressure gets too high."* | *"Scale analog input `AI0` (`4..20 mA`) to `0.0..16.0 bar` into `VREG0` (`BoilerPressure_Bar`). If `VREG0 >= 12.5 bar` continuously for `5 s` (`TON`), energize relief valve `DO0`, gated by active-high E-Stop healthy contact `DI2 == 1`. Reset `DO0` when `VREG0 <= 10.5 bar`."* |
-| **Post-Stop Cooling Fan Overrun** | *"Keep cooling fan running for a bit after the motor stops."* | *"Control main spindle `DO0` with Start pushbutton `DI0` (rising edge) and Stop pushbutton `DI1`, interlocked by thermal overload healthy `DI3 == 1`. Drive cooling fan `DO1` via a `TOF` off-delay timer so `DO1` stays ON during operation and continues running for `15 s` after `DO0` turns OFF."* |
-| **RS-485 Sensor to MQTT Telemetry** | *"Read temperature from Modbus and send to MQTT."* | *"Poll Slave ID `2` on `RS-485 #1` Holding Register `40001` (`INT16`, scale `0.1`) into `VREG1` (`ChamberTemp_C`) and `40002` (`UINT16`, scale `0.1`) into `VREG2` (`ChamberHum_Pct`) every `1000 ms`. Publish both fields with device ID and UTC timestamp every `10 s` (`QoS 1`) to MQTT topic `plant/oven1/telemetry`."* |
+| Pump Pressure Control with Dwell & E-Stop | *"Turn on the relief valve when pressure gets too high."* | *"Scale analog input `AI0` (`4..20 mA`) to `0.0..16.0 bar` into `VREG0` (`BoilerPressure_Bar`). If `VREG0 >= 12.5 bar` continuously for `5 s` (`TON`), energize relief valve `DO0`, gated by active-high E-Stop healthy contact `DI2 == 1`. Reset `DO0` when `VREG0 <= 10.5 bar`."* |
+| Post-Stop Cooling Fan Overrun | *"Keep cooling fan running for a bit after the motor stops."* | *"Control main spindle `DO0` with Start pushbutton `DI0` (rising edge) and Stop pushbutton `DI1`, interlocked by thermal overload healthy `DI3 == 1`. Drive cooling fan `DO1` via a `TOF` off-delay timer so `DO1` stays ON during operation and continues running for `15 s` after `DO0` turns OFF."* |
+| RS-485 Sensor to MQTT Telemetry | *"Read temperature from Modbus and send to MQTT."* | *"Poll Slave ID `2` on `RS-485 #1` Holding Register `40001` (`INT16`, scale `0.1`) into `VREG1` (`ChamberTemp_C`) and `40002` (`UINT16`, scale `0.1`) into `VREG2` (`ChamberHum_Pct`) every `1000 ms`. Publish both fields with device ID and UTC timestamp every `10 s` (`QoS 1`) to MQTT topic `plant/oven1/telemetry`."* |
 
 ::: tip Iterative Refinement & Full Undo (`Ctrl+Z`)
 Every Copilot generation surfaces as a reviewable proposal (`HasPendingAiProposal`) with auto-layout node placement. Even after accepting a generated circuit onto the [Logic Graph (`Ctrl+2`)](/workspaces/logic-graph-tab), the entire multi-node insertion is recorded as a single atomic transaction on the undo stack—press `Ctrl+Z` at any time to roll back cleanly.
@@ -151,7 +151,7 @@ Every Copilot generation surfaces as a reviewable proposal (`HasPendingAiProposa
 ## 4. Mandatory Human-in-the-Loop Verification Checklist
 
 ::: danger Safety-Critical Engineering Rule (IEC 61508-3)
-AI-generated control logic is an **engineering draft**, never a substitute for qualified commissioning verification. You **MUST** complete every item in the 4-step verification checklist below before executing **Atomic Deploy (`Ctrl+F5`)** to physical machinery!
+AI-generated control logic is an engineering draft, never a substitute for qualified commissioning verification. You **MUST** complete every item in the 4-step verification checklist below before executing **Atomic Deploy (`Ctrl+F5`)** to physical machinery!
 :::
 
 1. **Inspect Physical Tag Types & Polarity (`Ctrl+3`):**

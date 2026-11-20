@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`ACTION`** block is the terminal execution sink of a Core Rule Pipeline network. Whenever an execution pulse reaches its `In` connector—having cleared upstream [`TRIGGER`](/blocks/trigger), [`COMPARATOR`](/blocks/comparator), [`GUARD`](/blocks/guard), [`TON`](/blocks/ton), [`CTU`](/blocks/ctu), or fieldbus/cloud completion pins—`ACTION` performs an atomic operation on `TargetTag` or the runtime event subsystem.
+The `ACTION` block is the terminal execution sink of a Core Rule Pipeline network. Whenever an execution pulse reaches its `In` connector—having cleared upstream [`TRIGGER`](/blocks/trigger), [`COMPARATOR`](/blocks/comparator), [`GUARD`](/blocks/guard), [`TON`](/blocks/ton), [`CTU`](/blocks/ctu), or fieldbus/cloud completion pins—`ACTION` performs an atomic operation on `TargetTag` or the runtime event subsystem.
 
 - **Scan-Synchronous Memory Commit:** Tag mutations (`SET_TAG`, `TOGGLE_TAG`, `INC_COUNTER`, `SCALE_TAG`) commit deterministically during the output update phase of the active scan cycle, ensuring predictable actuation latency across all rules.
 - **Strict Type-Locked Parameterization:** Changing `TargetTag` immediately reconfigures `ActionParam` in the Inspector—presenting binary `[ 0 ]` / `[ 1 ]` buttons for `BOOL` coils/flags, exact integer parsing for `INT32` registers/counters, and IEEE-754 floating-point formatting (`0.0###`) for `REAL` registers.
@@ -92,10 +92,10 @@ A momentary panel pushbutton on `DI2` controls a mixing agitator contactor (`DO1
 
 ### Step-by-Step Canvas Wiring
 
-1. Place **`INPUT`** (`Tag = DI2`) → **[`TRIGGER`](/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 60` ms contact debounce).
-2. Wire `TRIGGER.Out` to a first **`ACTION`** block configured with `ActionType = TOGGLE_TAG` and `TargetTag = DO1` (`CustomLabel = "Toggle Agitator"`).
-3. Drag a second fan-out wire from the same `TRIGGER.Out` pin to a second **`ACTION`** block configured with `ActionType = INC_COUNTER`, `TargetTag = VREG_R0`, and `ActionParam = 1` (`CustomLabel = "Count Operation"`).
-4. Press `F5` to test in the **Simulator**: click the `DI2` toggle button (`0 → 1` for `60 ms`) repeatedly and verify `DO1` alternates cleanly `0 → 1 → 0 → 1` while `VREG_R0` increments `1 → 2 → 3` without double-counting contact bounce.
+1. Place `INPUT` (`Tag = DI2`) → [`TRIGGER`](/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 60` ms contact debounce).
+2. Wire `TRIGGER.Out` to a first `ACTION` block configured with `ActionType = TOGGLE_TAG` and `TargetTag = DO1` (`CustomLabel = "Toggle Agitator"`).
+3. Drag a second fan-out wire from the same `TRIGGER.Out` pin to a second `ACTION` block configured with `ActionType = INC_COUNTER`, `TargetTag = VREG_R0`, and `ActionParam = 1` (`CustomLabel = "Count Operation"`).
+4. Press `F5` to test in the Simulator: click the `DI2` toggle button (`0 → 1` for `60 ms`) repeatedly and verify `DO1` alternates cleanly `0 → 1 → 0 → 1` while `VREG_R0` increments `1 → 2 → 3` without double-counting contact bounce.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-input">

@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`TOF`** (**Timer Off-Delay — Hẹn giờ Trễ Ngắt**) đóng ngõ ra nhị phân `Q` lên mức `1` **ngay lập tức** khi tín hiệu `In` lên mức `1`, và **tiếp tục giữ `Q = 1` thêm đúng khoảng thời gian `PresetMs`** sau khi tín hiệu `In` ngắt từ `1 → 0`.
+Khối `TOF` (**Timer Off-Delay — Hẹn giờ Trễ Ngắt**) đóng ngõ ra nhị phân `Q` lên mức `1` **ngay lập tức** khi tín hiệu `In` lên mức `1`, và **tiếp tục giữ `Q = 1` thêm đúng khoảng thời gian `PresetMs`** sau khi tín hiệu `In` ngắt từ `1 → 0`.
 
 - **Đóng Tức thì, Ngắt Có Trễ:** Chừng nào `In == 1`, ngõ ra `Q` luôn bằng `1` và bộ đếm thời gian trễ ngắt `ET` giữ ở `0`. Quá trình đếm thời gian duy trì chỉ bắt đầu ngay tại **sườn xuống** (`In: 1 → 0`).
 - **Tái Kích hoạt Mượt Không Nháy Ngõ ra:** Nếu `In` bật lại lên `1` trong lúc bộ đếm trễ ngắt vẫn chưa chạy hết (`0 < ET < PresetMs`), `ET` lập tức xóa về `0` và `Q` giữ liền mạch ở mức `1` mà không hề bị ngắt quãng. Chỉ khi `In` duy trì mức `0` suốt trọn vẹn `PresetMs`, ngõ ra `Q` mới hạ về `0`.
@@ -45,11 +45,11 @@ Bảng dưới đây thể hiện chi tiết quy trình đóng tức thì (`In =
 
 | Giai đoạn Xung | Ngõ vào `In` | Thời gian Trễ Ngắt `ET` | Ngõ ra `Q` | Trạng thái Vận hành Thực tế |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Nghỉ Ban đầu** | `0` | `0 ms` | `0` | Cơ cấu chấp hành đang tắt (`OFF`) |
-| **2. Cấp Tín hiệu Vào** | `1` | `0 ms` | `1` (`ON`) | Đóng ngõ ra tức thì (độ trễ `0 ms`) |
-| **3. Sườn Xuống (`1 → 0`)** | `0` | `0 → PresetMs` | `1` (`ON`) | Đang chạy duy trì sau ngắt; `ET` đếm tiến tới `PresetMs` |
-| **4. Kích Lại Giữa chừng** | `1` | Xóa ngay về `0 ms` | `1` (`ON`) | Duy trì liền mạch, không làm nháy tiếp điểm ngõ ra |
-| **5. Hết Thời gian Giữ** | `0` | `PresetMs` | `0` (`OFF`) | Hoàn tất chu trình làm mát/duy trì; ngắt ngõ ra |
+| 1. Nghỉ Ban đầu | `0` | `0 ms` | `0` | Cơ cấu chấp hành đang tắt (`OFF`) |
+| 2. Cấp Tín hiệu Vào | `1` | `0 ms` | `1` (`ON`) | Đóng ngõ ra tức thì (độ trễ `0 ms`) |
+| 3. Sườn Xuống (`1 → 0`) | `0` | `0 → PresetMs` | `1` (`ON`) | Đang chạy duy trì sau ngắt; `ET` đếm tiến tới `PresetMs` |
+| 4. Kích Lại Giữa chừng | `1` | Xóa ngay về `0 ms` | `1` (`ON`) | Duy trì liền mạch, không làm nháy tiếp điểm ngõ ra |
+| 5. Hết Thời gian Giữ | `0` | `PresetMs` | `0` (`OFF`) | Hoàn tất chu trình làm mát/duy trì; ngắt ngõ ra |
 
 ---
 
@@ -82,9 +82,9 @@ Khi biến tần trục chính máy phay CNC vận hành (tiếp điểm báo ch
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Đặt khối **`INPUT`** (`Tag = DI1`, `CustomLabel = "Trục chính Đang Chạy"`).
-2. Chọn khối `INPUT` rồi nhấp thêm khối **`TOF`** trên thanh công cụ để nối dây `INPUT.Out → TOF.In`.
-3. Trên bảng **Inspector** của `TOF`, nhập `DurationValueText = "2"`, chọn đơn vị `TimeUnit = "min"` (kiểm tra dòng `= 120,000 ms (2min)`) và chọn `OutputTag = DO1` (`CustomLabel = "Trễ Tắt Quạt Làm mát"`).
+1. Đặt khối `INPUT` (`Tag = DI1`, `CustomLabel = "Trục chính Đang Chạy"`).
+2. Chọn khối `INPUT` rồi nhấp thêm khối `TOF` trên thanh công cụ để nối dây `INPUT.Out → TOF.In`.
+3. Trên bảng Inspector của `TOF`, nhập `DurationValueText = "2"`, chọn đơn vị `TimeUnit = "min"` (kiểm tra dòng `= 120,000 ms (2min)`) và chọn `OutputTag = DO1` (`CustomLabel = "Trễ Tắt Quạt Làm mát"`).
 4. Nhấn `F5` mô phỏng kiểm tra (có thể đặt thử `3 s` để quan sát nhanh trên máy tính rồi trả lại `2 min` trước khi nạp xuống thiết bị):
    - Đảo `DI1` từ `0 → 1`: quạt `DO1` đóng lên `1` ngay tức khắc.
    - Đảo `DI1` từ `1 → 0`: `DO1` vẫn giữ mức `1` trong khi `ET` đếm tăng dần tới `PresetMs`.

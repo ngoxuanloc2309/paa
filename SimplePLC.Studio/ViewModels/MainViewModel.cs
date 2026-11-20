@@ -324,6 +324,7 @@ public partial class MainViewModel : ObservableObject
             GetProjectMetadata = () => CurrentProjectMetadata,
             OpenDeviceModbusPortConfig = () => OpenModbusPortConfig(),
             OpenDeviceMqttBrokerConfig = () => OpenMqttBrokerConfig(),
+            RequestSaveProject = () => SaveProject(),
             NotifyProjectMetadataChanged = () =>
             {
                 DtuGatewayStudioVM?.ReloadFromMetadata();
@@ -1467,11 +1468,23 @@ public partial class MainViewModel : ObservableObject
         {
             Owner = activeWindow
         };
-        if (dialog.ShowDialog() == true)
+        try
         {
-            IsProjectDirty = true;
+            if (dialog.ShowDialog() == true)
+            {
+                IsProjectDirty = true;
+                DtuGatewayStudioVM?.ReloadFromMetadata();
+                LogicEditorVM?.NotifyGraphModified();
+            }
+            else
+            {
+                DtuGatewayStudioVM?.ReloadFromMetadata();
+            }
+        }
+        finally
+        {
+            vm.Dispose();
             DtuGatewayStudioVM?.ReloadFromMetadata();
-            LogicEditorVM?.NotifyGraphModified();
         }
     }
 
@@ -1616,7 +1629,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             DtuGatewayStudioVM?.SaveToMetadata();
-            LogicEditorVM.SaveAndCompile();
+            LogicEditorVM.CompileNow();
 
             var (nodes, connections) = LogicEditorVM.ExportGraphData();
             

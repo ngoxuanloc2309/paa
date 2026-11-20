@@ -7,7 +7,7 @@
   <span><strong>Verification:</strong> Offline Simulator (<code>F5</code>) &amp; Live Debug (<code>F8</code>) Tested</span>
 </div>
 
-This section provides two complete, field-proven multi-block reference architectures demonstrating how **SynaptiX IDE** unifies RS-485 fieldbus polling, local deterministic protection rules, hardware pulse actuation, and bidirectional MQTT JSON cloud messaging on a single canvas.
+This section provides two complete, field-proven multi-block reference architectures demonstrating how SynaptiX IDE unifies RS-485 fieldbus polling, local deterministic protection rules, hardware pulse actuation, and bidirectional MQTT JSON cloud messaging on a single canvas.
 
 ---
 
@@ -226,11 +226,11 @@ An unattended substation cabinet houses a 3-phase RS-485 energy analyzer (`Slave
 
 | Block Instance | Key Parameters |
 | :--- | :--- |
-| **`MB_READ #1`** | Port = `RS-485 #1` (`9600 8N1`), Slave ID = `1`, `FC03` Start = `40001`, Poll = `1000 ms`, Pin 1 -> `VREG0` (`REAL ABCD`, Scale `1.0`), Pin 2 -> `VREG1` (`REAL ABCD`, Scale `1.0`). |
-| **`MB_READ #2`** | Port = `RS-485 #1`, Slave ID = `2`, `FC04` Start = `30001`, Poll = `2000 ms`, Pin 1 -> `VREG3` (`INT16`, Scale `0.1`), Pin 2 -> `VREG4` (`UINT16`, Scale `0.1`). |
-| **`SCALE`** | Input = `AI0`, `InMin = 4.0`, `InMax = 20.0`, `OutMin = 0.0`, `OutMax = 150.0`, `Clamp = Enabled`, Output = `VREG2` (`°C`). |
-| **Local Protection Chain** | Rule 1: `VREG2 >= 85.0` -> `TON` (`PT = 5000 ms`, `Q = VFLAG0`) -> `GUARD` (`DI0 == 1`) -> `ACTION` (`Set DO0 = 1`). Rule 2: `VREG2 <= 78.0` -> `ACTION` (`Reset DO0 = 0`). |
-| **`MQTT_PUB`** | Topic = `substation/tx01/telemetry`, Mode = `Cyclic` (`10000 ms`), `QoS = 1`, `Retain = false`, `PayloadMode = JSON` (`IncludeDevice = true`, `IncludeTimestamp = true`, `WrapValues = true`). |
+| `MB_READ #1` | Port = `RS-485 #1` (`9600 8N1`), Slave ID = `1`, `FC03` Start = `40001`, Poll = `1000 ms`, Pin 1 -> `VREG0` (`REAL ABCD`, Scale `1.0`), Pin 2 -> `VREG1` (`REAL ABCD`, Scale `1.0`). |
+| `MB_READ #2` | Port = `RS-485 #1`, Slave ID = `2`, `FC04` Start = `30001`, Poll = `2000 ms`, Pin 1 -> `VREG3` (`INT16`, Scale `0.1`), Pin 2 -> `VREG4` (`UINT16`, Scale `0.1`). |
+| `SCALE` | Input = `AI0`, `InMin = 4.0`, `InMax = 20.0`, `OutMin = 0.0`, `OutMax = 150.0`, `Clamp = Enabled`, Output = `VREG2` (`°C`). |
+| Local Protection Chain | Rule 1: `VREG2 >= 85.0` -> `TON` (`PT = 5000 ms`, `Q = VFLAG0`) -> `GUARD` (`DI0 == 1`) -> `ACTION` (`Set DO0 = 1`). Rule 2: `VREG2 <= 78.0` -> `ACTION` (`Reset DO0 = 0`). |
+| `MQTT_PUB` | Topic = `substation/tx01/telemetry`, Mode = `Cyclic` (`10000 ms`), `QoS = 1`, `Retain = false`, `PayloadMode = JSON` (`IncludeDevice = true`, `IncludeTimestamp = true`, `WrapValues = true`). |
 
 ### 1.5 Sample Outbound JSON Payload (`substation/tx01/telemetry`)
 
@@ -253,7 +253,7 @@ An unattended substation cabinet houses a 3-phase RS-485 energy analyzer (`Slave
 ## AN-002: Warehouse Sort-to-Light Chute Controller
 
 ### 2.1 Engineering Objective
-In an e-commerce parcel sorting station, an overhead barcode scanner sends parcel IDs to a Warehouse Management System (WMS). Within `50 ms`, the WMS publishes a sorting command JSON to topic `wms/station04/sort` specifying which destination chute (`1..18`) and operator RGB indicator code (`1 = Green`, `2 = Amber`, `3 = Blue`) must illuminate. The **SynaptiX Edge Controller** must:
+In an e-commerce parcel sorting station, an overhead barcode scanner sends parcel IDs to a Warehouse Management System (WMS). Within `50 ms`, the WMS publishes a sorting command JSON to topic `wms/station04/sort` specifying which destination chute (`1..18`) and operator RGB indicator code (`1 = Green`, `2 = Amber`, `3 = Blue`) must illuminate. The SynaptiX Edge Controller must:
 1. Parse inbound JSON commands **atomically** via [`MQTT_SUB`](/blocks/mqtt-sub) (`FIFO` queue depth `16` so rapid back-to-back parcels are never dropped).
 2. Drive an 18-chute RS-485 indicator bar via [`MB_WRITE`](/blocks/mb-write) (or addressable strip via [`DIRECT_WRITE`](/blocks/direct-write)) in **Exclusive Channel-Indexed Mode (`IsExclusiveChannel = true`)**—automatically turning OFF the previously lit chute while illuminating the new target chute in one deterministic transaction.
 3. Start a [`TP`](/blocks/tp) monostable pulse timer (`PT = 4000 ms`) on every `Valid` command pulse to drive an audible sort-confirmation buzzer (`DO1` for `250 ms`) and auto-extinguish the chute indicator if no new parcel arrives within `4 seconds`.
@@ -415,10 +415,10 @@ In an e-commerce parcel sorting station, an overhead barcode scanner sends parce
 
 | Block Instance | Key Parameters |
 | :--- | :--- |
-| **`MQTT_SUB`** | Topic = `wms/station04/sort`, `QoS = 1`, `QueueMode = FIFO (16)`, `IgnoreRetainedOnBoot = true` *(prevents stale parcel chutes lighting up after a power cycle!)*, Dynamic Pins: `"chute"` -> `VREG0` (`INT32`), `"cmd"` -> `VREG1` (`INT32`), `"color"` -> `VREG2` (`INT32`). |
-| **`MB_WRITE`** | Port = `RS-485 #1` (`115200 8N1`), Slave ID = `1`, `WriteMode = ChannelIndexed`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge` (`Trig` wired to `MQTT_SUB.Valid`), `Channel` = `VREG0`, `Command` = `VREG1`, `Param` = `VREG2`, `TimeoutMs = 300 ms`. |
+| `MQTT_SUB` | Topic = `wms/station04/sort`, `QoS = 1`, `QueueMode = FIFO (16)`, `IgnoreRetainedOnBoot = true` *(prevents stale parcel chutes lighting up after a power cycle!)*, Dynamic Pins: `"chute"` -> `VREG0` (`INT32`), `"cmd"` -> `VREG1` (`INT32`), `"color"` -> `VREG2` (`INT32`). |
+| `MB_WRITE` | Port = `RS-485 #1` (`115200 8N1`), Slave ID = `1`, `WriteMode = ChannelIndexed`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge` (`Trig` wired to `MQTT_SUB.Valid`), `Channel` = `VREG0`, `Command` = `VREG1`, `Param` = `VREG2`, `TimeoutMs = 300 ms`. |
 | **`DIRECT_WRITE` *(Alternative)* ** | For direct addressable LED/actuator strips wired to `DO1`: `Mode = AddressableBus`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge`. |
-| **`TP` Pulse Timer** | `IN` = `VFLAG0` (`Sort_Cmd_Valid`), `PT = 4000 ms`, `Q` = `VFLAG2` (`Chute_Window_Active`). Falling edge of `VFLAG2` resets `VREG1 = 0` to auto-extinguish the bar after `4 seconds`. |
+| `TP` Pulse Timer | `IN` = `VFLAG0` (`Sort_Cmd_Valid`), `PT = 4000 ms`, `Q` = `VFLAG2` (`Chute_Window_Active`). Falling edge of `VFLAG2` resets `VREG1 = 0` to auto-extinguish the bar after `4 seconds`. |
 
 ### 2.5 Sample Inbound WMS Command & Atomic Rejection Test
 

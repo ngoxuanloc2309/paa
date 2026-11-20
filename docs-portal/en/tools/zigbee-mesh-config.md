@@ -7,7 +7,7 @@
   <span><strong>Standard:</strong> IEEE 802.15.4 &bull; Zigbee PRO Industrial Specification</span>
 </div>
 
-In large factory floors or tank farms where running RS-485 cables is physically challenging or costly, **SynaptiX IDE** supports **Industrial Zigbee Mesh** wireless communication. Featuring dynamic self-routing and automatic self-healing capabilities, Zigbee mesh allows distributed temperature, pressure, and level sensors to relay measurement data reliably back to the central controller around metal obstacles.
+In large factory floors or tank farms where running RS-485 cables is physically challenging or costly, SynaptiX IDE supports **Industrial Zigbee Mesh** wireless communication. Featuring dynamic self-routing and automatic self-healing capabilities, Zigbee mesh allows distributed temperature, pressure, and level sensors to relay measurement data reliably back to the central controller around metal obstacles.
 
 ---
 
@@ -17,26 +17,44 @@ An industrial Zigbee mesh consists of three coordinated device roles:
 
 | Device Role | Icon | System Placement | Operational Responsibility |
 | :--- | :---: | :--- | :--- |
-| **Coordinator** | 👑 | Central SynaptiX Controller | Creates the network, allocates 16-bit network addresses, manages the AES security key, and serves as the data gateway for the PLC runtime. |
-| **Router** | 🔁 | Intermediate Control Panels | Performs local I/O while simultaneously acting as a wireless repeater to relay packets from remote sensors. Requires permanent power. |
-| **End Device** | 📡 | Battery-powered field transmitters | Periodically wakes up, transmits measurement packets, and immediately returns to deep sleep to conserve battery. Does not relay traffic. |
+| Coordinator | `[Coordinator]` | Central SynaptiX Controller | Creates the network, allocates 16-bit network addresses, manages the AES security key, and serves as the data gateway for the PLC runtime. |
+| Router | `[Router]` | Intermediate Control Panels | Performs local I/O while simultaneously acting as a wireless repeater to relay packets from remote sensors. Requires permanent power. |
+| End Device | `[End Device]` | Battery-powered field transmitters | Periodically wakes up, transmits measurement packets, and immediately returns to deep sleep to conserve battery. Does not relay traffic. |
 
-```mermaid
-flowchart TD
-    Coord["👑 SynaptiX Coordinator (Master)"]
-    R1["🔁 Router 1 (Machine Cell A)"]
-    R2["🔁 Router 2 (Machine Cell B)"]
-    ED1["📡 Tank Level Sensor 1"]
-    ED2["📡 Tank Level Sensor 2"]
-    ED3["📡 Outdoor Pressure Sensor"]
-
-    Coord <-->|RF Link| R1
-    Coord <-->|RF Link| R2
-    R1 <-->|RF Link| R2
-    R1 --> ED1
-    R2 --> ED2
-    R2 --> ED3
-```
+<div class="synx-mesh-schematic">
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-coord">
+<span class="synx-mesh-role">Coordinator</span>
+<span class="synx-mesh-name">Central Gateway</span>
+</div>
+</div>
+<div class="synx-mesh-connector">RF Mesh Link (2.4 GHz)</div>
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-router">
+<span class="synx-mesh-role">Router 1</span>
+<span class="synx-mesh-name">Repeater Cell A</span>
+</div>
+<div class="synx-mesh-node is-router">
+<span class="synx-mesh-role">Router 2</span>
+<span class="synx-mesh-name">Repeater Cell B</span>
+</div>
+</div>
+<div class="synx-mesh-connector">Sensor Leaves</div>
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Tank Sensor 1</span>
+</div>
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Tank Sensor 2</span>
+</div>
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Outdoor Sensor</span>
+</div>
+</div>
+</div>
 
 ---
 
@@ -78,5 +96,5 @@ To pair a new wireless sensor into an established mesh:
 | Symptom | Probable Root Cause | Corrective Action |
 | :--- | :--- | :--- |
 | Sensor cannot discover network | Mismatched Pan ID or wrong RF channel | Verify that the sensor Pan ID and RF channel match the Coordinator settings. |
-| Weak wireless link (`RSSI < -85 dBm`) | Excessive distance or heavy metal shielding | Add an intermediate **Router** node between the sensor and controller. |
-| High packet latency or intermittent drops | Co-channel interference from plant Wi-Fi AP | Migrate the Zigbee network to **Channel 25** or **Channel 26**. |
+| Weak wireless link (`RSSI < -85 dBm`) | Excessive distance or heavy metal shielding | Add an intermediate Router node between the sensor and controller. |
+| High packet latency or intermittent drops | Co-channel interference from plant Wi-Fi AP | Migrate the Zigbee network to Channel 25 or Channel 26. |

@@ -11,17 +11,17 @@
 
 ## 1. Purpose & Operational Role
 
-The **Device Workspace** (`Ctrl+1`) is the hardware commissioning and transport management center of **SynaptiX IDE**. Before authoring deterministic control rules or commissioning live field signals, engineers use this workspace to establish physical or virtual communication links, inspect target hardware capabilities, synchronize the controller's Real-Time Clock (RTC), and provision onboard peripheral subsystems.
+The **Device Workspace** (`Ctrl+1`) is the hardware commissioning and transport management center of SynaptiX IDE. Before authoring deterministic control rules or commissioning live field signals, engineers use this workspace to establish physical or virtual communication links, inspect target hardware capabilities, synchronize the controller's Real-Time Clock (RTC), and provision onboard peripheral subsystems.
 
 From an operational lifecycle perspective, the **Device Workspace** governs four foundational commissioning duties:
 
-1. **Transport Selection & Session Lifecycle (`F4`):** Switching seamlessly between direct local serial commissioning (**USB CDC**), networked industrial Ethernet (**Modbus TCP**), or the built-in cycle-accurate virtual target (`SIMULATOR (VIRTUAL)`), complete with automatic link-drop recovery.
-2. **Hardware Identity & Capability Discovery:** Querying the connected **SynaptiX Edge Controller** for its device class, physical I/O variant, firmware revision, wire protocol profile, and resource limits—automatically aligning the project's [Tag Catalog](/workspaces/tag-catalog-tab) and [Logic Graph](/workspaces/logic-graph-tab) block palette to the physical hardware.
+1. **Transport Selection & Session Lifecycle (`F4`):** Switching seamlessly between direct local serial commissioning (USB CDC), networked industrial Ethernet (Modbus TCP), or the built-in cycle-accurate virtual target (`SIMULATOR (VIRTUAL)`), complete with automatic link-drop recovery.
+2. **Hardware Identity & Capability Discovery:** Querying the connected SynaptiX Edge Controller for its device class, physical I/O variant, firmware revision, wire protocol profile, and resource limits—automatically aligning the project's [Tag Catalog](/workspaces/tag-catalog-tab) and [Logic Graph](/workspaces/logic-graph-tab) block palette to the physical hardware.
 3. **Real-Time Clock (RTC) & Timezone Alignment:** Reading the onboard battery-backed RTC IC (or software `SysTick` clock), diagnosing backup battery health, and committing UTC epoch timestamps alongside local timezone offsets without disturbing existing schedules during passive connection handshakes.
 4. **Integrated Peripheral & DTU Provisioning:** Hosting the 3-column **Device Configuration Studio** for configuring RS-485 fieldbus parameters, Wi-Fi station credentials, MQTT/TLS cloud uplinks, and cyclic telemetry framing in a unified view.
 
 ::: tip OFFLINE HARDWARE PRESET EMULATION
-When working offline without physical hardware attached, you can select a target **Device Preset** (`Remote I/O`, `IIoT Gateway`, `Datalogger`, or `Edge Controller`) from the IDE toolbar or connect to `SIMULATOR (VIRTUAL)`. **SynaptiX IDE** immediately applies the corresponding I/O capacities and function block capability gates so your offline engineering matches the field hardware 1:1.
+When working offline without physical hardware attached, you can select a target Device Preset (`Remote I/O`, `IIoT Gateway`, `Datalogger`, or `Edge Controller`) from the IDE toolbar or connect to `SIMULATOR (VIRTUAL)`. SynaptiX IDE immediately applies the corresponding I/O capacities and function block capability gates so your offline engineering matches the field hardware 1:1.
 :::
 
 ---
@@ -34,17 +34,17 @@ The Device commissioning workflow spans the persistent **Top Quick-Connect Bar**
 
 ![SynaptiX Device Identity and Hardware Profile](/images/synaptix_device_info.png)
 
-When a session handshake succeeds via `F4` (or when opening **Device → Device Info**), **SynaptiX IDE** interrogates the target **SynaptiX Device** and presents its physical contract across four structured telemetry groups:
+When a session handshake succeeds via `F4` (or when opening **Device → Device Info**), SynaptiX IDE interrogates the target **SynaptiX Device** and presents its physical contract across four structured telemetry groups:
 
 | Inspector Field / Control | Category | Description & Operational Behavior |
 | :--- | :--- | :--- |
-| **Connection Mode Switch** (`USB CDC` / `Modbus TCP`) | Top Quick-Connect Bar | Segmented transport selector. Choosing `USB CDC` exposes the COM port dropdown and refresh action; choosing `Modbus TCP` exposes the `Host : Port` endpoint inputs (default `127.0.0.1 : 502`). |
-| **Target Port / Endpoint Selector** | Top Quick-Connect Bar | Lists enumerated Windows USB CDC serial ports plus `SIMULATOR (VIRTUAL)` in serial mode, or IPv4 address and TCP port fields in Ethernet mode. |
-| **Connect / Disconnect (`F4`)** | Top Quick-Connect Bar | Initiates or terminates the transport session. Displays deterministic connection states: `Disconnected`, `Connecting`, `Connected`, `Reconnecting` (auto-retry on transient cable drop), and `Restarting`. |
-| **Device Model & Class Badge** | Identity Header | Displays the hardware family classification (`Remote I/O`, `Gateway`, `Datalogger`, or `Controller`) and physical I/O topology (for example, `8DI / 8DO / 4AI` or `16DI / 16DO`). |
-| **Hardware & Firmware Revision** | Identity Metrics | Reports etched PCB revision (`HW v...`), active **SynaptiX Runtime** firmware build (`FW v...`), Wire Profile (`V2`), and deterministic Rule Engine format (`v2.0`). |
-| **Hardware Resource Matrix** | Capacity Contract | Displays exact per-bank tag allocations (`DI`, `DO`, `AI`, `VFLAG`, `VREG`, `VREG_RETAIN`, `COUNTER`) and maximum deterministic ECA rule capacity (`MaxRules = 100`). |
-| **Transport & Slave Diagnostics** | Link Telemetry | Reports active port identifier, UART framing or TCP socket status, Modbus Unit/Slave ID, and live round-trip communication health. |
+| Connection Mode Switch (`USB CDC` / `Modbus TCP`) | Top Quick-Connect Bar | Segmented transport selector. Choosing `USB CDC` exposes the COM port dropdown and refresh action; choosing `Modbus TCP` exposes the `Host : Port` endpoint inputs (default `127.0.0.1 : 502`). |
+| Target Port / Endpoint Selector | Top Quick-Connect Bar | Lists enumerated Windows USB CDC serial ports plus `SIMULATOR (VIRTUAL)` in serial mode, or IPv4 address and TCP port fields in Ethernet mode. |
+| Connect / Disconnect (`F4`) | Top Quick-Connect Bar | Initiates or terminates the transport session. Displays deterministic connection states: `Disconnected`, `Connecting`, `Connected`, `Reconnecting` (auto-retry on transient cable drop), and `Restarting`. |
+| Device Model & Class Badge | Identity Header | Displays the hardware family classification (`Remote I/O`, `Gateway`, `Datalogger`, or `Controller`) and physical I/O topology (for example, `8DI / 8DO / 4AI` or `16DI / 16DO`). |
+| Hardware & Firmware Revision | Identity Metrics | Reports etched PCB revision (`HW v...`), active SynaptiX Runtime firmware build (`FW v...`), Wire Profile (`V2`), and deterministic Rule Engine format (`v2.0`). |
+| Hardware Resource Matrix | Capacity Contract | Displays exact per-bank tag allocations (`DI`, `DO`, `AI`, `VFLAG`, `VREG`, `VREG_RETAIN`, `COUNTER`) and maximum deterministic ECA rule capacity (`MaxRules = 100`). |
+| Transport & Slave Diagnostics | Link Telemetry | Reports active port identifier, UART framing or TCP socket status, Modbus Unit/Slave ID, and live round-trip communication health. |
 
 ### 2.2. Real-Time Clock (RTC) Synchronization Dialog
 
@@ -54,12 +54,12 @@ Accessible via **Device → Sync Clock**, the RTC Synchronization tool ensures d
 
 | Control / Indicator | Function & Engineering Behavior |
 | :--- | :--- |
-| **Clock Source Badge** (`Hardware RTC IC` vs `Software Clock`) | Indicates whether the connected **SynaptiX Edge Controller** maintains time via a dedicated battery-backed crystal RTC IC or a volatile MCU `SysTick` counter. |
-| **Battery / Power Loss Warning** | Highlights if the backup coin-cell voltage is low or if power was interrupted on a non-battery-backed variant, alerting the engineer before relying on time-window schedules. |
-| **Controller Current Time Readout** | Displays the live local timestamp and configured UTC offset currently running inside the **SynaptiX Runtime** without overwriting device settings upon connect. |
-| **Timezone Selector** | Supports `[Default] Current PC Time` (inherits host workstation UTC offset) or explicit selection of any standard global timezone from `UTC-12:00` to `UTC+14:00`. |
-| **Manual Date/Time Override** | Optional `YYYY-MM-DD HH:mm:ss` input field with Bad-Data Defense validation for testing shift transitions, midnight rollovers, or isolated air-gapped plant clocks. |
-| **Live Commit Preview (1 Hz)** | Updates every second to show the exact target local time and UTC offset that will be written to hardware when **Sync Clock** is clicked. |
+| Clock Source Badge (`Hardware RTC IC` vs `Software Clock`) | Indicates whether the connected SynaptiX Edge Controller maintains time via a dedicated battery-backed crystal RTC IC or a volatile MCU `SysTick` counter. |
+| Battery / Power Loss Warning | Highlights if the backup coin-cell voltage is low or if power was interrupted on a non-battery-backed variant, alerting the engineer before relying on time-window schedules. |
+| Controller Current Time Readout | Displays the live local timestamp and configured UTC offset currently running inside the SynaptiX Runtime without overwriting device settings upon connect. |
+| Timezone Selector | Supports `[Default] Current PC Time` (inherits host workstation UTC offset) or explicit selection of any standard global timezone from `UTC-12:00` to `UTC+14:00`. |
+| Manual Date/Time Override | Optional `YYYY-MM-DD HH:mm:ss` input field with Bad-Data Defense validation for testing shift transitions, midnight rollovers, or isolated air-gapped plant clocks. |
+| Live Commit Preview (1 Hz) | Updates every second to show the exact target local time and UTC offset that will be written to hardware when Sync Clock is clicked. |
 
 ### 2.3. Integrated 3-Column Device Configuration Studio
 
@@ -67,10 +67,10 @@ Inside the main body of Tab 1 (`Ctrl+1`), the **Device Workspace** embeds a 3-co
 
 | Workspace Region | Shortcuts & Sub-Sections | Operational Purpose |
 | :--- | :--- | :--- |
-| **Left Subsystem Navigation** | `Ctrl+Shift+B` (`RS-485 Modbus`)<br/>`Ctrl+Shift+W` (`Wi-Fi Network`)<br/>`Ctrl+Shift+M` (`Cloud Uplink`)<br/>`Timing & Payload` &bull; `Quick Wizard` | Displays live readiness badges for each onboard subsystem, launches the 1-2-3 guided **Quick Wizard**, and provides the **Save Configuration** commit trigger. |
-| **Center Configuration Form** | Context-sensitive parameter cards | Provides structured, type-safe editors for UART baud rate/parity (`9600`–`115200`), Wi-Fi SSID/WPA2 credentials, MQTT broker/TLS certificates, and JSON telemetry cadence. |
-| **Right Context Inspector** | Live Intelligence & Readiness Panel | Displays field wiring notes, active Modbus slave register summaries, payload size estimates, and pre-flight validation warnings. |
-| **Device Menu Lifecycle Actions** | `F6` (Upload from Device)<br/>`Ctrl+F5` (Atomic Deploy)<br/>`Reboot Device` &bull; `Factory Reset` | Executes full configuration readback from hardware, two-phase atomic deployment, warm controller restart, or confirmation-guarded factory reset. |
+| Left Subsystem Navigation | `Ctrl+Shift+B` (`RS-485 Modbus`)<br/>`Ctrl+Shift+W` (`Wi-Fi Network`)<br/>`Ctrl+Shift+M` (`Cloud Uplink`)<br/>`Timing & Payload` &bull; `Quick Wizard` | Displays live readiness badges for each onboard subsystem, launches the 1-2-3 guided Quick Wizard, and provides the Save Configuration commit trigger. |
+| Center Configuration Form | Context-sensitive parameter cards | Provides structured, type-safe editors for UART baud rate/parity (`9600`–`115200`), Wi-Fi SSID/WPA2 credentials, MQTT broker/TLS certificates, and JSON telemetry cadence. |
+| Right Context Inspector | Live Intelligence & Readiness Panel | Displays field wiring notes, active Modbus slave register summaries, payload size estimates, and pre-flight validation warnings. |
+| Device Menu Lifecycle Actions | `F6` (Upload from Device)<br/>`Ctrl+F5` (Atomic Deploy)<br/>`Reboot Device` &bull; `Factory Reset` | Executes full configuration readback from hardware, two-phase atomic deployment, warm controller restart, or confirmation-guarded factory reset. |
 
 ---
 
@@ -84,7 +84,7 @@ Inside the main body of Tab 1 (`Ctrl+1`), the **Device Workspace** embeds a 3-co
    - **Ethernet / Gateway Commissioning:** Select `Modbus TCP` and enter the target IPv4 address and TCP port (standard port `502`).
 3. Press `F4` (or click **Connect**).
 4. Verify that the status pill transitions from `Connecting` to `Connected` (green indicator) and inspect the **Device Identity** summary to confirm firmware version and I/O channel counts.
-5. Observe that **SynaptiX IDE** automatically synchronizes the [Tag Catalog](/workspaces/tag-catalog-tab) hardware profile to match the connected device's physical `DI`, `DO`, and `AI` banks.
+5. Observe that SynaptiX IDE automatically synchronizes the [Tag Catalog](/workspaces/tag-catalog-tab) hardware profile to match the connected device's physical `DI`, `DO`, and `AI` banks.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-step">
@@ -209,25 +209,25 @@ Inside the main body of Tab 1 (`Ctrl+1`), the **Device Workspace** embeds a 3-co
 2. Inspect the **Clock Source Badge** and verify no backup battery fault is active.
 3. Choose either `[Default] Current PC Time` to mirror your engineering laptop's clock and timezone, or select the plant's fixed UTC offset from the **Timezone Selector**.
 4. *(Optional)* Enable **Manual Date/Time Override** and enter a specific `YYYY-MM-DD HH:mm:ss` timestamp if validating scheduled `TIME_WINDOW` rules.
-5. Confirm the **Live Commit Preview** matches the expected plant time, then click **Sync Clock** to write the UTC epoch and timezone offset atomically to the **SynaptiX Edge Controller**.
+5. Confirm the **Live Commit Preview** matches the expected plant time, then click **Sync Clock** to write the UTC epoch and timezone offset atomically to the SynaptiX Edge Controller.
 
 ### Procedure 3.3: Configuring Onboard RS-485, Wi-Fi, and Cloud Subsystems
 
 1. In the left sidebar of the **Device Workspace** (`Ctrl+1`), select **RS-485 Modbus** (`Ctrl+Shift+B`) to set transceiver baud rate, data bits, parity, stop bits, and local SCADA Slave ID. For full register mapping details, see [RS-485 Config & SCADA Slave Map](/tools/rs485-and-scada-slave).
 2. Select **Wi-Fi Network** (`Ctrl+Shift+W`) and **Cloud Uplink** (`Ctrl+Shift+M`) on network-capable models to configure station credentials, MQTT broker host, TLS security, and topic namespaces. Refer to [MQTT TLS & Wi-Fi Provisioning](/tools/mqtt-and-wifi-config) and [DTU Gateway Studio](/tools/dtu-gateway-studio).
-3. Click **Save Configuration** in the left panel, then execute **Atomic Deploy** (`Ctrl+F5`) or switch to the [Atomic Deploy Workspace](/workspaces/deploy-tab) to commit all peripheral and logic changes together.
+3. Click **Save Configuration** in the left panel, then execute Atomic Deploy (`Ctrl+F5`) or switch to the [Atomic Deploy Workspace](/workspaces/deploy-tab) to commit all peripheral and logic changes together.
 
 ---
 
 ## 4. Engineering Best Practices & Edge Cases
 
 ::: warning PASSIVE CONNECT TIMEZONE PRESERVATION
-Connecting to a **SynaptiX Edge Controller** via `F4` performs a **non-destructive read** of the controller's RTC and hardware profile. **SynaptiX IDE** intentionally never overwrites the device clock or timezone automatically on connect—preventing an engineer connecting remotely from a different timezone from accidentally shifting active plant `TIME_WINDOW` schedules. Clock updates occur strictly when you explicitly execute **Sync Clock**.
+Connecting to a SynaptiX Edge Controller via `F4` performs a **non-destructive read** of the controller's RTC and hardware profile. SynaptiX IDE intentionally never overwrites the device clock or timezone automatically on connect—preventing an engineer connecting remotely from a different timezone from accidentally shifting active plant `TIME_WINDOW` schedules. Clock updates occur strictly when you explicitly execute **Sync Clock**.
 :::
 
-- **Automatic Cable-Drop Recovery (`Reconnecting` State):** Industrial environments frequently experience transient USB EMI bursts or cabinet power cycling during commissioning. When an active link drops unexpectedly, **SynaptiX IDE** enters the `Reconnecting` state—executing fast active retries followed by non-blocking background polling—and seamlessly restores telemetry once the **SynaptiX Device** comes back online.
+- **Automatic Cable-Drop Recovery (`Reconnecting` State):** Industrial environments frequently experience transient USB EMI bursts or cabinet power cycling during commissioning. When an active link drops unexpectedly, SynaptiX IDE enters the `Reconnecting` state—executing fast active retries followed by non-blocking background polling—and seamlessly restores telemetry once the **SynaptiX Device** comes back online.
 - **Hardware Capability Gating Consistency:** If you connect to a compact **Remote I/O** unit that lacks onboard Wi-Fi/Ethernet hardware, network function blocks (`MQTT_PUB`, `MQTT_SUB`, `HTTP_CLIENT`, `TCP_CLIENT`) are automatically gated in the [Logic Graph Canvas](/workspaces/logic-graph-tab) so you cannot accidentally author logic that the target silicon cannot execute.
-- **Uploading Existing Field Configurations (`F6`):** Before modifying a controller already operating on the plant floor, always press `F6` (**Upload from Device**) first to pull its live rules, function blocks, RS-485 parameters, and MQTT topics into **SynaptiX IDE** for inspection and backup.
+- **Uploading Existing Field Configurations (`F6`):** Before modifying a controller already operating on the plant floor, always press `F6` (**Upload from Device**) first to pull its live rules, function blocks, RS-485 parameters, and MQTT topics into SynaptiX IDE for inspection and backup.
 
 ---
 

@@ -96,7 +96,7 @@ Khi các tính năng trong milestone đã hoàn thành và được kiểm nghi�
 3. Tạo git tag `v2.7.0` và push lên GitHub.
 4. Kích hoạt GitHub Actions CI/CD ([`.github/workflows/ci.yml`](file:///g:/HoaNV/Projects/SimplePLC/.github/workflows/ci.yml)):
    - Biên dịch bản Windows x64 Single-File Standalone: `SimplePLC.Studio.exe`.
-   - Đẩy trực tiếp gói phát hành và ghi chú sang kho lưu trữ công khai: [`hoanv-synaptix/SynaptiX-IDE-Releases`](https://github.com/hoanv-synaptix/SynaptiX-IDE-Releases).
+   - Đẩy trực tiếp gói phát hành và ghi chú sang kho lưu trữ công khai: [`SynaptiXCompany/SynaptiX-IDE-Releases`](https://github.com/SynaptiXCompany/SynaptiX-IDE-Releases).
 
 ---
 

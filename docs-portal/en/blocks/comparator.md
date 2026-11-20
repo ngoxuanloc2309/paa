@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`COMPARATOR`** (`CMP`) block is a type-locked relational function that continuously compares an upstream tag or calibrated engineering value (`In`) against one or two reference thresholds (`ThresholdLo`, `ThresholdHi`) and outputs a pure `BOOL` truth signal (`Out` = `TRUE` or `FALSE`) on every scan cycle.
+The `COMPARATOR` (`CMP`) block is a type-locked relational function that continuously compares an upstream tag or calibrated engineering value (`In`) against one or two reference thresholds (`ThresholdLo`, `ThresholdHi`) and outputs a pure `BOOL` truth signal (`Out` = `TRUE` or `FALSE`) on every scan cycle.
 
 - **Strict Type-Locked Evaluation:** The moment an upstream [`INPUT`](/blocks/input) or [`SCALE`](/blocks/scale) block connects to `In`, `COMPARATOR` locks its arithmetic mode and Inspector input formatters to the upstream physical data type (`INT32`, IEEE-754 `REAL`, or `BOOL`).
 - **Floating-Point Epsilon Safety:** Direct bit-level equality checks on IEEE-754 floating-point sensor values notoriously fail due to binary representation rounding. When evaluating `REAL` (`Float32`) inputs, `COMPARATOR` automatically applies an industrial `1e-5` (`0.00001`) epsilon deadband on `EQ` (`==`) and `NEQ` (`!=`).
@@ -93,10 +93,10 @@ In a food-processing neutralization tank, calibrated `REAL` pH measurement store
 
 ### Step-by-Step Canvas Wiring
 
-1. Wire `INPUT (AI1)` → **[`SCALE`](/blocks/scale)** (`RawMin = 4000`, `RawMax = 20000`, `EngMin = 0.0`, `EngMax = 14.0`, `OutputTag = VREG2`).
-2. Select the `SCALE` block and click **`COMPARATOR`** in the toolbox. The node auto-wires `SCALE.Out → COMPARATOR.In` and locks its type badge to `REAL`.
-3. In the `COMPARATOR` **Inspector**, set `CompareOp = BETWEEN`, `ThresholdLo = 6.5`, and `ThresholdHi = 8.5`. Verify the node formula reads `6.5 <= VREG2 <= 8.5`.
-4. Wire `COMPARATOR.Out` → **[`TRIGGER`](/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 3000`) → **[`ACTION`](/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO4`, `ActionParam = 1`).
+1. Wire `INPUT (AI1)` → [`SCALE`](/blocks/scale) (`RawMin = 4000`, `RawMax = 20000`, `EngMin = 0.0`, `EngMax = 14.0`, `OutputTag = VREG2`).
+2. Select the `SCALE` block and click `COMPARATOR` in the toolbox. The node auto-wires `SCALE.Out → COMPARATOR.In` and locks its type badge to `REAL`.
+3. In the `COMPARATOR` Inspector, set `CompareOp = BETWEEN`, `ThresholdLo = 6.5`, and `ThresholdHi = 8.5`. Verify the node formula reads `6.5 <= VREG2 <= 8.5`.
+4. Wire `COMPARATOR.Out` → [`TRIGGER`](/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 3000`) → [`ACTION`](/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO4`, `ActionParam = 1`).
 5. Press `F5` to simulate: inject raw values corresponding to `pH = 7.2` (`AI1 = 12228`), observe `COMPARATOR` assert `✓ TRUE`, wait `3000 ms` for the `TRIGGER` dwell filter, and confirm `DO4` energizes to `1`.
 
 <div class="synx-node-chain">

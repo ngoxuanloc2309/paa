@@ -7,7 +7,7 @@
   <span><strong>Kiểm chứng:</strong> Đã Xác thực trên Offline Simulator (<code>F5</code>) &amp; Live Debug (<code>F8</code>)</span>
 </div>
 
-Tài liệu này trình bày hai kiến trúc tích hợp đa khối hoàn chỉnh đã được kiểm chứng thực chiến tại nhà máy, minh họa cách **SynaptiX IDE** hợp nhất luồng quét thiết bị RS-485, mạch bảo vệ tất định tại biên, điều khiển xung phần cứng và truyền thông JSON hai chiều qua MQTT trên một sơ đồ duy nhất.
+Tài liệu này trình bày hai kiến trúc tích hợp đa khối hoàn chỉnh đã được kiểm chứng thực chiến tại nhà máy, minh họa cách SynaptiX IDE hợp nhất luồng quét thiết bị RS-485, mạch bảo vệ tất định tại biên, điều khiển xung phần cứng và truyền thông JSON hai chiều qua MQTT trên một sơ đồ duy nhất.
 
 ---
 
@@ -226,11 +226,11 @@ Một tủ trạm biến áp không người trực lắp đặt đồng hồ ph
 
 | Khối Hàm | Thông số Thiết lập Trọng tâm |
 | :--- | :--- |
-| **`MB_READ #1`** | Cổng = `RS-485 #1` (`9600 8N1`), Slave ID = `1`, `FC03` Bắt đầu = `40001`, Chu kỳ = `1000 ms`, Chân 1 -> `VREG0` (`REAL ABCD`, Scale `1.0`), Chân 2 -> `VREG1` (`REAL ABCD`, Scale `1.0`). |
-| **`MB_READ #2`** | Cổng = `RS-485 #1`, Slave ID = `2`, `FC04` Bắt đầu = `30001`, Chu kỳ = `2000 ms`, Chân 1 -> `VREG3` (`INT16`, Scale `0.1`), Chân 2 -> `VREG4` (`UINT16`, Scale `0.1`). |
-| **`SCALE`** | Ngõ vào = `AI0`, `InMin = 4.0`, `InMax = 20.0`, `OutMin = 0.0`, `OutMax = 150.0`, `Clamp = Bật`, Ngõ ra = `VREG2` (`°C`). |
-| **Mạch Bảo vệ Nhiệt Tại chỗ** | Luật 1: `VREG2 >= 85.0` -> `TON` (`PT = 5000 ms`, `Q = VFLAG0`) -> `GUARD` (`DI0 == 1`) -> `ACTION` (`Set DO0 = 1`). Luật 2: `VREG2 <= 78.0` -> `ACTION` (`Reset DO0 = 0`). |
-| **`MQTT_PUB`** | Topic = `substation/tx01/telemetry`, Chế độ = `Cyclic` (`10000 ms`), `QoS = 1`, `Retain = false`, `PayloadMode = JSON` (`IncludeDevice = true`, `IncludeTimestamp = true`, `WrapValues = true`). |
+| `MB_READ #1` | Cổng = `RS-485 #1` (`9600 8N1`), Slave ID = `1`, `FC03` Bắt đầu = `40001`, Chu kỳ = `1000 ms`, Chân 1 -> `VREG0` (`REAL ABCD`, Scale `1.0`), Chân 2 -> `VREG1` (`REAL ABCD`, Scale `1.0`). |
+| `MB_READ #2` | Cổng = `RS-485 #1`, Slave ID = `2`, `FC04` Bắt đầu = `30001`, Chu kỳ = `2000 ms`, Chân 1 -> `VREG3` (`INT16`, Scale `0.1`), Chân 2 -> `VREG4` (`UINT16`, Scale `0.1`). |
+| `SCALE` | Ngõ vào = `AI0`, `InMin = 4.0`, `InMax = 20.0`, `OutMin = 0.0`, `OutMax = 150.0`, `Clamp = Bật`, Ngõ ra = `VREG2` (`°C`). |
+| Mạch Bảo vệ Nhiệt Tại chỗ | Luật 1: `VREG2 >= 85.0` -> `TON` (`PT = 5000 ms`, `Q = VFLAG0`) -> `GUARD` (`DI0 == 1`) -> `ACTION` (`Set DO0 = 1`). Luật 2: `VREG2 <= 78.0` -> `ACTION` (`Reset DO0 = 0`). |
+| `MQTT_PUB` | Topic = `substation/tx01/telemetry`, Chế độ = `Cyclic` (`10000 ms`), `QoS = 1`, `Retain = false`, `PayloadMode = JSON` (`IncludeDevice = true`, `IncludeTimestamp = true`, `WrapValues = true`). |
 
 ### 1.5 Mẫu Bản tin JSON Xuất bản Lên Broker (`substation/tx01/telemetry`)
 
@@ -415,10 +415,10 @@ Tại trạm chia chọn bưu kiện thương mại điện tử, đầu đọc 
 
 | Khối Hàm | Thông số Thiết lập Trọng tâm |
 | :--- | :--- |
-| **`MQTT_SUB`** | Topic = `wms/station04/sort`, `QoS = 1`, `QueueMode = FIFO (16)`, `IgnoreRetainedOnBoot = true` *(chặn bản tin lưu cũ làm bật nhầm máng khi vừa đóng điện tủ!)*, Chân động: `"chute"` -> `VREG0` (`INT32`), `"cmd"` -> `VREG1` (`INT32`), `"color"` -> `VREG2` (`INT32`). |
-| **`MB_WRITE`** | Cổng = `RS-485 #1` (`115200 8N1`), Slave ID = `1`, `WriteMode = ChannelIndexed`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge` (chân `Trig` nối vào `MQTT_SUB.Valid`), `Channel` = `VREG0`, `Command` = `VREG1`, `Param` = `VREG2`, `TimeoutMs = 300 ms`. |
+| `MQTT_SUB` | Topic = `wms/station04/sort`, `QoS = 1`, `QueueMode = FIFO (16)`, `IgnoreRetainedOnBoot = true` *(chặn bản tin lưu cũ làm bật nhầm máng khi vừa đóng điện tủ!)*, Chân động: `"chute"` -> `VREG0` (`INT32`), `"cmd"` -> `VREG1` (`INT32`), `"color"` -> `VREG2` (`INT32`). |
+| `MB_WRITE` | Cổng = `RS-485 #1` (`115200 8N1`), Slave ID = `1`, `WriteMode = ChannelIndexed`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge` (chân `Trig` nối vào `MQTT_SUB.Valid`), `Channel` = `VREG0`, `Command` = `VREG1`, `Param` = `VREG2`, `TimeoutMs = 300 ms`. |
 | **`DIRECT_WRITE` *(Tùy chọn thay thế)*** | Nếu đấu dải đèn định địa chỉ trực tiếp vào cọc `DO1`: chọn `Mode = AddressableBus`, `ChannelCount = 18`, `IsExclusiveChannel = true`, `TriggerMode = OnTriggerRisingEdge`. |
-| **Bộ tạo xung `TP`** | `IN` = `VFLAG0` (`Sort_Cmd_Valid`), `PT = 4000 ms`, `Q` = `VFLAG2` (`Chute_Window_Active`). Bắt sườn xuống `VFLAG2` ghi `VREG1 = 0` để tự động tắt thanh đèn sau `4 giây`. |
+| Bộ tạo xung `TP` | `IN` = `VFLAG0` (`Sort_Cmd_Valid`), `PT = 4000 ms`, `Q` = `VFLAG2` (`Chute_Window_Active`). Bắt sườn xuống `VFLAG2` ghi `VREG1 = 0` để tự động tắt thanh đèn sau `4 giây`. |
 
 ### 2.5 Mẫu Gói lệnh Điều khiển WMS & Kiểm thử Từ chối Nguyên tử
 

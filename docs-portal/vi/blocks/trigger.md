@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`TRIGGER`** chuyển đổi tín hiệu trạng thái liên tục, biến thiên thanh ghi, nhịp đồng hồ đơn điệu nội bộ hoặc lịch Thời gian thực (`RTC`) thành các **xung sự kiện thực thi rời rạc** (`Out`) dùng để kích hoạt các khối [`GUARD`](/vi/blocks/guard), [`ACTION`](/vi/blocks/action), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu) cũng như các khối truyền thông Fieldbus và IIoT.
+Khối `TRIGGER` chuyển đổi tín hiệu trạng thái liên tục, biến thiên thanh ghi, nhịp đồng hồ đơn điệu nội bộ hoặc lịch Thời gian thực (`RTC`) thành các **xung sự kiện thực thi rời rạc** (`Out`) dùng để kích hoạt các khối [`GUARD`](/vi/blocks/guard), [`ACTION`](/vi/blocks/action), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu) cũng như các khối truyền thông Fieldbus và IIoT.
 
 - **Ngữ nghĩa Phát Xung Đơn (Single-Shot Edge):** Khác với mạch tổ hợp theo mức vốn kích hoạt lặp đi lặp lại ở mọi chu kỳ quét khi cảm biến giữ mức cao, chế độ `ON_RISE` và `ON_FALL` đối chiếu giá trị ảnh tiến trình chu kỳ hiện tại với trạng thái chốt của chu kỳ liền trước, đảm bảo **chỉ phát duy nhất một xung sự kiện cho mỗi lần chuyển mức hợp lệ**.
 - **Bộ Lọc Chống dội / Duy trì Tích hợp (`ForMs`):** Tiếp điểm cơ khí, phao báo mức hoặc tín hiệu tương tự dao động quanh ngưỡng có thể được lọc nhiễu trực tiếp ngay trong khối `TRIGGER` mà không tốn thêm khối Timer rời. Khi đặt `ForMs > 0`, điều kiện kích hoạt phải duy trì liên tục đủ `ForMs` mili-giây mới phát xung.
@@ -32,10 +32,10 @@ Khối **`TRIGGER`** chuyển đổi tín hiệu trạng thái liên tục, bi�
 | Tham số | Kiểu / Tùy chọn | Mặc định | Ràng buộc & Giới hạn | Hành vi Thời gian thực |
 | :--- | :--- | :--- | :--- | :--- |
 | `TriggerType` | `ON_RISE`, `ON_FALL`, `ON_CHANGE`, `INTERVAL`, `TIME_WINDOW` | `ON_RISE` | Bắt buộc chọn 1 trong 5 chế độ. | Lựa chọn cơ chế phát hiện sự kiện (xem bảng chi tiết từng chế độ bên dưới). |
-| `ForMs` | Số nguyên không dấu 32-bit (`uint`, ms) | `0` | `0 .. 4,294,967,295 ms`. Ở chế độ `INTERVAL`, khuyến nghị đặt `>= 10 ms`. | **Các chế độ sườn:** Thời gian duy trì chống dội tối thiểu (`0` = phát xung ngay ở chu kỳ đầu). **Chế độ `INTERVAL`:** Chu kỳ lặp định kỳ. |
+| `ForMs` | Số nguyên không dấu 32-bit (`uint`, ms) | `0` | `0 .. 4,294,967,295 ms`. Ở chế độ `INTERVAL`, khuyến nghị đặt `>= 10 ms`. | Các chế độ sườn: Thời gian duy trì chống dội tối thiểu (`0` = phát xung ngay ở chu kỳ đầu). Chế độ `INTERVAL`: Chu kỳ lặp định kỳ. |
 | `Chế độ Lịch` *(RTC)* | `Tại thời điểm` (`Point-in-Time` / `EQ`) \| `Khoảng khung giờ` (`Time Window Range` / `BETWEEN`) | `Point-in-Time` | Chỉ hiển thị khi `TriggerType = TIME_WINDOW`. | Chuyển đổi giữa kích hoạt đúng thời điểm `HH:MM` trong ngày hoặc duy trì trong khung giờ `[Bắt đầu..Kết thúc]`. |
 | `TimeStartHour` / `Minute` | Số nguyên (`00..23` : `00..59`) | `07:00` (`700`) | Tự động kẹp biên an toàn trong dải `0..23` giờ và `0..59` phút. | Thời điểm kích hoạt (`Point-in-Time`) hoặc mốc mở khung giờ (`Time Window Range`). |
-| `TimeEndHour` / `Minute` | Số nguyên (`00..23` : `00..59`) | `17:00` (`1700`) | Tự động kẹp biên `0..23` giờ và `0..59` phút; hiệu lực ở `Time Window Range`. | Mốc đóng khung giờ. Hỗ trợ **khung giờ vắt qua nửa đêm** khi `Bắt đầu > Kết thúc` (ví dụ: `22:00 → 06:00`). |
+| `TimeEndHour` / `Minute` | Số nguyên (`00..23` : `00..59`) | `17:00` (`1700`) | Tự động kẹp biên `0..23` giờ và `0..59` phút; hiệu lực ở `Time Window Range`. | Mốc đóng khung giờ. Hỗ trợ khung giờ vắt qua nửa đêm khi `Bắt đầu > Kết thúc` (ví dụ: `22:00 → 06:00`). |
 | `CompareOp` *(Nội tuyến)* | `NONE`, `EQ`, `NEQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN` | `NONE` | Bộ lọc ngưỡng tích hợp trên chân `In`; nếu cần khóa kiểu trực quan chuyên sâu, ưu tiên dùng khối [`COMPARATOR`](/vi/blocks/comparator). | Đánh giá quan hệ giữa `In` và `ThresholdLo` (cùng `ThresholdHi` nếu chọn `BETWEEN`) trước khi phát xung. |
 | `ThresholdLo` / `ThresholdHi` | Số thực/nguyên (`double`) | `0` / `0` | Khả dụng khi `CompareOp != NONE`. | Ngưỡng so sánh dưới/mục tiêu và ngưỡng chặn trên của dải `[ThresholdLo..ThresholdHi]`. |
 | `CustomLabel` | Chuỗi văn bản tự do | Rỗng (`"Trigger"`) | Nhãn tùy biến trên sơ đồ. | Ghi đè tiêu đề hiển thị trên khối đồ họa. |
@@ -48,7 +48,7 @@ Khối **`TRIGGER`** chuyển đổi tín hiệu trạng thái liên tục, bi�
 | `ON_FALL` | Chu kỳ trước `!= 0` và Chu kỳ hiện tại `== 0` (hoặc tụt ngưỡng chiều giảm) | Trạng thái mức thấp phải duy trì liên tục đủ `ForMs` ms mới phát `1` xung sự kiện. |
 | `ON_CHANGE` | Giá trị chu kỳ hiện tại `!=` Giá trị chu kỳ trước | Chờ tín hiệu ổn định đủ `ForMs` ms sau khi biến thiên trước khi kích khối phía sau. |
 | `INTERVAL` | Nhịp đồng hồ đơn điệu nội bộ chia hết cho `ForMs` | Tự động phát `1` xung thực thi sau mỗi chu kỳ `ForMs` mili-giây (ví dụ: `5000 ms` = lặp mỗi `5 s`). |
-| `TIME_WINDOW` | Đối chiếu giờ-phút `RTC` (`Giờ * 100 + Phút`) | **Trong ngày (`Start <= End`):** `Start <= Hiện_tại <= End`. **Qua đêm (`Start > End`):** `Hiện_tại >= Start` HOẶC `Hiện_tại <= End`. |
+| `TIME_WINDOW` | Đối chiếu giờ-phút `RTC` (`Giờ * 100 + Phút`) | Trong ngày (`Start <= End`): `Start <= Hiện_tại <= End`. Qua đêm (`Start > End`): `Hiện_tại >= Start` HOẶC `Hiện_tại <= End`. |
 
 ---
 
@@ -90,10 +90,10 @@ Hệ thống đèn pha chiếu sáng vành đai nhà máy đấu tại ngõ ra `
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Thêm khối **`TRIGGER`** lên **Sơ đồ Logic** (`Ctrl+2`) không cần nối `INPUT` phía trước, đặt `CustomLabel = "Lịch Đèn Ca Đêm"`.
-2. Trên bảng **Inspector**, chọn `TriggerType = TIME_WINDOW`, bật tùy chọn **Khoảng khung giờ** (`BETWEEN`), nhập giờ bắt đầu `22:00` và giờ kết thúc `06:00`. Do `22:00 > 06:00`, **SynaptiX Runtime** tự động kích hoạt thuật toán vắt qua nửa đêm (`Giờ_hiện_tại >= 22:00` HOẶC `Giờ_hiện_tại <= 06:00`).
-3. Nối chân `TRIGGER.Out` sang khối **[`GUARD`](/vi/blocks/guard)** gắn `GuardTag = DI3` (`Negate = false`, cho qua khi `DI3 = 1`), sau đó nối `GUARD.Out` tới khối **[`ACTION`](/vi/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO2`, `ActionParam = 1`).
-4. Thêm nhánh thứ hai gồm khối `TRIGGER` (`TriggerType = TIME_WINDOW`, chế độ `Tại thời điểm = 06:01`) nối thẳng tới khối **[`ACTION`](/vi/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO2`, `ActionParam = 0`) để ngắt dàn đèn khi trời sáng.
+1. Thêm khối `TRIGGER` lên Sơ đồ Logic (`Ctrl+2`) không cần nối `INPUT` phía trước, đặt `CustomLabel = "Lịch Đèn Ca Đêm"`.
+2. Trên bảng Inspector, chọn `TriggerType = TIME_WINDOW`, bật tùy chọn **Khoảng khung giờ** (`BETWEEN`), nhập giờ bắt đầu `22:00` và giờ kết thúc `06:00`. Do `22:00 > 06:00`, SynaptiX Runtime tự động kích hoạt thuật toán vắt qua nửa đêm (`Giờ_hiện_tại >= 22:00` HOẶC `Giờ_hiện_tại <= 06:00`).
+3. Nối chân `TRIGGER.Out` sang khối [`GUARD`](/vi/blocks/guard) gắn `GuardTag = DI3` (`Negate = false`, cho qua khi `DI3 = 1`), sau đó nối `GUARD.Out` tới khối [`ACTION`](/vi/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO2`, `ActionParam = 1`).
+4. Thêm nhánh thứ hai gồm khối `TRIGGER` (`TriggerType = TIME_WINDOW`, chế độ `Tại thời điểm = 06:01`) nối thẳng tới khối [`ACTION`](/vi/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO2`, `ActionParam = 0`) để ngắt dàn đèn khi trời sáng.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-trigger">
@@ -210,5 +210,5 @@ Hệ thống đèn pha chiếu sáng vành đai nhà máy đấu tại ngõ ra `
 </div>
 
 ::: tip Đồng bộ Đồng hồ RTC Trước khi Vận hành
-Trước khi nạp các luật sử dụng `TIME_WINDOW` xuống thiết bị hiện trường, hãy mở [Tab Thiết bị — Device (`Ctrl+1`)](/vi/workspaces/device-tab) để đồng bộ thời gian thực từ máy tính kỹ thuật xuống bộ điều khiển biên **SynaptiX Edge Controller**.
+Trước khi nạp các luật sử dụng `TIME_WINDOW` xuống thiết bị hiện trường, hãy mở [Tab Thiết bị — Device (`Ctrl+1`)](/vi/workspaces/device-tab) để đồng bộ thời gian thực từ máy tính kỹ thuật xuống bộ điều khiển biên SynaptiX Edge Controller.
 :::

@@ -275,7 +275,7 @@ public sealed class MqttEndToEndArchitectureTests
         // Assert: Preflight check phải phát hiện xung đột và từ chối nạp
         Assert.False(isValid);
         Assert.NotNull(errorMessage);
-        Assert.Contains("Xung đột sở hữu ghi độc quyền", errorMessage);
+        Assert.True(errorMessage.Contains("Xung đột sở hữu ghi độc quyền") || errorMessage.Contains("Exclusive write ownership conflict"));
         Assert.Contains("Tag 10", errorMessage);
     }
 

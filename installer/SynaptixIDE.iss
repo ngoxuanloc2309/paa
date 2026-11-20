@@ -8,10 +8,10 @@
 
 #define MyAppName "SynaptiX IDE"
 #ifndef MyAppVersion
-#define MyAppVersion "2.15.4"
+#define MyAppVersion "2.15.5"
 #endif
 #define MyAppPublisher "SynaptiX Corporation"
-#define MyAppURL "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/"
+#define MyAppURL "https://SynaptiXCompany.github.io/SynaptiX-IDE-Releases/"
 #define MyAppExeName "SynaptixIDE.exe"
 
 [Setup]

@@ -39,7 +39,31 @@ public partial class MqttPinBindingViewModel : ObservableObject
     private string _jsonPath = "data";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
     private MqttDataType _dataType = MqttDataType.Int16;
+
+    /// <summary>
+    /// Nhãn hiển thị kiểu dữ liệu tự động theo chuẩn IEC 61131-3 (Read-Only Badge).
+    /// </summary>
+    public string DataTypeText
+    {
+        get
+        {
+            if (TargetTag == null || TargetTag.Kind == SimplePLC.Domain.Enums.TagKind.None)
+            {
+                return "—";
+            }
+            if (TargetTag.IsDigital || TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+            {
+                return "BOOL";
+            }
+            if (TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
+            {
+                return "REAL";
+            }
+            return "INT32";
+        }
+    }
 
     partial void OnDataTypeChanged(MqttDataType oldValue, MqttDataType newValue)
     {
@@ -147,6 +171,7 @@ public partial class MqttPinBindingViewModel : ObservableObject
                 }
             }
         }
+        OnPropertyChanged(nameof(DataTypeText));
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 

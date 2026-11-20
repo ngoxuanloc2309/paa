@@ -9,9 +9,9 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`INPUT`** là điểm khởi đầu cung cấp tín hiệu cho mọi nhánh điều khiển trên **Sơ đồ Logic (Logic Graph Canvas)** của **SynaptiX IDE**. Khối liên kết trực tiếp tới một kênh vào/ra vật lý hoặc một biến nhớ ảo trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) và phát giá trị tức thời của Tag đó ra chân `Out` ở mỗi chu kỳ quét.
+Khối `INPUT` là điểm khởi đầu cung cấp tín hiệu cho mọi nhánh điều khiển trên Sơ đồ Logic (Logic Graph Canvas) của SynaptiX IDE. Khối liên kết trực tiếp tới một kênh vào/ra vật lý hoặc một biến nhớ ảo trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) và phát giá trị tức thời của Tag đó ra chân `Out` ở mỗi chu kỳ quét.
 
-- **Đọc Ảnh Tiến trình Tất định (Process Image):** Ngay đầu mỗi chu kỳ quét của **SynaptiX Runtime**, toàn bộ trạng thái ngõ vào phần cứng được chốt vào vùng đệm ảnh tiến trình bất biến. Mọi khối `INPUT` cùng tham chiếu đến một Tag sẽ nhận cùng một giá trị đồng nhất tuyệt đối trong suốt chu kỳ quét đó, loại bỏ hoàn toàn hiện tượng tranh chấp dữ liệu (race condition).
+- **Đọc Ảnh Tiến trình Tất định (Process Image):** Ngay đầu mỗi chu kỳ quét của SynaptiX Runtime, toàn bộ trạng thái ngõ vào phần cứng được chốt vào vùng đệm ảnh tiến trình bất biến. Mọi khối `INPUT` cùng tham chiếu đến một Tag sẽ nhận cùng một giá trị đồng nhất tuyệt đối trong suốt chu kỳ quét đó, loại bỏ hoàn toàn hiện tượng tranh chấp dữ liệu (race condition).
 - **Biên dịch Không Tốn Chu kỳ Phụ:** Bản thân khối `INPUT` không tiêu tốn slot lệnh trung gian; khi biên dịch (`F7`), chỉ số Tag và hợp đồng kiểu dữ liệu vật lý (`BOOL`, `INT32` hoặc số thực IEEE-754 `REAL`) được ánh xạ thẳng vào các khối phía sau như [`TRIGGER`](/vi/blocks/trigger), [`COMPARATOR`](/vi/blocks/comparator), [`SCALE`](/vi/blocks/scale), [`TON`](/vi/blocks/ton), [`CTU`](/vi/blocks/ctu) hoặc [`MQTT_PUB`](/vi/blocks/mqtt-pub).
 - **Ứng dụng Công nghiệp Điển hình:** Đọc công tắc hành trình và nút dừng khẩn cấp (`DI`), giám sát phản hồi trạng thái cuộn hút (`DO`), đưa tín hiệu tương tự `4–20 mA` / `0–10 V` (`AI`) vào bộ hiệu chuẩn tuyến tính, hoặc dẫn cờ trạng thái nội bộ (`VFLAG`) và thanh ghi lưu giữ mất điện (`VREG_R`) sang nhiều nhánh logic song song.
 
@@ -29,7 +29,7 @@ Khối `INPUT` đóng vai trò nguồn phát tín hiệu thuần túy nên khôn
 
 ## 3. Tham số Inspector & Giới hạn Kiểm tra
 
-Khi nhấp chọn khối `INPUT` trên Canvas, bảng thuộc tính **Inspector** bên phải hiển thị đầy đủ các tham số cấu hình sau:
+Khi nhấp chọn khối `INPUT` trên Canvas, bảng thuộc tính Inspector bên phải hiển thị đầy đủ các tham số cấu hình sau:
 
 | Tham số | Kiểu / Tùy chọn | Mặc định | Ràng buộc & Giới hạn | Hành vi Thời gian thực |
 | :--- | :--- | :--- | :--- | :--- |
@@ -73,10 +73,10 @@ Nhằm bảo đảm **Cam kết Sự thật Thị giác** — con số hiển th
 
 | Chế độ Vận hành | Chỉ báo Trực quan trên Khối | Hành vi Chẩn đoán |
 | :--- | :--- | :--- |
-| **Offline / Thiết kế** | Nhãn loại Tag (`DI`, `AI`, `VREG_R`) + `ValueBadgeText` | Hiển thị giá trị khởi tạo hoặc mô phỏng được định dạng chuẩn theo kiểu dữ liệu (`0`/`1`, số nguyên hoặc số thực `0.0###`). |
-| **Mô phỏng (`F5`)** | Nút tương tác `○ 0` / `● 1` hoặc nút xoay vòng giá trị | Viền khối và dây dẫn ngõ ra sáng màu xanh lá khi Tag số mang mức `1` hoặc Tag tương tự lớn hơn `0`. |
-| **Gỡ lỗi Trực tuyến (`F8`)** | Nhãn `LiveBadgeText` cập nhật 20 FPS (`1`, `0`, `1,250`, `36.5`) | Phản ánh giá trị phần cứng thời gian thực. Chỉ các Tag kiểu `BOOL` mới đổi màu viền kích hoạt xanh lá; các thanh ghi số giữ nền xám trung tính chuẩn ISA-101 để chống mỏi mắt. |
-| **Suy giảm Chất lượng** | Hậu tố ` [STALE]` / Giá trị biết gần nhất | Tự động gắn ` [STALE]` khi dữ liệu quá hạn làm tươi, và giữ lại mẫu đo cuối cùng khi rút cáp để kỹ sư dễ dàng khoanh vùng điểm đứt kết nối. |
+| Offline / Thiết kế | Nhãn loại Tag (`DI`, `AI`, `VREG_R`) + `ValueBadgeText` | Hiển thị giá trị khởi tạo hoặc mô phỏng được định dạng chuẩn theo kiểu dữ liệu (`0`/`1`, số nguyên hoặc số thực `0.0###`). |
+| Mô phỏng (`F5`) | Nút tương tác `○ 0` / `● 1` hoặc nút xoay vòng giá trị | Viền khối và dây dẫn ngõ ra sáng màu xanh lá khi Tag số mang mức `1` hoặc Tag tương tự lớn hơn `0`. |
+| Gỡ lỗi Trực tuyến (`F8`) | Nhãn `LiveBadgeText` cập nhật 20 FPS (`1`, `0`, `1,250`, `36.5`) | Phản ánh giá trị phần cứng thời gian thực. Chỉ các Tag kiểu `BOOL` mới đổi màu viền kích hoạt xanh lá; các thanh ghi số giữ nền xám trung tính chuẩn ISA-101 để chống mỏi mắt. |
+| Suy giảm Chất lượng | Hậu tố ` [STALE]` / Giá trị biết gần nhất | Tự động gắn ` [STALE]` khi dữ liệu quá hạn làm tươi, và giữ lại mẫu đo cuối cùng khi rút cáp để kỹ sư dễ dàng khoanh vùng điểm đứt kết nối. |
 
 ---
 
@@ -96,10 +96,10 @@ Một cảm biến áp suất đường ống đẩy `4–20 mA` đấu vào kê
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Nhấn `Ctrl+2` mở **Sơ đồ Logic**, thêm một khối **`INPUT`**, chọn `Tag = AI0` và đặt `CustomLabel = "Áp suất Đường đẩy"`.
-2. Đang chọn khối `INPUT`, thêm nối tiếp khối **[`COMPARATOR`](/vi/blocks/comparator)** (`CompareOp = GTE`, `ThresholdLo = 8000`) → **[`TRIGGER`](/vi/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 500`) → **[`ACTION`](/vi/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 1`).
-3. Kéo nhánh dây thứ hai (rẽ nhánh `1:N` từ cùng chân `INPUT.Out`) sang khối **[`COMPARATOR`](/vi/blocks/comparator)** thứ hai (`CompareOp = GTE`, `ThresholdLo = 9500`) → **[`TRIGGER`](/vi/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 100`) → **[`ACTION`](/vi/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
-4. Nhấn `F5` bật **Simulator**, chọn khối `INPUT` `AI0`, nhập `"8200"` vào ô `TagValueText` rồi nhấn `Enter`: quan sát cờ `VFLAG0` bật lên `1` sau `500 ms` trong khi `DO0` vẫn giữ mức `1`. Tiếp tục nhập `"9600"`, xác nhận `DO0` ngắt tức thì về `0` sau đúng `100 ms`.
+1. Nhấn `Ctrl+2` mở Sơ đồ Logic, thêm một khối `INPUT`, chọn `Tag = AI0` và đặt `CustomLabel = "Áp suất Đường đẩy"`.
+2. Đang chọn khối `INPUT`, thêm nối tiếp khối [`COMPARATOR`](/vi/blocks/comparator) (`CompareOp = GTE`, `ThresholdLo = 8000`) → [`TRIGGER`](/vi/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 500`) → [`ACTION`](/vi/blocks/action) (`ActionType = SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 1`).
+3. Kéo nhánh dây thứ hai (rẽ nhánh `1:N` từ cùng chân `INPUT.Out`) sang khối [`COMPARATOR`](/vi/blocks/comparator) thứ hai (`CompareOp = GTE`, `ThresholdLo = 9500`) → [`TRIGGER`](/vi/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 100`) → [`ACTION`](/vi/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
+4. Nhấn `F5` bật Simulator, chọn khối `INPUT` `AI0`, nhập `"8200"` vào ô `TagValueText` rồi nhấn `Enter`: quan sát cờ `VFLAG0` bật lên `1` sau `500 ms` trong khi `DO0` vẫn giữ mức `1`. Tiếp tục nhập `"9600"`, xác nhận `DO0` ngắt tức thì về `0` sau đúng `100 ms`.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-input">

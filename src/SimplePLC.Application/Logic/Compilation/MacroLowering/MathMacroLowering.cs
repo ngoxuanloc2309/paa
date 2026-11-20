@@ -16,6 +16,8 @@ public static class MathMacroLowering
     public const string ErrMathNoScratch = "SPLC-COMP-MATH-NO-SCRATCH";
     public const string ErrMathDivZero = "SPLC-COMP-MATH-DIV-ZERO";
     public const string ErrMathTypeMismatch = "SPLC-COMP-MATH-TYPE-MISMATCH";
+    public const string ErrMathReadOnlyTarget = "SPLC-COMP-MATH-READONLY";
+    public const string ErrMathUnsupported = "SPLC-COMP-MATH-UNSUPPORTED";
 
     /// <summary>
     /// Thực hiện mở rộng các Math nodes thành các CandidateRule 32-byte.
@@ -29,6 +31,16 @@ public static class MathMacroLowering
         List<CompileDiagnostic> diagnostics)
     {
         if (mathNodes.Count == 0) return;
+
+        // Kiểm tra năng lực phần cứng mục tiêu hỗ trợ MATH_ALU (Bit 16)
+        if (!product.HardwareCapabilities.HasFlag(SPLC_HardwareCapabilities.MATH_ALU))
+        {
+            diagnostics.Add(new CompileDiagnostic(
+                ErrMathUnsupported,
+                DiagnosticSeverity.Error,
+                $"Thiết bị '{product.ProductName}' không hỗ trợ tập lệnh tính toán số học MATH_ALU (HardwareCapabilities Bit 16)."));
+            return;
+        }
 
         // Tập hợp toàn bộ TagIndex đã được tham chiếu tĩnh trong toàn bộ đồ thị để tránh cấp phát trùng
         var usedTagIndices = CollectUsedTagIndices(graph);
@@ -102,6 +114,17 @@ public static class MathMacroLowering
                 continue;
             }
 
+            // Chốt chặn an toàn: Tag ngõ ra không được là Tag chỉ đọc (AI, DI, System Tag...)
+            if (outTag.IsReadOnly)
+            {
+                diagnostics.Add(new CompileDiagnostic(
+                    ErrMathReadOnlyTarget,
+                    DiagnosticSeverity.Error,
+                    $"Khối Math '{mathLabel}' không thể xuất kết quả ra Tag chỉ đọc '{outTag.Name}'. Hãy chọn VREG hoặc DO.",
+                    NodeId: mathNode.Id));
+                continue;
+            }
+
             // 3. Phân tích chế độ kiểu dữ liệu (Data Type Promotion)
             bool isFloat = DetermineIsFloat(resolvedPins, product, mData.TypeMode, outTag);
 
@@ -149,7 +172,7 @@ public static class MathMacroLowering
                                 var promoTrig = new TriggerModel(t, TriggerKind.OnChange)
                                 {
                                     ThresholdHi = 0.0,
-                                    IsFloat = true,
+                                    IsFloat = false,
                                     ForMs = 0
                                 };
                                 var promoAct = new ActionModel(vregPromo, ActionKind.ScaleTag, parameter: 1.0, auxParameter: 0.0)

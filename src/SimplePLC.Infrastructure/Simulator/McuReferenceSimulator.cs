@@ -59,6 +59,8 @@ public sealed class McuReferenceSimulator
     private uint _modbusWatchdogTimeoutMs = 3000;
     private bool _hasReceivedFirstModbusRequest = false;
     private bool _isMqttConnected = false;
+    private ushort _healthFlags = (ushort)SPLC_HealthFlags.NONE;
+    private ulong _mathFaultTimestampMs = 0;
 
     internal SimulatorRegisterMemory Memory => _memory;
 
@@ -357,7 +359,15 @@ public sealed class McuReferenceSimulator
         _memory.InternalWrite(0x0800, (ushort)(uptime >> 16));
         _memory.InternalWrite(0x0801, (ushort)(uptime & 0xFFFF));
         _memory.InternalWrite(0x0802, (ushort)_resetReason);
-        _memory.InternalWrite(0x0803, (ushort)SPLC_HealthFlags.NONE);
+
+        // Tự hạ MATH_FAULT sau 3000 ms nếu không phát sinh lỗi mới
+        ulong nowMs = (ulong)uptime * 1000;
+        if ((_healthFlags & (ushort)SPLC_HealthFlags.MATH_FAULT) != 0 && nowMs > _mathFaultTimestampMs + 3000)
+        {
+            _healthFlags &= (ushort)~SPLC_HealthFlags.MATH_FAULT;
+        }
+
+        _memory.InternalWrite(0x0803, _healthFlags);
         _memory.InternalWrite(0x0804, _clock.GetCpuLoadPercent());
         _memory.InternalWrite(0x0805, 40); // RAM 40%
 
@@ -656,6 +666,14 @@ public sealed class McuReferenceSimulator
                     continue;
                 }
 
+                // SPLC-SPEC-MATH-007: Khối MATH là tổ hợp không trạng thái. Mỗi scan, rule bật đều được tính.
+                // Không dùng GuardTag làm điều kiện chặn (GuardTag là Op2), không dùng trigger_type / for_ms / ngưỡng.
+                if (rule.ActionType == SPLC_ActionType.MATH_OP)
+                {
+                    ExecuteAction(rule);
+                    continue;
+                }
+
                 // Check Guard
                 if (rule.GuardTag != ModbusRegisterMap.GuardTagNone)
                 {
@@ -903,6 +921,11 @@ public sealed class McuReferenceSimulator
 
     private int ReadTagValue(ushort tagIndex)
     {
+        if (tagIndex >= 1000 && tagIndex <= 1007)
+        {
+            ushort sysAddr = (ushort)(ModbusRegisterMap.SystemRegistersBaseAddress + (tagIndex - 1000));
+            return (int)_memory.InternalRead(sysAddr);
+        }
         ushort tagAddr = ModbusRegisterMap.GetRuntimeTagAddress(tagIndex);
         return RegisterCodec.DecodeInt32(_memory.InternalMutableSpan(tagAddr, 2));
     }
@@ -935,7 +958,8 @@ public sealed class McuReferenceSimulator
                 if (rule.IsActionFloat || rule.IsTriggerFloat)
                 {
                     int rawTrigVal = ReadTagValue(rule.TriggerTag);
-                    float trigValFloat = rule.IsTriggerFloat ? BitConverter.Int32BitsToSingle(rawTrigVal) : (float)rawTrigVal;
+                    bool isIntSource = (rule.Flags & (byte)SPLC_RuleFlags.INT_TO_FLOAT) != 0 || !rule.IsTriggerFloat;
+                    float trigValFloat = isIntSource ? (float)rawTrigVal : BitConverter.Int32BitsToSingle(rawTrigVal);
                     float gain = rule.ActionParamFloat;
                     // Hỗ trợ cả AuxParamFloat chuẩn mới và fallback sang ThresholdHiFloat nếu AuxParam=0
                     float offset = (rule.AuxParam != 0 || rule.ThresholdHi == 0) ? rule.AuxParamFloat : rule.ThresholdHiFloat;
@@ -979,7 +1003,9 @@ public sealed class McuReferenceSimulator
 
     /// <summary>
     /// Thực thi phép toán số học ALU công nghiệp thuần túy giữa 2 toán hạng Op1 và Op2.
-    /// Hỗ trợ bảo vệ chống chia cho 0, khử tràn số 64-bit clamp và vệ sinh giá trị NaN/Infinity.
+    /// Tuân thủ quy tắc số học SPLC-SPEC-MATH-007:
+    /// - INT32: ADD/SUB quấn mod 2^32, MUL kẹp 64-bit clamp, DIV/MOD zero check, INT32_MIN/-1, INT32_MIN%-1.
+    /// - REAL (Float32): IEEE-754, fmodf, bảo vệ zero và NaN/Inf.
     /// </summary>
     public static int EvaluateMathAlu(int rawOp1, int rawOp2, byte mathOp, bool isReal)
     {
@@ -995,10 +1021,10 @@ public sealed class McuReferenceSimulator
                 case 1: resF = f1 - f2; break; // Subtract
                 case 2: resF = f1 * f2; break; // Multiply
                 case 3:                        // Divide
-                    resF = Math.Abs(f2) > 1e-6f ? (f1 / f2) : 0.0f;
+                    resF = (f2 != 0.0f && f2 != -0.0f) ? (f1 / f2) : 0.0f;
                     break;
                 case 4:                        // Modulo
-                    resF = Math.Abs(f2) > 1e-6f ? (float)(f1 % f2) : 0.0f;
+                    resF = (f2 != 0.0f && f2 != -0.0f) ? (f1 % f2) : 0.0f;
                     break;
                 default: resF = f1; break;
             }
@@ -1014,11 +1040,19 @@ public sealed class McuReferenceSimulator
 
             switch (mathOp)
             {
-                case 0: resI = (int)Math.Clamp((long)i1 + i2, int.MinValue, int.MaxValue); break; // Add
-                case 1: resI = (int)Math.Clamp((long)i1 - i2, int.MinValue, int.MaxValue); break; // Subtract
-                case 2: resI = (int)Math.Clamp((long)i1 * i2, int.MinValue, int.MaxValue); break; // Multiply
-                case 3: resI = (i2 != 0) ? (i1 / i2) : 0; break;                                  // Divide
-                case 4: resI = (i2 != 0) ? (i1 % i2) : 0; break;                                  // Modulo
+                case 0: resI = unchecked((int)((uint)i1 + (uint)i2)); break; // Add: quấn mod 2^32
+                case 1: resI = unchecked((int)((uint)i1 - (uint)i2)); break; // Subtract: quấn mod 2^32
+                case 2: resI = (int)Math.Clamp((long)i1 * (long)i2, int.MinValue, int.MaxValue); break; // Multiply: kẹp [INT32_MIN, INT32_MAX]
+                case 3:
+                    if (i2 == 0) resI = 0;
+                    else if (i1 == int.MinValue && i2 == -1) resI = int.MaxValue;
+                    else resI = i1 / i2;
+                    break;
+                case 4:
+                    if (i2 == 0) resI = 0;
+                    else if (i1 == int.MinValue && i2 == -1) resI = 0; // INT32_MIN % -1 -> 0
+                    else resI = i1 % i2;
+                    break;
                 default: resI = i1; break;
             }
 
@@ -1035,23 +1069,86 @@ public sealed class McuReferenceSimulator
             ? ReadTagValue((ushort)(rule.GuardTag & ModbusRegisterMap.GuardTagIndexMask))
             : rule.AuxParam;
 
-        bool isFloat = rule.IsActionFloat || rule.IsTriggerFloat;
-        int result = EvaluateMathAlu(rawOp1, rawOp2, (byte)rule.CompareOp, isFloat);
+        bool isFloat = (rule.Flags & 0x03) == 0x03 || rule.IsActionFloat || rule.IsTriggerFloat;
+        byte mathOp = (byte)rule.CompareOp;
 
-        // Phát hiện chia cho 0 để ghi ConfigErrorCode
-        if ((byte)rule.CompareOp == 3)
+        if (isFloat)
         {
-            if (isFloat && Math.Abs(rule.IsActionFloat ? BitConverter.Int32BitsToSingle(rawOp2) : rawOp2) <= 1e-6f)
-            {
-                _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.INVALID_PARAMETER);
-            }
-            else if (!isFloat && rawOp2 == 0)
-            {
-                _memory.InternalWrite(ModbusRegisterMap.ConfigErrorCodeAddress, (ushort)SPLC_ErrorCode.INVALID_PARAMETER);
-            }
-        }
+            float f1 = BitConverter.Int32BitsToSingle(rawOp1);
+            float f2 = BitConverter.Int32BitsToSingle(rawOp2);
 
-        WriteTagValue(rule.ActionTag, result);
+            // Kiểm tra chia cho 0: số chia là 0.0f hoặc -0.0f
+            if ((mathOp == 3 || mathOp == 4) && (f2 == 0.0f || f2 == -0.0f))
+            {
+                TriggerMathFault();
+                return; // Giữ nguyên giá trị cũ của ActionTag (không ghi đè)
+            }
+
+            float resF = mathOp switch
+            {
+                0 => f1 + f2,
+                1 => f1 - f2,
+                2 => f1 * f2,
+                3 => f1 / f2,
+                4 => f1 % f2,
+                _ => f1
+            };
+
+            // Kiểm tra kết quả NaN hoặc +-Inf
+            if (float.IsNaN(resF) || float.IsInfinity(resF))
+            {
+                TriggerMathFault();
+                return; // Giữ nguyên giá trị cũ của ActionTag (không ghi đè)
+            }
+
+            WriteTagValue(rule.ActionTag, BitConverter.SingleToInt32Bits(resF));
+        }
+        else
+        {
+            int i1 = rawOp1;
+            int i2 = rawOp2;
+
+            // Kiểm tra chia cho 0
+            if ((mathOp == 3 || mathOp == 4) && i2 == 0)
+            {
+                TriggerMathFault();
+                return; // Giữ nguyên giá trị cũ của ActionTag (không ghi đè)
+            }
+
+            // Trường hợp biên INT32_MIN / -1 -> ghi INT32_MAX và bật cờ lỗi
+            if (mathOp == 3 && i1 == int.MinValue && i2 == -1)
+            {
+                TriggerMathFault();
+                WriteTagValue(rule.ActionTag, int.MaxValue);
+                return;
+            }
+
+            // Trường hợp biên INT32_MIN % -1 -> trả về 0, KHÔNG bật cờ lỗi
+            if (mathOp == 4 && i1 == int.MinValue && i2 == -1)
+            {
+                WriteTagValue(rule.ActionTag, 0);
+                return;
+            }
+
+            int resI = mathOp switch
+            {
+                0 => unchecked((int)((uint)i1 + (uint)i2)), // ADD: quấn mod 2^32
+                1 => unchecked((int)((uint)i1 - (uint)i2)), // SUB: quấn mod 2^32
+                2 => (int)Math.Clamp((long)i1 * (long)i2, int.MinValue, int.MaxValue), // MUL: kẹp
+                3 => i1 / i2,
+                4 => i1 % i2,
+                _ => i1
+            };
+
+            WriteTagValue(rule.ActionTag, resI);
+        }
+    }
+
+    private void TriggerMathFault()
+    {
+        _healthFlags |= (ushort)SPLC_HealthFlags.MATH_FAULT;
+        _mathFaultTimestampMs = (ulong)_clock.GetUptimeSeconds() * 1000;
+        _memory.InternalWrite(0x0803, _healthFlags);
     }
 
     // =========================================================

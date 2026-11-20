@@ -9,9 +9,9 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`INPUT`** block is the foundational signal entry point on the **SynaptiX IDE** Logic Graph Canvas. It binds a single physical I/O channel or virtual memory variable from the project [Tag Catalog](/workspaces/tag-catalog-tab) and exposes its live state onto the `Out` value connector on every scan cycle.
+The `INPUT` block is the foundational signal entry point on the SynaptiX IDE Logic Graph Canvas. It binds a single physical I/O channel or virtual memory variable from the project [Tag Catalog](/workspaces/tag-catalog-tab) and exposes its live state onto the `Out` value connector on every scan cycle.
 
-- **Deterministic Process Image Read:** At the start of each scan cycle on the **SynaptiX Runtime**, hardware inputs are latched into an immutable process image snapshot. Every `INPUT` block referencing the same tag reads an identical, race-free value throughout that scan pass.
+- **Deterministic Process Image Read:** At the start of each scan cycle on the SynaptiX Runtime, hardware inputs are latched into an immutable process image snapshot. Every `INPUT` block referencing the same tag reads an identical, race-free value throughout that scan pass.
 - **Zero-Overhead Lowering:** `INPUT` does not consume a standalone execution slot; during compilation (`F7`), its bound tag index and physical data type (`BOOL`, `INT32`, or IEEE-754 `REAL`) propagate directly into downstream [`TRIGGER`](/blocks/trigger), [`COMPARATOR`](/blocks/comparator), [`SCALE`](/blocks/scale), [`TON`](/blocks/ton), [`CTU`](/blocks/ctu), or [`MQTT_PUB`](/blocks/mqtt-pub) blocks.
 - **Primary Industrial Use Cases:** Reading discrete limit switches and E-Stop contacts (`DI`), monitoring coil feedback (`DO`), feeding raw `4–20 mA` / `0–10 V` sensor channels (`AI`) into calibration chains, and routing internal state flags (`VFLAG`) or retentive setpoints (`VREG_R`) across multi-rung control sequences.
 
@@ -29,7 +29,7 @@ The **`INPUT`** block is the foundational signal entry point on the **SynaptiX I
 
 ## 3. Inspector Parameters & Validation Limits
 
-Selecting an `INPUT` node opens its property sheet in the right-hand **Inspector** panel:
+Selecting an `INPUT` node opens its property sheet in the right-hand Inspector panel:
 
 | Parameter | Type / Options | Default | Constraints | Runtime Behavior |
 | :--- | :--- | :--- | :--- | :--- |
@@ -73,10 +73,10 @@ To uphold the **Visual Truth Guarantee**—ensuring the Inspector display never 
 
 | Operating Mode | Node Visual Indicator | Diagnostic Behavior |
 | :--- | :--- | :--- |
-| **Offline / Design** | Tag Kind pill (`DI`, `AI`, `VREG_R`) + `ValueBadgeText` | Displays initial/simulated value formatted strictly per tag data type (`0`/`1`, integer, or `0.0###` float). |
-| **Simulator (`F5`)** | Interactive `○ 0` / `● 1` or step-cycle button + energized border | Border and output wire illuminate green whenever a digital tag equals `1` or an analog tag exceeds `0`. |
-| **Online Live Debug (`F8`)** | 20 FPS `LiveBadgeText` (`1`, `0`, `1,250`, `36.5`) | Streams live hardware readings. Only boolean tags trigger active green node illumination; numeric registers display live formatted numbers cleanly on a neutral slate card. |
-| **Quality Degradation** | ` [STALE]` suffix / Last Known badge | Appends ` [STALE]` if tag quality drops, and retains the final sampled reading on disconnect so intermittent wiring faults remain visible. |
+| Offline / Design | Tag Kind pill (`DI`, `AI`, `VREG_R`) + `ValueBadgeText` | Displays initial/simulated value formatted strictly per tag data type (`0`/`1`, integer, or `0.0###` float). |
+| Simulator (`F5`) | Interactive `○ 0` / `● 1` or step-cycle button + energized border | Border and output wire illuminate green whenever a digital tag equals `1` or an analog tag exceeds `0`. |
+| Online Live Debug (`F8`) | 20 FPS `LiveBadgeText` (`1`, `0`, `1,250`, `36.5`) | Streams live hardware readings. Only boolean tags trigger active green node illumination; numeric registers display live formatted numbers cleanly on a neutral slate card. |
+| Quality Degradation | ` [STALE]` suffix / Last Known badge | Appends ` [STALE]` if tag quality drops, and retains the final sampled reading on disconnect so intermittent wiring faults remain visible. |
 
 ---
 
@@ -96,10 +96,10 @@ A `4–20 mA` discharge pressure transmitter wired to analog input `AI0` (`0–1
 
 ### Step-by-Step Canvas Wiring
 
-1. Press `Ctrl+2` to open the **Logic Graph Canvas** and add one **`INPUT`** block; bind `Tag = AI0` and set `CustomLabel = "Discharge Pressure"`.
-2. With the `INPUT` node selected, add a **[`COMPARATOR`](/blocks/comparator)** (`CompareOp = GTE`, `ThresholdLo = 8000`) followed by a **[`TRIGGER`](/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 500`) and an **[`ACTION`](/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 1`).
-3. Drag a second wire (`1:N` fan-out) from the same `INPUT.Out` pin to a second **[`COMPARATOR`](/blocks/comparator)** (`CompareOp = GTE`, `ThresholdLo = 9500`) → **[`TRIGGER`](/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 100`) → **[`ACTION`](/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
-4. Press `F5` to launch the **Simulator**, select the `AI0` `INPUT` node, and enter `"8200"` in `TagValueText` (`Enter`): verify `VFLAG0` latches `1` after `500 ms` while `DO0` stays `1`. Next, enter `"9600"` and confirm `DO0` trips to `0` after `100 ms`.
+1. Press `Ctrl+2` to open the Logic Graph Canvas and add one `INPUT` block; bind `Tag = AI0` and set `CustomLabel = "Discharge Pressure"`.
+2. With the `INPUT` node selected, add a [`COMPARATOR`](/blocks/comparator) (`CompareOp = GTE`, `ThresholdLo = 8000`) followed by a [`TRIGGER`](/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 500`) and an [`ACTION`](/blocks/action) (`ActionType = SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 1`).
+3. Drag a second wire (`1:N` fan-out) from the same `INPUT.Out` pin to a second [`COMPARATOR`](/blocks/comparator) (`CompareOp = GTE`, `ThresholdLo = 9500`) → [`TRIGGER`](/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 100`) → [`ACTION`](/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO0`, `ActionParam = 0`).
+4. Press `F5` to launch the Simulator, select the `AI0` `INPUT` node, and enter `"8200"` in `TagValueText` (`Enter`): verify `VFLAG0` latches `1` after `500 ms` while `DO0` stays `1`. Next, enter `"9600"` and confirm `DO0` trips to `0` after `100 ms`.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-input">

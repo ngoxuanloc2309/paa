@@ -7,7 +7,7 @@
   <span><strong>Uplinks:</strong> MQTT(s) &bull; HTTP(s) REST &bull; Raw TCP Socket</span>
 </div>
 
-**DTU Gateway Studio** is a dedicated no-code fieldbus-to-cloud commissioning workbench built directly into **SynaptiX IDE**. When you create a project using the **SynaptiX DTU (`SYNX-DTU-485`)** preset, DTU Gateway Studio opens automatically as your primary workspace. On hybrid **SynaptiX Controller** or **SynaptiX Gateway** projects, you can launch it at any time by pressing `Ctrl+Shift+D` (or selecting **Device -> DTU Gateway Configuration...**).
+**DTU Gateway Studio** is a dedicated no-code fieldbus-to-cloud commissioning workbench built directly into SynaptiX IDE. When you create a project using the **SynaptiX DTU (`SYNX-DTU-485`)** preset, DTU Gateway Studio opens automatically as your primary workspace. On hybrid SynaptiX Controller or SynaptiX Gateway projects, you can launch it at any time by pressing `Ctrl+Shift+D` (or selecting **Device -> DTU Gateway Configuration...**).
 
 ::: tip Quick 4-Step DTU Gateway Commissioning Guide
 Follow the four guided sections in the left sidebar to quickly provision your gateway:
@@ -30,16 +30,16 @@ Configures the physical RS-485 port (`RS-485 #1 .. #4`), framing (`1200 .. 11520
 - **Transparent Serial Passthrough (`Transference`):** Captures arbitrary raw byte or ASCII frames (scales, barcode scanners, legacy printers) delimited by silent `FrameTimeoutDelayMs` (default `20 ms`, max packet `512..2048 bytes`) and forwards them directly to the cloud uplink.
 
 ### Section `1`: Wi-Fi & IPv4 Network Provisioning
-Configures onboard 2.4 GHz wireless station connectivity (`WifiEnabled`, `WifiAutoReconnect`, `SSID`, `Password`, nearby network scan list with `dBm` RSSI indicators) alongside **DHCP** or **Static IPv4** (`StaticIp`, `SubnetMask`, `Gateway`, `Primary/Secondary DNS`) and hardware MAC inspection.
+Configures onboard 2.4 GHz wireless station connectivity (`WifiEnabled`, `WifiAutoReconnect`, `SSID`, `Password`, nearby network scan list with `dBm` RSSI indicators) alongside **DHCP** or Static IPv4 (`StaticIp`, `SubnetMask`, `Gateway`, `Primary/Secondary DNS`) and hardware MAC inspection.
 
 ### Section `2`: Cloud Uplink Protocol (`MQTT` / `HTTP REST` / `TCP Socket`)
 Routes acquired serial data to one of three industrial IP uplink engines:
 
 | Uplink Mode | Key Configuration Parameters | Reliability & Security Features |
 | :--- | :--- | :--- |
-| **`MQTT` (`MQTT / MQTTS`)** | Broker Host, Port (`1883`/`8883`), Client ID, Username/Password, Publish Topic, Subscribe Topic, `QoS 0/1/2`, `Retain`. | Full X.509 Root CA & Mutual TLS (`mTLS`), SNI override, plus **Last Will & Testament (LWT)** offline detection. |
-| **`HTTP REST` (`POST` / `PUT`)** | Endpoint URL, Method (`POST`/`PUT`), Custom Headers (`Authorization: Bearer ...`, `Content-Type`), Timeout (`s`), Field Mapper. | Supports **Event-Driven (`OnDataReceived`)** instant forwarding or **Periodic (`IntervalSec`)** batching per RFC 9110. |
-| **`TCP Socket` (`Client` / `Server`)** | Socket Mode (`Client` to `RemoteHost:RemotePort`, or `Server` on `LocalPort`). | Automatic `ReconnectDelaySec`, keep-alive `HeartbeatPayload` (`PING` every `30 s`), and **IEC 62443 Station Registration Packet** (`None`, `OnConnect`, or `PrependToEveryPacket`). |
+| `MQTT` (`MQTT / MQTTS`) | Broker Host, Port (`1883`/`8883`), Client ID, Username/Password, Publish Topic, Subscribe Topic, `QoS 0/1/2`, `Retain`. | Full X.509 Root CA & Mutual TLS (`mTLS`), SNI override, plus Last Will & Testament (LWT) offline detection. |
+| `HTTP REST` (`POST` / `PUT`) | Endpoint URL, Method (`POST`/`PUT`), Custom Headers (`Authorization: Bearer ...`, `Content-Type`), Timeout (`s`), Field Mapper. | Supports Event-Driven (`OnDataReceived`) instant forwarding or Periodic (`IntervalSec`) batching per RFC 9110. |
+| `TCP Socket` (`Client` / `Server`) | Socket Mode (`Client` to `RemoteHost:RemotePort`, or `Server` on `LocalPort`). | Automatic `ReconnectDelaySec`, keep-alive `HeartbeatPayload` (`PING` every `30 s`), and IEC 62443 Station Registration Packet (`None`, `OnConnect`, or `PrependToEveryPacket`). |
 
 ### Section `3`: Timing, JSON Payload Formatter & Bandwidth Estimator
 Controls polling/uplink cadence (`PollingIntervalMs`, `PublishIntervalSec`, `SendOnChange` COV optimization) and formats outbound payloads across three modes:
@@ -63,25 +63,65 @@ When commissioning standard Modbus sensors under tight plant-floor schedules, cl
 
 ---
 
-## 3. Moxa-Style Wire Frame Inspector & Live Packet Sniffer
+## 3. Modbus RTU Wire Frame Inspector & Live Packet Sniffer
 
 The collapsible right-hand **Device Sensor Diagnostics & Wire Frame Inspector** panel gives field engineers hardware-level visibility into every RS-485 transaction without external USB-to-RS485 dongles or third-party serial terminals:
 
-```text
-+-------------------------------------------------------------------------+
-| MOXA-STYLE MODBUS WIRE FRAME INSPECTOR          [● COM4 · SYNX-DTU-485] |
-+-------------------------------------------------------------------------+
-| Target: Slave 1 · FC03 · 40001 (Temp_C)          Latency: 14 ms [GOOD]  |
-| Live Scaled Value: 28.4 °C                       Raw Register: 284      |
-| ----------------------------------------------------------------------- |
-| TX Request (8B):  [ 01 ] [ 03 ] [ 00 00 ] [ 00 01 ] [ 84 0A ] (CRC OK)  |
-| RX Response (7B): [ 01 ] [ 03 ] [ 02 ] [ 01 1C ] [ B8 49 ]    (CRC OK)  |
-+-------------------------------------------------------------------------+
-```
+<div class="synx-proto-card">
+<div class="synx-proto-header">
+<div class="synx-proto-title">MODBUS RTU WIRE FRAME INSPECTOR</div>
+<span class="synx-proto-status">COM4 · 9600-8-N-1</span>
+</div>
+<div class="synx-proto-body">
+<div class="synx-proto-grid">
+<div class="synx-proto-item">
+<span class="synx-proto-label">Target:</span>
+<span class="synx-proto-val">Slave 1 (FC03 · 40001)</span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Latency:</span>
+<span class="synx-proto-val">14 ms <span class="synx-proto-badge-ok">GOOD</span></span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Live Scaled Value:</span>
+<span class="synx-proto-val font-mono">28.4 °C</span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Raw Register:</span>
+<span class="synx-proto-val font-mono">284 (0x011C)</span>
+</div>
+</div>
+<div class="synx-proto-divider"></div>
+<div class="synx-proto-stream">
+<div class="synx-stream-row">
+<span class="synx-stream-tag">TX Request (8B):</span>
+<div class="synx-byte-badges">
+<div class="synx-byte-group"><span class="synx-byte">01</span><span class="synx-byte-sub">Addr</span></div>
+<div class="synx-byte-group"><span class="synx-byte">03</span><span class="synx-byte-sub">FC03</span></div>
+<div class="synx-byte-group"><span class="synx-byte">00 00</span><span class="synx-byte-sub">Start</span></div>
+<div class="synx-byte-group"><span class="synx-byte">00 01</span><span class="synx-byte-sub">Count</span></div>
+<div class="synx-byte-group"><span class="synx-byte">84 0A</span><span class="synx-byte-sub">CRC-16</span></div>
+<span class="synx-proto-badge-ok">CRC-16 Valid</span>
+</div>
+</div>
+<div class="synx-stream-row">
+<span class="synx-stream-tag">RX Response (7B):</span>
+<div class="synx-byte-badges">
+<div class="synx-byte-group"><span class="synx-byte">01</span><span class="synx-byte-sub">Addr</span></div>
+<div class="synx-byte-group"><span class="synx-byte">03</span><span class="synx-byte-sub">FC03</span></div>
+<div class="synx-byte-group"><span class="synx-byte">02</span><span class="synx-byte-sub">Bytes</span></div>
+<div class="synx-byte-group"><span class="synx-byte">01 1C</span><span class="synx-byte-sub">Data</span></div>
+<div class="synx-byte-group"><span class="synx-byte">B8 49</span><span class="synx-byte-sub">CRC-16</span></div>
+<span class="synx-proto-badge-ok">CRC-16 Valid</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-### 3.1 Moxa-Style Modbus Wire Frame Inspector
+### 3.1 Modbus RTU Wire Frame Inspector
 - **On-Demand Frame Breakdown (`ToggleWireFrame`):** Dissects every channel's exact `TX` query and `RX` response into bracketed protocol fields: `[ Slave ID ]`, `[ Function Code ]`, `[ 0-Based Wire Offset ]`, `[ Register/Byte Count ]`, `[ Data Payload ]`, and `[ Little-Endian CRC-16 ]`.
-- **Single Probe & Continuous Live Polling:** Click **Read Once** to execute an immediate diagnostic transaction through the connected SynaptiX unit, or toggle **Continuous Polling** to watch **Live Scaled Value**, **Live Raw Value**, and **Round-Trip Latency (`ms`)** update in real time.
+- **Single Probe & Continuous Live Polling:** Click Read Once to execute an immediate diagnostic transaction through the connected SynaptiX unit, or toggle **Continuous Polling** to watch **Live Scaled Value**, **Live Raw Value**, and **Round-Trip Latency (`ms`)** update in real time.
 - **Automated Fault Hints:** Color-coded ANSI/ISA-101 status banners (`Good`, `Warning`, `Fault`) translate timeouts, CRC mismatches, and Modbus exception responses (`0x01..0x0B`) into actionable wiring and addressing remedies.
 
 ### 3.2 Live Packet Sniffer & Diagnostic Terminal

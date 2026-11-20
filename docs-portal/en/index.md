@@ -9,7 +9,7 @@
 
 Welcome to the official **SynaptiX Programming Guide** — the comprehensive engineering reference and system integration manual for the **SynaptiX Edge Automation & IIoT Ecosystem**.
 
-Unlike fragmented configuration utilities that separate local control logic from fieldbus polling and cloud telemetry, **SynaptiX IDE** integrates visual graph authoring, strict physical type checking, cycle-accurate offline simulation, atomic flash deployment, and live 20 FPS telemetry diagnostics inside a single deterministic workbench.
+Unlike fragmented configuration utilities that separate local control logic from fieldbus polling and cloud telemetry, SynaptiX IDE integrates visual graph authoring, strict physical type checking, cycle-accurate offline simulation, atomic flash deployment, and live 20 FPS telemetry diagnostics inside a single deterministic workbench.
 
 ![SynaptiX IDE Main Engineering Workbench](/images/synaptix_main_anatomy.png)
 
@@ -93,12 +93,12 @@ This manual is organized sequentially into **six progressive chapters** in the l
 
 | Pillar | Engineering Guarantee | Where to Learn More |
 | :--- | :--- | :--- |
-| **Visual Truth & Type Integrity** | Every input field enforces strict physical memory contracts (`BOOL`, `INT32`, IEEE-754 `REAL`) with automatic normalization and invalid-input auto-revert upon commit. | [Tag Architecture & Data Types](./concepts/data-model-and-types) |
-| **Hybrid Deterministic Engine** | Combines sub-millisecond 4-stage Event-Condition-Action rules (up to 100 rules) with stateful timers, counters, linear calibrators, and asynchronous fieldbus/cloud workers. | [Deterministic Execution Pipeline](./concepts/execution-pipeline) |
-| **18 Self-Contained Function Blocks** | Zero external scripting required — native blocks cover edge detection, RTC shift windows, Modbus RTU Master read/write, PWM/PTO hardware pins, MQTT JSON builders, HTTP REST, and raw TCP streams. | [Function Blocks Catalog](./blocks/overview) |
-| **Zero-Hardware Offline Verification** | Cycle-accurate desktop simulation (`F5`) and inbound JSON payload injection let engineers validate 100% of logic before connecting to physical hardware. | [Simulator & Online Live Debug](./tools/simulator-and-live-debug) |
-| **Safe Atomic Deployment** | Two-phase flash staging with pre-flight validation ensures power loss or cable disconnection during transfer never leaves an edge controller in a corrupted state. | [Atomic Deploy Workspace](./workspaces/deploy-tab) |
+| Visual Truth & Type Integrity | Every input field enforces strict physical memory contracts (`BOOL`, `INT32`, IEEE-754 `REAL`) with automatic normalization and invalid-input auto-revert upon commit. | [Tag Architecture & Data Types](./concepts/data-model-and-types) |
+| Hybrid Deterministic Engine | Combines sub-millisecond 4-stage Event-Condition-Action rules (up to 100 rules) with stateful timers, counters, linear calibrators, and asynchronous fieldbus/cloud workers. | [Deterministic Execution Pipeline](./concepts/execution-pipeline) |
+| 18 Self-Contained Function Blocks | Zero external scripting required — native blocks cover edge detection, RTC shift windows, Modbus RTU Master read/write, PWM/PTO hardware pins, MQTT JSON builders, HTTP REST, and raw TCP streams. | [Function Blocks Catalog](./blocks/overview) |
+| Zero-Hardware Offline Verification | Cycle-accurate desktop simulation (`F5`) and inbound JSON payload injection let engineers validate 100% of logic before connecting to physical hardware. | [Simulator & Online Live Debug](./tools/simulator-and-live-debug) |
+| Safe Atomic Deployment | Two-phase flash staging with pre-flight validation ensures power loss or cable disconnection during transfer never leaves an edge controller in a corrupted state. | [Atomic Deploy Workspace](./workspaces/deploy-tab) |
 
 ::: tip Instant Bilingual Support
-Both **SynaptiX IDE** and this documentation portal support instant switching between **English** and **Tiếng Việt** (use the language menu in the top-right navigation bar).
+Both SynaptiX IDE and this documentation portal support instant switching between **English** and **Tiếng Việt** (use the language menu in the top-right navigation bar).
 :::

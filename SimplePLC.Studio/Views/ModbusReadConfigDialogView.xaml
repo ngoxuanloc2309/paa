@@ -551,7 +551,11 @@
 
                                     <Grid.ColumnDefinitions>
 
-                                        <ColumnDefinition Width="*" MinWidth="100" />
+                                        <ColumnDefinition Width="*" MinWidth="90" />
+
+                                        <ColumnDefinition Width="6" />
+
+                                        <ColumnDefinition Width="165" />
 
                                         <ColumnDefinition Width="6" />
 
@@ -571,10 +575,6 @@
 
                                         <ColumnDefinition Width="6" />
 
-                                        <ColumnDefinition Width="165" />
-
-                                        <ColumnDefinition Width="6" />
-
                                         <ColumnDefinition Width="28" />
 
                                     </Grid.ColumnDefinitions>
@@ -585,35 +585,35 @@
 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0" />
 
-                                    <TextBlock Grid.Column="2" Text="{Binding [ModbusColOffset], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Grid.Column="2" Text="{Binding [ModbusColTargetTag], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                               ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                               FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
+
+                                    <TextBlock Grid.Column="4" Text="{Binding [ModbusColOffset], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                ToolTip="{Binding [ModbusReadPinOffsetTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
 
-                                    <TextBlock Grid.Column="4" Text="{Binding [MqttSubColType], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Grid.Column="6" Text="{Binding [MqttSubColType], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                ToolTip="{Binding [ModbusReadPinTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
 
-                                    <TextBlock Grid.Column="6" Text="{Binding [ModbusColEndian], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Grid.Column="8" Text="{Binding [ModbusColEndian], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
 
-                                    <TextBlock Grid.Column="8" Text="{Binding [ModbusColScale], Source={x:Static services:LocalizationService.Instance}}" 
+                                    <TextBlock Grid.Column="10" Text="{Binding [ModbusColScale], Source={x:Static services:LocalizationService.Instance}}" 
 
                                                ToolTip="{Binding [ModbusReadPinScaleTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
                                                FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Center" />
-
-                                    <TextBlock Grid.Column="10" Text="{Binding [ModbusColTargetTag], Source={x:Static services:LocalizationService.Instance}}" 
-
-                                               ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                               FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0" />
 
                                 </Grid>
 
@@ -659,7 +659,11 @@
 
                                                         <Grid.ColumnDefinitions>
 
-                                                            <ColumnDefinition Width="*" MinWidth="100" />
+                                                            <ColumnDefinition Width="*" MinWidth="90" />
+
+                                                            <ColumnDefinition Width="6" />
+
+                                                            <ColumnDefinition Width="165" />
 
                                                             <ColumnDefinition Width="6" />
 
@@ -676,10 +680,6 @@
                                                             <ColumnDefinition Width="6" />
 
                                                             <ColumnDefinition Width="48" />
-
-                                                            <ColumnDefinition Width="6" />
-
-                                                            <ColumnDefinition Width="165" />
 
                                                             <ColumnDefinition Width="6" />
 
@@ -701,71 +701,9 @@
 
 
 
-                                                        <!-- Reg Offset -->
-
-                                                        <TextBox Grid.Column="2" Text="{Binding RegOffset, UpdateSourceTrigger=PropertyChanged}" 
-
-                                                                 ToolTip="{Binding [ModbusReadPinOffsetTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                 Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
-
-                                                                 Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" />
-
-
-
-                                                        <!-- Data Type (110px Width - Fits INT16 / REAL / BOOL Comfortably) -->
-
-                                                        <ComboBox Grid.Column="4" 
-
-                                                                  ToolTip="{Binding [ModbusReadPinTypeTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                  ItemsSource="{Binding DataContext.AvailableDataTypes, RelativeSource={RelativeSource AncestorType=Window}}"
-
-                                                                  SelectedValue="{Binding DataType}"
-
-                                                                  SelectedValuePath="Value"
-
-                                                                  DisplayMemberPath="DisplayName"
-
-                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-
-
-                                                        <!-- Endianness (120px Width - Fits Big-Endian ABCD Without Truncation) -->
-
-                                                        <ComboBox Grid.Column="6" 
-
-                                                                  ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
-
-                                                                  ItemsSource="{Binding EndiannessOptions}"
-
-                                                                  IsEnabled="{Binding IsEndiannessEnabled}"
-
-                                                                  SelectedValue="{Binding Endianness}"
-
-                                                                  SelectedValuePath="Value"
-
-                                                                  DisplayMemberPath="DisplayName"
-
-                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
-
-
-
-                                                        <!-- Scale/Multiplier -->
-
-                                                        <TextBox Grid.Column="8" Text="{Binding Multiplier, UpdateSourceTrigger=PropertyChanged}" 
-
-                                                                 Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
-
-                                                                 Background="{DynamicResource BgPanelBrush}" BorderBrush="{Binding MultiplierBorderBrush}"
-
-                                                                 ToolTip="{Binding MultiplierWarningText}" />
-
-
-
                                                         <!-- Target Tag Selection (Direct Mapping with Contextual Type-Safe Filtering) -->
 
-                                                        <ComboBox Grid.Column="10" 
+                                                        <ComboBox Grid.Column="2" 
 
                                                                   ToolTip="{Binding [ModbusColTargetTagTooltip], Source={x:Static services:LocalizationService.Instance}}"
 
@@ -803,6 +741,78 @@
                                                                 </DataTemplate>
                                                             </ComboBox.ItemTemplate>
                                                         </ComboBox>
+
+
+
+                                                        <!-- Reg Offset -->
+
+                                                        <TextBox Grid.Column="4" Text="{Binding RegOffset, UpdateSourceTrigger=PropertyChanged}" 
+
+                                                                 ToolTip="{Binding [ModbusReadPinOffsetTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                 Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
+
+                                                                 Background="{DynamicResource BgPanelBrush}" BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" />
+
+
+
+                                                        <!-- Data Type (Auto-Badge from Target Tag, click to toggle 16-bit/32-bit when applicable) -->
+                                                        <Border Grid.Column="6" 
+                                                                Background="{DynamicResource BgSubtleBrush}" 
+                                                                BorderBrush="{DynamicResource IndustrialBorderSubtleBrush}" 
+                                                                BorderThickness="1" CornerRadius="2" Height="25" Padding="4,2" 
+                                                                VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                                ToolTip="{Binding DataTypeTooltip}">
+                                                            <Border.InputBindings>
+                                                                <MouseBinding Gesture="LeftClick" Command="{Binding ToggleRegisterWidthCommand}" />
+                                                            </Border.InputBindings>
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding CanToggleRegisterWidth}" Value="True">
+                                                                            <Setter Property="Cursor" Value="Hand" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding DataTypeText}" 
+                                                                       FontSize="10.5" FontWeight="SemiBold" 
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}" 
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                        </Border>
+
+
+
+                                                        <!-- Endianness (120px Width - Fits Big-Endian ABCD Without Truncation) -->
+
+                                                        <ComboBox Grid.Column="8" 
+
+                                                                  ToolTip="{Binding [ModbusReadPinEndianTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                                                  ItemsSource="{Binding EndiannessOptions}"
+
+                                                                  IsEnabled="{Binding IsEndiannessEnabled}"
+
+                                                                  SelectedValue="{Binding Endianness}"
+
+                                                                  SelectedValuePath="Value"
+
+                                                                  DisplayMemberPath="DisplayName"
+
+                                                                  Height="25" Padding="4,2" FontSize="10.5" VerticalContentAlignment="Center" />
+
+
+
+                                                        <!-- Scale/Multiplier -->
+
+                                                        <TextBox Grid.Column="10" Text="{Binding Multiplier, UpdateSourceTrigger=PropertyChanged}" 
+
+                                                                 Height="25" Padding="2,2" FontSize="11" FontFamily="Consolas" TextAlignment="Center" VerticalContentAlignment="Center" 
+
+                                                                 Background="{DynamicResource BgPanelBrush}" BorderBrush="{Binding MultiplierBorderBrush}"
+
+                                                                 ToolTip="{Binding MultiplierWarningText}" />
 
 
 
@@ -849,6 +859,20 @@
                                     Style="{StaticResource TiaTactileBtnStyle}"
 
                                     Padding="14,5" FontSize="11" Margin="0,0,8,0" />
+
+                            <Button Content="{Binding [ModbusBtnAutoSequenceOffsets], Source={x:Static services:LocalizationService.Instance}}" 
+
+                                    ToolTip="{Binding [ModbusBtnAutoSequenceOffsetsTooltip], Source={x:Static services:LocalizationService.Instance}}"
+
+                                    Command="{Binding AutoSequenceOffsetsCommand}" 
+
+                                    Style="{StaticResource TiaTactileBtnStyle}"
+
+                                    Background="{DynamicResource IndustrialSurfaceInsetBrush}"
+
+                                    BorderBrush="{DynamicResource IndustrialBorderDefaultBrush}"
+
+                                    Padding="12,5" FontSize="11" Margin="0,0,8,0" />
 
                             <Button Content="{Binding [ModbusBtnImportFromSystem], Source={x:Static services:LocalizationService.Instance}}" 
 

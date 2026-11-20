@@ -289,6 +289,7 @@ public static class ModbusChannelSyncService
             // Reads
             var unlinkedReads = port.MasterChannels
                 .Where(ch => ch.FunctionCode >= 1 && ch.FunctionCode <= 4)
+                .Where(ch => string.IsNullOrEmpty(ch.LinkedNodeId))
                 .Where(ch => !string.IsNullOrWhiteSpace(ch.TargetTagName) && !claimedRead.Contains(ch.TargetTagName))
                 .OrderBy(ch => ch.SlaveId)
                 .ThenBy(ch => ch.FunctionCode)
@@ -335,6 +336,7 @@ public static class ModbusChannelSyncService
             // Writes
             var unlinkedWrites = port.MasterChannels
                 .Where(ch => ch.FunctionCode is 5 or 6 or 15 or 16)
+                .Where(ch => string.IsNullOrEmpty(ch.LinkedNodeId))
                 .Where(ch => !string.IsNullOrWhiteSpace(ch.TargetTagName) && !claimedWrite.Contains(ch.TargetTagName))
                 .OrderBy(ch => ch.SlaveId)
                 .ThenBy(ch => ch.FunctionCode)
@@ -532,7 +534,7 @@ public static class ModbusChannelSyncService
             Id = Guid.NewGuid().ToString("N")[..8],
             Label = $"Ch_{idx + 1}",
             RegOffset = (ushort)(ToWireOffset(ch.Address, functionCode) - startWireOffset),
-            DataType = ch.DataType,
+            DataType = ch.DataType ?? ModbusDataType.Int16,
             Endianness = ch.Endianness,
             Multiplier = (float)ch.Scale,
             TargetTagIndex = ch.TargetTag != null ? (ushort)ch.TargetTag.Index : null

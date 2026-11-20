@@ -9,16 +9,16 @@
 
 ## 1. Tổng quan & Ngữ nghĩa Thực thi
 
-Khối hàm **`CTD`** (**Count Down Counter — Bộ Đếm Lùi**) là bộ đếm giảm nạp sẵn định mức, được thiết kế chuyên biệt cho các bài toán theo dõi số lượng phôi còn lại trong khay cấp liệu, đếm ngược liều chiết rót, phát hiện cạn khoang chứa (Magazine Empty) và khóa liên động tuổi thọ dao cụ cơ khí.
+Khối hàm `CTD` (**Count Down Counter — Bộ Đếm Lùi**) là bộ đếm giảm nạp sẵn định mức, được thiết kế chuyên biệt cho các bài toán theo dõi số lượng phôi còn lại trong khay cấp liệu, đếm ngược liều chiết rót, phát hiện cạn khoang chứa (Magazine Empty) và khóa liên động tuổi thọ dao cụ cơ khí.
 
 Trong mỗi chu kỳ quét tất định của bộ thực thi SynaptiX:
-1. **Ưu tiên Nạp Định mức / Khởi tạo lại (`R` / `ResetTag`):** Khi chân **`R`** (hoặc biến `ResetTag`) chuyển sang mức tích cực (`1`), thanh ghi **Giá trị Hiện tại (`CV`)** lập tức được nạp bằng **`PresetValue` (`PV`)** (`CV ← PV`). Với `PV > 0`, ngõ ra **`Q`** lập tức trở về mức `0` (`FALSE`).
-2. **Đếm Lùi theo Sườn lên (`CD`):** Khi chân `R` ở mức `0`, mỗi sườn lên (`0 → 1`) xuất hiện tại chân **`CD`** sẽ giảm `CV` đi `1` đơn vị (`CV ← CV - 1`). Tín hiệu `CD` giữ nguyên mức `1` qua nhiều chu kỳ quét liên tiếp sẽ không làm giảm tiếp bộ đếm.
-3. **Đánh giá Cạn Định mức (`CV ≤ 0`):** Ngõ ra **`Q`** bật lên mức `1` (`TRUE`) ngay khi `CV ≤ 0`, báo hiệu toàn bộ định mức nạp ban đầu đã được sử dụng hết.
-4. **Đồng bộ Vùng nhớ Tag:** Giá trị `CV` cập nhật liên tục vào **`CvTag`** (`COUNTER0..COUNTER7` hoặc `VREG`), và trạng thái `Q` ghi ra **`OutputTag`**.
+1. **Ưu tiên Nạp Định mức / Khởi tạo lại (`R` / `ResetTag`):** Khi chân `R` (hoặc biến `ResetTag`) chuyển sang mức tích cực (`1`), thanh ghi **Giá trị Hiện tại (`CV`)** lập tức được nạp bằng **`PresetValue` (`PV`)** (`CV ← PV`). Với `PV > 0`, ngõ ra `Q` lập tức trở về mức `0` (`FALSE`).
+2. **Đếm Lùi theo Sườn lên (`CD`):** Khi chân `R` ở mức `0`, mỗi sườn lên (`0 → 1`) xuất hiện tại chân `CD` sẽ giảm `CV` đi `1` đơn vị (`CV ← CV - 1`). Tín hiệu `CD` giữ nguyên mức `1` qua nhiều chu kỳ quét liên tiếp sẽ không làm giảm tiếp bộ đếm.
+3. **Đánh giá Cạn Định mức (`CV ≤ 0`):** Ngõ ra `Q` bật lên mức `1` (`TRUE`) ngay khi `CV ≤ 0`, báo hiệu toàn bộ định mức nạp ban đầu đã được sử dụng hết.
+4. **Đồng bộ Vùng nhớ Tag:** Giá trị `CV` cập nhật liên tục vào `CvTag` (`COUNTER0..COUNTER7` hoặc `VREG`), và trạng thái `Q` ghi ra `OutputTag`.
 
 ::: tip Sự Khác biệt Giữa Chân `R` của `CTU` và `CTD`
-Ở khối [`CTU`](/vi/blocks/ctu), kích hoạt chân `R` sẽ xóa `CV → 0`. Ngược lại, ở khối **`CTD`**, kích hoạt chân `R` sẽ **nạp lại định mức xuất phát `CV ← PV`** (tương đương ngữ nghĩa chân `LD` — Load Preset trong chuẩn IEC 61131-3), giúp máy sẵn sàng ngay cho mẻ đếm lùi kế tiếp.
+Ở khối [`CTU`](/vi/blocks/ctu), kích hoạt chân `R` sẽ xóa `CV → 0`. Ngược lại, ở khối `CTD`, kích hoạt chân `R` sẽ **nạp lại định mức xuất phát `CV ← PV`** (tương đương ngữ nghĩa chân `LD` — Load Preset trong chuẩn IEC 61131-3), giúp máy sẵn sàng ngay cho mẻ đếm lùi kế tiếp.
 :::
 
 ---
@@ -29,25 +29,25 @@ Khối `CTD` sử dụng kiến trúc `CounterNodeViewModel` với `CounterMode 
 
 | Tên chân | Chiều | Bản chất Tín hiệu | Kiểu dữ liệu | Điều kiện Hiển thị | Hợp đồng Chức năng |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`CD`** | Ngõ vào | Sự kiện (`0 → 1`) | `BOOL` | Luôn hiển thị | **Xung Đếm Lùi (Count Down):** Giảm `CV` đi `1` tại mỗi sườn lên (`0 → 1`). Có thể nối dây trên Canvas hoặc gán trực tiếp qua `InputTag`. |
-| **`R`** | Ngõ vào | Sự kiện / Mức | `BOOL` | Luôn hiển thị | **Chân Nạp Định mức (Load / Reset):** Nạp `CV ← PV` và đưa `Q → 0` (với `PV > 0`). Ưu tiên cao hơn `CD` nếu tác động đồng thời. |
-| **`Q`** | Ngõ ra | Giá trị logic | `BOOL` | Luôn hiển thị | **Cờ Cạn Định mức (Zero Reached):** Xuất mức `1` (`TRUE`) khi `CV ≤ 0`; giữ mức `0` (`FALSE`) khi `CV > 0`. |
+| `CD` | Ngõ vào | Sự kiện (`0 → 1`) | `BOOL` | Luôn hiển thị | Xung Đếm Lùi (Count Down): Giảm `CV` đi `1` tại mỗi sườn lên (`0 → 1`). Có thể nối dây trên Canvas hoặc gán trực tiếp qua `InputTag`. |
+| `R` | Ngõ vào | Sự kiện / Mức | `BOOL` | Luôn hiển thị | Chân Nạp Định mức (Load / Reset): Nạp `CV ← PV` và đưa `Q → 0` (với `PV > 0`). Ưu tiên cao hơn `CD` nếu tác động đồng thời. |
+| `Q` | Ngõ ra | Giá trị logic | `BOOL` | Luôn hiển thị | Cờ Cạn Định mức (Zero Reached): Xuất mức `1` (`TRUE`) khi `CV ≤ 0`; giữ mức `0` (`FALSE`) khi `CV > 0`. |
 
 ---
 
 ## 3. Tham số Cấu hình & Ràng buộc Inspector
 
-Khi chọn khối `CTD` trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab), bảng **Inspector** bên phải cung cấp các thông số sau:
+Khi chọn khối `CTD` trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab), bảng Inspector bên phải cung cấp các thông số sau:
 
 | Tham số | Khóa Thuộc tính | Kiểu & Miền giá trị | Mặc định | Mô tả Kỹ thuật & Ràng buộc Vật lý |
 | :--- | :--- | :--- | :---: | :--- |
-| **Nhãn Tùy chỉnh** | `CustomLabel` | `String` | `"CTD Counter"` | Tên hiển thị tùy chọn trên thẻ khối ngoài vùng vẽ Canvas. |
-| **Chế độ Bộ đếm** | `CounterMode` | `"CTU"` \| `"CTD"` | `"CTD"` | Chọn chế độ đếm lùi (`CD`, `CV ≤ 0`, nạp lại `CV ← PV` khi kích hoạt `R`). |
-| **Giá trị Đặt trước (`PV`)** | `PresetValue` | `INT32` (`≥ 1`) | `10` | Quỹ số lượng ban đầu được nạp vào `CV` mỗi khi kích hoạt `R` / `ResetTag`. Tuân thủ kiểm tra nghiêm ngặt kiểu số nguyên `INT32`. |
-| **Tag Nguồn Đếm Lùi** | `InputTag` | `TagModel?` (`BOOL`) | `null` | Biến số tùy chọn (`DI0..DI7`, `VBIT`) cấp xung `CD` trực tiếp không cần dây nối trên sơ đồ. |
-| **Tag Giá trị Hiện tại (`CV`)** | `CvTag` | `TagModel?` (`INT32`) | `COUNTER0` | Thanh ghi đếm (`COUNTER0..COUNTER7`) hoặc thanh ghi ảo (`VREG`) lưu số lượng còn lại. |
-| **Tag Ngõ ra (`Q`)** | `OutputTag` | `TagModel?` (`BOOL`) | `null` | Biến logic đích nhận mức `1` khi `CV ≤ 0` (ví dụ: đèn báo hết phôi hoặc cờ dừng máy). |
-| **Tag Nạp lại (`R`)** | `ResetTag` | `TagModel?` (`BOOL`) | `None` | Biến logic tùy chọn thực hiện lệnh nạp `CV ← PV` khi chuyển lên mức `1`. |
+| Nhãn Tùy chỉnh | `CustomLabel` | `String` | `"CTD Counter"` | Tên hiển thị tùy chọn trên thẻ khối ngoài vùng vẽ Canvas. |
+| Chế độ Bộ đếm | `CounterMode` | `"CTU"` \| `"CTD"` | `"CTD"` | Chọn chế độ đếm lùi (`CD`, `CV ≤ 0`, nạp lại `CV ← PV` khi kích hoạt `R`). |
+| Giá trị Đặt trước (`PV`) | `PresetValue` | `INT32` (`≥ 1`) | `10` | Quỹ số lượng ban đầu được nạp vào `CV` mỗi khi kích hoạt `R` / `ResetTag`. Tuân thủ kiểm tra nghiêm ngặt kiểu số nguyên `INT32`. |
+| Tag Nguồn Đếm Lùi | `InputTag` | `TagModel?` (`BOOL`) | `null` | Biến số tùy chọn (`DI0..DI7`, `VBIT`) cấp xung `CD` trực tiếp không cần dây nối trên sơ đồ. |
+| Tag Giá trị Hiện tại (`CV`) | `CvTag` | `TagModel?` (`INT32`) | `COUNTER0` | Thanh ghi đếm (`COUNTER0..COUNTER7`) hoặc thanh ghi ảo (`VREG`) lưu số lượng còn lại. |
+| Tag Ngõ ra (`Q`) | `OutputTag` | `TagModel?` (`BOOL`) | `null` | Biến logic đích nhận mức `1` khi `CV ≤ 0` (ví dụ: đèn báo hết phôi hoặc cờ dừng máy). |
+| Tag Nạp lại (`R`) | `ResetTag` | `TagModel?` (`BOOL`) | `None` | Biến logic tùy chọn thực hiện lệnh nạp `CV ← PV` khi chuyển lên mức `1`. |
 
 ---
 
@@ -61,7 +61,7 @@ Bảng dưới đây minh họa chu trình đếm lùi thực tế khi nạp kha
 | Nhả nút Nạp khay | `0` | `0` | `3` | `0` | `PV: 3` (`3 / 3`) |
 | Cấp phôi lần thứ 1 | `0 → 1` | `0` | `2` | `0` | `PV: 3` (`2 / 3`) |
 | Cấp phôi lần thứ 2 | `0 → 1` | `0` | `1` | `0` | `PV: 3` (`1 / 3`) |
-| Cấp phôi lần thứ 3 (Hết khay) | `0 → 1` | `0` | `0` | **`1`** | **`Q = ON`** (`0 / 3`) |
+| Cấp phôi lần thứ 3 (Hết khay) | `0 → 1` | `0` | `0` | `1` | `Q = ON` (`0 / 3`) |
 | Thay khay mới & nhấn Nạp lại | `0` | `0 → 1` | `3` | `0` | `PV: 3` (`3 / 3`) |
 
 ---
@@ -70,7 +70,7 @@ Bảng dưới đây minh họa chu trình đếm lùi thực tế khi nạp kha
 
 - **Lưu ý Trạng thái Khởi động Ban đầu:** Nếu biến `CvTag` khởi tạo ở giá trị `0` và chưa nhận xung nạp tại chân `R`, biểu thức `CV ≤ 0` sẽ lập tức đúng (`Q = 1` — báo hết phôi an toàn). Hãy cấp xung `R` sau khi thay khay hoặc khai báo giá trị khởi tạo khác `0` cho `CvTag` trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) nếu máy khởi động sẵn cùng khay đầy.
 - **Bảo vệ Chống Tràn Dưới (Underflow Clamp):** Toán tử đếm trong firmware khóa cứng giới hạn dưới của `INT32`, đảm bảo các xung `CD` phát sinh thêm khi `CV ≤ 0` không bao giờ làm tràn vòng thanh ghi sang số dương.
-- **Giám sát Trực tuyến (`F8`):** Hiển thị trực quan lượng tồn kho **`{CurrentCount} / {PresetValue}`** ngay trên thân khối và bật huy hiệu **`Q = ON`** khi chạm mốc `0`.
+- **Giám sát Trực tuyến (`F8`):** Hiển thị trực quan lượng tồn kho `{CurrentCount} / {PresetValue}` ngay trên thân khối và bật huy hiệu `Q = ON` khi chạm mốc `0`.
 
 ---
 
@@ -220,9 +220,9 @@ Bảng dưới đây minh họa chu trình đếm lùi thực tế khi nạp kha
 
 **Các bước cấu hình:**
 1. Khai báo `DI0_FeederStroke`, `DI2_TrayReloaded`, `CNT_RemainingBlanks` (`COUNTER1`, giá trị đầu `50`) và `DO1_TrayEmptyLamp` trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab).
-2. Đặt khối **`CTD`** lên vùng vẽ và cấu hình:
+2. Đặt khối `CTD` lên vùng vẽ và cấu hình:
    - `PresetValue` = `50`
    - `CvTag` = `CNT_RemainingBlanks` (`COUNTER1`)
    - `OutputTag` = `DO1_TrayEmptyLamp`
-3. Nối `DI0_FeederStroke` vào chân **`CD`** và `DI2_TrayReloaded` vào chân **`R`**.
+3. Nối `DI0_FeederStroke` vào chân `CD` và `DI2_TrayReloaded` vào chân `R`.
 4. Chạy kiểm thử trên [Mô phỏng Offline](/vi/tools/simulator-and-live-debug) (`F5`): kích xung `DI2_TrayReloaded` để nạp `50 / 50` (`Q = 0`), và kiểm tra đèn báo sáng ngay khi bộ đếm lùi về `0 / 50` (`Q = ON`).

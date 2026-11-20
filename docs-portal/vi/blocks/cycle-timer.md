@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`CYCLE_TIMER`** là **bộ phát xung vuông tuần hoàn bất đối xứng (asymmetric flasher / oscillator)** điều khiển theo mức. Chừng nào tín hiệu cho phép ở chân `In` còn giữ mức tích cực (`1`), khối `CYCLE_TIMER` liên tục đảo luân phiên ngõ ra nhị phân `Q` giữa **pha BẬT (`OnTimeMs`)** và **pha NGHỈ (`OffTimeMs`)** hoàn toàn độc lập, với pha khởi đầu tùy chọn.
+Khối `CYCLE_TIMER` là bộ phát xung vuông tuần hoàn bất đối xứng (*asymmetric flasher / oscillator*) điều khiển theo mức. Chừng nào tín hiệu cho phép ở chân `In` còn giữ mức tích cực (`1`), khối `CYCLE_TIMER` liên tục đảo luân phiên ngõ ra nhị phân `Q` giữa **pha BẬT (`OnTimeMs`)** và **pha NGHỈ (`OffTimeMs`)** hoàn toàn độc lập, với pha khởi đầu tùy chọn.
 
 - **Tỷ lệ Chu kỳ Bất đối xứng Độc lập:** Khác với các bit xung nhịp đối xứng `50%` cố định vốn đòi hỏi ghép thêm bộ đếm và bộ so sánh phức tạp, `CYCLE_TIMER` cho phép phối hợp trực tiếp pha đóng tính bằng mili-giây/giây với pha nghỉ tính bằng phút/giờ ngay trong một khối duy nhất (ví dụ: bơm mỡ bôi trơn `OnTimeMs = 500 ms` lặp lại sau mỗi `OffTimeMs = 15 min`).
 - **Tùy chọn Pha Khởi đầu (`StartWithOn`):**
@@ -85,13 +85,13 @@ Mỗi khi cờ chốt sự cố máy (`VFLAG0 = 1`) kích hoạt, đèn tháp c�
 
 ### Trình tự Đấu nối trên Canvas
 
-1. **Nhánh 1 (Bộ Dao động Chớp Đèn):** Đặt khối **`INPUT`** (`Tag = VFLAG0`, `CustomLabel = "Cờ Sự cố Máy"`) và nối `INPUT.Out` → **`CYCLE_TIMER`**.
-2. Trên bảng **Inspector** của `CYCLE_TIMER`, thiết lập:
+1. **Nhánh 1 (Bộ Dao động Chớp Đèn):** Đặt khối `INPUT` (`Tag = VFLAG0`, `CustomLabel = "Cờ Sự cố Máy"`) và nối `INPUT.Out` → `CYCLE_TIMER`.
+2. Trên bảng Inspector của `CYCLE_TIMER`, thiết lập:
    - `OnDurationValueText = "250"`, `OnTimeUnit = "ms"` (`= 250 ms`)
    - `OffDurationValueText = "1750"`, `OffTimeUnit = "ms"` (hoặc `"1.75"` `s`, `= 1,750 ms`)
    - `StartWithOn = Bắt đầu bằng ON`
    - `OutputTag = DO3` (`CustomLabel = "Chớp Đèn Cảnh báo"`)
-3. **Nhánh 2 (Nút nhấn Xóa Lỗi):** Đặt khối **`INPUT`** (`Tag = DI4`) → **[`TRIGGER`](/vi/blocks/trigger)** (`ON_RISE`, `ForMs = 50` ms) → **[`ACTION`](/vi/blocks/action)** (`SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 0`).
+3. **Nhánh 2 (Nút nhấn Xóa Lỗi):** Đặt khối `INPUT` (`Tag = DI4`) → [`TRIGGER`](/vi/blocks/trigger) (`ON_RISE`, `ForMs = 50` ms) → [`ACTION`](/vi/blocks/action) (`SET_TAG`, `TargetTag = VFLAG0`, `ActionParam = 0`).
 4. Nhấn `F5` chạy mô phỏng: gạt `VFLAG0` lên `1`, quan sát `DO3` lập tức chớp sáng `● ON` (`250 ms`) và nghỉ `● OFF` (`1,750 ms`) tuần hoàn; bấm nút `DI4` xóa `VFLAG0 = 0`, xác nhận đèn `DO3` tắt dứt khoát về `0`.
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">

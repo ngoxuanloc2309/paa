@@ -9,7 +9,7 @@
 
 ## 1. Tổng quan & Ngữ nghĩa Thực thi
 
-Khối hàm **`SCALE`** (**Analog Linear Scaler & Calibrator**) chuyển đổi giá trị nguyên thô đọc từ phần cứng (như điện áp `0–10,000 mV`, dòng vòng `4–20 mA`, xung ADC 12-bit `0–4095` hoặc thanh ghi cảm biến Modbus chưa quy đổi) sang đại lượng vật lý chuẩn dấu chấm động IEEE-754 (`bar`, `°C`, `m³/h`, `RPM`, `%`).
+Khối hàm `SCALE` (**Analog Linear Scaler & Calibrator**) chuyển đổi giá trị nguyên thô đọc từ phần cứng (như điện áp `0–10,000 mV`, dòng vòng `4–20 mA`, xung ADC 12-bit `0–4095` hoặc thanh ghi cảm biến Modbus chưa quy đổi) sang đại lượng vật lý chuẩn dấu chấm động IEEE-754 (`bar`, `°C`, `m³/h`, `RPM`, `%`).
 
 Ở mỗi chu kỳ quét, khối `SCALE` tính toán phương trình tuyến tính chuẩn công nghiệp kết hợp bộ khóa biên bão hòa an toàn:
 
@@ -27,8 +27,8 @@ Khối `SCALE` thực thi liên tục theo chu kỳ quét mà không cần chân
 
 | Tên chân | Chiều | Bản chất Tín hiệu | Kiểu dữ liệu | Điều kiện Hiển thị | Hợp đồng Chức năng |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`IN`** | Ngõ vào | Giá trị (`x`) | `INT32` / `REAL` | Luôn hiển thị | **Tín hiệu Thô Ngõ vào:** Nhận giá trị thô từ dây nối khối `INPUT` / `MB_READ` phía trước hoặc đọc trực tiếp từ `InputTag` (`AI0..AI3`, `VREG`). |
-| **`OUT`** | Ngõ ra | Giá trị (`y`) | `REAL` (`FLOAT32`) | Luôn hiển thị | **Đại lượng Kỹ thuật Đã Quy đổi:** Xuất giá trị thực đã chuẩn hóa và kẹp biên sang khối [`COMPARATOR`](/vi/blocks/comparator), [`MQTT_PUB`](/vi/blocks/mqtt-pub) hoặc ghi vào `OutputTag`. |
+| `IN` | Ngõ vào | Giá trị (`x`) | `INT32` / `REAL` | Luôn hiển thị | Tín hiệu Thô Ngõ vào: Nhận giá trị thô từ dây nối khối `INPUT` / `MB_READ` phía trước hoặc đọc trực tiếp từ `InputTag` (`AI0..AI3`, `VREG`). |
+| `OUT` | Ngõ ra | Giá trị (`y`) | `REAL` (`FLOAT32`) | Luôn hiển thị | Đại lượng Kỹ thuật Đã Quy đổi: Xuất giá trị thực đã chuẩn hóa và kẹp biên sang khối [`COMPARATOR`](/vi/blocks/comparator), [`MQTT_PUB`](/vi/blocks/mqtt-pub) hoặc ghi vào `OutputTag`. |
 
 ---
 
@@ -38,26 +38,26 @@ Khối `SCALE` thực thi liên tục theo chu kỳ quét mà không cần chân
 
 | Tham số | Khóa Thuộc tính | Kiểu & Miền giá trị | Mặc định | Mô tả Kỹ thuật & Ràng buộc Vật lý |
 | :--- | :--- | :--- | :---: | :--- |
-| **Tag Ngõ vào** | `InputTag` | `TagModel?` | `null` | Biến tương tự/số nguyên nguồn (`AI0..AI3` hoặc `VREG`). Hiển thị huy hiệu `🔗 Connected: <Tag>` khi đã liên kết. |
-| **Tag Ngõ ra** | `OutputTag` | `TagModel?` (`REAL`) | `null` | Thanh ghi ảo kiểu số thực `FLOAT32` (`VREG`) lưu kết quả sau quy đổi. |
-| **Hệ số Khuếch đại (`Gain`)** | `Gain` | `Double` (`REAL`) | `0.01` | Độ dốc tuyến tính nhân trực tiếp với giá trị thô `x`. |
-| **Độ lệch Điểm không (`Offset`)** | `Offset` | `Double` (`REAL`) | `0.0` | Hằng số tịnh tiến cộng thêm sau phép nhân `Gain`. Hỗ trợ giá trị âm (ví dụ `-4.0` để bù điểm gốc `4 mA`). |
-| **Đơn vị Vật lý** | `Unit` | `String` | `"bar"` | Ký hiệu đơn vị kỹ thuật (`bar`, `°C`, `L/min`, `%`, `kPa`) hiển thị trên thân khối và Live Watch. |
-| **Số chữ số Thập phân** | `DecimalPlaces` | `INT32` (`0..3`) | `1` | Độ phân giải phần lẻ (`0` đến `3` chữ số sau dấu chấm) hiển thị trực quan trên Canvas. |
-| **Bật Kẹp biên (`IsClamped`)** | `IsClamped` | `BOOL` | `true` | Giới hạn cứng ngõ ra `OUT` nằm trong khoảng `[ClampMin .. ClampMax]`, ngăn hiện tượng đứt dây cảm biến `4–20 mA` sinh số âm làm sai lệch bộ điều khiển. |
-| **Giới hạn Dưới (`ClampMin`)** | `ClampMin` | `Double` (`REAL`) | `0.0` | Mức sàn bão hòa dưới khi bật `IsClamped = true`. |
-| **Giới hạn Trên (`ClampMax`)** | `ClampMax` | `Double` (`REAL`) | `100.0` | Mức trần bão hòa trên khi bật `IsClamped = true`. |
+| Tag Ngõ vào | `InputTag` | `TagModel?` | `null` | Biến tương tự/số nguyên nguồn (`AI0..AI3` hoặc `VREG`). Hiển thị huy hiệu `🔗 Connected: <Tag>` khi đã liên kết. |
+| Tag Ngõ ra | `OutputTag` | `TagModel?` (`REAL`) | `null` | Thanh ghi ảo kiểu số thực `FLOAT32` (`VREG`) lưu kết quả sau quy đổi. |
+| Hệ số Khuếch đại (`Gain`) | `Gain` | `Double` (`REAL`) | `0.01` | Độ dốc tuyến tính nhân trực tiếp với giá trị thô `x`. |
+| Độ lệch Điểm không (`Offset`) | `Offset` | `Double` (`REAL`) | `0.0` | Hằng số tịnh tiến cộng thêm sau phép nhân `Gain`. Hỗ trợ giá trị âm (ví dụ `-4.0` để bù điểm gốc `4 mA`). |
+| Đơn vị Vật lý | `Unit` | `String` | `"bar"` | Ký hiệu đơn vị kỹ thuật (`bar`, `°C`, `L/min`, `%`, `kPa`) hiển thị trên thân khối và Live Watch. |
+| Số chữ số Thập phân | `DecimalPlaces` | `INT32` (`0..3`) | `1` | Độ phân giải phần lẻ (`0` đến `3` chữ số sau dấu chấm) hiển thị trực quan trên Canvas. |
+| Bật Kẹp biên (`IsClamped`) | `IsClamped` | `BOOL` | `true` | Giới hạn cứng ngõ ra `OUT` nằm trong khoảng `[ClampMin .. ClampMax]`, ngăn hiện tượng đứt dây cảm biến `4–20 mA` sinh số âm làm sai lệch bộ điều khiển. |
+| Giới hạn Dưới (`ClampMin`) | `ClampMin` | `Double` (`REAL`) | `0.0` | Mức sàn bão hòa dưới khi bật `IsClamped = true`. |
+| Giới hạn Trên (`ClampMax`) | `ClampMax` | `Double` (`REAL`) | `100.0` | Mức trần bão hòa trên khi bật `IsClamped = true`. |
 
 ### 3.2. Công cụ Hiệu chuẩn 2 Điểm (`CalculateFromCalibPoints`)
 
-Thay vì phải tự bấm máy tính giải phương trình đường thẳng, kỹ sư chỉ cần nhập 2 điểm chuẩn thực tế vào mục **2-Point Calibration** rồi nhấn nút **Tính Gain & Offset**:
+Thay vì phải tự bấm máy tính giải phương trình đường thẳng, kỹ sư chỉ cần nhập 2 điểm chuẩn thực tế vào mục 2-Point Calibration rồi nhấn nút **Tính Gain & Offset**:
 
 | Ô Nhập Hiệu chuẩn | Thuộc tính ViewModel | Mặc định | Ý nghĩa Kỹ thuật |
 | :--- | :--- | :---: | :--- |
-| **Điểm 1 — Giá trị Thô (`X1`)** | `CalibRaw1` (`CalibX1`) | `0` | Giá trị mV / xung ADC / thanh ghi ở ngưỡng thấp (ví dụ: `2000` mV ứng với `4 mA`). |
-| **Điểm 1 — Đại lượng Thực (`Y1`)** | `CalibEng1` (`CalibY1`) | `0` | Giá trị vật lý chuẩn tại Điểm 1 (ví dụ: `0.0` bar). |
-| **Điểm 2 — Giá trị Thô (`X2`)** | `CalibRaw2` (`CalibX2`) | `10000` | Giá trị mV / xung ADC / thanh ghi ở toàn thang đo (ví dụ: `10000` mV ứng với `20 mA`). |
-| **Điểm 2 — Đại lượng Thực (`Y2`)** | `CalibEng2` (`CalibY2`) | `100` | Giá trị vật lý chuẩn tại Điểm 2 (ví dụ: `16.0` bar). |
+| Điểm 1 — Giá trị Thô (`X1`) | `CalibRaw1` (`CalibX1`) | `0` | Giá trị mV / xung ADC / thanh ghi ở ngưỡng thấp (ví dụ: `2000` mV ứng với `4 mA`). |
+| Điểm 1 — Đại lượng Thực (`Y1`) | `CalibEng1` (`CalibY1`) | `0` | Giá trị vật lý chuẩn tại Điểm 1 (ví dụ: `0.0` bar). |
+| Điểm 2 — Giá trị Thô (`X2`) | `CalibRaw2` (`CalibX2`) | `10000` | Giá trị mV / xung ADC / thanh ghi ở toàn thang đo (ví dụ: `10000` mV ứng với `20 mA`). |
+| Điểm 2 — Đại lượng Thực (`Y2`) | `CalibEng2` (`CalibY2`) | `100` | Giá trị vật lý chuẩn tại Điểm 2 (ví dụ: `16.0` bar). |
 
 Khi nhấn nút tính toán, SynaptiX IDE tự động xác định:
 
@@ -69,10 +69,10 @@ $$\text{Gain} = \text{round}\!\left(\frac{Y_2 - Y_1}{X_2 - X_1},\; 6\right), \qq
 
 | Chuẩn Cảm biến | Dải Tín hiệu Thô (`X1 .. X2`) | Dải Đo Thực tế (`Y1 .. Y2`) | `Gain` Tính được | `Offset` Tính được |
 | :--- | :---: | :---: | :---: | :---: |
-| **Áp suất `0–10 V` (`0..10 bar`)** | `0 .. 10000` (mV) | `0.0 .. 10.0` bar | `0.001` | `0.0` |
-| **Áp suất `4–20 mA` (`0..16 bar` qua trở `500 Ω`)** | `2000 .. 10000` (mV) | `0.0 .. 16.0` bar | `0.002` | `-4.0` |
-| **Nhiệt độ PT100 `4–20 mA` (`-50..+150 °C`)** | `4000 .. 20000` (µA) | `-50.0 .. 150.0` °C | `0.0125` | `-100.0` |
-| **Mức bồn `ADC 12-Bit` (`0..4095` → `0..100 %`)** | `0 .. 4095` (xung) | `0.0 .. 100.0` % | `0.02442` | `0.0` |
+| Áp suất `0–10 V` (`0..10 bar`) | `0 .. 10000` (mV) | `0.0 .. 10.0` bar | `0.001` | `0.0` |
+| Áp suất `4–20 mA` (`0..16 bar` qua trở `500 Ω`) | `2000 .. 10000` (mV) | `0.0 .. 16.0` bar | `0.002` | `-4.0` |
+| Nhiệt độ PT100 `4–20 mA` (`-50..+150 °C`) | `4000 .. 20000` (µA) | `-50.0 .. 150.0` °C | `0.0125` | `-100.0` |
+| Mức bồn `ADC 12-Bit` (`0..4095` → `0..100 %`) | `0 .. 4095` (xung) | `0.0 .. 100.0` % | `0.02442` | `0.0` |
 
 ---
 
@@ -89,7 +89,7 @@ Khối `SCALE` tính toán giá trị ngõ ra theo 2 bước tức thời trong 
 - **Chống Chia Cho 0 Khi Hiệu chuẩn:** Nếu người dùng nhập trùng 2 điểm thô (`|CalibRaw2 - CalibRaw1| < 1e-6`), công cụ tính nhanh sẽ tự động chặn phép chia nhằm bảo vệ hệ thống khỏi giá trị `NaN` hoặc `Infinity`.
 - **Tự động Chuẩn hóa Thứ tự Biên Kẹp:** Ngay cả khi cấu hình cảm biến tỷ lệ nghịch có `CalibY1 > CalibY2`, thuật toán kẹp biên vẫn tự động lấy `min(ClampMin, ClampMax)` và `max(ClampMin, ClampMax)` chính xác tuyệt đối.
 - **Bảo toàn Độ chính xác Dấu chấm động:** Luôn gán `OutputTag` vào một thanh ghi ảo kiểu **`REAL` (`FLOAT32`)** trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) để phần thập phân (như `6.45 bar`) được lưu trữ nguyên vẹn trong bộ nhớ mà không bị làm tròn thành số nguyên.
-- **Thanh Tiến trình Trực quan (`F8`):** Hiển thị công thức toán học trực tiếp (`y = 0.002·AI0 - 4`) khi tĩnh và cập nhật tức thời giá trị thực kèm phần trăm toàn thang đo **`6.4 bar (40%)`** khi chạy trực tuyến.
+- **Thanh Tiến trình Trực quan (`F8`):** Hiển thị công thức toán học trực tiếp (`y = 0.002·AI0 - 4`) khi tĩnh và cập nhật tức thời giá trị thực kèm phần trăm toàn thang đo `6.4 bar (40%)` khi chạy trực tuyến.
 
 ---
 
@@ -194,9 +194,9 @@ Khối `SCALE` tính toán giá trị ngõ ra theo 2 bước tức thời trong 
 
 **Các bước cấu hình:**
 1. Tạo biến `VREG0_PipeBar` trong [Danh mục Biến — Tag Catalog](/vi/workspaces/tag-catalog-tab) với kiểu dữ liệu **`REAL` (`FLOAT32`)**.
-2. Đặt khối **`SCALE`** lên Canvas, mở mục **2-Point Calibration** trong Inspector và nhập:
+2. Đặt khối `SCALE` lên Canvas, mở mục 2-Point Calibration trong Inspector và nhập:
    - `CalibRaw1` = `2000`, `CalibEng1` = `0`
    - `CalibRaw2` = `10000`, `CalibEng2` = `16`
    - Nhấn **Tính Gain & Offset** → hệ thống tự động điền `Gain = 0.002`, `Offset = -4`, `ClampMin = 0`, `ClampMax = 16`, `IsClamped = true`.
 3. Đặt `Unit` = `"bar"`, `DecimalPlaces` = `2`, `InputTag` = `AI0` và `OutputTag` = `VREG0_PipeBar`.
-4. Nối chân **`OUT`** sang khối [`COMPARATOR`](/vi/blocks/comparator) (`> 12.5`) và khối [`MQTT_PUB`](/vi/blocks/mqtt-pub) (`COV`, `Deadband = 0.2`).
+4. Nối chân `OUT` sang khối [`COMPARATOR`](/vi/blocks/comparator) (`> 12.5`) và khối [`MQTT_PUB`](/vi/blocks/mqtt-pub) (`COV`, `Deadband = 0.2`).

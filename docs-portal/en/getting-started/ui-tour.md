@@ -7,7 +7,7 @@
   <span><strong>Standard:</strong> ANSI/ISA-101.01 &bull; Microsoft Fluent 2</span>
 </div>
 
-**SynaptiX IDE** is engineered strictly around **ANSI/ISA-101 ("The Gray Principle")** ergonomics for 8–12 hour commissioning shifts: 90% of the visual surface uses neutral glare-free slate tones, reserving high-contrast semantic colors exclusively for live operational states — **Emerald Green** (Connected / Active Wire / Run OK), **Amber** (Warning / Forced / Stale Compile), **Crimson Red** (Fault / Blocked Gate), and **Petrol Blue** (Active Selection).
+SynaptiX IDE is engineered strictly around **ANSI/ISA-101 ("The Gray Principle")** ergonomics for 8–12 hour commissioning shifts: 90% of the visual surface uses neutral glare-free slate tones, reserving high-contrast semantic colors exclusively for live operational states — **Emerald Green** (Connected / Active Wire / Run OK), **Amber** (Warning / Forced / Stale Compile), **Crimson Red** (Fault / Blocked Gate), and **Petrol Blue** (Active Selection).
 
 ![SynaptiX IDE Main Engineering Workbench Anatomy](/images/synaptix_main_anatomy.png)
 
@@ -15,7 +15,7 @@
 
 ## Six-Zone Workbench Architecture
 
-The main **SynaptiX IDE** window is partitioned into six deterministic, non-overlapping functional zones so engineers never lose context behind floating modal clutter:
+The main SynaptiX IDE window is partitioned into six deterministic, non-overlapping functional zones so engineers never lose context behind floating modal clutter:
 
 <div class="synx-ide-mockup">
   <div class="synx-ide-topbar">
@@ -66,9 +66,9 @@ Positioned across the top of the window, Zone 1 provides global project/device c
 
 - **Segmented Transport Switch (`USB CDC` vs. `Modbus TCP`):** Switch effortlessly between local USB serial commissioning and remote network commissioning inside a fixed-width `210 px` selector container that eliminates layout shifts:
   - **`USB CDC` Mode:** Displays detected `COMx` serial ports plus a one-click **Refresh Ports** button.
-  - **`Modbus TCP` Mode:** Displays inline **`Host IP : Port`** fields (for example, `192.168.1.50 : 502`).
+  - **`Modbus TCP` Mode:** Displays inline `Host IP : Port` fields (for example, `192.168.1.50 : 502`).
 - **Primary Lifecycle Commands & Hotkeys:**
-  - **Connect / Disconnect (`F4`):** Opens or closes an authenticated live communication session with the target **SynaptiX Edge Device**.
+  - **Connect / Disconnect (`F4`):** Opens or closes an authenticated live communication session with the target SynaptiX Edge Device.
   - **Offline Simulation (`F5`):** Launches the cycle-accurate desktop simulator without requiring physical hardware.
   - **Upload from Device (`F6`):** Reads the active runtime configuration back from a connected controller into the IDE.
   - **Compile Logic (`F7`):** Validates all node connections, tag types, and capacity limits, lowering the graph into deterministic rules.
@@ -85,19 +85,19 @@ Docked on the left side of the navigation strip, seven segmented workspace tabs 
 
 | Shortcut | Workspace Tab | Core Engineering Responsibility | Detailed Reference |
 | :---: | :--- | :--- | :--- |
-| `Ctrl+1` | **1. Device** | Inspect hardware identity, firmware version, resource profile, RS-485 bus parameters, MQTT/Wi-Fi status, and RTC clock sync. | [Device Workspace](/workspaces/device-tab) |
-| `Ctrl+2` | **2. Logic Graph** | Author visual control & IIoT logic on the infinite node canvas (or configure DTU polling/uplinks on DTU targets). | [Logic Graph Canvas](/workspaces/logic-graph-tab) |
-| `Ctrl+3` | **3. Tag Catalog** | Manage all up to 128 physical/virtual tags, symbolic aliases, `BOOL`/`INT32`/`REAL` types, and CSV import/export. | [Tag Catalog](/workspaces/tag-catalog-tab) |
-| `Ctrl+4` | **4. Rule Table** | Audit compiled 4-stage Event-Condition-Action rules in compact tabular form and jump back to source graphs. | [Rule Table](/workspaces/rule-table-tab) |
-| `Ctrl+5` | **5. Blueprints** | Instantiate pre-validated industrial automation & IIoT application templates in one click. | [Blueprints Library](/workspaces/blueprints-tab) |
-| `Ctrl+6` | **6. Deploy** | Review pre-flight compatibility checks, resource utilization bars, and execute Two-Phase Atomic Flash Commit. | [Atomic Deploy](/workspaces/deploy-tab) |
-| `Ctrl+7` | **7. Live Watch** | Monitor real-time 20 FPS tag tables, multi-channel trend charts, force/write values, and record CSV logs. | [Live Watch & Trends](/workspaces/live-watch-tab) |
+| `Ctrl+1` | 1. Device | Inspect hardware identity, firmware version, resource profile, RS-485 bus parameters, MQTT/Wi-Fi status, and RTC clock sync. | [Device Workspace](/workspaces/device-tab) |
+| `Ctrl+2` | 2. Logic Graph | Author visual control & IIoT logic on the infinite node canvas (or configure DTU polling/uplinks on DTU targets). | [Logic Graph Canvas](/workspaces/logic-graph-tab) |
+| `Ctrl+3` | 3. Tag Catalog | Manage all up to 128 physical/virtual tags, symbolic aliases, `BOOL`/`INT32`/`REAL` types, and CSV import/export. | [Tag Catalog](/workspaces/tag-catalog-tab) |
+| `Ctrl+4` | 4. Rule Table | Audit compiled 4-stage Event-Condition-Action rules in compact tabular form and jump back to source graphs. | [Rule Table](/workspaces/rule-table-tab) |
+| `Ctrl+5` | 5. Blueprints | Instantiate pre-validated industrial automation & IIoT application templates in one click. | [Blueprints Library](/workspaces/blueprints-tab) |
+| `Ctrl+6` | 6. Deploy | Review pre-flight compatibility checks, resource utilization bars, and execute Two-Phase Atomic Flash Commit. | [Atomic Deploy](/workspaces/deploy-tab) |
+| `Ctrl+7` | 7. Live Watch | Monitor real-time 20 FPS tag tables, multi-channel trend charts, force/write values, and record CSV logs. | [Live Watch & Trends](/workspaces/live-watch-tab) |
 
 ---
 
 ## Zone 3: Left Categorized Block Toolbox & Protocol Configs
 
-When working on the **Logic Graph** (`Ctrl+2`), the `265 px` left panel houses the **Function Block Toolbox**:
+When working on the Logic Graph (`Ctrl+2`), the `265 px` left panel houses the **Function Block Toolbox**:
 
 1. **Instant Filter Search:** Type any keyword (such as `TON`, `MQTT`, `SCALE`, or `Guard`) into the top search bar to filter blocks in real time.
 2. **8 Expandable DIN-Rail Categories:** Organizes all [18 Function Blocks](/blocks/overview) logically:
@@ -125,7 +125,7 @@ Zone 4 is the primary authoring viewport:
 - **Precision 20 px Engineering Grid:** Supports smooth pan/zoom, multi-node marquee selection, orthogonal 90-degree industrial step connections with `12 px` invisible hit-testing targets, and CAD-style alignment shortcuts (`Alt + Arrow Keys` to align edges, `Alt+Shift+H/V` to distribute evenly, `Alt+G` to snap/toggle grid).
 - **Docked Simulation Drawer (`F5`):** Expands cleanly from the bottom of the canvas during offline testing so you can toggle `DI` switches, sweep `AI` sliders, and inject inbound JSON payloads while watching live wire highlights above.
 - **Human Affirmation Gate for AI Proposals:** When [SynaptiX AI Copilot](/tools/ai-copilot) proposes logic nodes, ghosted preview nodes appear with a floating **Accept / Reject** safety banner verifying zero write conflicts before committing changes to your graph.
-- **Adaptive DTU Mode:** When the project targets the **`SynaptiX DTU`** preset, Zone 4 automatically replaces the node canvas with [DTU Gateway Studio](/tools/dtu-gateway-studio) for streamlined RS-485 channel polling and cloud uplink mapping.
+- **Adaptive DTU Mode:** When the project targets the `SynaptiX DTU` preset, Zone 4 automatically replaces the node canvas with [DTU Gateway Studio](/tools/dtu-gateway-studio) for streamlined RS-485 channel polling and cloud uplink mapping.
 
 ---
 
@@ -153,7 +153,7 @@ Anchored across the bottom (`36 px` height), Zone 6 combines VS Code-style autho
   - **Active Device Profile Badge:** Shows the current target preset and total tag count; click to inspect full hardware descriptor details.
 
 ::: tip Full-Screen Commissioning Mode (`F11`)
-Press **`F11`** at any time to toggle distraction-free Full-Screen mode, maximizing vertical canvas and trend-chart real estate on compact `1366 x 768` field laptops.
+Press `F11` at any time to toggle distraction-free Full-Screen mode, maximizing vertical canvas and trend-chart real estate on compact `1366 x 768` field laptops.
 :::
 
 ---

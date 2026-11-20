@@ -205,8 +205,28 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(StartAddressModiconPreview));
         OnPropertyChanged(nameof(SummaryBadgeText));
+        bool isBitOp = value is ModbusMasterFunctionCode.ReadCoils or ModbusMasterFunctionCode.ReadDiscreteInputs;
         foreach (var pin in Node.Pins)
         {
+            if (isBitOp)
+            {
+                if (pin.TargetTag != null && !pin.TargetTag.IsDigital && pin.TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
+                {
+                    pin.TargetTag = null;
+                }
+                pin.DataType = ModbusDataType.Bool;
+            }
+            else
+            {
+                if (pin.TargetTag != null && (pin.TargetTag.IsDigital || pin.TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean))
+                {
+                    pin.TargetTag = null;
+                }
+                if (pin.DataType == ModbusDataType.Bool)
+                {
+                    pin.DataType = ModbusDataType.Int16;
+                }
+            }
             pin.RefreshTagOptions();
         }
     }
@@ -545,6 +565,10 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     {
         if (e.PropertyName is nameof(ModbusPinBindingViewModel.RegOffset) or nameof(ModbusPinBindingViewModel.DataType))
         {
+            if (e.PropertyName == nameof(ModbusPinBindingViewModel.DataType))
+            {
+                AutoAdjustConsecutiveOffsetsIfOverlapping();
+            }
             UpdateRegCountFromPins();
             OnPropertyChanged(nameof(SummaryBadgeText));
             if (HasRunSimulation && !string.IsNullOrWhiteSpace(SimulationHexInput))
@@ -552,6 +576,41 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
                 RunSimulationTest();
             }
         }
+    }
+
+    private void AutoAdjustConsecutiveOffsetsIfOverlapping()
+    {
+        for (int i = 0; i < Node.Pins.Count - 1; i++)
+        {
+            var cur = Node.Pins[i];
+            var next = Node.Pins[i + 1];
+            int span = (cur.DataType is ModbusDataType.Real or ModbusDataType.Int32 or ModbusDataType.UInt32) ? 2 : 1;
+            int minNextOffset = cur.RegOffset + span;
+            if (next.RegOffset < minNextOffset)
+            {
+                next.RegOffset = (ushort)minNextOffset;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tự động chuẩn hóa và căn chỉnh lại thứ tự Offset các thanh ghi liên tiếp không bị chồng lấn (No Overlap).
+    /// Đối với kiểu 16-bit (Int16, UInt16): bước nhảy +1.
+    /// Đối với kiểu 32-bit (Real Float32, Int32, UInt32): bước nhảy +2.
+    /// Tự động cập nhật số lượng thanh ghi cần đọc (RegCount).
+    /// </summary>
+    [RelayCommand]
+    public void AutoSequenceOffsets()
+    {
+        ushort currentOffset = 0;
+        foreach (var pin in Node.Pins)
+        {
+            pin.RegOffset = currentOffset;
+            int span = (pin.DataType is ModbusDataType.Real or ModbusDataType.Int32 or ModbusDataType.UInt32) ? 2 : 1;
+            currentOffset += (ushort)span;
+        }
+        UpdateRegCountFromPins();
+        OnPropertyChanged(nameof(SummaryBadgeText));
     }
 
     /// <summary>
@@ -572,11 +631,19 @@ public partial class ModbusReadConfigDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Lấy danh sách các Tag tương thích theo kiểu dữ liệu Modbus từ TagCatalog với vai trò WriteTarget (Loại bỏ DI, AI).
+    /// Lấy danh sách các Tag tương thích theo FunctionCode và kiểu dữ liệu Modbus từ TagCatalog với vai trò WriteTarget (Loại bỏ DI, AI).
     /// </summary>
     public IEnumerable<TagModel> GetCompatibleTagsForDataType(ModbusDataType dataType)
     {
-        return TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dataType, includeNone: true);
+        if (dataType == ModbusDataType.Bool)
+        {
+            return TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, ModbusDataType.Bool, includeNone: true);
+        }
+        else
+        {
+            return TagCatalog.GetFilteredTags(TagAccessRole.WriteTarget, dataType, includeNone: true)
+                .Where(t => t.Kind == TagKind.None || (!t.IsDigital && t.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean));
+        }
     }
 
     [RelayCommand]

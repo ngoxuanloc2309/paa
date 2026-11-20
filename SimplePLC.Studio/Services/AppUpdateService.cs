@@ -41,14 +41,14 @@ public class UpdateInfo
 public class AppUpdateService
 {
     private readonly HttpClient _httpClient;
-    public const string GitHubRepoOwner = "hoanv-synaptix";
+    public const string GitHubRepoOwner = "SynaptiXCompany";
     public const string GitHubRepoName = "SynaptiX-IDE-Releases";
     public const string ReleasesApiUrl = $"https://api.github.com/repos/{GitHubRepoOwner}/{GitHubRepoName}/releases/latest";
 
     /// <summary>
     /// Địa chỉ cổng Web Wiki tài liệu kỹ thuật trực tuyến của nền tảng SynaptiX (VitePress Portal).
     /// </summary>
-    public const string DocumentationPortalUrl = "https://hoanv-synaptix.github.io/SynaptiX-IDE-Releases/";
+    public const string DocumentationPortalUrl = "https://SynaptiXCompany.github.io/SynaptiX-IDE-Releases/";
 
     public string CurrentVersion { get; }
 

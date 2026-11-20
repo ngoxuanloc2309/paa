@@ -44,6 +44,23 @@ public sealed class SimulatorControl
     public int GetTagValue(ushort tagIndex) => Tags.GetTagValue(tagIndex);
 
     /// <summary>
+    /// Đặt trực tiếp một thanh ghi hệ thống (1000..1007 tại 0x0820..0x0827) phục vụ kiểm thử.
+    /// </summary>
+    public void SetSystemRegister(ushort tagIndex, ushort value)
+    {
+        if (tagIndex >= 1000 && tagIndex <= 1007)
+        {
+            ushort sysAddr = (ushort)(Protocol.Constants.ModbusRegisterMap.SystemRegistersBaseAddress + (tagIndex - 1000));
+            _simulator.Memory.InternalWrite(sysAddr, value);
+        }
+    }
+
+    /// <summary>
+    /// Đọc trực tiếp một thanh ghi Holding Register từ bộ nhớ giả lập phục vụ kiểm chứng.
+    /// </summary>
+    public ushort ReadHoldingRegister(ushort address) => _simulator.Memory.InternalRead(address);
+
+    /// <summary>
     /// Tăng tick đồng hồ kiểm thử.
     /// </summary>
     public void AdvanceTicks(int seconds = 1) => Clock.AdvanceTicks(seconds);

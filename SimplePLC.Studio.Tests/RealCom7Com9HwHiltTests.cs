@@ -20,6 +20,9 @@ using Xunit;
 
 namespace SimplePLC.Studio.Tests;
 
+/// <summary>
+/// Definition class disabling parallelization for physical COM port HIL tests.
+/// </summary>
 [CollectionDefinition("SerialPortExclusiveCollection", DisableParallelization = true)]
 public class SerialPortExclusiveCollectionDefinition { }
 
@@ -1493,7 +1496,8 @@ public class RealCom7Com9HwHiltTests
         // 1. Verify safety gate detects conflict and rejects deployment
         var (isValid, errorMessage) = deployVm.ValidateIngestionOwnership(conflictingModbusReads, conflictingMqttSubs);
         Assert.False(isValid);
-        Assert.Contains("Xung đột sở hữu ghi độc quyền", errorMessage);
+        Assert.NotNull(errorMessage);
+        Assert.True(errorMessage!.Contains("Xung đột sở hữu ghi độc quyền") || errorMessage.Contains("Exclusive write ownership conflict"));
 
         // 2. Resolve conflict (repoint MQTT to separate tag)
         conflictingMqttSubs[0].Pins[0].TargetTagIndex = 11;

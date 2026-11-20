@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Kịch bản tự động hóa kiểm thử và phát hành phiên bản mới SynaptiX IDE dành cho Tech Lead.
 
@@ -91,6 +91,6 @@ Write-Host "🎉 PHÁT HÀNH THÀNH CÔNG!" -ForegroundColor Green
 Write-Host "Tag '$Tag' đã được đẩy lên GitHub." -ForegroundColor Green
 Write-Host "GitHub Actions CI/CD đang tự động:" -ForegroundColor Yellow
 Write-Host "  1. Biên dịch file SimplePLC.Studio.exe (Standalone Single-File x64)."
-Write-Host "  2. Đẩy gói phát hành sang repo: hoanv-synaptix/SynaptiX-IDE-Releases"
+Write-Host "  2. Đẩy gói phát hành sang repo: SynaptiXCompany/SynaptiX-IDE-Releases"
 Write-Host "Theo dõi tiến trình tại: https://github.com/SynaptiXCompany/AppPLCSimple/actions" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Green

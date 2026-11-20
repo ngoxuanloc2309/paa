@@ -7,9 +7,9 @@
   <span><strong>Standard:</strong> IEC 61131-3 &bull; ANSI/ISA-101</span>
 </div>
 
-In **SynaptiX IDE**, every physical sensor terminal, relay output, internal state flag, calibration constant, and fieldbus register is represented inside a single **Unified Tag Memory Model** (up to **128 runtime tags**).
+In SynaptiX IDE, every physical sensor terminal, relay output, internal state flag, calibration constant, and fieldbus register is represented inside a single Unified Tag Memory Model (up to 128 runtime tags).
 
-Grounded in IEC 61131-3 principles, **SynaptiX IDE** treats data types not as cosmetic UI labels, but as **strict physical memory contracts** paired with a deterministic **Input State Machine (Bad-Data Defense)** so that what an engineer sees on screen is always a 1:1 reflection of what executes inside the **SynaptiX Edge Controller**.
+Grounded in IEC 61131-3 principles, SynaptiX IDE treats data types not as cosmetic UI labels, but as **strict physical memory contracts** paired with a deterministic **Input State Machine (Bad-Data Defense)** so that what an engineer sees on screen is always a 1:1 reflection of what executes inside the SynaptiX Edge Controller.
 
 ---
 
@@ -19,18 +19,18 @@ Depending on the selected [Device Preset](/concepts/ecosystem-overview), a proje
 
 | Tag Family | Identifier Span | Default Type | Allowed Data Types | Access Mode | Persistence | Primary Engineering Purpose |
 | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Digital Inputs** | `DI0 .. DI7` | `BOOL` | `BOOL` (Fixed) | Read-Only* | Hardware Live | Opto-isolated discrete field inputs (switches, safety doors, proximity sensors). |
-| **Digital Outputs** | `DO0 .. DO7` | `BOOL` | `BOOL` (Fixed) | Read / Write | Volatile | Physical relay or transistor actuator outputs (fans, valves, alarms, PWM/PTO). |
-| **Analog Inputs** | `AI0 .. AI3` | `INT32` | `INT32`, `REAL` | Read-Only* | Hardware Live | Hardware ADC channels (`4-20 mA`, `0-10 V`, raw counts, or scaled float units). |
-| **Virtual Flags** | `VFLAG0 .. VFLAG31` | `BOOL` | `BOOL` (Fixed) | Read / Write | Volatile (RAM) | Intermediate boolean latches, timer done bits, interlock states, and remote commands. |
-| **Virtual Registers** | `VREG0 .. VREG31` | `INT32` | `INT32`, `REAL` | Read / Write | Volatile (RAM) | Scratchpad 32-bit registers for [`SCALE`](/blocks/scale) outputs, [`MB_READ`](/blocks/mb-read) values, and [`MQTT_SUB`](/blocks/mqtt-sub) setpoints. |
-| **Retentive Registers** | `VREG_RETAIN0 .. VREG_RETAIN31` | `INT32` | `INT32`, `REAL` | Read / Write | **Non-Volatile Flash** | Calibration offsets, alarm thresholds, and batch totals preserved across power loss and reboots. |
-| **Counters** | `COUNTER0 .. COUNTER7` | `INT32` | `INT32` (Fixed) | Read / Write | Volatile / Managed | High-range 32-bit signed accumulators driven by [`CTU`](/blocks/ctu), [`CTD`](/blocks/ctd), or `INCREMENT`/`DECREMENT` actions. |
+| Digital Inputs | `DI0 .. DI7` | `BOOL` | `BOOL` (Fixed) | Read-Only* | Hardware Live | Opto-isolated discrete field inputs (switches, safety doors, proximity sensors). |
+| Digital Outputs | `DO0 .. DO7` | `BOOL` | `BOOL` (Fixed) | Read / Write | Volatile | Physical relay or transistor actuator outputs (fans, valves, alarms, PWM/PTO). |
+| Analog Inputs | `AI0 .. AI3` | `INT32` | `INT32`, `REAL` | Read-Only* | Hardware Live | Hardware ADC channels (`4-20 mA`, `0-10 V`, raw counts, or scaled float units). |
+| Virtual Flags | `VFLAG0 .. VFLAG31` | `BOOL` | `BOOL` (Fixed) | Read / Write | Volatile (RAM) | Intermediate boolean latches, timer done bits, interlock states, and remote commands. |
+| Virtual Registers | `VREG0 .. VREG31` | `INT32` | `INT32`, `REAL` | Read / Write | Volatile (RAM) | Scratchpad 32-bit registers for [`SCALE`](/blocks/scale) outputs, [`MB_READ`](/blocks/mb-read) values, and [`MQTT_SUB`](/blocks/mqtt-sub) setpoints. |
+| Retentive Registers | `VREG_RETAIN0 .. VREG_RETAIN31` | `INT32` | `INT32`, `REAL` | Read / Write | Non-Volatile Flash | Calibration offsets, alarm thresholds, and batch totals preserved across power loss and reboots. |
+| Counters | `COUNTER0 .. COUNTER7` | `INT32` | `INT32` (Fixed) | Read / Write | Volatile / Managed | High-range 32-bit signed accumulators driven by [`CTU`](/blocks/ctu), [`CTD`](/blocks/ctd), or `INCREMENT`/`DECREMENT` actions. |
 
 *\*Note: `DI` and `AI` tags are read-only to user control logic during normal hardware execution because their values are sampled directly from physical input terminals each scan. During [Offline Simulation](/tools/simulator-and-live-debug) (`F5`), engineers can freely toggle `DI` states and inject `AI` test values.*
 
 ::: tip Non-Volatile Retention Across Power Cycles (`VREG_RETAIN`)
-Standard virtual tags (`VFLAG0..31` and `VREG0..31`) reside in volatile SRAM and reset to `0` (`0.0` for `REAL`) on cold boot. Whenever an operator-adjustable setpoint, PID/linear calibration factor, or production totalizer must survive unexpected plant power outages, bind it to **`VREG_RETAIN0 .. VREG_RETAIN31`**. The edge runtime automatically commits retentive register updates to non-volatile flash memory.
+Standard virtual tags (`VFLAG0..31` and `VREG0..31`) reside in volatile SRAM and reset to `0` (`0.0` for `REAL`) on cold boot. Whenever an operator-adjustable setpoint, PID/linear calibration factor, or production totalizer must survive unexpected plant power outages, bind it to `VREG_RETAIN0 .. VREG_RETAIN31`. The edge runtime automatically commits retentive register updates to non-volatile flash memory.
 :::
 
 ### Symbolic Aliases & Display Formatting
@@ -39,18 +39,18 @@ In the [Tag Catalog](/workspaces/tag-catalog-tab) (`Ctrl+3`), every tag supports
 
 ### Built-in Industrial System Tags
 
-In addition to 128 user-definable tags, **SynaptiX IDE** provides **8 standardized system tags** (conforming to industrial PLC conventions like Siemens TIA Portal and CODESYS) for common operational patterns without consuming user timers or flags:
+In addition to 128 user-definable tags, SynaptiX IDE provides **8 standardized system tags** (conforming to industrial PLC conventions like Siemens TIA Portal and CODESYS) for common operational patterns without consuming user timers or flags:
 
 | System Tag | Data Type | Value & Operational Semantics | Typical Field Use Case |
 | :--- | :---: | :--- | :--- |
-| **`SYS_FIRST_SCAN`** | `BOOL` | Pulses `1` strictly during **scan cycle #1** upon cold boot or deploy; returns to `0` thereafter. | Machine homing sequence, restoring default actuator setpoints. |
-| **`SYS_ON`** | `BOOL` | Constant `1` (Permanent logical TRUE). | Permanent enable signal for always-active subroutines. |
-| **`SYS_OFF`** | `BOOL` | Constant `0` (Permanent logical FALSE). | Temporarily inhibiting logic branches or interlocking. |
-| **`SYS_CLOCK_1S`** | `BOOL` | Symmetric `1.0 second` square wave (`500 ms` ON / `500 ms` OFF, `1.0 Hz`). | Flashing stack lights (Tower Light), pulsing fault horns. |
-| **`SYS_CLOCK_100MS`**| `BOOL` | Symmetric `100 ms` square wave (`50 ms` ON / `50 ms` OFF, `10.0 Hz`). | High-rate sampling triggers, fast LED busy blinking. |
-| **`SYS_RTC_HOUR`** | `INT32` | Real-time hour (`0 .. 23`) read directly from hardware RTC clock. | Facility lighting schedules, shift-based pump activation. |
-| **`SYS_RTC_MINUTE`** | `INT32` | Real-time minute (`0 .. 59`) read directly from hardware RTC clock. | Minute-precision scheduled maintenance intervals. |
-| **`SYS_COMM_OK`** | `BOOL` | High (`1`) when external serial/bus communication links are healthy. | Safety fail-safe interlock on communication loss. |
+| `SYS_FIRST_SCAN` | `BOOL` | Pulses `1` strictly during scan cycle #1 upon cold boot or deploy; returns to `0` thereafter. | Machine homing sequence, restoring default actuator setpoints. |
+| `SYS_ON` | `BOOL` | Constant `1` (Permanent logical TRUE). | Permanent enable signal for always-active subroutines. |
+| `SYS_OFF` | `BOOL` | Constant `0` (Permanent logical FALSE). | Temporarily inhibiting logic branches or interlocking. |
+| `SYS_CLOCK_1S` | `BOOL` | Symmetric `1.0 second` square wave (`500 ms` ON / `500 ms` OFF, `1.0 Hz`). | Flashing stack lights (Tower Light), pulsing fault horns. |
+| `SYS_CLOCK_100MS`| `BOOL` | Symmetric `100 ms` square wave (`50 ms` ON / `50 ms` OFF, `10.0 Hz`). | High-rate sampling triggers, fast LED busy blinking. |
+| `SYS_RTC_HOUR` | `INT32` | Real-time hour (`0 .. 23`) read directly from hardware RTC clock. | Facility lighting schedules, shift-based pump activation. |
+| `SYS_RTC_MINUTE` | `INT32` | Real-time minute (`0 .. 59`) read directly from hardware RTC clock. | Minute-precision scheduled maintenance intervals. |
+| `SYS_COMM_OK` | `BOOL` | High (`1`) when external serial/bus communication links are healthy. | Safety fail-safe interlock on communication loss. |
 
 ::: tip Quick Selection Across All FBD Nodes
 In the Tag Selector dropdown of any `INPUT`, `TRIGGER`, `GUARD`, or `COMPARATOR` node, System Tags appear grouped under an intuitive gear icon, instantly distinguishable from physical terminal tags.
@@ -60,23 +60,23 @@ In the Tag Selector dropdown of any `INPUT`, `TRIGGER`, `GUARD`, or `COMPARATOR`
 
 ## Strict Physical Data Types
 
-Microcontrollers and industrial edge runtimes operate strictly on binary bit-patterns inside 32-bit memory slots. **SynaptiX IDE** enforces three physical data types across all workspaces:
+Microcontrollers and industrial edge runtimes operate strictly on binary bit-patterns inside 32-bit memory slots. SynaptiX IDE enforces three physical data types across all workspaces:
 
 ### 1. `BOOL` — Single-Bit Binary State
 - **Valid Domain:** Strictly `0` (False / Low / Off) or `1` (True / High / On).
 - **Applicable Tags:** Mandatory and fixed for `DI0..7`, `DO0..7`, and `VFLAG0..31`.
-- **UI Control Contract:** Wherever a boolean constant is configured, **SynaptiX IDE** provides explicit binary state selectors (`0` / `1`) or normalizes boolean text keywords strictly to `"0"` or `"1"`.
+- **UI Control Contract:** Wherever a boolean constant is configured, SynaptiX IDE provides explicit binary state selectors (`0` / `1`) or normalizes boolean text keywords strictly to `"0"` or `"1"`.
 
 ### 2. `INT32` — 32-Bit Signed Two's Complement Integer
 - **Valid Domain:** Exact whole integers from `-2,147,483,648` to `+2,147,483,647` (`-2^31` to `2^31 - 1`).
 - **Applicable Tags:** Fixed for `COUNTER0..7`; selectable on `AI0..3`, `VREG0..31`, and `VREG_RETAIN0..31`.
 - **Physical Ground Truth — Why `25.5` Cannot Exist in `INT32`:**
-  In two's complement integer hardware, every bit weight represents an exact power of two (`2^0 = 1`, `2^1 = 2`, ..., `2^30`). **There are zero fractional bit positions.** A decimal value such as `25.5` physically cannot be stored in an `INT32` register without silent truncation (`25`) or fixed-point scaling (`255` in `0.1` tenths). Because silent truncation causes dangerous discrepancies between what an engineer typed and what the controller compares at runtime, **SynaptiX IDE** strictly rejects non-zero fractional inputs (such as `"25.5"`) on `INT32` fields.
+  In two's complement integer hardware, every bit weight represents an exact power of two (`2^0 = 1`, `2^1 = 2`, ..., `2^30`). **There are zero fractional bit positions.** A decimal value such as `25.5` physically cannot be stored in an `INT32` register without silent truncation (`25`) or fixed-point scaling (`255` in `0.1` tenths). Because silent truncation causes dangerous discrepancies between what an engineer typed and what the controller compares at runtime, SynaptiX IDE strictly rejects non-zero fractional inputs (such as `"25.5"`) on `INT32` fields.
 
 ### 3. `REAL` — 32-Bit IEEE-754 Single-Precision Floating-Point
 - **Valid Domain:** IEEE-754 binary32 floating-point numbers (`1` sign bit, `8` exponent bits, `23` mantissa fraction bits; ~7 significant decimal digits).
 - **Applicable Tags:** Selectable on `AI0..3`, `VREG0..31`, and `VREG_RETAIN0..31` in the [Tag Catalog](/workspaces/tag-catalog-tab).
-- **Memory Representation:** Stored lossless in the 32-bit tag slot via IEEE-754 bit-casting (`SingleToInt32Bits`) and always rendered in **SynaptiX IDE** with at least one explicit decimal place (for example, `"25.0"`, `"65.25"`) so engineers can visually distinguish `REAL` tags from `INT32` tags at a glance.
+- **Memory Representation:** Stored lossless in the 32-bit tag slot via IEEE-754 bit-casting (`SingleToInt32Bits`) and always rendered in SynaptiX IDE with at least one explicit decimal place (for example, `"25.0"`, `"65.25"`) so engineers can visually distinguish `REAL` tags from `INT32` tags at a glance.
 
 ::: warning Preventing Type-Mismatch Bugs Before Compilation
 When you change a tag's data type in the [Tag Catalog](/workspaces/tag-catalog-tab) (for example, switching `AI0` from `INT32` to `REAL`), any connected [`COMPARATOR`](/blocks/comparator) or [`ACTION`](/blocks/action) blocks immediately adapt their constant validation rules to match the updated tag contract. `NaN` and `Infinity` bit patterns are automatically sanitized to `"0.0"`.
@@ -86,7 +86,7 @@ When you change a tag's data type in the [Tag Catalog](/workspaces/tag-catalog-t
 
 ## Bad-Data Defense & Input Protection
 
-In industrial automation, mistyping a value (such as entering a fractional `"25.5"` into an integer threshold register) can cause incorrect control logic and factory downtime. **SynaptiX IDE** automatically safeguards PLC memory across all input fields (Property Inspector, Tag Catalog, Simulator, Live Watch) using two practical rules:
+In industrial automation, mistyping a value (such as entering a fractional `"25.5"` into an integer threshold register) can cause incorrect control logic and factory downtime. SynaptiX IDE automatically safeguards PLC memory across all input fields (Property Inspector, Tag Catalog, Simulator, Live Watch) using two practical rules:
 
 ::: tip Safe Input Rules & Auto-Normalization
 - **Auto-Normalization:** Entering `100.0` or `100,0` into an integer `INT32` field is automatically cleaned up to `100`. For boolean (`BOOL`) tags, you can quickly type `1`, `0`, `on`, `off`, `bật`, or `tắt`.
@@ -95,10 +95,10 @@ In industrial automation, mistyping a value (such as entering a fractional `"25.
 
 | Target Data Type | What You Type | Resolution Outcome | Actual Stored Value |
 | :---: | :--- | :--- | :---: |
-| **`INT32`** | `"100.0"` or `"100,0"` | **Auto-Normalize** (removes zero fraction) | `100` |
-| **`INT32`** | `"25.5"` or `"abc"` | **Auto-Revert** (rejects fraction/letters on integer) | *Keeps prior value* |
-| **`REAL`** | `"25"` or `"25,5"` | **Auto-Normalize** (`25` $\rightarrow$ `25.0`; `,` $\rightarrow$ `.`) | `25.0` / `25.5` |
-| **`BOOL`** | `"1"`, `"on"`, `"bật"` / `"0"`, `"off"`, `"tắt"` | **Auto-Normalize** to `1` or `0` | `1` / `0` |
+| `INT32` | `"100.0"` or `"100,0"` | Auto-Normalize (removes zero fraction) | `100` |
+| `INT32` | `"25.5"` or `"abc"` | Auto-Revert (rejects fraction/letters on integer) | *Keeps prior value* |
+| `REAL` | `"25"` or `"25,5"` | Auto-Normalize (`25` $\rightarrow$ `25.0`; `,` $\rightarrow$ `.`) | `25.0` / `25.5` |
+| `BOOL` | `"1"`, `"on"`, `"bật"` / `"0"`, `"off"`, `"tắt"` | Auto-Normalize to `1` or `0` | `1` / `0` |
 
 ---
 

@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`MATH`** (**Arithmetic Logic Unit**) function block evaluates mathematical operations across numeric operands (`INT32` and `REAL` / `Float32`) and writes the computed result to a designated destination tag (`OUT`).
+The `MATH` (**Arithmetic Logic Unit**) function block evaluates mathematical operations across numeric operands (`INT32` and `REAL` / `Float32`) and writes the computed result to a designated destination tag (`OUT`).
 
 - **IEC 61131-3 Arithmetic Operators:** Supports fundamental mathematical operations: Addition (`ADD`), Subtraction (`SUB`), Multiplication (`MUL`), Division (`DIV`), and Modulo Remainder (`MOD`).
 - **Extensible Operand Chaining ($2 \dots 8$ Pins):** While conventional PLC math blocks often restrict operations to two inputs, `MATH` allows chaining up to 8 operands for Addition, Subtraction, and Multiplication (evaluated left-to-right: $A - B - C - \dots$). Division and Modulo strictly enforce 2 operands per industrial safety standards.
@@ -34,10 +34,10 @@ The **`MATH`** (**Arithmetic Logic Unit**) function block evaluates mathematical
 
 | Parameter | Type / Domain | Default | Description & Operational Behavior |
 | :--- | :--- | :---: | :--- |
-| **Arithmetic Operator** | `ADD`, `SUB`, `MUL`, `DIV`, `MOD` | `ADD` (`+`) | Selects the arithmetic function evaluated by the block. |
-| **Data Type Mode** | `Auto`, `INT32`, `REAL` | `Auto` | Selects computation data type. In `Auto`, promotes to `REAL` if any operand is floating-point. |
-| **Output Result Tag (`OUT`)** | `TagModel?` (`VREG`) | `VREG0` | Destination virtual register storing the computation result. |
-| **Input Operands List** | $2 \dots 8$ Pins | 2 Pins (`IN1`, `IN2`) | Dynamic list of input operands. Each pin can be independently assigned to a Tag Variable or a Constant scalar value. |
+| Arithmetic Operator | `ADD`, `SUB`, `MUL`, `DIV`, `MOD` | `ADD` (`+`) | Selects the arithmetic function evaluated by the block. |
+| Data Type Mode | `Auto`, `INT32`, `REAL` | `Auto` | Selects computation data type. In `Auto`, promotes to `REAL` if any operand is floating-point. |
+| Output Result Tag (`OUT`) | `TagModel?` (`VREG`) | `VREG0` | Destination virtual register storing the computation result. |
+| Input Operands List | $2 \dots 8$ Pins | 2 Pins (`IN1`, `IN2`) | Dynamic list of input operands. Each pin can be independently assigned to a Tag Variable or a Constant scalar value. |
 
 ---
 
@@ -47,15 +47,15 @@ The **`MATH`** (**Arithmetic Logic Unit**) function block evaluates mathematical
 
 | Operator | Symbol | Allowable Pins | Algebraic Formula (Left-to-Right) | Industrial Behavior |
 | :--- | :---: | :---: | :--- | :--- |
-| **Addition (`ADD`)** | `+` | $2 \dots 8$ | $OUT = IN_1 + IN_2 + \dots + IN_n$ | Summation of multiple process variables, offsets, or sensor readings. |
-| **Subtraction (`SUB`)** | `-` | $2 \dots 8$ | $OUT = IN_1 - IN_2 - \dots - IN_n$ | Evaluates sequential difference from left to right (e.g., differential pressure, gross-to-tare deduction). |
-| **Multiplication (`MUL`)** | `*` | $2 \dots 8$ | $OUT = IN_1 \times IN_2 \times \dots \times IN_n$ | Multi-factor product (e.g., volumetric rate $\times$ density $\times$ correction factor). |
-| **Division (`DIV`)** | `/` | Exactly 2 | $OUT = IN_1 / IN_2$ | Quotients. Division by zero ($IN_2 = 0$) prevents CPU halt and flags a runtime fault. |
-| **Modulo (`MOD`)** | `%` | Exactly 2 | $OUT = IN_1 \pmod{IN_2}$ | Remainder of integer division (e.g., circular queue indexing, step distribution). |
+| Addition (`ADD`) | `+` | $2 \dots 8$ | $OUT = IN_1 + IN_2 + \dots + IN_n$ | Summation of multiple process variables, offsets, or sensor readings. |
+| Subtraction (`SUB`) | `-` | $2 \dots 8$ | $OUT = IN_1 - IN_2 - \dots - IN_n$ | Evaluates sequential difference from left to right (e.g., differential pressure, gross-to-tare deduction). |
+| Multiplication (`MUL`) | `*` | $2 \dots 8$ | $OUT = IN_1 \times IN_2 \times \dots \times IN_n$ | Multi-factor product (e.g., volumetric rate $\times$ density $\times$ correction factor). |
+| Division (`DIV`) | `/` | Exactly 2 | $OUT = IN_1 / IN_2$ | Quotients. Division by zero ($IN_2 = 0$) prevents CPU halt and flags a runtime fault. |
+| Modulo (`MOD`) | `%` | Exactly 2 | $OUT = IN_1 \pmod{IN_2}$ | Remainder of integer division (e.g., circular queue indexing, step distribution). |
 
 ### 4.2 IEC 61131-3 Type Promotion Rules
 
-In **`Automatic (Auto)`** mode, data types are resolved according to standard industrial rules:
+In `Automatic (Auto)` mode, data types are resolved according to standard industrial rules:
 
 | Operand Types Present | Target Evaluation Mode | Result Data Type | Notes |
 | :--- | :---: | :---: | :--- |
@@ -68,7 +68,7 @@ In **`Automatic (Auto)`** mode, data types are resolved according to standard in
 
 ## 5. Dedicated Configuration Dialog (`MathConfigDialogView`)
 
-Clicking **`Configure Block...`** in the Inspector or double-clicking the canvas node opens the comprehensive, industrial-grade Fluent 2 Desktop configuration dialog:
+Clicking `Configure Block...` in the Inspector or double-clicking the canvas node opens the comprehensive, industrial-grade Fluent 2 Desktop configuration dialog:
 
 ![MATH Function Block Configuration Dialog in SynaptiX IDE](/images/synaptix_math_config_dialog.png)
 
@@ -77,7 +77,7 @@ Clicking **`Configure Block...`** in the Inspector or double-clicking the canvas
 The dialog divides engineering parameters into two dedicated operational panels:
 - **Left Column (Master Settings & Input Operands Table):**
   - **Group 1 — General Parameters:** Selects arithmetic function (`ADD`, `SUB`, `MUL`, `DIV`, `MOD`), data type promotion mode (`Auto`, `INT32`, `REAL`), and destination output register (`OUT`).
-  - **Group 2 — Operands Table:** Supports chaining 2 to 8 input pins. Each row allows selecting between **Tag Variable** (bound to Tag Catalog) or **Constant** scalar input. Engineers can dynamically click **`+ Add Operand`** or remove pins as needed.
+  - **Group 2 — Operands Table:** Supports chaining 2 to 8 input pins. Each row allows selecting between **Tag Variable** (bound to Tag Catalog) or **Constant** scalar input. Engineers can dynamically click `+ Add Operand` or remove pins as needed.
 - **Right Column (Sticky ALU Diagnostics & Live Simulation Test Bench):**
   - **Algebraic Formula Preview:** Real-time synthesis of the active mathematical formula (e.g., `VREG10 = IN1 + IN2 + IN3`).
   - **Interactive Simulation Inputs:** Allows typing trial numeric values into each operand slot without overwriting physical PLC registers.
@@ -196,20 +196,20 @@ When total header flow exceeds the safe design threshold ($> 80.0\text{ m}^3/\te
 
 | Configuration Property | Engineering Value | Description |
 | :--- | :--- | :--- |
-| **Arithmetic Operator** | `ADD` (`+`) | Sums volumetric flow rates across all 3 supply branches. |
-| **Data Type Mode** | `Auto (ANY_NUM)` | Automatically promotes to `REAL` floating-point precision. |
-| **Output Destination (OUT)** | `VREG10_TotalFlow` | Virtual register recording total flow for SCADA logging and alarms. |
-| **Operand Pin IN1** | `VREG0_Line1Flow` | Instantaneous line 1 flow reading ($25.5\text{ m}^3/\text{h}$). |
-| **Operand Pin IN2** | `VREG1_Line2Flow` | Instantaneous line 2 flow reading ($30.2\text{ m}^3/\text{h}$). |
-| **Operand Pin IN3** | `VREG2_Line3Flow` | Instantaneous line 3 flow reading ($14.3\text{ m}^3/\text{h}$). |
+| Arithmetic Operator | `ADD` (`+`) | Sums volumetric flow rates across all 3 supply branches. |
+| Data Type Mode | `Auto (ANY_NUM)` | Automatically promotes to `REAL` floating-point precision. |
+| Output Destination (OUT) | `VREG10_TotalFlow` | Virtual register recording total flow for SCADA logging and alarms. |
+| Operand Pin IN1 | `VREG0_Line1Flow` | Instantaneous line 1 flow reading ($25.5\text{ m}^3/\text{h}$). |
+| Operand Pin IN2 | `VREG1_Line2Flow` | Instantaneous line 2 flow reading ($30.2\text{ m}^3/\text{h}$). |
+| Operand Pin IN3 | `VREG2_Line3Flow` | Instantaneous line 3 flow reading ($14.3\text{ m}^3/\text{h}$). |
 
 #### Industrial Commissioning & Truth Matrix:
 
 | Operational State | Line 1 (`VREG0`) | Line 2 (`VREG1`) | Line 3 (`VREG2`) | Total ALU (`VREG10`) | Relational Trip (`> 80.0`) | Alarm Horn (`DO0`) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Nominal Production** | $25.5\text{ m}^3/\text{h}$ | $30.2\text{ m}^3/\text{h}$ | $14.3\text{ m}^3/\text{h}$ | **$70.0\text{ m}^3/\text{h}$** | `FALSE` (Within safe bounds) | `0` (Alarm OFF) |
-| **Single Line Maintenance** | $0.0\text{ m}^3/\text{h}$ | $35.0\text{ m}^3/\text{h}$ | $20.0\text{ m}^3/\text{h}$ | **$55.0\text{ m}^3/\text{h}$** | `FALSE` (Within safe bounds) | `0` (Alarm OFF) |
-| **Peak Surge Exceeded** | $32.0\text{ m}^3/\text{h}$ | $38.5\text{ m}^3/\text{h}$ | $15.5\text{ m}^3/\text{h}$ | **$86.0\text{ m}^3/\text{h}$** | **`TRUE` (Over-Capacity Trip)** | **`1` (Alarm Energized)** |
+| Nominal Production | $25.5\text{ m}^3/\text{h}$ | $30.2\text{ m}^3/\text{h}$ | $14.3\text{ m}^3/\text{h}$ | $70.0\text{ m}^3/\text{h}$ | `FALSE` (Within safe bounds) | `0` (Alarm OFF) |
+| Single Line Maintenance | $0.0\text{ m}^3/\text{h}$ | $35.0\text{ m}^3/\text{h}$ | $20.0\text{ m}^3/\text{h}$ | $55.0\text{ m}^3/\text{h}$ | `FALSE` (Within safe bounds) | `0` (Alarm OFF) |
+| Peak Surge Exceeded | $32.0\text{ m}^3/\text{h}$ | $38.5\text{ m}^3/\text{h}$ | $15.5\text{ m}^3/\text{h}$ | $86.0\text{ m}^3/\text{h}$ | `TRUE` (Over-Capacity Trip) | `1` (Alarm Energized) |
 
 ---
 

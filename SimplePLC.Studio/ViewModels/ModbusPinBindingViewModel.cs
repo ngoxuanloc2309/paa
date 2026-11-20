@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SimplePLC.Protocol.Dto;
 using SimplePLC.Protocol.Enums;
 using SimplePLC.Studio.Models;
@@ -184,7 +185,77 @@ public partial class ModbusPinBindingViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(AvailableTags))]
     [NotifyPropertyChangedFor(nameof(IsEndiannessEnabled))]
     [NotifyPropertyChangedFor(nameof(EndiannessOptions))]
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(CanToggleRegisterWidth))]
+    [NotifyPropertyChangedFor(nameof(DataTypeTooltip))]
     private ModbusDataType _dataType = ModbusDataType.Int16;
+
+    /// <summary>
+    /// Nhãn hiển thị kiểu dữ liệu tự động theo chuẩn IEC 61131-3 (Read-Only Badge).
+    /// </summary>
+    public string DataTypeText
+    {
+        get
+        {
+            if (TargetTag == null || TargetTag.Kind == SimplePLC.Domain.Enums.TagKind.None)
+            {
+                return "—";
+            }
+            return DataType switch
+            {
+                ModbusDataType.Bool => "BOOL",
+                ModbusDataType.Real => "REAL",
+                ModbusDataType.Int16 => "INT16",
+                ModbusDataType.UInt16 => "UINT16",
+                ModbusDataType.Int32 => "INT32",
+                ModbusDataType.UInt32 => "UINT32",
+                _ => "—"
+            };
+        }
+    }
+
+    /// <summary>
+    /// Cho biết chân có thể nhấp để chuyển đổi độ rộng thanh ghi số nguyên (16-bit ↔ 32-bit) hay không.
+    /// </summary>
+    public bool CanToggleRegisterWidth => TargetTag != null 
+        && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None 
+        && !TargetTag.IsDigital 
+        && TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Int32;
+
+    /// <summary>
+    /// Chuyển đổi linh hoạt giữa 1 thanh ghi 16-bit (INT16) và 2 thanh ghi 32-bit (INT32) cho Tag số nguyên.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleRegisterWidth()
+    {
+        if (!CanToggleRegisterWidth) return;
+        DataType = DataType == ModbusDataType.Int16 ? ModbusDataType.Int32 : ModbusDataType.Int16;
+    }
+
+    /// <summary>
+    /// Tooltip giải thích trực quan cho Data Type Badge.
+    /// </summary>
+    public string DataTypeTooltip
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (CanToggleRegisterWidth)
+            {
+                return isVi
+                    ? "Nhấp để chuyển đổi độ rộng thanh ghi: INT16 (1 thanh ghi) ↔ INT32 (2 thanh ghi)"
+                    : "Click to toggle register width: INT16 (1 register) ↔ INT32 (2 registers)";
+            }
+            return DataType switch
+            {
+                ModbusDataType.Bool => isVi ? "Kiểu logic 1-bit (Coil / Contact)" : "1-bit Boolean (Coil / Contact)",
+                ModbusDataType.Real => isVi ? "Kiểu số thực 32-bit IEEE 754 (2 thanh ghi)" : "32-bit Float IEEE 754 (2 registers)",
+                ModbusDataType.Int16 => isVi ? "Kiểu số nguyên có dấu 16-bit (1 thanh ghi)" : "16-bit Signed Integer (1 register)",
+                ModbusDataType.Int32 => isVi ? "Kiểu số nguyên có dấu 32-bit (2 thanh ghi)" : "32-bit Signed Integer (2 registers)",
+                _ => isVi ? "Chưa liên kết Tag" : "No Tag linked"
+            };
+        }
+    }
 
     /// <summary>
     /// Cho biết tùy chọn thứ tự byte (Endianness) có áp dụng cho kiểu dữ liệu này hay không (False cho BOOL).
@@ -246,23 +317,37 @@ public partial class ModbusPinBindingViewModel : ObservableObject
 
         RefreshTagOptions();
 
-        // Auto-Fallback / Invalidation: Nếu TargetTag hiện tại không tương thích với DataType mới, tự động xóa
+        // Đồng bộ kiểu dữ liệu cho TargetTag nếu là thanh ghi ảo cho phép đổi kiểu (VREG)
         if (TargetTag != null && TargetTag.Kind != SimplePLC.Domain.Enums.TagKind.None)
         {
-            bool isTagBool = TargetTag.IsDigital || TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean;
-            bool isTagReal = TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32;
-            bool isTagInt = !isTagBool && !isTagReal;
-
-            bool isCompatible = value switch
+            if (TargetTag.IsDataTypeEditable)
             {
-                ModbusDataType.Bool => isTagBool,
-                ModbusDataType.Real => isTagReal,
-                _ => isTagInt
-            };
-
-            if (!isCompatible)
+                if (value == ModbusDataType.Real && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32)
+                {
+                    TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
+                }
+                else if (value is ModbusDataType.Int16 or ModbusDataType.Int32 or ModbusDataType.UInt16 or ModbusDataType.UInt32 && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32)
+                {
+                    TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Int32;
+                }
+            }
+            else
             {
-                TargetTag = null;
+                bool isTagBool = TargetTag.IsDigital || TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean;
+                bool isTagReal = TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Float32;
+                bool isTagInt = !isTagBool && !isTagReal;
+
+                bool isCompatible = value switch
+                {
+                    ModbusDataType.Bool => isTagBool,
+                    ModbusDataType.Real => isTagReal,
+                    _ => isTagInt
+                };
+
+                if (!isCompatible)
+                {
+                    TargetTag = null;
+                }
             }
         }
     }
@@ -299,20 +384,27 @@ public partial class ModbusPinBindingViewModel : ObservableObject
             }
             else
             {
-                if ((value.IsDigital || value.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean) && DataType != ModbusDataType.Bool)
+                if (value.IsDigital || value.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
                 {
                     DataType = ModbusDataType.Bool;
                 }
-                else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Float32 && DataType != ModbusDataType.Real)
+                else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Float32)
                 {
                     DataType = ModbusDataType.Real;
                 }
-                else if (!value.IsDigital && value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32 && DataType == ModbusDataType.Bool)
+                else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32)
                 {
-                    DataType = ModbusDataType.Int16;
+                    if (DataType != ModbusDataType.Int32 && DataType != ModbusDataType.UInt16 && DataType != ModbusDataType.UInt32)
+                    {
+                        DataType = ModbusDataType.Int16;
+                    }
                 }
             }
         }
+
+        OnPropertyChanged(nameof(DataTypeText));
+        OnPropertyChanged(nameof(CanToggleRegisterWidth));
+        OnPropertyChanged(nameof(DataTypeTooltip));
 
         if (Connector != null)
         {

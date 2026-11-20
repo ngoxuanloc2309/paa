@@ -24,6 +24,7 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
     public Action? NotifyProjectMetadataChanged { get; set; }
     public Action? OpenDeviceModbusPortConfig { get; set; }
     public Action? OpenDeviceMqttBrokerConfig { get; set; }
+    public Action? RequestSaveProject { get; set; }
 
     public ObservableCollection<GraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<ConnectionViewModel> Connections { get; } = new();
@@ -106,10 +107,17 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 {
                     Owner = activeWindow
                 };
-                if (portDlg.ShowDialog() == true)
+                try
                 {
-                    NotifyProjectMetadataChanged?.Invoke();
-                    NotifyGraphModified();
+                    if (portDlg.ShowDialog() == true)
+                    {
+                        NotifyProjectMetadataChanged?.Invoke();
+                        NotifyGraphModified();
+                    }
+                }
+                finally
+                {
+                    portVm.Dispose();
                 }
             }
             else
@@ -146,10 +154,17 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
                 {
                     Owner = activeWindow
                 };
-                if (portDlg.ShowDialog() == true)
+                try
                 {
-                    NotifyProjectMetadataChanged?.Invoke();
-                    NotifyGraphModified();
+                    if (portDlg.ShowDialog() == true)
+                    {
+                        NotifyProjectMetadataChanged?.Invoke();
+                        NotifyGraphModified();
+                    }
+                }
+                finally
+                {
+                    portVm.Dispose();
                 }
             }
             else
@@ -5458,10 +5473,22 @@ public partial class LogicEditorViewModel : ObservableObject, IDisposable
         CompileAndSaveRules(isAutoSync: false);
     }
 
+    private bool _isSavingAndCompiling;
+
     [RelayCommand]
     public void SaveAndCompile()
     {
-        CompileNow();
+        if (_isSavingAndCompiling) return;
+        try
+        {
+            _isSavingAndCompiling = true;
+            CompileNow();
+            RequestSaveProject?.Invoke();
+        }
+        finally
+        {
+            _isSavingAndCompiling = false;
+        }
     }
 
     [RelayCommand]

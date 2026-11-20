@@ -7,7 +7,7 @@
   <span><strong>Kênh Uplink:</strong> MQTT(s) &bull; HTTP(s) REST &bull; Raw TCP Socket</span>
 </div>
 
-**DTU Gateway Studio** là không gian làm việc chuyên biệt không cần viết mã (No-Code) dùng để cấu hình cầu nối dữ liệu từ chuẩn nối tiếp hiện trường RS-485 lên hạ tầng Cloud / SCADA ngay trong **SynaptiX IDE**. Khi khởi tạo dự án mới với cấu hình **SynaptiX DTU (`SYNX-DTU-485`)**, DTU Gateway Studio sẽ tự động mở làm màn hình làm việc chính. Đối với các dự án lai trên **SynaptiX Controller** hoặc **SynaptiX Gateway**, kỹ sư có thể gọi nhanh công cụ này bất kỳ lúc nào bằng phím tắt `Ctrl+Shift+D` (hoặc vào menu **Thiết bị -> Cấu hình DTU Gateway...**).
+**DTU Gateway Studio** là không gian làm việc chuyên biệt không cần viết mã (No-Code) dùng để cấu hình cầu nối dữ liệu từ chuẩn nối tiếp hiện trường RS-485 lên hạ tầng Cloud / SCADA ngay trong SynaptiX IDE. Khi khởi tạo dự án mới với cấu hình **SynaptiX DTU (`SYNX-DTU-485`)**, DTU Gateway Studio sẽ tự động mở làm màn hình làm việc chính. Đối với các dự án lai trên SynaptiX Controller hoặc SynaptiX Gateway, kỹ sư có thể gọi nhanh công cụ này bất kỳ lúc nào bằng phím tắt `Ctrl+Shift+D` (hoặc vào menu **Thiết bị -> Cấu hình DTU Gateway...**).
 
 ::: tip Hướng dẫn Cấu hình Nhanh Cầu nối DTU Gateway
 Chỉ cần thực hiện 4 bước tuần tự theo danh mục điều hướng bên trái giao diện:
@@ -30,16 +30,16 @@ Thiết lập cổng vật lý (`RS-485 #1 .. #4`), thông số khung truyền (
 - **Truyền Trong suốt (`Transference` / Passthrough):** Thu nhận nguyên vẹn chuỗi byte thô hoặc ký tự ASCII (đầu cân điện tử, máy quét barcode, máy in công nghiệp) dựa trên khoảng lặng ngắt khung `FrameTimeoutDelayMs` (mặc định `20 ms`, gói tối đa `512..2048 bytes`) và chuyển thẳng lên kênh Uplink.
 
 ### Phân mục `1`: Kết nối Không dây Wi-Fi & Địa chỉ IPv4 (`Wi-Fi`)
-Cấu hình phân hệ thu phát Wi-Fi 2.4 GHz (`WifiEnabled`, `WifiAutoReconnect`, `SSID`, `Password`, quét danh sách mạng lân cận kèm chỉ số sóng `dBm`) kết hợp chế độ **DHCP** hoặc **IP Tĩnh (`Static IPv4`)** (`StaticIp`, `SubnetMask`, `Gateway`, `Primary/Secondary DNS`) và kiểm tra địa chỉ `MAC` phần cứng.
+Cấu hình phân hệ thu phát Wi-Fi 2.4 GHz (`WifiEnabled`, `WifiAutoReconnect`, `SSID`, `Password`, quét danh sách mạng lân cận kèm chỉ số sóng `dBm`) kết hợp chế độ **DHCP** hoặc IP Tĩnh (`Static IPv4`) (`StaticIp`, `SubnetMask`, `Gateway`, `Primary/Secondary DNS`) và kiểm tra địa chỉ `MAC` phần cứng.
 
 ### Phân mục `2`: Giao thức Đẩy Dữ liệu Đám mây (`Cloud Uplink`)
 Định tuyến dữ liệu thu thập được lên một trong ba giao thức mạng công nghiệp:
 
 | Chế độ Uplink | Tham số Cấu hình Trọng tâm | Cơ chế Độ tin cậy & Bảo mật |
 | :--- | :--- | :--- |
-| **`MQTT` (`MQTT / MQTTS`)** | Broker Host, Port (`1883`/`8883`), Client ID, Username/Password, Publish Topic, Subscribe Topic, `QoS 0/1/2`, `Retain`. | Hỗ trợ đầy đủ chứng chỉ X.509 Root CA & Mutual TLS (`mTLS`), ghi đè SNI, cùng bản tin di chúc **Last Will & Testament (LWT)**. |
-| **`HTTP REST` (`POST` / `PUT`)** | Endpoint URL, Phương thức (`POST`/`PUT`), Custom Headers (`Authorization: Bearer ...`, `Content-Type`), Timeout (`giây`), Bảng ánh xạ trường. | Hỗ trợ kích hoạt **Tức thời khi nhận dữ liệu (`OnDataReceived`)** hoặc **Định kỳ theo thời gian (`Periodic`)** chuẩn RFC 9110. |
-| **`TCP Socket` (`Client` / `Server`)** | Chế độ Socket (`Client` kết nối tới `RemoteHost:RemotePort`, hoặc `Server` lắng nghe tại `LocalPort`). | Tự động nối lại theo `ReconnectDelaySec`, gói giữ phiên `HeartbeatPayload` (`PING` mỗi `30 giây`) và **Gói Báo danh Định danh chuẩn IEC 62443** (`None`, `OnConnect`, hoặc `PrependToEveryPacket`). |
+| `MQTT` (`MQTT / MQTTS`) | Broker Host, Port (`1883`/`8883`), Client ID, Username/Password, Publish Topic, Subscribe Topic, `QoS 0/1/2`, `Retain`. | Hỗ trợ đầy đủ chứng chỉ X.509 Root CA & Mutual TLS (`mTLS`), ghi đè SNI, cùng bản tin di chúc Last Will & Testament (LWT). |
+| `HTTP REST` (`POST` / `PUT`) | Endpoint URL, Phương thức (`POST`/`PUT`), Custom Headers (`Authorization: Bearer ...`, `Content-Type`), Timeout (`giây`), Bảng ánh xạ trường. | Hỗ trợ kích hoạt Tức thời khi nhận dữ liệu (`OnDataReceived`) hoặc Định kỳ theo thời gian (`Periodic`) chuẩn RFC 9110. |
+| `TCP Socket` (`Client` / `Server`) | Chế độ Socket (`Client` kết nối tới `RemoteHost:RemotePort`, hoặc `Server` lắng nghe tại `LocalPort`). | Tự động nối lại theo `ReconnectDelaySec`, gói giữ phiên `HeartbeatPayload` (`PING` mỗi `30 giây`) và Gói Báo danh Định danh chuẩn IEC 62443 (`None`, `OnConnect`, hoặc `PrependToEveryPacket`). |
 
 ### Phân mục `3`: Định thời, Bộ Định dạng JSON & Ước tính Dung lượng (`Timing`)
 Điều khiển nhịp quét/phát dữ liệu (`PollingIntervalMs`, `PublishIntervalSec`, tối ưu gửi khi thay đổi `SendOnChange`) và đóng gói bản tin theo 3 chế độ:
@@ -63,25 +63,65 @@ Khi cần cấu hình nhanh các cảm biến Modbus tiêu chuẩn ngay tại t�
 
 ---
 
-## 3. Trình Phân tích Khung Wire Chuẩn Moxa & Bộ Bắt Gói tin Trực tiếp
+## 3. Trình Phân tích Khung Wire Modbus RTU & Bộ Bắt Gói tin Trực tiếp
 
 Cột **Chẩn đoán Cảm biến & Phân tích Khung truyền (`Inspector`)** có thể đóng/mở bên phải cung cấp khả năng soi chiếu sâu tới từng byte trên đường dây RS-485 mà không cần dùng thêm cáp chuyển đổi USB-RS485 rời hay phần mềm thử nghiệm bên thứ ba:
 
-```text
-+-------------------------------------------------------------------------+
-| PHÂN TÍCH KHUNG TRUYỀN MODBUS (MOXA STYLE)      [● COM4 · SYNX-DTU-485] |
-+-------------------------------------------------------------------------+
-| Kênh đích: Slave 1 · FC03 · 40001 (NhietDo_C)    Độ trễ: 14 ms  [TỐT]   |
-| Giá trị Kỹ thuật: 28.4 °C                        Thanh ghi Thô: 284     |
-| ----------------------------------------------------------------------- |
-| Khung Hỏi TX (8B): [ 01 ] [ 03 ] [ 00 00 ] [ 00 01 ] [ 84 0A ] (CRC OK) |
-| Phản hồi RX (7B):  [ 01 ] [ 03 ] [ 02 ] [ 01 1C ] [ B8 49 ]    (CRC OK) |
-+-------------------------------------------------------------------------+
-```
+<div class="synx-proto-card">
+<div class="synx-proto-header">
+<div class="synx-proto-title">PHÂN TÍCH KHUNG TRUYỀN MODBUS RTU</div>
+<span class="synx-proto-status">COM4 · 9600-8-N-1</span>
+</div>
+<div class="synx-proto-body">
+<div class="synx-proto-grid">
+<div class="synx-proto-item">
+<span class="synx-proto-label">Trạm đích:</span>
+<span class="synx-proto-val">Slave 1 (FC03 · 40001)</span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Độ trễ:</span>
+<span class="synx-proto-val">14 ms <span class="synx-proto-badge-ok">TỐT</span></span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Giá trị Kỹ thuật:</span>
+<span class="synx-proto-val font-mono">28.4 °C</span>
+</div>
+<div class="synx-proto-item">
+<span class="synx-proto-label">Thanh ghi Thô:</span>
+<span class="synx-proto-val font-mono">284 (0x011C)</span>
+</div>
+</div>
+<div class="synx-proto-divider"></div>
+<div class="synx-proto-stream">
+<div class="synx-stream-row">
+<span class="synx-stream-tag">Khung Hỏi TX (8B):</span>
+<div class="synx-byte-badges">
+<div class="synx-byte-group"><span class="synx-byte">01</span><span class="synx-byte-sub">Addr</span></div>
+<div class="synx-byte-group"><span class="synx-byte">03</span><span class="synx-byte-sub">FC03</span></div>
+<div class="synx-byte-group"><span class="synx-byte">00 00</span><span class="synx-byte-sub">Start</span></div>
+<div class="synx-byte-group"><span class="synx-byte">00 01</span><span class="synx-byte-sub">Count</span></div>
+<div class="synx-byte-group"><span class="synx-byte">84 0A</span><span class="synx-byte-sub">CRC-16</span></div>
+<span class="synx-proto-badge-ok">CRC-16 Hợp lệ</span>
+</div>
+</div>
+<div class="synx-stream-row">
+<span class="synx-stream-tag">Phản hồi RX (7B):</span>
+<div class="synx-byte-badges">
+<div class="synx-byte-group"><span class="synx-byte">01</span><span class="synx-byte-sub">Addr</span></div>
+<div class="synx-byte-group"><span class="synx-byte">03</span><span class="synx-byte-sub">FC03</span></div>
+<div class="synx-byte-group"><span class="synx-byte">02</span><span class="synx-byte-sub">Bytes</span></div>
+<div class="synx-byte-group"><span class="synx-byte">01 1C</span><span class="synx-byte-sub">Data</span></div>
+<div class="synx-byte-group"><span class="synx-byte">B8 49</span><span class="synx-byte-sub">CRC-16</span></div>
+<span class="synx-proto-badge-ok">CRC-16 Hợp lệ</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-### 3.1 Trình Phân tích Khung Wire Modbus Chuẩn Moxa
+### 3.1 Trình Phân tích Khung Wire Modbus RTU
 - **Bóc tách Cấu trúc Byte (`ToggleWireFrame`):** Tách bạch rõ ràng từng thành phần trong gói hỏi `TX` và gói trả lời `RX`: `[ Slave ID ]`, `[ Mã hàm FC ]`, `[ Địa chỉ Wire 0-Based ]`, `[ Số Thanh ghi / Số Byte ]`, `[ Dữ liệu ]` và `[ Mã kiểm tra CRC-16 ]`.
-- **Đọc Thử Đơn lẻ & Quét Liên tục Thời gian thực:** Nhấn **Đọc Thử 1 Lần (`Read Once`)** để phát lệnh kiểm tra ngay qua bo mạch đang kết nối, hoặc bật **Quét Liên tục (`Continuous Polling`)** để theo dõi **Giá trị Đã Quy đổi**, **Giá trị Thanh ghi Thô** và **Độ trễ Phản hồi (`ms`)** cập nhật trực tiếp.
+- **Đọc Thử Đơn lẻ & Quét Liên tục Thời gian thực:** Nhấn Đọc Thử 1 Lần (`Read Once`) để phát lệnh kiểm tra ngay qua bo mạch đang kết nối, hoặc bật **Quét Liên tục (`Continuous Polling`)** để theo dõi **Giá trị Đã Quy đổi**, **Giá trị Thanh ghi Thô** và **Độ trễ Phản hồi (`ms`)** cập nhật trực tiếp.
 - **Gợi ý Chẩn đoán Lỗi Tự động:** Các dải băng trạng thái chuẩn màu ANSI/ISA-101 (`Tốt`, `Cảnh báo`, `Lỗi`) tự động giải thích nguyên nhân Timeout, sai mã kiểm tra CRC hoặc mã ngoại lệ Modbus (`0x01..0x0B`) kèm hướng khắc phục đấu nối/địa chỉ.
 
 ### 3.2 Bộ Bắt Gói tin & Màn hình Chẩn đoán Trực tiếp (`Diagnostic Terminal`)

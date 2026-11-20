@@ -886,7 +886,8 @@ typedef enum {
     SPLC_RULE_FLAG_NONE          = 0x00,
     SPLC_RULE_FLAG_TRIGGER_FLOAT = 0x01,  /* Bit 0: 1 = Thresholds (threshold_lo, threshold_hi) are IEEE-754 Float32 */
     SPLC_RULE_FLAG_ACTION_FLOAT  = 0x02,  /* Bit 1: 1 = Action parameter (action_param) is IEEE-754 Float32 */
-    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03   /* Legacy alias: 1 = Both Trigger and Action are IEEE-754 Float32 */
+    SPLC_RULE_FLAG_FLOAT_DATA    = 0x03,  /* Legacy alias: 1 = Both Trigger and Action are IEEE-754 Float32 */
+    SPLC_RULE_FLAG_INT_TO_FLOAT  = 0x04   /* Bit 2: 1 = SCALE_TAG source is INT32, promote to Float32 before Gain & Offset */
 } SPLC_RuleFlags_t;
 
 /**

@@ -11,13 +11,13 @@
 
 ## 1. Mục đích & Vai trò Vận hành
 
-**Không gian Triển khai — Atomic Deploy Workspace** (`Ctrl+6`) là cổng kiểm duyệt phát hành và bộ máy nạp cấu hình bất biến của **SynaptiX IDE**. Trong môi trường công nghiệp nặng, hiện tượng sụt áp tủ điện thoáng qua (brownout), nhiễu đường truyền RS-485 hoặc tuột cáp USB giữa chừng khi đang nạp chương trình có thể khiến các bộ điều khiển truyền thống rơi vào trạng thái lỗi ghi dở dang nguy hiểm. **SynaptiX IDE** triệt tiêu hoàn toàn rủi ro này bằng giao thức **Nạp Nguyên tử Hai Pha An toàn (Two-Phase Atomic Safe Commit — `Ctrl+F5`)**.
+Không gian Triển khai — Atomic Deploy Workspace (`Ctrl+6`) là cổng kiểm duyệt phát hành và bộ máy nạp cấu hình bất biến của SynaptiX IDE. Trong môi trường công nghiệp nặng, hiện tượng sụt áp tủ điện thoáng qua (brownout), nhiễu đường truyền RS-485 hoặc tuột cáp USB giữa chừng khi đang nạp chương trình có thể khiến các bộ điều khiển truyền thống rơi vào trạng thái lỗi ghi dở dang nguy hiểm. SynaptiX IDE triệt tiêu hoàn toàn rủi ro này bằng giao thức **Nạp Nguyên tử Hai Pha An toàn (Two-Phase Atomic Safe Commit — `Ctrl+F5`)**.
 
 Xuyên suốt vòng đời nghiệm thu tủ điện và sản xuất loạt lớn, **Atomic Deploy Workspace** đảm nhiệm bốn tác vụ độ tin cậy cao:
 
 1. **Tiền Kiểm tra Tĩnh & Đối chiếu Năng lực Phần cứng (Pre-Flight Verification):** Kiểm tra toàn diện trạng thái kết nối, tính mới nhất của bản biên dịch [Sơ đồ Logic](/vi/workspaces/logic-graph-tab) (`Valid` so với `Stale`/`Invalid`), các ràng buộc miền an toàn và năng lực phần cứng mục tiêu trước khi truyền đi bất kỳ byte dữ liệu nào.
 2. **Nạp Nguyên tử Hai Pha Không Gián đoạn (`Ctrl+F5`):** Truyền toàn bộ gói cấu hình vào vùng đệm cô lập và kiểm tra mã toàn vẹn (**Pha 1**) trước khi phát lệnh chuyển mạch Flash nguyên tử duy nhất tại ranh giới chu kỳ quét (**Pha 2**)—giúp dây chuyền đang chạy tiếp tục vận hành êm ái không giật cục (bumpless transfer).
-3. **Đọc Ngược & Tái tạo Toàn diện từ Thiết bị (`F6` — Upload from Device):** Tải ngược toàn bộ tập luật ECA, các khối hàm Timer/Counter, kênh đọc RS-485, chủ đề MQTT và tham số DTU đang chạy thực tế trên **SynaptiX Edge Controller** về IDE, đồng thời tái dựng tự động cả [Bảng Luật](/vi/workspaces/rule-table-tab) lẫn bản vẽ [Sơ đồ Logic](/vi/workspaces/logic-graph-tab).
+3. **Đọc Ngược & Tái tạo Toàn diện từ Thiết bị (`F6` — Upload from Device):** Tải ngược toàn bộ tập luật ECA, các khối hàm Timer/Counter, kênh đọc RS-485, chủ đề MQTT và tham số DTU đang chạy thực tế trên SynaptiX Edge Controller về IDE, đồng thời tái dựng tự động cả [Bảng Luật](/vi/workspaces/rule-table-tab) lẫn bản vẽ [Sơ đồ Logic](/vi/workspaces/logic-graph-tab).
 4. **Xuất / Nhập Ảnh Nhị phân Bảo vệ CRC (`*.bin`):** Đóng gói và nạp tệp ảnh cấu hình nhị phân chuẩn hóa phục vụ lưu trữ quản lý phiên bản và nạp hàng loạt tốc độ cao tại dây chuyền lắp ráp tủ bảng điện.
 
 ---
@@ -32,17 +32,17 @@ Giao diện **Atomic Deploy Workspace** chia thành hai phân khu rõ rệt: **C
 
 | Khung Thông tin / Điều khiển | Phím tắt / Vị trí | Mô tả & Hành vi Vận hành |
 | :--- | :--- | :--- |
-| **Biểu ngữ Sẵn sàng Tiền Kiểm tra** | Đỉnh cột trái | Hiển thị trạng thái đủ điều kiện nạp (`Ready to Deploy`, `Compile Stale`, `Validation Error`, hoặc `Device Offline`) cùng chỉ báo đồng bộ **Mã băm Ngữ nghĩa (Semantic Hash)**. |
-| **Thẻ Kê khai Triển khai (Deployment Manifest)** | Thân cột trái | Thống kê chi tiết số lượng thành phần sẽ nạp xuống thiết bị: số luật `Logic Rules` kích hoạt, khối `Function Blocks` (Timer/Counter), kênh `RS-485 Modbus`, dịch vụ `MQTT Services`, chế độ xuất `Direct Output`, cấu hình `DTU Gateway` và bảng `Tag Data Type Registry` (`BOOL` / `INT32` / `REAL`). |
-| **Nút Commit / Atomic Deploy** | `Ctrl+F5` (Thanh tác vụ trái) | Khởi chạy quy trình Nạp Nguyên tử Hai Pha 5 bước xuống **SynaptiX Device** (hoặc bộ mô phỏng ảo). |
-| **Nút Upload from Device** | `F6` (Thanh lệnh trên / trái) | Đọc ngược cấu hình đang chạy trên bộ điều khiển về **SynaptiX IDE** (có hộp thoại cảnh báo bảo vệ nếu dự án trên máy đang có thay đổi chưa lưu). |
-| **Thanh Tiến trình Nguyên tử 5 Bước** | Nửa trên cột phải | Trực quan hóa trực tiếp từng pha thực thi: **1. Kiểm tra Tiền triển khai**, **2. Truyền Vùng đệm Pha 1**, **3. Xác thực Toàn vẹn Checksum**, **4. Chuyển mạch Flash Nguyên tử Pha 2**, và **5. Bắt tay Xác nhận Phiên bản**. |
-| **Nhật ký Console Triển khai** | Nửa dưới cột phải | Dòng nhật ký gắn nhãn thời gian phông Monospace ghi lại từng phân hệ đã kiểm duyệt, tổng thời gian nạp (`ms`) và số phiên bản cấu hình đang chạy, đi kèm nút **Copy Log** và **Clear Log**. |
-| **Xuất / Nhập Ảnh Nhị phân (`.bin`)** | `File → Export / Import → Binary (*.bin)` | Kết xuất hoặc đọc tệp ảnh cấu hình nhị phân có gắn khung kiểm tra `CRC-16` phục vụ lưu trữ ngoại tuyến và nạp sản xuất hàng loạt. |
+| Biểu ngữ Sẵn sàng Tiền Kiểm tra | Đỉnh cột trái | Hiển thị trạng thái đủ điều kiện nạp (`Ready to Deploy`, `Compile Stale`, `Validation Error`, hoặc `Device Offline`) cùng chỉ báo đồng bộ Mã băm Ngữ nghĩa (Semantic Hash). |
+| Thẻ Kê khai Triển khai (Deployment Manifest) | Thân cột trái | Thống kê chi tiết số lượng thành phần sẽ nạp xuống thiết bị: số luật `Logic Rules` kích hoạt, khối `Function Blocks` (Timer/Counter), kênh `RS-485 Modbus`, dịch vụ `MQTT Services`, chế độ xuất `Direct Output`, cấu hình `DTU Gateway` và bảng `Tag Data Type Registry` (`BOOL` / `INT32` / `REAL`). |
+| Nút Commit / Atomic Deploy | `Ctrl+F5` (Thanh tác vụ trái) | Khởi chạy quy trình Nạp Nguyên tử Hai Pha 5 bước xuống SynaptiX Device (hoặc bộ mô phỏng ảo). |
+| Nút Upload from Device | `F6` (Thanh lệnh trên / trái) | Đọc ngược cấu hình đang chạy trên bộ điều khiển về SynaptiX IDE (có hộp thoại cảnh báo bảo vệ nếu dự án trên máy đang có thay đổi chưa lưu). |
+| Thanh Tiến trình Nguyên tử 5 Bước | Nửa trên cột phải | Trực quan hóa trực tiếp từng pha thực thi: 1. Kiểm tra Tiền triển khai, 2. Truyền Vùng đệm Pha 1, 3. Xác thực Toàn vẹn Checksum, 4. Chuyển mạch Flash Nguyên tử Pha 2, và 5. Bắt tay Xác nhận Phiên bản. |
+| Nhật ký Console Triển khai | Nửa dưới cột phải | Dòng nhật ký gắn nhãn thời gian phông Monospace ghi lại từng phân hệ đã kiểm duyệt, tổng thời gian nạp (`ms`) và số phiên bản cấu hình đang chạy, đi kèm nút Copy Log và Clear Log. |
+| Xuất / Nhập Ảnh Nhị phân (`.bin`) | `File → Export / Import → Binary (*.bin)` | Kết xuất hoặc đọc tệp ảnh cấu hình nhị phân có gắn khung kiểm tra `CRC-16` phục vụ lưu trữ ngoại tuyến và nạp sản xuất hàng loạt. |
 
 ### 2.2. Kiến trúc Nạp Nguyên tử Hai Pha An toàn (`Ctrl+F5`)
 
-Biểu đồ trình tự dưới đây minh họa cơ chế phối hợp giữa **SynaptiX IDE** và **SynaptiX Runtime** nhằm đảm bảo tuyệt đối không bao giờ xảy ra lỗi ghi dở dang ngay cả khi sập nguồn tủ điện hoặc đứt cáp đột ngột:
+Biểu đồ trình tự dưới đây minh họa cơ chế phối hợp giữa SynaptiX IDE và SynaptiX Runtime nhằm đảm bảo tuyệt đối không bao giờ xảy ra lỗi ghi dở dang ngay cả khi sập nguồn tủ điện hoặc đứt cáp đột ngột:
 
 <div class="synx-node-chain" style="margin-bottom: 12px;">
   <div class="synx-canvas-node is-step">
@@ -162,7 +162,7 @@ Biểu đồ trình tự dưới đây minh họa cơ chế phối hợp giữa 
 </div>
 
 ::: tip TRÍ TUỆ MÃ BĂM NGỮ NGHĨA (SEMANTIC PROGRAM HASH)
-**SynaptiX IDE** tính toán **Mã băm Ngữ nghĩa** thuần túy dựa trên tập luật sau biên dịch, kiểu dữ liệu biến và cấu hình truyền thông. Mọi thao tác chỉnh sửa thẩm mỹ trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab)—như kéo trượt bản vẽ, căn hàng (`Alt+M`) hay dàn đều khoảng cách (`Alt+Shift+H`)—đều **không** làm sai lệch trạng thái đã đồng bộ với thiết bị.
+SynaptiX IDE tính toán **Mã băm Ngữ nghĩa** thuần túy dựa trên tập luật sau biên dịch, kiểu dữ liệu biến và cấu hình truyền thông. Mọi thao tác chỉnh sửa thẩm mỹ trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab)—như kéo trượt bản vẽ, căn hàng (`Alt+M`) hay dàn đều khoảng cách (`Alt+Shift+H`)—đều **không** làm sai lệch trạng thái đã đồng bộ với thiết bị.
 :::
 
 ---
@@ -171,18 +171,18 @@ Biểu đồ trình tự dưới đây minh họa cơ chế phối hợp giữa 
 
 ### Quy trình 3.1: Thực hiện Nạp Nguyên tử Hai Pha Xuống Thiết bị (`Ctrl+F5`)
 
-1. Kiểm tra thanh kết nối phía trên (`F4`) để chắc chắn **SynaptiX Edge Controller** (hoặc `SIMULATOR (VIRTUAL)`) đang ở trạng thái `Connected`.
+1. Kiểm tra thanh kết nối phía trên (`F4`) để chắc chắn SynaptiX Edge Controller (hoặc `SIMULATOR (VIRTUAL)`) đang ở trạng thái `Connected`.
 2. Nhấn `F7` để đảm bảo huy hiệu biên dịch trên [Sơ đồ Logic](/vi/workspaces/logic-graph-tab) đạt trạng thái xanh lá (`Valid`), sau đó nhấn `Ctrl+6` mở **Atomic Deploy Workspace**.
 3. Rà soát **Thẻ Kê khai Triển khai (Deployment Manifest)** ở cột trái nhằm xác nhận đúng số lượng luật ECA đang bật, số bộ Timer/Counter, kênh đọc RS-485 và chủ đề MQTT.
 4. Nhấn nút **Atomic Deploy** (hoặc bấm tổ hợp phím `Ctrl+F5` từ bất kỳ tab nào).
-5. Quan sát **Thanh Tiến trình Nguyên tử 5 Bước** lần lượt hoàn tất qua các chặng: Tiền kiểm tra, Truyền Vùng đệm Pha 1, Đối chiếu Checksum, Chuyển mạch Flash Pha 2 và Bắt tay Phiên bản.
+5. Quan sát Thanh Tiến trình Nguyên tử 5 Bước lần lượt hoàn tất qua các chặng: Tiền kiểm tra, Truyền Vùng đệm Pha 1, Đối chiếu Checksum, Chuyển mạch Flash Pha 2 và Bắt tay Phiên bản.
 6. Kiểm tra dòng xác nhận `[SUCCESS]` cuối cùng trong **Nhật ký Console**, ghi nhận mã phiên bản cấu hình mới và tổng thời gian thực thi tính bằng mili-giây.
 
 ### Quy trình 3.2: Đọc Ngược & Khôi phục Dự án từ Thiết bị Hiện trường (`F6`)
 
-1. Kết nối máy tính kỹ thuật với **SynaptiX Edge Controller** qua cổng USB CDC hoặc mạng Modbus TCP (`F4`).
+1. Kết nối máy tính kỹ thuật với SynaptiX Edge Controller qua cổng USB CDC hoặc mạng Modbus TCP (`F4`).
 2. Nhấn phím `F6` (**Upload from Device**). Nếu dự án `.synx` đang mở có thay đổi chưa lưu, IDE sẽ hiển thị hộp thoại hỏi xác nhận lưu trước khi ghi đè không gian làm việc.
-3. **SynaptiX IDE** tải ngược toàn bộ luật ECA, khối chức năng, thông số cổng RS-485, cấu hình MQTT và kiểu dữ liệu biến, sau đó tự động dựng lại đầy đủ cả [Bảng Luật — Rule Table](/vi/workspaces/rule-table-tab) (`Ctrl+4`) lẫn sơ đồ khối trực quan trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab) (`Ctrl+2`).
+3. SynaptiX IDE tải ngược toàn bộ luật ECA, khối chức năng, thông số cổng RS-485, cấu hình MQTT và kiểu dữ liệu biến, sau đó tự động dựng lại đầy đủ cả [Bảng Luật — Rule Table](/vi/workspaces/rule-table-tab) (`Ctrl+4`) lẫn sơ đồ khối trực quan trên [Sơ đồ Logic — Logic Graph](/vi/workspaces/logic-graph-tab) (`Ctrl+2`).
 4. Nhấn ngay `Ctrl+S` để lưu trữ bản sao lưu dự phòng `.synx` kèm ngày giờ bảo trì.
 
 ### Quy trình 3.3: Đóng gói & Nạp Tệp Ảnh Nhị phân (`.bin`) Sản xuất Hàng loạt
@@ -198,7 +198,7 @@ Biểu đồ trình tự dưới đây minh họa cơ chế phối hợp giữa 
 Nếu một dự án được thiết kế trên cấu hình **IIoT Edge Controller** đầy đủ (có chứa khối `MQTT_PUB` hoặc cấu hình `Wi-Fi`) nhưng khi ra hiện trường lại cắm nhầm vào biến thể **RS-485 Remote I/O** không có phần cứng mạng, **Bộ Tiền Kiểm tra (Pre-Flight Verifier)** sẽ phát hiện ngay sự khác biệt năng lực—cảnh báo hoặc cô lập phân hệ mạng không tương thích trong khi vẫn bảo vệ an toàn các luật điều khiển I/O cốt lõi. Hãy luôn đối chiếu đúng hồ sơ thiết bị tại [Không gian Thiết bị — Device](/vi/workspaces/device-tab) (`Ctrl+1`) trước khi ký nghiệm thu.
 :::
 
-- **Khôi phục Nhanh Sau Sự cố Mất điện Giữa Chừng:** Nếu nguồn điện nhà xưởng bị cúp đúng lúc đang chạy **Bước 2 (Truyền Vùng đệm Pha 1)** hoặc **Bước 3 (Kiểm tra Checksum)**, bạn chỉ cần cấp điện trở lại, chờ **SynaptiX IDE** tự động chuyển từ `Reconnecting` sang `Connected` rồi nhấn lại `Ctrl+F5`. Thiết bị luôn khởi động an toàn trên bản cấu hình hợp lệ liền trước mà không bao giờ bị treo lỗi bộ nhớ.
+- **Khôi phục Nhanh Sau Sự cố Mất điện Giữa Chừng:** Nếu nguồn điện nhà xưởng bị cúp đúng lúc đang chạy **Bước 2 (Truyền Vùng đệm Pha 1)** hoặc **Bước 3 (Kiểm tra Checksum)**, bạn chỉ cần cấp điện trở lại, chờ SynaptiX IDE tự động chuyển từ `Reconnecting` sang `Connected` rồi nhấn lại `Ctrl+F5`. Thiết bị luôn khởi động an toàn trên bản cấu hình hợp lệ liền trước mà không bao giờ bị treo lỗi bộ nhớ.
 - **Lưu trữ Nhật ký Nạp cho Biên bản Nghiệm thu (FAT/SAT):** Nhấn nút **Copy Log** ngay sau khi hoàn tất nạp cho từng tủ điều khiển để dán bản ghi thời gian và mã phiên bản vào biên bản nghiệm thu bàn giao khách hàng.
 
 ---

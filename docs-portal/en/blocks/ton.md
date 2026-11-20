@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`TON`** (**Timer On-Delay**) block delays the activation of its boolean output `Q` until the input signal `In` has remained continuously active (`1`) for the full preset duration `PresetMs`.
+The `TON` (**Timer On-Delay**) block delays the activation of its boolean output `Q` until the input signal `In` has remained continuously active (`1`) for the full preset duration `PresetMs`.
 
 - **Sustained Activation Contract:** On a rising transition of `In` (`0 → 1`), the internal elapsed counter `ET` begins advancing using the controller's monotonic millisecond clock while `Q` stays `0`. Only when `ET` reaches `PresetMs` does `Q` transition to `1` (`Q = ON`).
 - **Instantaneous Reset on Input Drop:** If `In` drops back to `0` at **any** moment—whether mid-timing (`0 < ET < PresetMs`) or after `Q` has already energized—both `ET` and `Q` reset to `0` immediately on that scan cycle. Transient spikes or contact bounce shorter than `PresetMs` never reach downstream actuators.
@@ -45,11 +45,11 @@ The timing table below illustrates the difference between **aborted chatter** (s
 
 | Waveform Phase | Input `In` | Elapsed Time `ET` | Output `Q` | Canvas Status Pill |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. At Rest** | `0` | `0 ms` | `0` | `3s (OFF)` / `PT: 3000 ms` |
-| **2. Short Glitch (`< PresetMs`)** | `1 → 0` early | Rises then resets to `0 ms` | `0` (Unchanged) | Returns immediately to `3s (OFF)` |
-| **3. Sustained Delay (`< PresetMs`)** | `1` | `0 → PresetMs` | `0` | `45% (3s)` · `1350 / 3000 ms` |
-| **4. Delay Expired** | `1` | `PresetMs` (`3000 ms`) | `1` (`ON`) | `Q = ON` · `DONE · 3000 ms` |
-| **5. Input Released** | `0` | `0 ms` | `0` (`OFF`) | `3s (OFF)` |
+| 1. At Rest | `0` | `0 ms` | `0` | `3s (OFF)` / `PT: 3000 ms` |
+| 2. Short Glitch (`< PresetMs`) | `1 → 0` early | Rises then resets to `0 ms` | `0` (Unchanged) | Returns immediately to `3s (OFF)` |
+| 3. Sustained Delay (`< PresetMs`) | `1` | `0 → PresetMs` | `0` | `45% (3s)` · `1350 / 3000 ms` |
+| 4. Delay Expired | `1` | `PresetMs` (`3000 ms`) | `1` (`ON`) | `Q = ON` · `DONE · 3000 ms` |
+| 5. Input Released | `0` | `0 ms` | `0` (`OFF`) | `3s (OFF)` |
 
 ---
 
@@ -71,7 +71,7 @@ The timing table below illustrates the difference between **aborted chatter** (s
 
 ### Scenario: Sump Pit Float-Switch Wave Debounce & Staggered Booster Pump Startup
 
-In an underground wastewater sump pit, surface turbulence causes the high-level float switch (`DI0`) to bob rapidly before the pit is genuinely full. Starting the `7.5 kW` submersible pump (`DO0`) on brief splashes causes contactor welding and motor overheating. A **`TON`** timer enforces a continuous **`5 s`** submergence requirement before energizing `DO0`.
+In an underground wastewater sump pit, surface turbulence causes the high-level float switch (`DI0`) to bob rapidly before the pit is genuinely full. Starting the `7.5 kW` submersible pump (`DO0`) on brief splashes causes contactor welding and motor overheating. A `TON` timer enforces a continuous `5 s` submergence requirement before energizing `DO0`.
 
 ### Tag Configuration
 
@@ -83,10 +83,10 @@ In an underground wastewater sump pit, surface turbulence causes the high-level 
 
 ### Step-by-Step Canvas Wiring
 
-1. Place **`INPUT`** (`Tag = DI0`, `CustomLabel = "High Float"`).
-2. Select the `INPUT` node and click **`TON`** in the toolbox to auto-wire `INPUT.Out → TON.In`.
-3. In the `TON` **Inspector**, set `DurationValueText = "5"`, `TimeUnit = "s"` (confirming `= 5,000 ms (5s)`), and bind `OutputTag = DO0` (or bind `OutputTag = VFLAG0` and wire `TON.Q → ACTION (SET_TAG DO0 = 1)` if combining with downstream telemetry).
-4. Wire `TON.Q` → **[`MQTT_PUB`](/blocks/mqtt-pub)** (`Topic = "plant/sump/pump_start"`) if cloud notification is desired on confirmed pump startup.
+1. Place `INPUT` (`Tag = DI0`, `CustomLabel = "High Float"`).
+2. Select the `INPUT` node and click `TON` in the toolbox to auto-wire `INPUT.Out → TON.In`.
+3. In the `TON` Inspector, set `DurationValueText = "5"`, `TimeUnit = "s"` (confirming `= 5,000 ms (5s)`), and bind `OutputTag = DO0` (or bind `OutputTag = VFLAG0` and wire `TON.Q → ACTION (SET_TAG DO0 = 1)` if combining with downstream telemetry).
+4. Wire `TON.Q` → [`MQTT_PUB`](/blocks/mqtt-pub) (`Topic = "plant/sump/pump_start"`) if cloud notification is desired on confirmed pump startup.
 5. Press `F5` to test: toggle `DI0` `0 → 1` for `2 seconds` then back to `0`—verify `ET` resets immediately to `0 ms` and `DO0` stays `0`. Next, toggle `DI0` `0 → 1` and hold for `5 seconds`—verify `Q = ON` illuminates and `DO0` energizes cleanly.
 
 <div class="synx-node-chain">

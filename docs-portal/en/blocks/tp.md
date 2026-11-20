@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`TP`** (**Timer Pulse**) block is a **monostable, non-retriggerable one-shot pulse generator**. Upon detecting a rising edge on input `In` (`0 → 1`), `TP` immediately drives boolean output `Q` to `1` for an **exact, immutable duration `PresetMs`**, then returns `Q` to `0`.
+The `TP` (**Timer Pulse**) block is a monostable, non-retriggerable one-shot pulse generator. Upon detecting a rising edge on input `In` (`0 → 1`), `TP` immediately drives boolean output `Q` to `1` for an **exact, immutable duration `PresetMs`**, then returns `Q` to `0`.
 
 - **Strict Non-Retriggerable Guarantee:** Once a pulse is active (`0 < ET < PresetMs`), `Q` stays locked at `1` regardless of what happens on `In`:
   - If `In` drops back to `0` after just `10 ms`, `Q` continues holding `1` until the full `PresetMs` elapses.
@@ -47,9 +47,9 @@ The table below highlights both immunity to mid-pulse input bounce (the `TP` blo
 
 | Scenario | `In` Behavior | `Q` Output Duration | Protection Guarantee |
 | :--- | :--- | :--- | :--- |
-| **Brief Trigger Pulse (`20 ms`)** | `0 → 1 → 0` rapidly | Exact `PresetMs` | Stretches short sensor strobes into reliable valve actuation |
-| **Noisy Bouncing Input** | `0 → 1 → 0 → 1` mid-shot | Exact `PresetMs` | Prevents double-dosing or extended pulse stretching |
-| **Stuck-High Sensor (`In = 1` forever)** | `0 → 1` (never drops) | Exact `PresetMs`, then `0` | Prevents runaway chemical overflow if a bottle jams on conveyor |
+| Brief Trigger Pulse (`20 ms`) | `0 → 1 → 0` rapidly | Exact `PresetMs` | Stretches short sensor strobes into reliable valve actuation |
+| Noisy Bouncing Input | `0 → 1 → 0 → 1` mid-shot | Exact `PresetMs` | Prevents double-dosing or extended pulse stretching |
+| Stuck-High Sensor (`In = 1` forever) | `0 → 1` (never drops) | Exact `PresetMs`, then `0` | Prevents runaway chemical overflow if a bottle jams on conveyor |
 
 ---
 
@@ -84,9 +84,9 @@ As bottles pass a retro-reflective photo-eye (`DI0`) on a filling conveyor, a hi
 
 ### Step-by-Step Canvas Wiring
 
-1. Place **`INPUT`** (`Tag = DI0`) → **[`TRIGGER`](/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 15` ms optical anti-glare debounce) → **[`GUARD`](/blocks/guard)** (`GuardTag = DI1`, `Negate = false`).
-2. Wire `GUARD.Out` → **`TP`** timer (`DurationValueText = "750"`, `TimeUnit = "ms"`, `OutputTag = DO2`, `CustomLabel = "750ms Dose Shot"`).
-3. Wire `TP.Q` → **[`ACTION`](/blocks/action)** (`ActionType = INC_COUNTER`, `TargetTag = VREG_R1`, `ActionParam = 1`) to increment the dosed bottle totalizer on every completed shot.
+1. Place `INPUT` (`Tag = DI0`) → [`TRIGGER`](/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 15` ms optical anti-glare debounce) → [`GUARD`](/blocks/guard) (`GuardTag = DI1`, `Negate = false`).
+2. Wire `GUARD.Out` → `TP` timer (`DurationValueText = "750"`, `TimeUnit = "ms"`, `OutputTag = DO2`, `CustomLabel = "750ms Dose Shot"`).
+3. Wire `TP.Q` → [`ACTION`](/blocks/action) (`ActionType = INC_COUNTER`, `TargetTag = VREG_R1`, `ActionParam = 1`) to increment the dosed bottle totalizer on every completed shot.
 4. Press `F5` to test: set `DI1 = 1`, toggle `DI0` `0 → 1` and **leave `DI0` at `1`** (simulating a jammed bottle). Verify `DO2` energizes for exactly `750 ms` and then drops to `0`, refusing to dose again until `DI0` returns to `0` and sees the next bottle.
 
 <div class="synx-node-chain">

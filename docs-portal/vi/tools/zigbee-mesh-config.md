@@ -7,7 +7,7 @@
   <span><strong>Tiêu chuẩn:</strong> IEEE 802.15.4 &bull; Zigbee PRO Industrial Specification</span>
 </div>
 
-Trong các nhà xưởng diện tích rộng hoặc khu vực bồn bể khó đi dây cáp RS-485, **SynaptiX IDE** hỗ trợ thiết lập mạng truyền thông không dây công nghiệp **Zigbee Mesh**. Với đặc tính tự định tuyến và tự phục hồi (Self-Healing Mesh), mạng Zigbee cho phép các cảm biến nhiệt độ, độ ẩm, áp suất truyền dữ liệu về bộ điều khiển trung tâm xuyên qua các vật cản kim loại một cách ổn định và tin cậy.
+Trong các nhà xưởng diện tích rộng hoặc khu vực bồn bể khó đi dây cáp RS-485, SynaptiX IDE hỗ trợ thiết lập mạng truyền thông không dây công nghiệp **Zigbee Mesh**. Với đặc tính tự định tuyến và tự phục hồi (Self-Healing Mesh), mạng Zigbee cho phép các cảm biến nhiệt độ, độ ẩm, áp suất truyền dữ liệu về bộ điều khiển trung tâm xuyên qua các vật cản kim loại một cách ổn định và tin cậy.
 
 ---
 
@@ -17,26 +17,44 @@ Một mạng Zigbee công nghiệp gồm 3 loại vai trò thiết bị phối h
 
 | Vai trò Thiết bị | Biểu tượng | Vị trí trong Hệ thống | Nhiệm vụ Vận hành |
 | :--- | :---: | :--- | :--- |
-| **Trạm Điều phối (Coordinator)** | 👑 | Bộ điều khiển trung tâm SynaptiX | Khởi tạo mạng, cấp phát địa chỉ mạng cho các nốt con, quản lý khóa bảo mật và làm cầu nối thu thập dữ liệu về PLC. |
-| **Trạm Chuyển tiếp (Router)** | 🔁 | Các tủ điều khiển trung gian | Vừa đo đạc I/O tại chỗ, vừa đóng vai trò trạm lặp chuyển tiếp gói tin không dây từ các cảm biến ở xa về trạm điều phối. Luôn cấp nguồn liên tục. |
-| **Nốt Đầu cuối (End Device)** | 📡 | Cảm biến đo điểm lẻ, chạy pin | Chỉ gửi dữ liệu định kỳ và ngủ sâu (Sleep Mode) để tiết kiệm pin. Không tham gia chuyển tiếp gói tin của nốt khác. |
+| Trạm Điều phối (Coordinator) | `[Trạm Chủ]` | Bộ điều khiển trung tâm SynaptiX | Khởi tạo mạng, cấp phát địa chỉ mạng cho các nốt con, quản lý khóa bảo mật và làm cầu nối thu thập dữ liệu về PLC. |
+| Trạm Chuyển tiếp (Router) | `[Trạm Lặp]` | Các tủ điều khiển trung gian | Vừa đo đạc I/O tại chỗ, vừa đóng vai trò trạm lặp chuyển tiếp gói tin không dây từ các cảm biến ở xa về trạm điều phối. Luôn cấp nguồn liên tục. |
+| Nốt Đầu cuối (End Device) | `[Đầu Cuối]` | Cảm biến đo điểm lẻ, chạy pin | Chỉ gửi dữ liệu định kỳ và ngủ sâu (Sleep Mode) để tiết kiệm pin. Không tham gia chuyển tiếp gói tin của nốt khác. |
 
-```mermaid
-flowchart TD
-    Coord["👑 SynaptiX Coordinator (Trạm Chủ)"]
-    R1["🔁 Router 1 (Tủ Máy A)"]
-    R2["🔁 Router 2 (Tủ Máy B)"]
-    ED1["📡 Cảm biến Bồn 1"]
-    ED2["📡 Cảm biến Bồn 2"]
-    ED3["📡 Cảm biến Ngoài trời"]
-
-    Coord <-->|Sóng RF| R1
-    Coord <-->|Sóng RF| R2
-    R1 <-->|Sóng RF| R2
-    R1 --> ED1
-    R2 --> ED2
-    R2 --> ED3
-```
+<div class="synx-mesh-schematic">
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-coord">
+<span class="synx-mesh-role">Coordinator</span>
+<span class="synx-mesh-name">Trạm Chủ Trung tâm</span>
+</div>
+</div>
+<div class="synx-mesh-connector">Sóng RF Mesh (2.4 GHz)</div>
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-router">
+<span class="synx-mesh-role">Router 1</span>
+<span class="synx-mesh-name">Trạm Lặp Tủ A</span>
+</div>
+<div class="synx-mesh-node is-router">
+<span class="synx-mesh-role">Router 2</span>
+<span class="synx-mesh-name">Trạm Lặp Tủ B</span>
+</div>
+</div>
+<div class="synx-mesh-connector">Đường truyền Cảm biến</div>
+<div class="synx-mesh-level">
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Cảm biến Bồn 1</span>
+</div>
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Cảm biến Bồn 2</span>
+</div>
+<div class="synx-mesh-node is-end">
+<span class="synx-mesh-role">End Device</span>
+<span class="synx-mesh-name">Cảm biến Ngoài trời</span>
+</div>
+</div>
+</div>
 
 ---
 
@@ -78,5 +96,5 @@ Sóng Zigbee hoạt động ở dải tần số 2.4 GHz chung với mạng Wi-F
 | Hiện tượng | Nguyên nhân Khả dĩ | Biện pháp Khắc phục |
 | :--- | :--- | :--- |
 | Cảm biến không tìm thấy mạng | Sai mã Pan ID hoặc lệch kênh tần số | Kiểm tra lại thông số Pan ID và Kênh trên cảm biến cho khớp với Coordinator. |
-| Tín hiệu sóng yếu (`RSSI < -85 dBm`) | Khoảng cách xa hoặc bị che khuất bởi bồn inox | Lắp thêm một trạm chuyển tiếp **Router** ở vị trí trung gian để tiếp sóng. |
-| Gói tin bị trễ hoặc rớt chập chờn | Bị can nhiễu sóng từ bộ phát Wi-Fi công suất lớn | Đổi kênh Zigbee sang **Kênh 25** hoặc **Kênh 26**. |
+| Tín hiệu sóng yếu (`RSSI < -85 dBm`) | Khoảng cách xa hoặc bị che khuất bởi bồn inox | Lắp thêm một trạm chuyển tiếp Router ở vị trí trung gian để tiếp sóng. |
+| Gói tin bị trễ hoặc rớt chập chờn | Bị can nhiễu sóng từ bộ phát Wi-Fi công suất lớn | Đổi kênh Zigbee sang Kênh 25 hoặc Kênh 26. |

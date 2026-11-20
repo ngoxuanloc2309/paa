@@ -53,6 +53,8 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReadOperation))]
     [NotifyPropertyChangedFor(nameof(IsWriteOperation))]
+    [NotifyPropertyChangedFor(nameof(IsBitOperation))]
+    [NotifyPropertyChangedFor(nameof(IsRegisterOperation))]
     [NotifyPropertyChangedFor(nameof(OperationTypeBadge))]
     [NotifyPropertyChangedFor(nameof(FunctionCodeBadge))]
     [NotifyPropertyChangedFor(nameof(RequestFrameHex))]
@@ -63,9 +65,9 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
 
     partial void OnFunctionCodeChanged(byte value)
     {
+        CoerceTargetTagCompatibility();
         OnPropertyChanged(nameof(FilteredAvailableTags));
         RefreshTagOptions();
-        CoerceTargetTagCompatibility();
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
@@ -80,31 +82,37 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(RegisterSizeDisplay))]
     [NotifyPropertyChangedFor(nameof(IsEndiannessApplicable))]
     [NotifyPropertyChangedFor(nameof(FilteredAvailableTags))]
-    private ModbusDataType _dataType = ModbusDataType.Int16;
+    [NotifyPropertyChangedFor(nameof(DataTypeText))]
+    [NotifyPropertyChangedFor(nameof(CanToggleRegisterWidth))]
+    [NotifyPropertyChangedFor(nameof(DataTypeTooltip))]
+    private ModbusDataType? _dataType = null;
 
-    partial void OnDataTypeChanged(ModbusDataType value)
+    partial void OnDataTypeChanged(ModbusDataType? value)
     {
         OnPropertyChanged(nameof(FilteredAvailableTags));
-        RefreshTagOptions();
-        CoerceTargetTagCompatibility();
+        OnPropertyChanged(nameof(DataTypeText));
+        OnPropertyChanged(nameof(CanToggleRegisterWidth));
+        OnPropertyChanged(nameof(DataTypeTooltip));
 
         // Đồng bộ kiểu dữ liệu cho TargetTag nếu là thanh ghi ảo cho phép đổi kiểu (VREG)
-        if (TargetTag != null && TargetTag.Kind != TagKind.None && TargetTag.IsDataTypeEditable)
+        if (value.HasValue && TargetTag != null && TargetTag.Kind != TagKind.None && TargetTag.IsDataTypeEditable)
         {
-            if (value == ModbusDataType.Real && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32)
+            if (value.Value == ModbusDataType.Real && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32)
             {
                 TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
             }
-            else if (value == ModbusDataType.Bool && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
+            else if (value.Value == ModbusDataType.Bool && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
             {
                 TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Boolean;
             }
-            else if (value is ModbusDataType.Int16 or ModbusDataType.Int32 or ModbusDataType.UInt16 or ModbusDataType.UInt32 && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32)
+            else if (value.Value is ModbusDataType.Int16 or ModbusDataType.Int32 or ModbusDataType.UInt16 or ModbusDataType.UInt32 && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32)
             {
                 TargetTag.DataType = SimplePLC.Domain.Enums.TagDataType.Int32;
             }
         }
 
+        RefreshTagOptions();
+        CoerceTargetTagCompatibility();
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
     }
 
@@ -112,6 +120,10 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     {
         if (TargetTag == null || TargetTag.Kind == TagKind.None || string.Equals(TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
         {
+            if (IsBitOperation && DataType != ModbusDataType.Bool)
+            {
+                DataType = ModbusDataType.Bool;
+            }
             return;
         }
 
@@ -122,13 +134,15 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
             return;
         }
 
-        // Type safety: Bit vs Register
-        if (DataType == ModbusDataType.Bool)
+        // Domain isolation: Bit Operation (FC01, FC02, FC05, FC15) vs Register Operation (FC03, FC04, FC06, FC16)
+        if (IsBitOperation)
         {
             if (!TargetTag.IsDigital && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
             {
                 ResetTargetTag();
+                return;
             }
+            DataType = ModbusDataType.Bool;
         }
         else
         {
@@ -136,23 +150,6 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
             {
                 ResetTargetTag();
                 return;
-            }
-
-            if (DataType == ModbusDataType.Real 
-                && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Float32 
-                && TargetTag.Kind != TagKind.VirtualRegister 
-                && TargetTag.Kind != TagKind.VirtualRegisterRetain)
-            {
-                ResetTargetTag();
-                return;
-            }
-
-            if ((DataType == ModbusDataType.Int16 || DataType == ModbusDataType.UInt16 || DataType == ModbusDataType.Int32 || DataType == ModbusDataType.UInt32)
-                && TargetTag.DataType != SimplePLC.Domain.Enums.TagDataType.Int32
-                && TargetTag.Kind != TagKind.VirtualRegister
-                && TargetTag.Kind != TagKind.VirtualRegisterRetain)
-            {
-                ResetTargetTag();
             }
         }
     }
@@ -181,10 +178,11 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Danh sách Tag tương thích với kiểu dữ liệu vật lý (IEC 61131-3) của kênh Modbus hiện tại.
-    /// BOOL: chỉ hiển thị cờ bit (DI, DO, VFLAG).
-    /// REAL: chỉ hiển thị thanh ghi số thực (VREG Float32 / AI).
-    /// INT16/INT32: chỉ hiển thị thanh ghi số nguyên (VREG Int32).
+    /// Danh sách Tag khả dụng cho kênh Modbus Master theo Function Code và chiều Đọc/Ghi.
+    /// Tuân thủ nguyên tắc Function-Driven Tag Isolation (Axiom 1 &amp; 2):
+    /// - Nhóm Bit (FC01, FC02, FC05, FC15): Chỉ hiển thị các cờ digital (DO, DI, VFLAG).
+    /// - Nhóm Thanh ghi (FC03, FC04, FC06, FC16): Chỉ hiển thị các thanh ghi (VREG, VREG_RETAIN, AI, AO, CTR, TIM).
+    /// Danh sách hoàn toàn không phụ thuộc vào DataType, loại bỏ 100% hiện tượng Feedback Loop khi cuộn dropdown.
     /// Tag NONE (-- No Selection --) luôn xuất hiện đầu danh sách.
     /// </summary>
     public IEnumerable<TagModel> FilteredAvailableTags
@@ -192,7 +190,50 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         get
         {
             var all = AvailableTagsProvider?.Invoke() ?? Enumerable.Empty<TagModel>();
-            return FilterTagsByPhysicalDataType(all, DataType, IsReadOperation);
+            return FilterTagsByFunctionCode(all, FunctionCode, IsReadOperation);
+        }
+    }
+
+    /// <summary>
+    /// Lọc danh sách Tag theo Function Code và chiều thao tác Đọc/Ghi theo chuẩn IEC 61131-3.
+    /// </summary>
+    /// <param name="tags">Toàn bộ danh sách Tag từ Tag Catalog.</param>
+    /// <param name="functionCode">Mã hàm Modbus (1, 2, 3, 4, 5, 6, 15, 16).</param>
+    /// <param name="isReadOperation">True nếu là thao tác Đọc (FC01..FC04); False nếu là thao tác Ghi (FC05..FC16).</param>
+    public static IEnumerable<TagModel> FilterTagsByFunctionCode(IEnumerable<TagModel> tags, byte functionCode, bool isReadOperation = true)
+    {
+        bool isBitOp = functionCode is 1 or 2 or 5 or 15;
+        foreach (var tag in tags)
+        {
+            if (tag.Kind == TagKind.None || string.Equals(tag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return tag;
+                continue;
+            }
+
+            // Axiom 1 (Hardware Ground Truth):
+            // Thao tác ĐỌC (FC01..04): Không cho phép ghi đè vào chân phần cứng chỉ đọc (DI, AI, SYSTEM)
+            if (isReadOperation && tag.IsReadOnly)
+            {
+                continue;
+            }
+
+            if (isBitOp)
+            {
+                // Nhóm Bit (FC01, FC02, FC05, FC15): Chỉ lấy các cờ logic / digital (DO, DI, VFLAG)
+                if (tag.IsDigital || tag.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+                {
+                    yield return tag;
+                }
+            }
+            else
+            {
+                // Nhóm Thanh ghi (FC03, FC04, FC06, FC16): Chỉ lấy các thanh ghi (VREG, VREG_RETAIN, AI, AO, CTR, TIM)
+                if (!tag.IsDigital && tag.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean)
+                {
+                    yield return tag;
+                }
+            }
         }
     }
 
@@ -386,6 +427,16 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
     public bool IsWriteOperation => FunctionCode is 5 or 6 or 15 or 16;
 
     /// <summary>
+    /// Cho biết Function Code thuộc nhóm thao tác trên Cờ Bit (Coil / Contact: FC01, FC02, FC05, FC15).
+    /// </summary>
+    public bool IsBitOperation => FunctionCode is 1 or 2 or 5 or 15;
+
+    /// <summary>
+    /// Cho biết Function Code thuộc nhóm thao tác trên Thanh ghi (Registers: FC03, FC04, FC06, FC16).
+    /// </summary>
+    public bool IsRegisterOperation => FunctionCode is 3 or 4 or 6 or 16;
+
+    /// <summary>
     /// Kiểm tra xem Tag đích đã được chọn hợp lệ hay chưa (khác None).
     /// </summary>
     /// <summary>
@@ -422,13 +473,14 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         {
             TargetTagName = string.Empty;
             TargetTagAlias = string.Empty;
+            DataType = IsBitOperation ? ModbusDataType.Bool : null; // Khi TargetTag là NONE thì Data Type thanh ghi để trống, còn thao tác Bit giữ Bool
         }
         else
         {
             TargetTagName = value.Name;
             TargetTagAlias = value.Alias ?? string.Empty;
 
-            if (value.IsDigital || value.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
+            if (IsBitOperation || value.IsDigital || value.DataType == SimplePLC.Domain.Enums.TagDataType.Boolean)
             {
                 DataType = ModbusDataType.Bool;
             }
@@ -438,17 +490,73 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
             }
             else if (value.DataType == SimplePLC.Domain.Enums.TagDataType.Int32)
             {
-                if (DataType == ModbusDataType.Real && value.IsDataTypeEditable)
-                {
-                    value.DataType = SimplePLC.Domain.Enums.TagDataType.Float32;
-                }
-                else if (DataType == ModbusDataType.Bool)
+                if (DataType != ModbusDataType.Int32 && DataType != ModbusDataType.UInt16 && DataType != ModbusDataType.UInt32)
                 {
                     DataType = ModbusDataType.Int16;
                 }
             }
         }
+        OnPropertyChanged(nameof(DataTypeText));
+        OnPropertyChanged(nameof(CanToggleRegisterWidth));
+        OnPropertyChanged(nameof(DataTypeTooltip));
         TagWriteOwnershipService.Instance.NotifyOwnershipChanged();
+    }
+
+    /// <summary>
+    /// Nhãn hiển thị kiểu dữ liệu tự động theo chuẩn IEC 61131-3 (Read-Only Badge).
+    /// </summary>
+    public string DataTypeText => DataType switch
+    {
+        ModbusDataType.Bool => "BOOL",
+        ModbusDataType.Real => "REAL",
+        ModbusDataType.Int16 => "INT16",
+        ModbusDataType.UInt16 => "UINT16",
+        ModbusDataType.Int32 => "INT32",
+        ModbusDataType.UInt32 => "UINT32",
+        _ => "—"
+    };
+
+    /// <summary>
+    /// Cho biết kênh có thể nhấp để chuyển đổi độ rộng thanh ghi số nguyên (16-bit ↔ 32-bit) hay không.
+    /// </summary>
+    public bool CanToggleRegisterWidth => TargetTag != null 
+        && TargetTag.Kind != TagKind.None 
+        && !TargetTag.IsDigital 
+        && TargetTag.DataType == SimplePLC.Domain.Enums.TagDataType.Int32;
+
+    /// <summary>
+    /// Chuyển đổi linh hoạt giữa 1 thanh ghi 16-bit (INT16) và 2 thanh ghi 32-bit (INT32) cho Tag số nguyên.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleRegisterWidth()
+    {
+        if (!CanToggleRegisterWidth) return;
+        DataType = DataType == ModbusDataType.Int16 ? ModbusDataType.Int32 : ModbusDataType.Int16;
+    }
+
+    /// <summary>
+    /// Tooltip giải thích trực quan cho Data Type Badge.
+    /// </summary>
+    public string DataTypeTooltip
+    {
+        get
+        {
+            bool isVi = LocalizationService.Instance.IsVietnamese;
+            if (CanToggleRegisterWidth)
+            {
+                return isVi
+                    ? "Nhấp để chuyển đổi độ rộng thanh ghi: INT16 (1 thanh ghi) ↔ INT32 (2 thanh ghi)"
+                    : "Click to toggle register width: INT16 (1 register) ↔ INT32 (2 registers)";
+            }
+            return DataType switch
+            {
+                ModbusDataType.Bool => isVi ? "Kiểu logic 1-bit (Coil / Contact)" : "1-bit Boolean (Coil / Contact)",
+                ModbusDataType.Real => isVi ? "Kiểu số thực 32-bit IEEE 754 (2 thanh ghi)" : "32-bit Float IEEE 754 (2 registers)",
+                ModbusDataType.Int16 => isVi ? "Kiểu số nguyên có dấu 16-bit (1 thanh ghi)" : "16-bit Signed Integer (1 register)",
+                ModbusDataType.Int32 => isVi ? "Kiểu số nguyên có dấu 32-bit (2 thanh ghi)" : "32-bit Signed Integer (2 registers)",
+                _ => isVi ? "Chưa liên kết Tag" : "No Tag linked"
+            };
+        }
     }
 
     partial void OnTargetTagAliasChanged(string value)
@@ -594,6 +702,7 @@ public partial class ModbusMasterChannelItemViewModel : ObservableObject
         ModbusDataType.UInt16 => "1 Register (16-bit Unsigned, 2 Bytes)",
         ModbusDataType.Int32 => $"2 Registers (32-bit Signed {Endianness}, 4 Bytes)",
         ModbusDataType.Real => $"2 Registers (32-bit Float {Endianness}, 4 Bytes)",
+        null => "—",
         _ => "1 Register (16-bit, 2 Bytes)"
     };
 
@@ -787,9 +896,17 @@ public partial class ModbusSlaveMapItemViewModel : ObservableObject
 /// Model quan sát biểu diễn từng cổng RS-485 trong giao diện cấu hình đa cổng.
 /// Hỗ trợ cả 2 chế độ: Modbus RTU Master và Modbus RTU Slave (Server).
 /// </summary>
-public partial class ModbusPortItemViewModel : ObservableObject
+public partial class ModbusPortItemViewModel : ObservableObject, IDisposable
 {
     public byte PortIndex { get; set; }
+
+    /// <summary>
+    /// Giải phóng tài nguyên và hủy đăng ký Provider chiếm giữ Tag để tránh xung đột ma.
+    /// </summary>
+    public void Dispose()
+    {
+        TagWriteOwnershipService.Instance.UnregisterKeyedProvider($"ModbusPort_{PortIndex}");
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
@@ -949,7 +1066,6 @@ public partial class ModbusPortItemViewModel : ObservableObject
                     SlaveId = ch.SlaveId == 0 ? (byte)1 : ch.SlaveId,
                     FunctionCode = ch.FunctionCode == 0 ? (byte)3 : ch.FunctionCode,
                     Address = ch.Address,
-                    DataType = ch.DataType,
                     Endianness = ch.Endianness,
                     Scale = ch.Scale == 0 ? 1.0 : ch.Scale,
                     ScaleText = (ch.Scale == 0 ? 1.0 : ch.Scale).ToString("G", System.Globalization.CultureInfo.InvariantCulture),
@@ -968,12 +1084,17 @@ public partial class ModbusPortItemViewModel : ObservableObject
                         item.TargetTag = tagCatalog.AllTags.FirstOrDefault(t => t.Kind == TagKind.None);
                     }
                 }
-                if (item.TargetTag != null && item.TargetTag.Kind != TagKind.None)
+                bool hasTargetTag = (item.TargetTag != null && item.TargetTag.Kind != TagKind.None && !string.Equals(item.TargetTag.Name, "NONE", StringComparison.OrdinalIgnoreCase))
+                    || (!string.IsNullOrWhiteSpace(item.TargetTagName) && !string.Equals(item.TargetTagName, "NONE", StringComparison.OrdinalIgnoreCase));
+
+                if (hasTargetTag)
                 {
-                    item.TargetTagAlias = item.TargetTag.Alias ?? item.Description;
+                    item.DataType = ch.DataType;
+                    item.TargetTagAlias = item.TargetTag?.Alias ?? item.Description;
                 }
                 else
                 {
+                    item.DataType = null; // Khi TargetTag là NONE thì Data Type ban đầu để trống
                     item.TargetTagAlias = item.Description;
                 }
                 MasterChannels.Add(item);
@@ -991,7 +1112,7 @@ public partial class ModbusPortItemViewModel : ObservableObject
         };
 
         _claimsProvider = GetClaimEntries;
-        TagWriteOwnershipService.Instance.RegisterProvider(_claimsProvider);
+        TagWriteOwnershipService.Instance.RegisterKeyedProvider($"ModbusPort_{PortIndex}", _claimsProvider);
     }
 
     private readonly Func<IEnumerable<TagClaimEntry>> _claimsProvider;
@@ -1036,7 +1157,7 @@ public partial class ModbusPortItemViewModel : ObservableObject
             SlaveId = 1,
             FunctionCode = 3,
             Address = nextAddr,
-            DataType = ModbusDataType.Int16,
+            DataType = null, // Ban đầu là NONE thì Data Type để trống
             Endianness = ModbusEndianness.BigEndian_ABCD,
             Scale = 1.0,
             ScaleText = "1",
@@ -1085,7 +1206,7 @@ public partial class ModbusPortItemViewModel : ObservableObject
             SlaveId = c.SlaveId,
             FunctionCode = c.FunctionCode,
             Address = c.Address,
-            DataType = c.DataType,
+            DataType = c.DataType ?? ModbusDataType.Int16,
             Endianness = c.Endianness,
             Scale = c.Scale,
             TargetTagName = c.TargetTagName,
@@ -1115,10 +1236,21 @@ public enum ModbusSlaveMemoryTab
 /// Cho phép kỹ sư cấu hình độc lập các cổng UART/RS-485 thành Master hoặc Slave, quản lý bảng ánh xạ vùng nhớ Modbus Slave (0x1500)
 /// và bảo vệ vùng nhớ 3 cấp độ (Memory Protection Sandbox).
 /// </summary>
-public partial class ModbusPortConfigViewModel : ObservableObject
+public partial class ModbusPortConfigViewModel : ObservableObject, IDisposable
 {
     private readonly ProjectMetadata _metadata;
     public TagCatalogViewModel? TagCatalog { get; }
+
+    /// <summary>
+    /// Giải phóng toàn bộ các cổng RS-485 để hủy đăng ký Provider chiếm dụng Tag trong TagWriteOwnershipService.
+    /// </summary>
+    public void Dispose()
+    {
+        foreach (var p in Ports)
+        {
+            p.Dispose();
+        }
+    }
 
     public ObservableCollection<ModbusPortItemViewModel> Ports { get; } = new();
 
@@ -1849,6 +1981,10 @@ public partial class ModbusPortConfigViewModel : ObservableObject
         }
 
         byte prevSelectedIndex = SelectedPort?.PortIndex ?? 0;
+        foreach (var p in Ports)
+        {
+            p.Dispose();
+        }
         Ports.Clear();
         for (int i = 0; i < physicalLimit && i < _metadata.ModbusPorts.Count; i++)
         {

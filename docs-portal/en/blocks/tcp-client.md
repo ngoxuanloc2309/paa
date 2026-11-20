@@ -9,7 +9,7 @@
 
 ## 1. Synopsis & Execution Semantics
 
-The **`TCP_CLIENT`** (**Raw TCP Socket & Stream Client**) function block establishes and maintains a persistent outbound TCP socket connection to a remote IPv4/FQDN server (`RemoteHost:RemotePort`) for low-overhead industrial protocols such as barcode/vision camera servers, industrial label printers (ZPL/TSPL), custom SCADA socket collectors, and cellular DTU passthrough gateways.
+The `TCP_CLIENT` (**Raw TCP Socket & Stream Client**) function block establishes and maintains a persistent outbound TCP socket connection to a remote IPv4/FQDN server (`RemoteHost:RemotePort`) for low-overhead industrial protocols such as barcode/vision camera servers, industrial label printers (ZPL/TSPL), custom SCADA socket collectors, and cellular DTU passthrough gateways.
 
 Core runtime capabilities:
 - **Self-Healing Persistent Connection:** Automatically manages socket connection, detects peer disconnects, and executes non-blocking reconnection every `ReconnectDelaySec` seconds.
@@ -22,32 +22,32 @@ Core runtime capabilities:
 
 | Pin | Direction | Signal Kind | Data Type | Visibility | Functional Contract |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`Send`** | Input | Event (`0 → 1`) | `BOOL` | Always visible | **Dispatch Trigger:** Transmits one framed TCP payload over the active socket on rising edge (`0 → 1`). |
-| **`DataIn`** | Input | Value | `INT32` / `REAL` / `BOOL` | Always visible | **Outbound Stream Data:** Supplies raw value or string payload when `DataTag` is set to *DataIn Pin (FBD Auto-link)*. |
-| **`Conn`** (`Connected`) | Output | Value | `BOOL` | Always visible | **Socket Established Flag:** High (`1`) while the TCP 3-way handshake is active and healthy; drops to `0` upon disconnect. |
-| **`Done`** | Output | Event (Pulse) | `BOOL` | Always visible | **Packet Sent Pulse:** Pulses `1` for one scan cycle when the outbound packet is written to the TCP transmit buffer. |
-| **`Err`** (`Error`) | Output | Event / Flag | `BOOL` | Always visible | **Socket Fault Flag:** Asserts `1` when connection fails, peer resets (`RST`), or `Send` triggers while disconnected. |
-| **`DataOut`** | Output | Value | `INT32` / `STRING` | Always visible | **Inbound Socket Data:** Emits data frames pushed back from the remote TCP server to the controller. |
+| `Send` | Input | Event (`0 → 1`) | `BOOL` | Always visible | Dispatch Trigger: Transmits one framed TCP payload over the active socket on rising edge (`0 → 1`). |
+| `DataIn` | Input | Value | `INT32` / `REAL` / `BOOL` | Always visible | Outbound Stream Data: Supplies raw value or string payload when `DataTag` is set to *DataIn Pin (FBD Auto-link)*. |
+| `Conn` (`Connected`) | Output | Value | `BOOL` | Always visible | Socket Established Flag: High (`1`) while the TCP 3-way handshake is active and healthy; drops to `0` upon disconnect. |
+| `Done` | Output | Event (Pulse) | `BOOL` | Always visible | Packet Sent Pulse: Pulses `1` for one scan cycle when the outbound packet is written to the TCP transmit buffer. |
+| `Err` (`Error`) | Output | Event / Flag | `BOOL` | Always visible | Socket Fault Flag: Asserts `1` when connection fails, peer resets (`RST`), or `Send` triggers while disconnected. |
+| `DataOut` | Output | Value | `INT32` / `STRING` | Always visible | Inbound Socket Data: Emits data frames pushed back from the remote TCP server to the controller. |
 
 ---
 
 ## 3. Inspector Parameters & Constraints
 
-Click **`[ Configure TCP Client... ]`** (or double-click the node) to open the **TCP Stream Configuration Dialog** with live `[CONNECT]` / `[TX AUTH]` / `[TX PING]` / `[TX DATA]` wire preview:
+Click `[ Configure TCP Client... ]` (or double-click the node) to open the **TCP Stream Configuration Dialog** with live `[CONNECT]` / `[TX AUTH]` / `[TX PING]` / `[TX DATA]` wire preview:
 
 | Parameter | Property Key | Type & Domain | Default | Firmware Limit & Operational Meaning |
 | :--- | :--- | :--- | :---: | :--- |
-| **Remote Host** | `RemoteHost` | `String` (**`<= 48 chars`**) | `"192.168.1.100"` | Target server IPv4 address or hostname (`<= 48` characters; non-empty validation enforced via `HostValidationError`). |
-| **Remote Port** | `RemotePort` | `UINT16` (`1..65535`) | `8888` | Target TCP listening port (`0` is automatically clamped to `1`). |
-| **Reconnect Delay** | `ReconnectDelaySec` | `UINT16` (`s`) | `5` s | Wait interval in seconds before attempting a fresh TCP handshake after socket loss. |
-| **Heartbeat Interval** | `HeartbeatIntervalSec` | `UINT16` (`s`, `0` = Off) | `30` s | Idle keep-alive period in seconds. Set to `0` to disable periodic heartbeat packets. |
-| **Heartbeat Payload** | `HeartbeatPayload` | `String` | `"PING"` | ASCII keep-alive token transmitted every `HeartbeatIntervalSec` when `HeartbeatIntervalSec > 0`. |
-| **Registration Mode** | `RegistrationType` | `"None"` \| `"OnConnect"` \| `"PrependToEveryPacket"` | `"None"` | `None`: disabled · `OnConnect`: sends `RegistrationPayload` once after TCP connect · `PrependToEveryPacket`: prefixes `RegistrationPayload` ahead of every `Send` packet. |
-| **Registration Packet** | `RegistrationPayload` | `String` | `""` | Gateway ID / token string used when `RegistrationType ≠ None` (e.g., `"ID:SYNX-NODE-01;"`). |
-| **Payload Mode** | `PayloadMode` | `"Raw"` \| `"Custom"` | `"Raw"` | `Raw` sends direct tag/pin data; `Custom` formats an ASCII/JSON string via `CustomTemplate`. |
-| **Custom Template** | `CustomTemplate` | `String` (**`<= 128 chars`**) | `"{val}"` | Active when `PayloadMode = Custom` (`<= 128 chars`). Supports `` `{val}` ``, `` `{tag}` ``, `` `{device}` ``, and `` `{ts}` ``. |
-| **Framing Delimiter** | `FramingDelimiter` | `"CRLF"` \| `"LF"` \| `"None"` \| `"Custom"` | `"CRLF"` | Line termination appended to outgoing packets: `CRLF` (`\r\n`), `LF` (`\n`), `None` (raw binary), or `Custom`. |
-| **Custom Delimiter** | `CustomDelimiterText` | `String` | `";"` | Custom end-of-frame character(s) appended when `FramingDelimiter = Custom`. |
+| Remote Host | `RemoteHost` | `String` (`<= 48 chars`) | `"192.168.1.100"` | Target server IPv4 address or hostname (`<= 48` characters; non-empty validation enforced via `HostValidationError`). |
+| Remote Port | `RemotePort` | `UINT16` (`1..65535`) | `8888` | Target TCP listening port (`0` is automatically clamped to `1`). |
+| Reconnect Delay | `ReconnectDelaySec` | `UINT16` (`s`) | `5` s | Wait interval in seconds before attempting a fresh TCP handshake after socket loss. |
+| Heartbeat Interval | `HeartbeatIntervalSec` | `UINT16` (`s`, `0` = Off) | `30` s | Idle keep-alive period in seconds. Set to `0` to disable periodic heartbeat packets. |
+| Heartbeat Payload | `HeartbeatPayload` | `String` | `"PING"` | ASCII keep-alive token transmitted every `HeartbeatIntervalSec` when `HeartbeatIntervalSec > 0`. |
+| Registration Mode | `RegistrationType` | `"None"` \| `"OnConnect"` \| `"PrependToEveryPacket"` | `"None"` | `None`: disabled · `OnConnect`: sends `RegistrationPayload` once after TCP connect · `PrependToEveryPacket`: prefixes `RegistrationPayload` ahead of every `Send` packet. |
+| Registration Packet | `RegistrationPayload` | `String` | `""` | Gateway ID / token string used when `RegistrationType ≠ None` (e.g., `"ID:SYNX-NODE-01;"`). |
+| Payload Mode | `PayloadMode` | `"Raw"` \| `"Custom"` | `"Raw"` | `Raw` sends direct tag/pin data; `Custom` formats an ASCII/JSON string via `CustomTemplate`. |
+| Custom Template | `CustomTemplate` | `String` (`<= 128 chars`) | `"{val}"` | Active when `PayloadMode = Custom` (`<= 128 chars`). Supports `` `{val}` ``, `` `{tag}` ``, `` `{device}` ``, and `` `{ts}` ``. |
+| Framing Delimiter | `FramingDelimiter` | `"CRLF"` \| `"LF"` \| `"None"` \| `"Custom"` | `"CRLF"` | Line termination appended to outgoing packets: `CRLF` (`\r\n`), `LF` (`\n`), `None` (raw binary), or `Custom`. |
+| Custom Delimiter | `CustomDelimiterText` | `String` | `";"` | Custom end-of-frame character(s) appended when `FramingDelimiter = Custom`. |
 
 ---
 
@@ -64,9 +64,9 @@ The `TCP_CLIENT` block maintains an active bidirectional socket stream to remote
 ## 5. Validation, Error Handling & Live Diagnostics
 
 - **Host & Port Safety Guards:** `RemoteHost` rejects blank strings and automatically truncates paste inputs beyond **`48` characters** (`HostValidationError`), while `RemotePort` prevents invalid port `0` bindings.
-- **Gating Sends with `Conn`:** In high-integrity designs, wire **`Conn`** into a [`GUARD`](/blocks/guard) gate upstream of `Send` (or monitor `Err`) if you want upstream sequencing to pause until the remote socket collector is confirmed online.
+- **Gating Sends with `Conn`:** In high-integrity designs, wire `Conn` into a [`GUARD`](/blocks/guard) gate upstream of `Send` (or monitor `Err`) if you want upstream sequencing to pause until the remote socket collector is confirmed online.
 - **Interactive Wire Stream Preview (`PreviewStreamText`):** Displays the exact chronological byte stream (`[CONNECT]`, `[TX AUTH]`, `[TX PING]`, `[TX DATA]`) live inside the dialog as you toggle registration and framing options.
-- **Live Canvas Status Pill (`F8`):** Shows **`DISCONNECTED`**, **`CONNECTED`**, **`CONN (TX:N)`**, or **`ERR: <SocketFault>`**.
+- **Live Canvas Status Pill (`F8`):** Shows `DISCONNECTED`, `CONNECTED`, `CONN (TX:N)`, or `ERR: <SocketFault>`.
 
 *(For dedicated transparent RS-485-over-TCP/MQTT bridge topologies without FBD wiring, also see [DTU Gateway Studio](/tools/dtu-gateway-studio)).*
 
@@ -148,7 +148,7 @@ The `TCP_CLIENT` block maintains an active bidirectional socket stream to remote
 </div>
 
 **Configuration Steps:**
-1. Drop **`TCP_CLIENT`** on the canvas and configure:
+1. Drop `TCP_CLIENT` on the canvas and configure:
    - `RemoteHost = "192.168.1.200"`, `RemotePort = 9100`, `ReconnectDelaySec = 5`
    - `HeartbeatIntervalSec = 30`, `HeartbeatPayload = "PING"`
    - `RegistrationType = "OnConnect"`, `RegistrationPayload = "REG,SYNX_LINE2"`

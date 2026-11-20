@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`TP`** (**Timer Pulse — Phát Xung Đơn ổn**) là bộ tạo xung vuông có độ rộng cố định tuyệt đối, **không tái kích hoạt trong khi xung đang phát**. Ngay khi phát hiện sườn lên tại chân `In` (`0 → 1`), khối `TP` lập tức bật ngõ ra `Q` lên mức `1` trong khoảng thời gian **chính xác bằng `PresetMs`**, sau đó hạ `Q` về `0`.
+Khối `TP` (**Timer Pulse — Phát Xung Đơn ổn**) là bộ tạo xung vuông có độ rộng cố định tuyệt đối, **không tái kích hoạt trong khi xung đang phát**. Ngay khi phát hiện sườn lên tại chân `In` (`0 → 1`), khối `TP` lập tức bật ngõ ra `Q` lên mức `1` trong khoảng thời gian **chính xác bằng `PresetMs`**, sau đó hạ `Q` về `0`.
 
 - **Cam kết Không Tái Kích (Non-Retriggerable):** Một khi chu trình phát xung đã bắt đầu (`0 < ET < PresetMs`), ngõ ra `Q` được khóa cứng ở mức `1` bất chấp mọi biến động tại chân `In`:
   - Nếu tín hiệu `In` rớt về `0` chỉ sau `10 ms`, ngõ ra `Q` vẫn duy trì mức `1` cho đến hết trọn vẹn `PresetMs`.
@@ -47,9 +47,9 @@ Bảng dưới đây làm rõ tính miễn nhiễm hoàn toàn với nhiễu d�
 
 | Tình huống Hiện trường | Diễn biến Chân `In` | Độ rộng Ngõ ra `Q` | Cơ chế Bảo vệ Công nghiệp |
 | :--- | :--- | :--- | :--- |
-| **Xung Kích Rất Ngắn (`20 ms`)** | `0 → 1 → 0` chớp nhoáng | Đúng bằng `PresetMs` | Kéo dài xung cảm biến tốc độ cao đủ thời gian hút cuộn van cơ khí |
-| **Tín hiệu Dội Nhiễu Giữa Chừng** | `0 → 1 → 0 → 1` liên hồi | Đúng bằng `PresetMs` | Chống bơm đúp liều lượng hoặc làm giãn sai độ rộng xung |
-| **Cảm biến Bị Kẹt Dính (`In = 1` mãi)** | `0 → 1` (không hạ về `0`) | Đúng `PresetMs` rồi cắt về `0` | Chống tràn hóa chất khi chai lọ dừng kẹt ngay trước mắt thần quang |
+| Xung Kích Rất Ngắn (`20 ms`) | `0 → 1 → 0` chớp nhoáng | Đúng bằng `PresetMs` | Kéo dài xung cảm biến tốc độ cao đủ thời gian hút cuộn van cơ khí |
+| Tín hiệu Dội Nhiễu Giữa Chừng | `0 → 1 → 0 → 1` liên hồi | Đúng bằng `PresetMs` | Chống bơm đúp liều lượng hoặc làm giãn sai độ rộng xung |
+| Cảm biến Bị Kẹt Dính (`In = 1` mãi) | `0 → 1` (không hạ về `0`) | Đúng `PresetMs` rồi cắt về `0` | Chống tràn hóa chất khi chai lọ dừng kẹt ngay trước mắt thần quang |
 
 ---
 
@@ -84,9 +84,9 @@ Khi chai đi ngang cảm biến quang phản xạ gương (`DI0`) trên băng t�
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Đặt khối **`INPUT`** (`Tag = DI0`) → **[`TRIGGER`](/vi/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 15` ms lọc nhiễu lóa vỏ chai) → **[`GUARD`](/vi/blocks/guard)** (`GuardTag = DI1`, `Negate = false`).
-2. Nối chân `GUARD.Out` → khối **`TP`** (`DurationValueText = "750"`, `TimeUnit = "ms"`, `OutputTag = DO2`, `CustomLabel = "Xung Chiết 750ms"`).
-3. Nối tiếp `TP.Q` → **[`ACTION`](/vi/blocks/action)** (`ActionType = INC_COUNTER`, `TargetTag = VREG_R1`, `ActionParam = 1`) để cộng sản lượng mỗi lần bơm thành công.
+1. Đặt khối `INPUT` (`Tag = DI0`) → [`TRIGGER`](/vi/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 15` ms lọc nhiễu lóa vỏ chai) → [`GUARD`](/vi/blocks/guard) (`GuardTag = DI1`, `Negate = false`).
+2. Nối chân `GUARD.Out` → khối `TP` (`DurationValueText = "750"`, `TimeUnit = "ms"`, `OutputTag = DO2`, `CustomLabel = "Xung Chiết 750ms"`).
+3. Nối tiếp `TP.Q` → [`ACTION`](/vi/blocks/action) (`ActionType = INC_COUNTER`, `TargetTag = VREG_R1`, `ActionParam = 1`) để cộng sản lượng mỗi lần bơm thành công.
 4. Nhấn `F5` kiểm thử: bật `DI1 = 1`, gạt `DI0` lên `1` và **giữ nguyên `DI0 = 1`** (giả lập kẹt chai trước cảm biến). Xác nhận van `DO2` chỉ mở đúng `750 ms` rồi ngắt hẳn về `0`, không bao giờ phun lặp cho tới khi `DI0` hạ về `0` và đón chai mới.
 
 <div class="synx-node-chain">

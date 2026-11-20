@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt Chức năng & Ngữ nghĩa Thực thi
 
-Khối **`COMPARATOR`** (`CMP`) là hàm toán tử so sánh khóa chặt theo kiểu dữ liệu, thực hiện đối chiếu liên tục giá trị Tag hoặc đại lượng vật lý đã hiệu chuẩn ở ngõ vào (`In`) với một hoặc hai ngưỡng tham chiếu (`ThresholdLo`, `ThresholdHi`) và xuất ra tín hiệu logic nhị phân `BOOL` thuần túy (`Out` = `TRUE` hoặc `FALSE`) ở mọi chu kỳ quét.
+Khối `COMPARATOR` (`CMP`) là hàm toán tử so sánh khóa chặt theo kiểu dữ liệu, thực hiện đối chiếu liên tục giá trị Tag hoặc đại lượng vật lý đã hiệu chuẩn ở ngõ vào (`In`) với một hoặc hai ngưỡng tham chiếu (`ThresholdLo`, `ThresholdHi`) và xuất ra tín hiệu logic nhị phân `BOOL` thuần túy (`Out` = `TRUE` hoặc `FALSE`) ở mọi chu kỳ quét.
 
 - **Đánh giá Khóa Chặt theo Kiểu Vật lý:** Ngay khi nối dây từ khối [`INPUT`](/vi/blocks/input) hoặc [`SCALE`](/vi/blocks/scale) vào chân `In`, khối `COMPARATOR` tự động khóa chế độ toán học và bộ định dạng ô nhập trên Inspector khớp hoàn toàn với kiểu dữ liệu nguồn (`INT32`, số thực IEEE-754 `REAL` hoặc `BOOL`).
 - **Dung sai Epsilon An toàn cho Số thực (`REAL`):** Phép so sánh bằng tuyệt đối từng bit trên số thực dấu phẩy động IEEE-754 thường xuyên gây sai lệch do làm tròn nhị phân. Khi đầu vào mang kiểu `REAL` (`Float32`), `COMPARATOR` tự động áp dụng vùng dung sai công nghiệp `1e-5` (`0.00001`) cho hai toán tử `EQ` (`==`) và `NEQ` (`!=`).
@@ -93,10 +93,10 @@ Tại bồn trung hòa nước thải trạm rửa CIP nhà máy thực phẩm, 
 
 ### Trình tự Đấu nối trên Canvas
 
-1. Đấu nối `INPUT (AI1)` → **[`SCALE`](/vi/blocks/scale)** (`RawMin = 4000`, `RawMax = 20000`, `EngMin = 0.0`, `EngMax = 14.0`, `OutputTag = VREG2`).
-2. Chọn khối `SCALE` rồi nhấp thêm khối **`COMPARATOR`** trên thanh công cụ. Hệ thống tự động nối dây `SCALE.Out → COMPARATOR.In` và khóa nhãn kiểu dữ liệu thành `REAL`.
-3. Trên bảng **Inspector** của `COMPARATOR`, chọn `CompareOp = BETWEEN`, nhập `ThresholdLo = 6.5` và `ThresholdHi = 8.5`. Quan sát biểu thức trên thân khối hiển thị `6.5 <= VREG2 <= 8.5`.
-4. Nối tiếp `COMPARATOR.Out` → **[`TRIGGER`](/vi/blocks/trigger)** (`TriggerType = ON_RISE`, `ForMs = 3000`) → **[`ACTION`](/vi/blocks/action)** (`ActionType = SET_TAG`, `TargetTag = DO4`, `ActionParam = 1`).
+1. Đấu nối `INPUT (AI1)` → [`SCALE`](/vi/blocks/scale) (`RawMin = 4000`, `RawMax = 20000`, `EngMin = 0.0`, `EngMax = 14.0`, `OutputTag = VREG2`).
+2. Chọn khối `SCALE` rồi nhấp thêm khối `COMPARATOR` trên thanh công cụ. Hệ thống tự động nối dây `SCALE.Out → COMPARATOR.In` và khóa nhãn kiểu dữ liệu thành `REAL`.
+3. Trên bảng Inspector của `COMPARATOR`, chọn `CompareOp = BETWEEN`, nhập `ThresholdLo = 6.5` và `ThresholdHi = 8.5`. Quan sát biểu thức trên thân khối hiển thị `6.5 <= VREG2 <= 8.5`.
+4. Nối tiếp `COMPARATOR.Out` → [`TRIGGER`](/vi/blocks/trigger) (`TriggerType = ON_RISE`, `ForMs = 3000`) → [`ACTION`](/vi/blocks/action) (`ActionType = SET_TAG`, `TargetTag = DO4`, `ActionParam = 1`).
 5. Nhấn `F5` chạy mô phỏng: bơm giá trị tương ứng `pH = 7.2` (`AI1 = 12228`), quan sát khối `COMPARATOR` bật `✓ TRUE`, chờ bộ lọc `TRIGGER` đếm đủ `3000 ms` và xác nhận van `DO4` đóng lên mức `1`.
 
 <div class="synx-node-chain">

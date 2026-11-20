@@ -127,6 +127,7 @@ public sealed class TagWriteOwnershipService
     public static TagWriteOwnershipService Instance => _instance.Value;
 
     private readonly List<WeakFunc> _providers = new();
+    private readonly Dictionary<string, WeakFunc> _keyedProviders = new();
     private readonly List<WeakAction> _weakSubscribers = new();
     private readonly object _lock = new();
 
@@ -178,6 +179,35 @@ public sealed class TagWriteOwnershipService
     }
 
     /// <summary>
+    /// Đăng ký nhà cung cấp chiếm dụng Tag theo khóa duy nhất (ví dụ: "ModbusPort_0").
+    /// Nếu đã có nhà cung cấp trước đó cùng khóa, nhà cung cấp mới sẽ ghi đè ngay lập tức
+    /// để ngăn chặn xung đột ma (phantom conflict) từ các ViewModel cũ chưa được GC thu hồi.
+    /// </summary>
+    /// <param name="key">Khóa định danh nguồn duy nhất (ví dụ "ModbusPort_0").</param>
+    /// <param name="provider">Hàm ủy quyền cung cấp danh sách chiếm dụng.</param>
+    public void RegisterKeyedProvider(string key, Func<IEnumerable<TagClaimEntry>> provider)
+    {
+        if (string.IsNullOrEmpty(key) || provider == null) return;
+        lock (_lock)
+        {
+            _keyedProviders[key] = new WeakFunc(provider);
+        }
+    }
+
+    /// <summary>
+    /// Hủy đăng ký nhà cung cấp theo khóa duy nhất.
+    /// </summary>
+    /// <param name="key">Khóa định danh nguồn cần hủy.</param>
+    public void UnregisterKeyedProvider(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return;
+        lock (_lock)
+        {
+            _keyedProviders.Remove(key);
+        }
+    }
+
+    /// <summary>
     /// Hủy đăng ký nhà cung cấp.
     /// </summary>
     public void UnregisterProvider(Func<IEnumerable<TagClaimEntry>> provider)
@@ -204,6 +234,7 @@ public sealed class TagWriteOwnershipService
         lock (_lock)
         {
             _providers.Clear();
+            _keyedProviders.Clear();
             _weakSubscribers.Clear();
         }
     }
@@ -250,7 +281,14 @@ public sealed class TagWriteOwnershipService
         lock (_lock)
         {
             _providers.RemoveAll(p => !p.IsAlive);
-            snapshot = new List<WeakFunc>(_providers);
+
+            var deadKeys = _keyedProviders.Where(kvp => !kvp.Value.IsAlive).Select(kvp => kvp.Key).ToList();
+            foreach (var deadKey in deadKeys)
+            {
+                _keyedProviders.Remove(deadKey);
+            }
+
+            snapshot = new List<WeakFunc>(_providers.Concat(_keyedProviders.Values));
         }
 
         foreach (var provider in snapshot)

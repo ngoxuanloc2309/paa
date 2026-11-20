@@ -77,7 +77,7 @@ public sealed class HardwareDevicePreset
             RetentiveRegisters = 32,
             Counters = 8,
             MaxRules = 100,
-            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.FLOAT32 | SPLC_HardwareCapabilities.MATH_ALU
         },
 
         // 2. REMOTE_IO - 4DI / 4DO Compact
@@ -117,7 +117,7 @@ public sealed class HardwareDevicePreset
             RetentiveRegisters = 32,
             Counters = 8,
             MaxRules = 100,
-            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER
+            HardwareCapabilities = SPLC_HardwareCapabilities.BASE_LOGIC | SPLC_HardwareCapabilities.RETENTIVE | SPLC_HardwareCapabilities.MODBUS_MASTER | SPLC_HardwareCapabilities.FLOAT32 | SPLC_HardwareCapabilities.MATH_ALU
         },
 
         // 4. REMOTE_IO - Wi-Fi Wireless 4DI / 4DO
@@ -144,7 +144,9 @@ public sealed class HardwareDevicePreset
                                    SPLC_HardwareCapabilities.MODBUS_TCP |
                                    SPLC_HardwareCapabilities.WIFI |
                                    SPLC_HardwareCapabilities.MQTT_PUB |
-                                   SPLC_HardwareCapabilities.MQTT_SUB
+                                   SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.FLOAT32 |
+                                   SPLC_HardwareCapabilities.MATH_ALU
         },
 
         // 5. REMOTE_IO - Wireless Zigbee I/O 4DI / 4DO
@@ -196,7 +198,9 @@ public sealed class HardwareDevicePreset
                                    SPLC_HardwareCapabilities.MODBUS_MASTER |
                                    SPLC_HardwareCapabilities.WIFI |
                                    SPLC_HardwareCapabilities.MQTT_PUB |
-                                   SPLC_HardwareCapabilities.MQTT_SUB
+                                   SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.FLOAT32 |
+                                   SPLC_HardwareCapabilities.MATH_ALU
         },
 
         // 7. GATEWAY - RS485 / Ethernet / Wi-Fi
@@ -223,6 +227,8 @@ public sealed class HardwareDevicePreset
                                    SPLC_HardwareCapabilities.WIFI |
                                    SPLC_HardwareCapabilities.MQTT_PUB |
                                    SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.FLOAT32 |
+                                   SPLC_HardwareCapabilities.MATH_ALU |
                                    SPLC_HardwareCapabilities.MODBUS_MASTER |
                                    SPLC_HardwareCapabilities.MODBUS_TCP |
                                    SPLC_HardwareCapabilities.HTTP_CLIENT |
@@ -251,6 +257,8 @@ public sealed class HardwareDevicePreset
                                    SPLC_HardwareCapabilities.WIFI |
                                    SPLC_HardwareCapabilities.MQTT_PUB |
                                    SPLC_HardwareCapabilities.MQTT_SUB |
+                                   SPLC_HardwareCapabilities.FLOAT32 |
+                                   SPLC_HardwareCapabilities.MATH_ALU |
                                    SPLC_HardwareCapabilities.MODBUS_MASTER |
                                    SPLC_HardwareCapabilities.MODBUS_TCP |
                                    SPLC_HardwareCapabilities.HTTP_CLIENT |

@@ -978,11 +978,19 @@ public partial class ModbusWriteConfigDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Lấy danh sách các Tag tương thích theo kiểu dữ liệu Modbus từ TagCatalog.
+    /// Lấy danh sách các Tag tương thích theo FunctionCode và kiểu dữ liệu Modbus từ TagCatalog.
     /// </summary>
     public IEnumerable<TagModel> GetCompatibleTagsForDataType(ModbusDataType dataType)
     {
-        return TagCatalog.GetFilteredTags(TagAccessRole.ReadSource, dataType, includeNone: true);
+        if (dataType == ModbusDataType.Bool)
+        {
+            return TagCatalog.GetFilteredTags(TagAccessRole.ReadSource, ModbusDataType.Bool, includeNone: true);
+        }
+        else
+        {
+            return TagCatalog.GetFilteredTags(TagAccessRole.ReadSource, dataType, includeNone: true)
+                .Where(t => t.Kind == TagKind.None || (!t.IsDigital && t.DataType != SimplePLC.Domain.Enums.TagDataType.Boolean));
+        }
     }
 
     [RelayCommand]

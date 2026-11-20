@@ -7,7 +7,7 @@
   <span><strong>Tiêu chuẩn:</strong> ANSI/ISA-101.01 &bull; Microsoft Fluent 2</span>
 </div>
 
-Giao diện **SynaptiX IDE** được thiết kế tuân thủ nghiêm ngặt chuẩn công thái học phòng điều khiển **ANSI/ISA-101 ("Nguyên lý Xám — The Gray Principle")** nhằm bảo vệ thị lực kỹ sư trong suốt ca làm việc kéo dài 8–12 giờ: 90% diện tích màn hình sử dụng tông xám đá phiến trung tính chống chói, dành trọn 10% màu sắc bão hòa độ tương phản cao cho các trạng thái vận hành thực tế — **Xanh Lục Bảo** (Đã kết nối / Dây dẫn có điện / Chạy tốt), **Vàng Hổ Phách** (Cảnh báo / Cưỡng bức biến / Chờ biên dịch lại), **Đỏ Thẫm** (Lỗi biên dịch / Khóa cổng nạp) và **Xanh Dầu Công nghiệp** (Đối tượng đang chọn).
+Giao diện SynaptiX IDE được thiết kế tuân thủ nghiêm ngặt chuẩn công thái học phòng điều khiển **ANSI/ISA-101 ("Nguyên lý Xám — The Gray Principle")** nhằm bảo vệ thị lực kỹ sư trong suốt ca làm việc kéo dài 8–12 giờ: 90% diện tích màn hình sử dụng tông xám đá phiến trung tính chống chói, dành trọn 10% màu sắc bão hòa độ tương phản cao cho các trạng thái vận hành thực tế — **Xanh Lục Bảo** (Đã kết nối / Dây dẫn có điện / Chạy tốt), **Vàng Hổ Phách** (Cảnh báo / Cưỡng bức biến / Chờ biên dịch lại), **Đỏ Thẫm** (Lỗi biên dịch / Khóa cổng nạp) và **Xanh Dầu Công nghiệp** (Đối tượng đang chọn).
 
 ![Giải phẫu Toàn cảnh Bàn làm việc Kỹ thuật SynaptiX IDE](/images/synaptix_main_anatomy.png)
 
@@ -15,7 +15,7 @@ Giao diện **SynaptiX IDE** được thiết kế tuân thủ nghiêm ngặt ch
 
 ## Kiến trúc Bàn làm việc 6 Phân vùng (6-Zone Workbench)
 
-Cửa sổ chính của **SynaptiX IDE** được quy hoạch thành 6 phân vùng chức năng cố định, không chồng lấp hộp thoại nổi, giúp kỹ sư luôn kiểm soát trọn vẹn ngữ cảnh hệ thống:
+Cửa sổ chính của SynaptiX IDE được quy hoạch thành 6 phân vùng chức năng cố định, không chồng lấp hộp thoại nổi, giúp kỹ sư luôn kiểm soát trọn vẹn ngữ cảnh hệ thống:
 
 <div class="synx-ide-mockup">
   <div class="synx-ide-topbar">
@@ -66,9 +66,9 @@ Nằm dọc theo cạnh trên cùng của cửa sổ, Phân vùng 1 kết hợp 
 
 - **Công tắc Phân đoạn Giao thức (`USB CDC` vs. `Modbus TCP`):** Chuyển đổi tức thời giữa cáp USB tại chỗ và kết nối mạng LAN từ xa bên trong khung chọn cố định chiều rộng `210 px` chống giật bố cục:
   - **Chế độ `USB CDC`:** Liệt kê danh sách cổng `COMx` khả dụng kèm nút **Làm mới cổng (Refresh Ports)** một chạm.
-  - **Chế độ `Modbus TCP`:** Cho phép nhập trực tiếp cặp **`Địa chỉ IP : Cổng`** (ví dụ `192.168.1.50 : 502`).
+  - **Chế độ `Modbus TCP`:** Cho phép nhập trực tiếp cặp `Địa chỉ IP : Cổng` (ví dụ `192.168.1.50 : 502`).
 - **Tổ hợp Lệnh Vòng đời Thiết bị & Phím chức năng:**
-  - **Kết nối / Ngắt kết nối (`F4`):** Mở hoặc đóng phiên giao tiếp trực tuyến có kiểm soát với **Thiết bị Biên SynaptiX**.
+  - **Kết nối / Ngắt kết nối (`F4`):** Mở hoặc đóng phiên giao tiếp trực tuyến có kiểm soát với Thiết bị Biên SynaptiX.
   - **Mô phỏng Offline (`F5`):** Khởi chạy nhân mô phỏng chu kỳ thực ngay trên máy tính không cần phần cứng.
   - **Đọc chương trình từ thiết bị (`F6` — Upload):** Tải ngược cấu hình đang vận hành trên bộ điều khiển về IDE.
   - **Biên dịch kiểm tra logic (`F7` — Compile):** Thẩm định toàn bộ dây nối, kiểu dữ liệu Tag và giới hạn tài nguyên, hạ bậc sơ đồ xuống bảng luật tất định.
@@ -85,19 +85,19 @@ Nằm bên trái thanh điều hướng, 7 thẻ (Tab) không gian làm việc �
 
 | Phím tắt | Không gian Làm việc | Nhiệm vụ Kỹ thuật Trọng tâm | Tài liệu Chi tiết |
 | :---: | :--- | :--- | :--- |
-| `Ctrl+1` | **1. Thiết bị (Device)** | Kiểm tra định danh phần cứng, phiên bản FW/HW, phân bổ tài nguyên, cấu hình RS-485, MQTT/Wi-Fi và đồng bộ RTC. | [Tab Thiết bị — Device](/vi/workspaces/device-tab) |
-| `Ctrl+2` | **2. Sơ đồ Logic (Logic Graph)** | Thiết kế trực quan các khối điều khiển & IIoT trên mặt vẽ vô tận (hoặc cấu hình kênh DTU khi chọn thiết bị DTU). | [Tab Sơ đồ Logic](/vi/workspaces/logic-graph-tab) |
-| `Ctrl+3` | **3. Danh mục Biến (Tag Catalog)** | Quản lý tối đa 128 Tag vật lý/ảo, đặt tên gợi nhớ Alias, chọn kiểu `BOOL`/`INT32`/`REAL` và nhập/xuất CSV. | [Tab Danh mục Biến](/vi/workspaces/tag-catalog-tab) |
-| `Ctrl+4` | **4. Bảng Luật (Rule Table)** | Kiểm toán danh sách luật 4 giai đoạn sau biên dịch dưới dạng bảng cô đọng và truy ngược về sơ đồ gốc. | [Tab Bảng Luật](/vi/workspaces/rule-table-tab) |
-| `Ctrl+5` | **5. Thư viện Mẫu (Blueprints)** | Khởi tạo nhanh các mẫu mạch tự động hóa & truyền thông IIoT chuẩn công nghiệp đã kiểm chứng sẵn. | [Tab Thư viện Mẫu](/vi/workspaces/blueprints-tab) |
-| `Ctrl+6` | **6. Triển khai (Deploy)** | Đối chiếu cổng kiểm tra tương thích phần cứng, thanh dung lượng tài nguyên và nạp nguyên tử hai pha. | [Tab Triển khai](/vi/workspaces/deploy-tab) |
-| `Ctrl+7` | **7. Giám sát (Live Watch)** | Theo dõi bảng giá trị thực 20 FPS, vẽ đồ thị xu hướng đa kênh, cưỡng bức/ghi biến và ghi nhật ký CSV. | [Tab Giám sát Live Watch](/vi/workspaces/live-watch-tab) |
+| `Ctrl+1` | 1. Thiết bị (Device) | Kiểm tra định danh phần cứng, phiên bản FW/HW, phân bổ tài nguyên, cấu hình RS-485, MQTT/Wi-Fi và đồng bộ RTC. | [Tab Thiết bị — Device](/vi/workspaces/device-tab) |
+| `Ctrl+2` | 2. Sơ đồ Logic (Logic Graph) | Thiết kế trực quan các khối điều khiển & IIoT trên mặt vẽ vô tận (hoặc cấu hình kênh DTU khi chọn thiết bị DTU). | [Tab Sơ đồ Logic](/vi/workspaces/logic-graph-tab) |
+| `Ctrl+3` | 3. Danh mục Biến (Tag Catalog) | Quản lý tối đa 128 Tag vật lý/ảo, đặt tên gợi nhớ Alias, chọn kiểu `BOOL`/`INT32`/`REAL` và nhập/xuất CSV. | [Tab Danh mục Biến](/vi/workspaces/tag-catalog-tab) |
+| `Ctrl+4` | 4. Bảng Luật (Rule Table) | Kiểm toán danh sách luật 4 giai đoạn sau biên dịch dưới dạng bảng cô đọng và truy ngược về sơ đồ gốc. | [Tab Bảng Luật](/vi/workspaces/rule-table-tab) |
+| `Ctrl+5` | 5. Thư viện Mẫu (Blueprints) | Khởi tạo nhanh các mẫu mạch tự động hóa & truyền thông IIoT chuẩn công nghiệp đã kiểm chứng sẵn. | [Tab Thư viện Mẫu](/vi/workspaces/blueprints-tab) |
+| `Ctrl+6` | 6. Triển khai (Deploy) | Đối chiếu cổng kiểm tra tương thích phần cứng, thanh dung lượng tài nguyên và nạp nguyên tử hai pha. | [Tab Triển khai](/vi/workspaces/deploy-tab) |
+| `Ctrl+7` | 7. Giám sát (Live Watch) | Theo dõi bảng giá trị thực 20 FPS, vẽ đồ thị xu hướng đa kênh, cưỡng bức/ghi biến và ghi nhật ký CSV. | [Tab Giám sát Live Watch](/vi/workspaces/live-watch-tab) |
 
 ---
 
 ## Phân vùng 3: Hộp Công cụ Khối Hàm & Phím tắt Cấu hình Giao thức
 
-Khi mở **Sơ đồ Logic** (`Ctrl+2`), cột bên trái rộng `265 px` hiển thị **Hộp Công cụ Khối Hàm (Block Toolbox)**:
+Khi mở Sơ đồ Logic (`Ctrl+2`), cột bên trái rộng `265 px` hiển thị **Hộp Công cụ Khối Hàm (Block Toolbox)**:
 
 1. **Ô Tìm kiếm Lọc Tức thời:** Gõ nhanh tên khối (như `TON`, `MQTT`, `SCALE`, `Guard`) để lọc danh sách theo thời gian thực.
 2. **8 Nhóm Chức năng Kiểu Thanh Ray DIN:** Phân loại khoa học toàn bộ [18 Khối Hàm](/vi/blocks/overview):
@@ -125,7 +125,7 @@ Phân vùng 4 là không gian thiết kế trung tâm:
 - **Lưới Kỹ thuật Chính xác 20 px:** Hỗ trợ kéo trượt/phóng thu mượt mà, quét chọn nhiều khối, đi dây vuông góc 90 độ chuẩn bản vẽ điện với vùng bắt chuột thông minh rộng `12 px`, cùng bộ phím tắt căn chỉnh kiểu CAD (`Alt + Phím mũi tên` căn biên, `Alt+Shift+H/V` dàn đều khoảng cách, `Alt+G` bắt dính/ẩn hiện lưới).
 - **Ngăn Mô phỏng Offline Tích hợp (`F5`):** Trượt mở gọn gàng ngay cạnh dưới mặt vẽ khi bật chế độ mô phỏng để kỹ sư gạt thử công tắc `DI`, kéo thanh trượt `AI` và bơm gói JSON giả lập trong khi mắt vẫn quan sát trực tiếp luồng dây sáng xanh bên trên.
 - **Cổng Phê duyệt An toàn AI (Human Affirmation Gate):** Khi [SynaptiX AI Copilot](/vi/tools/ai-copilot) đề xuất sơ đồ mạch, các khối xem trước dạng nét đứt sẽ hiện kèm thanh xác nhận **Chấp nhận (Accept) / Hủy bỏ (Reject)** và huy hiệu kiểm chứng `0 xung đột ghi`.
-- **Tự động Chuyển sang DTU Gateway Studio:** Khi dự án chọn mẫu **`SynaptiX DTU`**, Phân vùng 4 tự động chuyển sang giao diện bảng cấu hình tuyến đọc RS-485 và đẩy dữ liệu đám mây chuyên biệt của [DTU Gateway Studio](/vi/tools/dtu-gateway-studio).
+- **Tự động Chuyển sang DTU Gateway Studio:** Khi dự án chọn mẫu `SynaptiX DTU`, Phân vùng 4 tự động chuyển sang giao diện bảng cấu hình tuyến đọc RS-485 và đẩy dữ liệu đám mây chuyên biệt của [DTU Gateway Studio](/vi/tools/dtu-gateway-studio).
 
 ---
 
@@ -153,7 +153,7 @@ Neo dọc cạnh dưới cùng (cao `36 px`), Phân vùng 6 tích hợp nhóm n�
   - **Huy hiệu Cấu hình Thiết bị Đích:** Hiển thị tên dòng thiết bị và tổng số Tag; nhấp vào để mở hộp thoại thông tin chi tiết phần cứng.
 
 ::: tip Chế độ Toàn màn hình Khi Làm việc Trên Laptop Hiện trường (`F11`)
-Nhấn phím **`F11`** bất kỳ lúc nào để bật/tắt chế độ Toàn màn hình (Full Screen), giúp mở rộng tối đa diện tích mặt vẽ sơ đồ và đồ thị xu hướng trên các màn hình laptop kỹ thuật kích thước gọn `1366 x 768`.
+Nhấn phím `F11` bất kỳ lúc nào để bật/tắt chế độ Toàn màn hình (Full Screen), giúp mở rộng tối đa diện tích mặt vẽ sơ đồ và đồ thị xu hướng trên các màn hình laptop kỹ thuật kích thước gọn `1366 x 768`.
 :::
 
 ---
